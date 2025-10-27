@@ -1,0 +1,42 @@
+{
+  "React Native Component with StyleSheet": {
+    "prefix": "reactNativeStyle",
+    "body": [
+      "import React from 'react';",
+      "import { StyleSheet, Text, View } from 'react-native';",
+      "",
+      "export default function ${1:ComponentName}() {",
+      "\treturn (",
+      "\t\t<View style={styles.container}>",
+      "\t\t\t<Text>${2:Hello World}</Text>",
+      "\t\t</View>",
+      "\t);",
+      "}",
+      "",
+      "const styles = StyleSheet.create({",
+      "\tcontainer: {",
+      "\t\tflex: 1,",
+      "\t\tjustifyContent: 'center',",
+      "\t\talignItems: 'center'",
+      "\t}",
+      "});"
+    ],
+    "description": "Creates a React Native component with a StyleSheet."
+  },
+  "React Native Component (No Style)": {
+    "prefix": "reactNativeNoStyle",
+    "body": [
+      "import React from 'react';",
+      "import { Text, View } from 'react-native';",
+      "",
+      "export default function ${1:ComponentName}() {",
+      "\treturn (",
+      "\t\t<View>",
+      "\t\t\t<Text>${2:Hello World}</Text>",
+      "\t\t</View>",
+      "\t);",
+      "}"
+    ],
+    "description": "Creates a React Native component without a StyleSheet."
+  }
+}
