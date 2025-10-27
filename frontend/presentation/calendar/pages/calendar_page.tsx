@@ -1,9 +1,9 @@
+import React from 'react'
 import InAppNotification from '@/components/InAppNoti'
 import { useInAppNotification } from '@/hooks/useInAppNotification'
-import React from 'react'
-import { Button, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Button, Text, View } from 'react-native'
 
-export default function HomeTab() {
+export default function CalendarPage() {
   const { notification, showNotification, hideNotification } =
     useInAppNotification()
 
