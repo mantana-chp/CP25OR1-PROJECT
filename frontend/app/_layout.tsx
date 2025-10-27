@@ -11,9 +11,18 @@ import { NotificationProvider } from '@/context/NotificationContext'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 
 import * as Notifications from 'expo-notifications'
-
-import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
 import '@/global.css'
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
+import * as SplashScreen from 'expo-splash-screen'
+
+import {
+  useFonts,
+  Prompt_400Regular,
+  Prompt_500Medium,
+  Prompt_700Bold
+} from '@expo-google-fonts/prompt'
+
+import { useCallback } from 'react'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -31,6 +40,19 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme()
+  const [fontsLoaded] = useFonts({
+    Prompt_400Regular,
+    Prompt_500Medium,
+    Prompt_700Bold
+  })
+
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      await SplashScreen.hideAsync()
+    }
+  }, [fontsLoaded])
+
+  if (!fontsLoaded) return null
 
   return (
     <GluestackUIProvider mode="dark">
