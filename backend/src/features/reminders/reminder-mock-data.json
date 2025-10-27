@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "title": "Vet Appointment",
+    "date": "2025-10-28",
+    "time": "10:00",
+    "description": "Annual checkup for Max",
+    "status": "To Do",
+    "petId": "pet1"
+  },
+  {
+    "id": "2",
+    "title": "Give Flea Medication",
+    "date": "2025-10-29",
+    "time": "18:00",
+    "description": "Monthly flea and tick treatment",
+    "status": "To Do",
+    "petId": "pet1"
+  },
+  {
+    "id": "3",
+    "title": "Grooming Session",
+    "date": "2025-10-25",
+    "time": "14:30",
+    "description": "Full grooming for Bella",
+    "status": "Done",
+    "petId": "pet2"
+  },
+  {
+    "id": "4",
+    "title": "Vaccination Booster",
+    "date": "2025-11-01",
+    "time": "09:00",
+    "description": "Distemper booster for Max",
+    "status": "To Do",
+    "petId": "pet1"
+  },
+  {
+    "id": "5",
+    "title": "Walk in the park",
+    "date": "2025-10-27",
+    "time": "08:00",
+    "description": "Morning walk with Bella",
+    "status": "Done",
+    "petId": "pet2"
+  }
+]
