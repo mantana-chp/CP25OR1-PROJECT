@@ -9,10 +9,10 @@ import 'react-native-reanimated'
 
 import { NotificationProvider } from '@/context/NotificationContext'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-
-import * as Notifications from 'expo-notifications'
-import '@/global.css'
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
+
+import '@/global.css'
+import * as Notifications from 'expo-notifications'
 import * as SplashScreen from 'expo-splash-screen'
 
 import {
@@ -55,11 +55,9 @@ export default function RootLayout() {
   if (!fontsLoaded) return null
 
   return (
-    <GluestackUIProvider mode="dark">
+    <GluestackUIProvider mode="light">
       <NotificationProvider>
-        <ThemeProvider
-          value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-        >
+        <ThemeProvider value={DefaultTheme}>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen

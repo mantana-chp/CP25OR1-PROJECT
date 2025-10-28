@@ -2,9 +2,9 @@ import { Tabs } from 'expo-router'
 import React from 'react'
 
 import { HapticTab } from '@/components/haptic-tab'
-import { IconSymbol } from '@/components/ui/icon-symbol'
 import { Colors } from '@/constants/theme'
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { Calendar, PawPrintIcon } from 'lucide-react-native'
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
@@ -20,27 +20,20 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          // title: 'Calendar',
+          title: 'Calendar',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            // <IconSymbol size={28} name="house.fill" color={color} />
+            <Calendar size={28} color={color} />
           )
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="pet_profile"
         options={{
-          title: 'Explore',
+          title: 'Pet Profile',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
-          )
-        }}
-      />
-      <Tabs.Screen
-        name="setting"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
+            // <IconSymbol size={28} name="paperplane.fill" color={color} />
+            <PawPrintIcon size={28} color={color} />
           )
         }}
       />
