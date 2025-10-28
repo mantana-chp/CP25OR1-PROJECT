@@ -1,27 +1,13 @@
+import _ from 'lodash'
 import React, { useState } from 'react'
+
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { thaiMonths, weekDays } from '@/domain/calendar.domain'
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const today = new Date()
-
-  const thaiMonths = [
-    'มกราคม',
-    'กุมภาพันธ์',
-    'มีนาคม',
-    'เมษายน',
-    'พฤษภาคม',
-    'มิถุนายน',
-    'กรกฎาคม',
-    'สิงหาคม',
-    'กันยายน',
-    'ตุลาคม',
-    'พฤศจิกายน',
-    'ธันวาคม'
-  ]
-
-  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -90,7 +76,8 @@ export default function Calendar() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerText} className="font-prompt">
-          {thaiMonths[currentDate.getMonth()]} {currentDate.getFullYear() + 543}
+          {thaiMonths[currentDate.getMonth()].name_th}{' '}
+          {currentDate.getFullYear() + 543}
         </Text>
         <View style={styles.navigation}>
           <TouchableOpacity onPress={previousMonth} style={styles.navButton}>
@@ -104,7 +91,7 @@ export default function Calendar() {
 
       {/* Week days */}
       <View style={styles.weekDaysRow}>
-        {weekDays.map((day, index) => (
+        {_.map(weekDays, (day, index) => (
           <View key={index} style={styles.weekDayCell}>
             <Text style={styles.weekDayText}>{day}</Text>
           </View>
@@ -113,7 +100,7 @@ export default function Calendar() {
 
       {/* Calendar grid */}
       <View style={styles.calendarGrid}>
-        {days.map((item, index) => (
+        {_.map(days, (item, index) => (
           <TouchableOpacity
             key={index}
             style={[styles.dayCell, item.isToday && styles.todayCell]}
@@ -130,7 +117,7 @@ export default function Calendar() {
               {item.day}
             </Text>
             {/* Event indicators - customize based on your data */}
-            {item.hasEvents && (
+            {/* {item.hasEvents && (
               <View style={styles.eventIndicators}>
                 <View style={[styles.dot, { backgroundColor: '#10b981' }]} />
                 <View style={[styles.dot, { backgroundColor: '#3b82f6' }]} />
@@ -141,13 +128,13 @@ export default function Calendar() {
                   </Text>
                 )}
               </View>
-            )}
-            {item.day === 30 && (
+            )} */}
+            {/* {item.day === 30 && (
               <View style={styles.eventIndicators}>
                 <View style={[styles.dot, { backgroundColor: '#10b981' }]} />
                 <View style={[styles.dot, { backgroundColor: '#ec4899' }]} />
               </View>
-            )}
+            )} */}
           </TouchableOpacity>
         ))}
       </View>
