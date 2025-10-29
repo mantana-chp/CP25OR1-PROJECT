@@ -1,9 +1,9 @@
 import _ from 'lodash'
 import React, { useState } from 'react'
 
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { thaiMonths, weekDays } from '@/domain/calendar.domain'
+import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     fontWeight: '500'
   },
   inactiveDayText: {
-    color: '#9ca3af'
+    color: '#A6A6A6'
   },
   todayText: {
     fontWeight: '700'
