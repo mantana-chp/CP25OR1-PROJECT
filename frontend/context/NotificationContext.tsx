@@ -1,4 +1,4 @@
-import { registerForPushNotificationsAsync } from '@/utils/registerForPushNotificationsAsync'
+import { registerForPushNotificationsAsync } from '@/src/utils/registerForPushNotificationsAsync'
 import * as Notifications from 'expo-notifications'
 import React, {
   createContext,
