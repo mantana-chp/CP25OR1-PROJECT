@@ -1,12 +1,5 @@
 import { Tabs } from 'expo-router'
 import React from 'react'
-<<<<<<< HEAD
-
-import { HapticTab } from '@/components/haptic-tab'
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { Colors } from '@/constants/theme'
-import { useColorScheme } from '@/hooks/use-color-scheme'
-=======
 import { StyleSheet, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
@@ -24,7 +17,6 @@ const CustomTabBarIcon = ({ icon: Icon, color, focused }: any) => {
     </View>
   )
 }
->>>>>>> 38c038a3db8ec64c853c8e07c9de93637a272fdc
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
@@ -32,11 +24,6 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-<<<<<<< HEAD
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab
-=======
         tabBarActiveTintColor: '#fff',
         tabBarInactiveTintColor: '#fff',
         headerShown: false,
@@ -54,35 +41,11 @@ export default function TabLayout() {
           fontSize: 0 // Hide labels
         },
         tabBarShowLabel: false
->>>>>>> 38c038a3db8ec64c853c8e07c9de93637a272fdc
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-<<<<<<< HEAD
-          // title: 'Calendar',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
-          )
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
-          )
-        }}
-      />
-      <Tabs.Screen
-        name="setting"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
-=======
           title: 'Calendar',
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon icon={Calendar} color={color} focused={focused} />
@@ -112,15 +75,12 @@ export default function TabLayout() {
               color={color}
               focused={focused}
             />
->>>>>>> 38c038a3db8ec64c853c8e07c9de93637a272fdc
           )
         }}
       />
     </Tabs>
   )
 }
-<<<<<<< HEAD
-=======
 
 const styles = StyleSheet.create({
   iconContainer: {
@@ -135,4 +95,3 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.25)'
   }
 })
->>>>>>> 38c038a3db8ec64c853c8e07c9de93637a272fdc
