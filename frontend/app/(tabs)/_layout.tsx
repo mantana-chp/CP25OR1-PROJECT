@@ -3,7 +3,7 @@ import React from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
-import { useColorScheme } from '@/hooks/use-color-scheme'
+import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
 import { Calendar, PawPrintIcon } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused }: any) => {

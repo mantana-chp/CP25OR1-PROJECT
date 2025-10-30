@@ -1,3 +1,5 @@
+import { IReminder } from '@/src/domain/calendar.domain'
+import { Circle, Clock, Info, Plus } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   ScrollView,
@@ -13,65 +15,78 @@ export default function ReminderList() {
   const [activeTab, setActiveTab] = useState<TabType>('todo')
 
   // Mock data - replace with your actual data
-  const todoReminders = [
-    { id: 1, title: 'ตรวจสุขภาพประจำปี', date: '15 พ.ย. 2568', time: '14:00' },
-    { id: 2, title: 'ฉีดวัคซีน', date: '20 พ.ย. 2568', time: '10:30' },
-    { id: 3, title: 'ตัดเล็บ', date: '25 พ.ย. 2568', time: '16:00' }
-  ]
-
-  const doneReminders = [
+  const todoReminders: IReminder[] = [
     {
-      id: 4,
-      title: 'อาบน้ำ',
-      date: '10 พ.ย. 2568',
-      time: '15:00',
-      completed: true
+      id: 1,
+      title: 'พาไปว่ายน้ำ',
+      location: 'ร้อคเก็ต',
+      reminderDate: '17/09/2568',
+      time: '13.30 น.',
+      status: 'todo'
     },
     {
-      id: 5,
-      title: 'ให้ยาถ่ายพยาธิ',
-      date: '5 พ.ย. 2568',
-      time: '09:00',
-      completed: true
+      id: 2,
+      title: 'อาบน้ำตัดขน',
+      location: 'ร้อคเก็ต',
+      reminderDate: '24/09/2568',
+      time: '09.30 น.',
+      status: 'todo'
     }
   ]
 
-    const reminders = activeTab === 'todo' ? todoReminders : doneReminders
+  const doneReminders: IReminder[] = [
+    {
+      id: 3,
+      title: 'ตรวจสุขภาพ',
+      location: 'คลินิกสัตว์เลี้ยง',
+      reminderDate: '10/09/2568',
+      time: '15.00 น.',
+      status: 'done'
+    }
+  ]
+
+  const reminders = activeTab === 'todo' ? todoReminders : doneReminders
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        onPress={() => setActiveTab('todo')}
-        style={styles.tabButton}
-      >
-        <Text
-          style={[
-            styles.inactiveText,
-            activeTab === 'todo' && styles.activeText
-          ]}
+      {/* Tab Header */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          onPress={() => setActiveTab('todo')}
+          style={styles.tabButton}
         >
-          นัดหมาย
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'todo' && styles.activeTabText
+            ]}
+          >
+            นัดหมาย
+          </Text>
+          {activeTab === 'todo' && <View style={styles.activeUnderline} />}
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => setActiveTab('done')}
-        style={styles.tabButton}
-      >
-        <Text
-          style={[
-            styles.inactiveText,
-            activeTab === 'done' && styles.activeText
-          ]}
+        <TouchableOpacity
+          onPress={() => setActiveTab('done')}
+          style={styles.tabButton}
         >
-          เสร็จสิ้น
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'done' && styles.activeTabText
+            ]}
+          >
+            เสร็จสิ้น
+          </Text>
+          {activeTab === 'done' && <View style={styles.activeUnderline} />}
+        </TouchableOpacity>
+      </View>
 
-      {/* Reminder Content */}
+      {/* IReminder Content */}
       <ScrollView
         style={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
         {reminders.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -84,105 +99,190 @@ export default function ReminderList() {
         ) : (
           reminders.map((reminder) => (
             <View key={reminder.id} style={styles.reminderCard}>
-              <View style={styles.reminderHeader}>
-                <Text style={styles.reminderTitle}>{reminder.title}</Text>
-                {activeTab === 'done' && (
-                  <View style={styles.completedBadge}>
-                    <Text style={styles.completedText}>✓</Text>
-                  </View>
-                )}
+              {/* Left side - Checkbox circle */}
+              <View style={styles.leftSection}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    reminder?.status === 'done' && styles.checkboxCompleted
+                  ]}
+                >
+                  {reminder?.status === 'done' && (
+                    <View style={styles.checkboxInner} />
+                  )}
+                </View>
               </View>
-              <Text style={styles.reminderDate}>
-                {reminder.date} • {reminder.time}
-              </Text>
+
+              {/* Middle section - Content */}
+              <View style={styles.middleSection}>
+                <Text style={styles.reminderTitle}>{reminder.title}</Text>
+
+                <View style={styles.infoRow}>
+                  <Circle size={16} color="#6B9AC4" fill="#6B9AC4" />
+                  <Text style={styles.locationText}>{reminder.location}</Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Clock size={16} color="#6B9AC4" />
+                  <Text style={styles.dateTimeText}>
+                    {reminder?.reminderDate}, {reminder.time}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Right side - Info button */}
+              <TouchableOpacity style={styles.infoButton}>
+                <Info size={24} color="#6B9AC4" />
+              </TouchableOpacity>
             </View>
           ))
         )}
       </ScrollView>
+
+      {/* Floating Add Button */}
+      <TouchableOpacity
+        style={styles.fabButton}
+        onPress={() => console.log('Add new reminder')}
+      >
+        <Plus size={32} color="#fff" strokeWidth={3} />
+      </TouchableOpacity>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    alignItems: 'flex-start',
-    backgroundColor: '#fff9f1',
-    marginTop: 24,
-    flexDirection: 'row',
-    gap: 24,
-    paddingLeft: 16,
+    flex: 1,
     width: '100%',
-    height: '100%'
+    backgroundColor: '#fff9f1',
+    borderRadius: 16
   },
-  inactiveText: {
-    color: '#A6A6A6',
-    fontSize: 17,
-    fontFamily: 'Prompt_400Regular',
-    paddingTop: 12
-  },
-  activeText: {
-    color: '#225877',
-    fontWeight: '600',
-    textDecorationLine: 'underline'
+  tabContainer: {
+    flexDirection: 'row',
+    gap: 32,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: '#fff9f1'
   },
   tabButton: {
-    paddingVertical: 12
+    paddingBottom: 8
+  },
+  tabText: {
+    color: '#C4C4C4',
+    fontSize: 20,
+    fontFamily: 'Prompt_400Regular'
+  },
+  activeTabText: {
+    color: '#225877',
+    fontFamily: 'Prompt_700Bold'
+  },
+  activeUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#225877'
   },
   contentContainer: {
-    flex: 1,
-    paddingTop: 16
+    flex: 1
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40
+    paddingVertical: 60
   },
   emptyText: {
-    color: '#A6A6A6',
+    color: '#C4C4C4',
     fontSize: 16,
     fontFamily: 'Prompt_400Regular'
   },
   reminderCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderLeftWidth: 6,
+    borderLeftColor: '#6B9AC4'
   },
-  reminderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8
+  leftSection: {
+    marginRight: 12
+  },
+  checkbox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#C4C4C4',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  checkboxCompleted: {
+    borderColor: '#6B9AC4',
+    backgroundColor: '#6B9AC4'
+  },
+  checkboxInner: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fff'
+  },
+  middleSection: {
+    flex: 1,
+    gap: 6
   },
   reminderTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    fontFamily: 'Prompt_400Regular',
-    flex: 1
+    color: '#225877',
+    fontFamily: 'Prompt_700Bold',
+    marginBottom: 4
   },
-  reminderDate: {
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  locationText: {
     fontSize: 14,
     color: '#666',
     fontFamily: 'Prompt_400Regular'
   },
-  completedBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#10b981',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  completedText: {
-    color: '#fff',
+  dateTimeText: {
     fontSize: 14,
-    fontWeight: 'bold'
+    color: '#666',
+    fontFamily: 'Prompt_400Regular'
+  },
+  infoButton: {
+    padding: 4
+  },
+  fabButton: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#6B9AC4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8
   }
 })
