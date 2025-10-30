@@ -52,10 +52,23 @@ export default function TabLayout() {
           )
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="pet_profile"
         options={{
           title: 'Pet Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={PawPrintIcon}
+              color={color}
+              focused={focused}
+            />
+          )
+        }}
+      /> */}
+      <Tabs.Screen
+        name="add_reminder"
+        options={{
+          title: 'Add Reminder',
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon
               icon={PawPrintIcon}

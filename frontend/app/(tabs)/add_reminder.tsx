@@ -1,9 +1,6 @@
- 
+import AddReminderPage from '@/src/presentation/pet_profile/pages/add_reminder_page'
 import React from 'react'
-import AddReminderPage from '@/presentation/reminder/pages/add_reminder_page'
 
 export default function AddReminderTab() {
-  return (
-    <AddReminderPage />
-  )
+  return <AddReminderPage />
 }
