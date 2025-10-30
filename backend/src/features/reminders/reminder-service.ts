@@ -1,33 +1,32 @@
 import * as reminderRepository from './reminder-repository';
-import { Reminder } from './reminder-types';
-import { REMINDER_STATUS } from '../../shared/constants';
+import { Reminder, CreateReminderInput, ReminderCreationData } from './reminder-types';
+import { mapPrismaReminderToReminder } from './reminder-mapper';
+import { NotFoundError, ApiError } from '../../shared/errors';
 
-export const getAllReminders = (): Reminder[] => {
-  return reminderRepository.findAll();
+export const getAllReminders = async (userId: string): Promise<Reminder[]> => {
+  return await reminderRepository.findAllByUserId(userId);
 };
 
-export const createNewReminder = (newReminderData: Omit<Reminder, 'id' | 'status'>): Reminder => {
-  // Duplicate check (business logic: same pet, same date, same title)
-  const isDuplicate = reminderRepository.findAll().some(
-    (r) =>
-      r.petId === newReminderData.petId &&
-      r.date === newReminderData.date &&
-      r.title === newReminderData.title
-  );
+export const getReminderById = async (id: string, userId: string): Promise<Reminder> => {
+  const reminder = await reminderRepository.findById(id);
 
-  if (isDuplicate) {
-    throw new Error("Duplicate reminder: A reminder with the same pet, date, and title already exists.");
+  if (!reminder) {
+    throw new NotFoundError('Reminder not found');
   }
 
-  // Generate ID (business logic, but can be delegated to repo for mock data)
-  const id = (reminderRepository.getReminderCount() + 1).toString();
+  if (reminder.user_id !== userId) {
+    throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
+  }
 
-  // Prepare reminder data with default status (business logic)
-  const reminderToCreate: Reminder = {
+  return mapPrismaReminderToReminder(reminder);
+};
+
+export const createNewReminder = async (newReminderData: CreateReminderInput, userId: string): Promise<Reminder> => {
+  const dataForRepo: ReminderCreationData = {
     ...newReminderData,
-    id,
-    status: REMINDER_STATUS.TO_DO,
+    user: { connect: { id: userId } },
+    pet: { connect: { id: "ddd11111-1111-1111-1111-111111111111" } },
+    reminder_categories: { connect: { id: "ccc11111-1111-1111-1111-111111111111" } }, // pet, reminder are fixed for sprint 1
   };
-
-  return reminderRepository.add(reminderToCreate);
+  return await reminderRepository.add(dataForRepo);
 };

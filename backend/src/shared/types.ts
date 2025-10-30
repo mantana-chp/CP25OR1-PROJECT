@@ -1,13 +1,16 @@
 import { API_RESPONSE_STATUS } from './constants';
 
-export interface Reminder {
+declare global {
+  namespace Express {
+    interface Request {
+      user?: UserPayload;
+    }
+  }
+}
+
+export interface UserPayload {
   id: string;
-  title: string;
-  date: string;
-  time?: string;
-  description?: string;
-  status: "To Do" | "Done" | "Overdue";
-  petId: string;
+  // need the installationid and device platform id in sprint2
 }
 
 export interface ApiResponse<T> {
@@ -23,5 +26,5 @@ export interface ApiErrorResponse {
     code: typeof API_RESPONSE_STATUS.FAILURE.CODE;
     description: string;
   };
-  errors?: Array<{ message: string; path?: string[] }>;
+  errors?: Array<{ message: string; path?: string[]; code?: number }>;
 }

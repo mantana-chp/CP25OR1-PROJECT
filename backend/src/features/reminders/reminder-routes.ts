@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import { getReminders, createReminder } from './reminder-controller';
+import { getReminders, createReminder, getReminderById } from './reminder-controller';
+import { authGuard } from '../../middlewares/authGuard';
 
 const router = Router();
 
-router.get('/', getReminders);
-router.post('/', createReminder);
+router.get('/', authGuard, getReminders);
+router.get('/:id', authGuard, getReminderById);
+router.post('/', authGuard, createReminder);
 
 export default router;

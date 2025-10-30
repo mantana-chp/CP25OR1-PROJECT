@@ -1,107 +1,99 @@
-# CP25OR1-PROJECT-TEST — Express Backend
+# Pet Health App - Backend Service
 
-Small, well-structured Express backend serving JSON APIs for the CP25OR1 project.
+This repository contains the backend service for the Pet Health mobile application. It is built with Express.js, TypeScript, and Prisma to provide a robust JSON API for managing pet health data, including reminders for appointments and medications.
 
-## Features
-- RESTful API using Express
-- Environment-based configuration
-- Request logging and basic error handling
-- Example endpoints and tests
+## Core Technologies
 
-## Prerequisites
-- Node.js 16+ (or LTS)
-- npm or yarn
-- Optional: Docker
+-   **Node.js & Express.js**: For the core web server and API routing.
+-   **TypeScript**: For type safety and improved developer experience.
+-   **PostgreSQL**: As the relational database.
+-   **Prisma**: As the next-generation ORM for database access and management.
+-   **Zod**: For request validation.
 
-## Quick start
-1. Clone the repository:
-  ```bash
-  git clone <repo-url> .
-  ```
-2. Install dependencies:
-  ```bash
-  npm install
-  # or
-  yarn
-  ```
-3. Create `.env` from `.env.example` and adjust variables:
-  ```
-  PORT=3000
-  NODE_ENV=development
-  DATABASE_URL=
-  JWT_SECRET=
-  ```
-4. Start the server:
-  ```bash
-  npm run dev
-  # or
-  yarn dev
-  ```
+## Getting Started
 
-## Available scripts
-- `npm run dev` — start in development (nodemon)
-- `npm start` — start production server
-- `npm test` — run test suite
-- `npm run lint` — run linter
-- `npm run build` — build (if TypeScript is used)
+### Prerequisites
 
-## Project structure
+-   Node.js (v16 or higher recommended)
+-   npm (v8 or higher recommended)
+-   PostgreSQL database running and accessible.
+
+### Installation & Setup
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <your-repository-url>
+    cd backend
+    ```
+
+2.  **Install dependencies:**
+    This command will install all necessary packages and automatically generate the Prisma client.
+    ```bash
+    npm install
+    ```
+
+3.  **Set up environment variables:**
+    Create a `.env` file in the root of the `backend` directory by copying the example file.
+    ```bash
+    cp .env.example .env
+    ```
+    Now, edit the `.env` file and add your database connection string:
+    ```
+    DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+    ```
+
+4.  **Run database migrations:**
+    Apply the database schema to your PostgreSQL database.
+    ```bash
+    npx prisma migrate dev
+    ```
+
+5.  **Start the development server:**
+    This will start the server with `nodemon`, which automatically restarts on file changes.
+    ```bash
+    npm run dev
+    ```
+    The server will be running at `http://localhost:3000`.
+
+## Available API Endpoints
+
+All endpoints are prefixed with `/v1`.
+
+### Reminders
+
+-   `GET /reminders`: Fetches a list of all reminders.
+-   `POST /reminders`: Creates a new reminder.
+    -   **Body:**
+        ```json
+        {
+          "reminderName": "string",
+          "description": "string" (optional),
+          "reminderDate": "YYYY-MM-DD",
+          "reminderTime": "HH:mm:ss" (optional)
+        }
+        ```
+
+## Project Structure
+
+The project follows a feature-based structure, where each feature (e.g., `reminders`, `auth`) contains its own routes, controllers, services, and repository, promoting modularity and separation of concerns.
+
 ```
 /src
-  /controllers
-  /routes
-  /middleware
-  /models
-  /config
-  app.js
-  server.js
-.env.example
+  /features
+    /reminders
+      - reminder-controller.ts
+      - reminder-routes.ts
+      - reminder-service.ts
+      - reminder-repository.ts
+      - reminder-schema.ts
+  /middlewares
+  /libs
+  /shared
+  app.ts
+  index.ts
+.env
+prisma/
+  - schema.prisma
 package.json
 README.md
 ```
-
-## Example endpoints
-- GET /health
-  ```bash
-  curl http://localhost:3000/health
-  ```
-  Response:
-  ```json
-  { "status": "ok", "uptime": 1234 }
-  ```
-
-- GET /api/items
-  ```bash
-  curl http://localhost:3000/api/items
-  ```
-
-- POST /api/items
-  ```bash
-  curl -X POST http://localhost:3000/api/items \
-   -H "Content-Type: application/json" \
-   -d '{"name":"item1"}'
-  ```
-
-## Environment
-Keep secrets out of source control. Use `.env` and a secrets manager in production.
-
-## Testing
-Use Jest + Supertest (recommended). Example:
-```bash
-npm test
-```
-
-## Linting & Formatting
-Use ESLint and Prettier. Run:
-```bash
-npm run lint
-```
-
-## Deployment
-Build container or deploy to Node hosting. Example Dockerfile and CI can be added.
-
-## Contributing
-Open issues or submit PRs. Follow coding style and add tests for new behavior.
-
-## License
-Specify a license in `LICENSE` (e.g., MIT).

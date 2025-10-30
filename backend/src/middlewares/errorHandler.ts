@@ -1,35 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
 import { ApiError, formatZodError } from '../shared/errors';
-import { ApiErrorResponse } from '../shared/types';
 import { ZodError } from 'zod';
-import { API_RESPONSE_STATUS } from '../shared/constants';
 import { logger } from '../libs/logger';
+import { Prisma } from '../generated/prisma/client';
+import { sendError } from '../shared/response';
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-  let errorResponse: ApiErrorResponse = {
-    status: {
-      code: API_RESPONSE_STATUS.FAILURE.CODE,
-      description: API_RESPONSE_STATUS.FAILURE.DESCRIPTION,
-    },
-  };
-
   if (err instanceof ZodError) {
-    errorResponse.status.description = "Validation Failed";
-    errorResponse.errors = formatZodError(err);
     logger.warn(`Validation Error for ${req.method} ${req.originalUrl}:`, err);
-    return res.status(400).json(errorResponse);
-  } else if (err instanceof ApiError) {
-    errorResponse.status.description = err.message; // Use the ApiError's message as the main description
-    errorResponse.errors = err.errors; // Pass through the errors array from ApiError
-    logger.warn(`API Error for ${req.method} ${req.originalUrl}:`, err);
-    return res.status(err.statusCode).json(errorResponse);
-  } else if (err instanceof Error) {
-    errorResponse.status.description = err.message;
-    logger.error(`Internal Server Error for ${req.method} ${req.originalUrl}:`, err);
-    return res.status(500).json(errorResponse);
+    return sendError(res, 400, 'Validation Failed', formatZodError(err));
   }
 
-  // Fallback for any unhandled errors
-  logger.error(`Unhandled Error for ${req.method} ${req.originalUrl}:`, err);
-  return res.status(500).json(errorResponse);
+  if (err instanceof ApiError) {
+    logger.warn(`API Error for ${req.method} ${req.originalUrl}:`, err);
+    return sendError(res, err.statusCode, err.message, err.errors);
+  }
+
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    const field = (err.meta?.target as string[])?.join(', ');
+    const message = `A resource with the same value for the field(s): ${field} already exists.`;
+    logger.warn(`Prisma Unique Constraint Error (P2002) for ${req.method} ${req.originalUrl}:`, err);
+    return sendError(res, 409, 'Conflict', [{ message, code: 409 }]);
+  }
+
+  // Fallback for any other errors
+  logger.error(`Internal Server Error for ${req.method} ${req.originalUrl}:`, err);
+  return sendError(res, 500, 'internal server error');
 };
