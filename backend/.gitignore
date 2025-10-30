@@ -4,3 +4,9 @@
 
 # Ignore node modules
 /node_modules/
+<<<<<<< HEAD
+=======
+
+/src/generated/
+.env
+>>>>>>> 38c038a3db8ec64c853c8e07c9de93637a272fdc

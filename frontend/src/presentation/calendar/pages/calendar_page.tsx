@@ -1,4 +1,5 @@
 import React from 'react'
+<<<<<<< HEAD
 import InAppNotification from '@/components/InAppNoti'
 import { useInAppNotification } from '@/hooks/useInAppNotification'
 import { StyleSheet, Button, Text, View } from 'react-native'
@@ -36,3 +37,17 @@ const styles = StyleSheet.create({
     marginBottom: 20
   }
 })
+=======
+import { View } from 'react-native'
+import Calendar from '../components/calendar_component'
+import ReminderList from '../components/reminder_list'
+
+export default function CalendarPage() {
+  return (
+    <View>
+      <Calendar />
+      <ReminderList />
+    </View>
+  )
+}
+>>>>>>> 38c038a3db8ec64c853c8e07c9de93637a272fdc
