@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client';
 
 // init PrismaClient in a single place
