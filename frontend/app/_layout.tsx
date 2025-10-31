@@ -17,6 +17,7 @@ import {
 } from '@expo-google-fonts/prompt'
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
+import { ErrorProvider } from '@/src/presentation/components/error_context'
 import { useCallback } from 'react'
 
 Notifications.setNotificationHandler({
@@ -51,16 +52,18 @@ export default function RootLayout() {
 
   return (
     <GluestackUIProvider mode="light">
-      <NotificationProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: 'modal', title: 'Modal' }}
-          />
-        </Stack>
-        <StatusBar style="auto" />
-      </NotificationProvider>
+      <ErrorProvider>
+        <NotificationProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="modal"
+              options={{ presentation: 'modal', title: 'Modal' }}
+            />
+          </Stack>
+          <StatusBar style="auto" />
+        </NotificationProvider>
+      </ErrorProvider>
     </GluestackUIProvider>
   )
 }

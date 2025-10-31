@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import React, { useState } from 'react'
 
-import { fetchReminders } from '@/src/data/reminder.api'
 import { IReminder } from '@/src/domain/calendar.domain'
 import { Plus } from 'lucide-react-native'
 import {
@@ -55,11 +54,6 @@ export default async function ReminderList() {
   ]
 
   const reminders = activeTab === 'todo' ? todoReminders : doneReminders
-
-  // ------------------
-  // HANDLE
-  // ------------------
-  // const reminderList = await fetchReminders()
 
   // ------------------
   // HANDLE

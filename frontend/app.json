@@ -58,6 +58,7 @@
       "eas": {
         "projectId": "2beb546a-15c8-4cde-b0e5-659a9f941667"
       }
+      // "apiUrl": "https://your-api.com/api" // replace this with production API URL
     },
     "owner": "mantana-chp"
   }
