@@ -1,5 +1,5 @@
 import { ThemedView } from '@/components/themed-view'
-import CalendarPage from '@/src/presentation/calendar/pages/calendar_page'
+import CalendarPage from '@/src/presentation/reminder/pages/calendar_page'
 import React from 'react'
 import { StatusBar } from 'react-native'
 
