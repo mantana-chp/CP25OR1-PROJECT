@@ -47,7 +47,7 @@ export default function ReminderList() {
       id: '3',
       title: 'ตรวจสุขภาพ',
       pet_name: 'ร็อคเก็ต',
-      reminderDate: '10/09/2568',
+      reminderDate: '2025-10-10T08:40:00.000Z',
       time: '15.00 น.',
       status: 'done'
     }
@@ -100,7 +100,7 @@ export default function ReminderList() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {reminders.length === 0 ? (
+          {_.size(reminders) < 1 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
                 {activeTab === 'todo'
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    gap: 32,
+    gap: 24,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 3,
+    height: 2,
     backgroundColor: '#225877'
   },
   contentContainer: {
