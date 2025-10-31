@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "demo-app",
-    "slug": "demo-app",
+    "name": "CP25OR1-frontend",
+    "slug": "CP25OR1-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "demoapp",
+    "scheme": "cp25or1-frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "dev.expo.mantana.demoapp",
+      "bundleIdentifier": "dev.expo.mantana.CP25OR1-frontend",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
