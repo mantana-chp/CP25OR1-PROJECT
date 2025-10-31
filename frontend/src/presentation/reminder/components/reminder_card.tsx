@@ -182,7 +182,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 
             <View style={styles.infoRow}>
               <PawPrint size={16} color="#2E759E" fill="#2E759E" />
-              <Text style={styles.locationText}>{reminder?.pet_name}</Text>
+              <Text style={styles.petNameText}>{reminder?.pet_name}</Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#C4C4C4',
+    borderColor: '#5FA7D1',
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center'
@@ -275,28 +275,28 @@ const styles = StyleSheet.create({
   },
   middleSection: {
     flex: 1,
-    gap: 6
+    gap: 2
   },
   reminderTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_700Bold',
-    marginBottom: 4
+    // marginBottom: 4
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
   },
-  locationText: {
+  petNameText: {
     fontSize: 14,
-    color: '#666',
+    color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
   dateTimeText: {
     fontSize: 14,
-    color: '#666',
+    color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
   infoButton: {
