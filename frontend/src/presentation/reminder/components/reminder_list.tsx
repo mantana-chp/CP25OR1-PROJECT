@@ -25,7 +25,7 @@ export default function ReminderList() {
   // ------------------
   const todoReminders: IReminder[] = [
     {
-      id: 1,
+      id: '1',
       title: 'พาไปว่ายน้ำ',
       pet_name: 'ร็อคเก็ต',
       reminderDate: '2025-11-05T00:00:00.000Z',
@@ -33,7 +33,7 @@ export default function ReminderList() {
       status: 'todo'
     },
     {
-      id: 2,
+      id: '2',
       title: 'อาบน้ำตัดขน',
       pet_name: 'ร็อคเก็ต',
       reminderDate: '2025-12-19T04:00:00.000Z',
@@ -44,7 +44,7 @@ export default function ReminderList() {
 
   const doneReminders: IReminder[] = [
     {
-      id: 3,
+      id: '3',
       title: 'ตรวจสุขภาพ',
       pet_name: 'ร็อคเก็ต',
       reminderDate: '10/09/2568',
@@ -110,7 +110,11 @@ export default function ReminderList() {
             </View>
           ) : (
             _.map(reminders, (reminder) => (
-              <ReminderCard key={reminder?.id} reminder={reminder} />
+              <ReminderCard
+                key={reminder?.id}
+                reminder={reminder}
+                onDelete={(id) => console.log(id)}
+              />
             ))
           )}
         </ScrollView>

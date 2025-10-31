@@ -1,5 +1,5 @@
 export interface IReminder {
-  id: number
+  id: string
   title: string
   pet_name: string
   reminderDate: string

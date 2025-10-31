@@ -1,9 +1,7 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import 'react-native-reanimated'
 
-import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
 import { NotificationProvider } from '@/context/NotificationContext'
 import { useColorScheme } from '@/src/hooks/use-color-scheme'
 
@@ -18,6 +16,7 @@ import {
   useFonts
 } from '@expo-google-fonts/prompt'
 
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
 import { useCallback } from 'react'
 
 Notifications.setNotificationHandler({
@@ -53,16 +52,14 @@ export default function RootLayout() {
   return (
     <GluestackUIProvider mode="light">
       <NotificationProvider>
-        <ThemeProvider value={DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: 'modal', title: 'Modal' }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="modal"
+            options={{ presentation: 'modal', title: 'Modal' }}
+          />
+        </Stack>
+        <StatusBar style="auto" />
       </NotificationProvider>
     </GluestackUIProvider>
   )
