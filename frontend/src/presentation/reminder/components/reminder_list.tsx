@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import React, { useState } from 'react'
 
+import { fetchReminders } from '@/src/data/reminder.api'
 import { IReminder } from '@/src/domain/calendar.domain'
 import { Plus } from 'lucide-react-native'
 import {
@@ -14,7 +15,7 @@ import ReminderCard from './reminder_card'
 
 type TabType = 'todo' | 'done'
 
-export default function ReminderList() {
+export default async function ReminderList() {
   // ------------------
   // USE STATE
   // ------------------
@@ -54,6 +55,33 @@ export default function ReminderList() {
   ]
 
   const reminders = activeTab === 'todo' ? todoReminders : doneReminders
+
+  // ------------------
+  // HANDLE
+  // ------------------
+  // const reminderList = await fetchReminders()
+
+  // ------------------
+  // HANDLE
+  // ------------------
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  const onDeleteReminder = (id: string) => {
+    return () => {
+      setDeleteId(id)
+    }
+  }
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      console.log('Delete reminder with id:', deleteId)
+      setDeleteId(null)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    setDeleteId(null)
+  }
 
   // ------------------
   // RENDER
@@ -113,7 +141,7 @@ export default function ReminderList() {
               <ReminderCard
                 key={reminder?.id}
                 reminder={reminder}
-                onDelete={(id) => console.log(id)}
+                onDelete={onDeleteReminder(reminder.id)}
               />
             ))
           )}
