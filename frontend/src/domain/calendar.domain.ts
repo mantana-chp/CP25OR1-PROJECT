@@ -1,8 +1,8 @@
 export interface IReminder {
-  id: number
-  title: string
-  location: string
-  reminderDate: string
-  time: string
-  status: 'todo' | 'done'
+  id: string;
+  title: string;
+  pet_name: string;
+  reminderDate: string;
+  time: string;
+  status: 'todo' | 'done';
 }
