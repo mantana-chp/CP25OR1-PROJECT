@@ -18,7 +18,7 @@ export interface ApiResponse<T> {
     code: typeof API_RESPONSE_STATUS.SUCCESS.CODE;
     description: typeof API_RESPONSE_STATUS.SUCCESS.DESCRIPTION;
   };
-  data: T;
+  data?: T; // Made optional
 }
 
 export interface ApiErrorResponse {

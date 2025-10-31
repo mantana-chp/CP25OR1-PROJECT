@@ -20,6 +20,12 @@ export const findById = async (id: string): Promise<reminders | null> => {
   });
 };
 
+export const deleteById = async (id: string): Promise<void> => {
+  await prisma.reminders.delete({
+    where: { id },
+  });
+};
+
 export const getReminderCount = async (): Promise<number> => {
   return prisma.reminders.count();
 };
