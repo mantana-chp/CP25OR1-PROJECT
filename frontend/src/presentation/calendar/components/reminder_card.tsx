@@ -1,8 +1,8 @@
 import React from 'react'
-
-import { IReminder } from '@/src/domain/calendar.domain'
-import { Circle, Clock, Info } from 'lucide-react-native'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+
+import { Circle, Clock, Info } from 'lucide-react-native'
+import { IReminder } from '@/src/domain/calendar.domain'
 
 export default function ReminderCard(props: { reminder: IReminder }) {
   const { reminder } = props
