@@ -26,12 +26,12 @@ export default function ReminderCard(props: { reminder: IReminder }) {
         <Text style={styles.reminderTitle}>{reminder.title}</Text>
 
         <View style={styles.infoRow}>
-          <Circle size={16} color="#6B9AC4" fill="#6B9AC4" />
+          <Circle size={16} color="#2E759E" fill="#2E759E" />
           <Text style={styles.locationText}>{reminder.location}</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Clock size={16} color="#6B9AC4" />
+          <Clock size={16} color="#2E759E" />
           <Text style={styles.dateTimeText}>
             {reminder?.reminderDate}, {reminder.time}
           </Text>
@@ -40,7 +40,7 @@ export default function ReminderCard(props: { reminder: IReminder }) {
 
       {/* Right side - Info button */}
       <TouchableOpacity style={styles.infoButton}>
-        <Info size={24} color="#6B9AC4" />
+        <Info size={24} color="#88BEDD" />
       </TouchableOpacity>
     </View>
   )
@@ -60,14 +60,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderLeftWidth: 6,
-    borderLeftColor: '#6B9AC4'
+    borderLeftColor: '#88BEDD'
   },
   leftSection: {
     marginRight: 12
   },
   checkbox: {
-    width: 32,
-    height: 32,
+    width: 18,
+    height: 18,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#C4C4C4',
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   checkboxCompleted: {
-    borderColor: '#6B9AC4',
-    backgroundColor: '#6B9AC4'
+    borderColor: '#5FA7D1',
+    backgroundColor: '#5FA7D1'
   },
   checkboxInner: {
     width: 16,

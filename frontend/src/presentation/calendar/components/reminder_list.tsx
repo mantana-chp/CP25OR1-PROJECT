@@ -108,7 +108,7 @@ export default function ReminderList() {
 
       {/* Floating Add Button */}
       <TouchableOpacity
-        style={styles.fabButton}
+        style={styles.addReminderButton}
         onPress={() => console.log('Add new reminder')}
       >
         <Plus size={32} color="#fff" strokeWidth={3} />
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     backgroundColor: '#fff9f1',
-    borderRadius: 16
+    borderRadius: 24
   },
   tabContainer: {
     flexDirection: 'row',
@@ -169,14 +169,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Prompt_400Regular'
   },
-  fabButton: {
+  addReminderButton: {
     position: 'absolute',
     right: 24,
     bottom: 24,
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#6B9AC4',
+    backgroundColor: '#5FA7D1',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
