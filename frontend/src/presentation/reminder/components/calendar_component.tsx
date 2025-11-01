@@ -1,13 +1,49 @@
 import _ from 'lodash'
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 
-import { thaiMonths, weekDays } from '@/domain/calendar.domain'
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { thaiMonths, weekDays } from '@/src/domain/calendar.domain'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import {
+  Animated,
+  LayoutAnimation,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View
+} from 'react-native'
 
-export default function Calendar() {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
+
+interface CalendarProps {
+  isExpanded: boolean
+  onToggle: () => void
+}
+
+export default function Calendar({ isExpanded, onToggle }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const today = new Date()
+  const rotateAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current
+
+  // Animate chevron rotation
+  React.useEffect(() => {
+    Animated.timing(rotateAnim, {
+      toValue: isExpanded ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true
+    }).start()
+  }, [isExpanded])
+
+  const chevronRotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['180deg', '0deg']
+  })
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -22,16 +58,32 @@ export default function Calendar() {
   }
 
   const previousMonth = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
     )
   }
 
   const nextMonth = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
     )
   }
+
+  const goToToday = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setCurrentDate(new Date())
+  }
+
+  const handleToggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    onToggle()
+  }
+
+  const isCurrentMonth =
+    currentDate.getMonth() === today.getMonth() &&
+    currentDate.getFullYear() === today.getFullYear()
 
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentDate)
@@ -46,7 +98,12 @@ export default function Calendar() {
       days.push({
         day: prevMonthDays - i,
         isCurrentMonth: false,
-        isToday: false
+        isToday: false,
+        date: new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() - 1,
+          prevMonthDays - i
+        )
       })
     }
 
@@ -61,30 +118,51 @@ export default function Calendar() {
         day,
         isCurrentMonth: true,
         isToday,
-        // You can add event data here
-        hasEvents: day === 8 || day === 30 // Example
+        // hasEvents: day === 8 || day === 30,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
       })
     }
 
     return days
   }
 
-  const days = renderCalendar()
+  const getCurrentWeekDays = () => {
+    const allDays = renderCalendar()
+    const todayIndex = allDays.findIndex((d) => d.isToday)
+
+    if (todayIndex === -1) {
+      return allDays.slice(0, 7)
+    }
+
+    const rowIndex = Math.floor(todayIndex / 7)
+    const startIndex = rowIndex * 7
+
+    return allDays.slice(startIndex, startIndex + 7)
+  }
+
+  const days = isExpanded ? renderCalendar() : getCurrentWeekDays()
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText} className="font-prompt">
+        <Text style={styles.headerText}>
           {thaiMonths[currentDate.getMonth()].name_th}{' '}
           {currentDate.getFullYear() + 543}
         </Text>
         <View style={styles.navigation}>
+          {/* Today Button */}
+          {!isCurrentMonth && (
+            <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
+              <Text style={styles.todayButtonText}>วันนี้</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity onPress={previousMonth} style={styles.navButton}>
-            <ChevronLeft size={24} color="#000" />
+            <ChevronLeft size={20} color="#225877" />
           </TouchableOpacity>
           <TouchableOpacity onPress={nextMonth} style={styles.navButton}>
-            <ChevronRight size={24} color="#000" />
+            <ChevronRight size={20} color="#225877" />
           </TouchableOpacity>
         </View>
       </View>
@@ -102,9 +180,9 @@ export default function Calendar() {
       <View style={styles.calendarGrid}>
         {_.map(days, (item, index) => (
           <TouchableOpacity
-            key={index}
+            key={`${item.date.getTime()}-${index}`}
             style={[styles.dayCell, item.isToday && styles.todayCell]}
-            onPress={() => console.log('Selected date:', item.day)}
+            onPress={() => console.log('Selected date:', item.date)}
           >
             <Text
               style={[
@@ -112,32 +190,24 @@ export default function Calendar() {
                 !item.isCurrentMonth && styles.inactiveDayText,
                 item.isToday && styles.todayText
               ]}
-              className="font-prompt"
             >
               {item.day}
             </Text>
-            {/* Event indicators - customize based on your data */}
-            {/* {item.hasEvents && (
-              <View style={styles.eventIndicators}>
-                <View style={[styles.dot, { backgroundColor: '#10b981' }]} />
-                <View style={[styles.dot, { backgroundColor: '#3b82f6' }]} />
-                <View style={[styles.dot, { backgroundColor: '#ec4899' }]} />
-                {item.day === 8 && (
-                  <Text style={styles.plusText} className="font-prompt">
-                    +1
-                  </Text>
-                )}
-              </View>
-            )} */}
-            {/* {item.day === 30 && (
-              <View style={styles.eventIndicators}>
-                <View style={[styles.dot, { backgroundColor: '#10b981' }]} />
-                <View style={[styles.dot, { backgroundColor: '#ec4899' }]} />
-              </View>
-            )} */}
+            {/* {item.hasEvents && <View style={styles.eventDot} />} */}
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Toggle Button */}
+      <TouchableOpacity
+        style={styles.toggleButton}
+        onPress={handleToggle}
+        activeOpacity={0.7}
+      >
+        <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
+          <ChevronDown size={24} color="#225877" />
+        </Animated.View>
+      </TouchableOpacity>
     </View>
   )
 }
@@ -145,41 +215,66 @@ export default function Calendar() {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    flex: 1
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 12
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#000'
+    color: '#225877',
+    fontFamily: 'Prompt_700Bold'
   },
   navigation: {
     flexDirection: 'row',
-    gap: 8
+    gap: 6,
+    alignItems: 'center'
+  },
+  todayButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#5FA7D1',
+    marginRight: 4
+  },
+  todayButtonText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: 'Prompt_600SemiBold'
   },
   navButton: {
-    padding: 8
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#f0f9ff'
   },
   weekDaysRow: {
     flexDirection: 'row',
-    marginBottom: 12
+    marginBottom: 4
   },
   weekDayCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8
+    paddingVertical: 4
   },
   weekDayText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#000'
+    color: '#64748b',
+    fontFamily: 'Prompt_600SemiBold'
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -187,42 +282,42 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.28%',
-    aspectRatio: 1,
+    aspectRatio: 1.1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 2,
     position: 'relative'
   },
   todayCell: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#5FA7D1',
     borderRadius: 50
   },
   dayText: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500'
+    fontSize: 15,
+    color: '#225877',
+    fontWeight: '500',
+    fontFamily: 'Prompt_500Medium'
   },
   inactiveDayText: {
-    color: '#A6A6A6'
+    color: '#cbd5e1'
   },
   todayText: {
-    fontWeight: '700'
+    color: '#fff',
+    fontWeight: '700',
+    fontFamily: 'Prompt_700Bold'
   },
-  eventIndicators: {
-    flexDirection: 'row',
+  eventDot: {
     position: 'absolute',
     bottom: 4,
-    gap: 3,
-    alignItems: 'center'
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#5FA7D1'
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3
-  },
-  plusText: {
-    fontSize: 10,
-    color: '#666',
-    marginLeft: 2
+  toggleButton: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 24,
+    marginTop: 4
   }
 })
