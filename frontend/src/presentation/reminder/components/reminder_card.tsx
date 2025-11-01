@@ -1,4 +1,4 @@
-import { IReminder } from '@/src/domain/calendar.domain'
+import { IReminder } from '@/src/domain/reminder.domain'
 import React, { useRef } from 'react'
 
 import dayjs from 'dayjs'
@@ -167,10 +167,10 @@ export default function ReminderCard(props: ReminderCardProps) {
             <View
               style={[
                 styles.checkbox,
-                reminder?.status === 'done' && styles.checkboxCompleted
+                reminder?.reminderStatus === 'done' && styles.checkboxCompleted
               ]}
             >
-              {reminder?.status === 'done' && (
+              {reminder?.reminderStatus === 'done' && (
                 <View style={styles.checkboxInner} />
               )}
             </View>
@@ -178,11 +178,11 @@ export default function ReminderCard(props: ReminderCardProps) {
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <Text style={styles.reminderTitle}>{reminder?.title}</Text>
+            <Text style={styles.reminderTitle}>{reminder?.reminderName}</Text>
 
             <View style={styles.infoRow}>
               <PawPrint size={16} color="#2E759E" fill="#2E759E" />
-              <Text style={styles.petNameText}>{reminder?.pet_name}</Text>
+              <Text style={styles.petNameText}>{'-'}</Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
     // marginBottom: 4
   },
   infoRow: {

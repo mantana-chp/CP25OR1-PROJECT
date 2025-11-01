@@ -1,9 +1,9 @@
-import { IReminder } from '@/src/domain/calendar.domain'
+import { IReminder } from '@/src/domain/reminder.domain'
 import { apiClient } from '../api_client'
 
 export const reminderService = {
   getReminders: async (params?: { category?: string; page?: number }) => {
-    return apiClient.get<{ reminders: IReminder[]; total: number }>(
+    return apiClient.get<{ data: IReminder[]; total: number }>(
       '/v1/reminders',
       {
         params

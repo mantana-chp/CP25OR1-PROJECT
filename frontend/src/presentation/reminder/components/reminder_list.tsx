@@ -1,65 +1,74 @@
 import _ from 'lodash'
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
-import { IReminder } from '@/src/domain/calendar.domain'
+import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
+import { reminderService } from '@/src/utils/api/services/reminder_service'
+import { useApi } from '@/src/utils/api/use_api'
 import { Plus } from 'lucide-react-native'
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native'
-import ReminderCard from './reminder_card'
 
-type TabType = 'todo' | 'done'
+type TabType = 'to_do' | 'done'
 
-export default async function ReminderList() {
+export default function Test() {
   // ------------------
-  // USE STATE
+  // STATE
   // ------------------
-  const [activeTab, setActiveTab] = useState<TabType>('todo')
-
-  // ------------------
-  // MOCK DATA
-  // ------------------
-  const todoReminders: IReminder[] = [
-    {
-      id: '1',
-      title: 'พาไปว่ายน้ำ',
-      pet_name: 'ร็อคเก็ต',
-      reminderDate: '2025-11-05T00:00:00.000Z',
-      time: '13.30 น.',
-      status: 'todo'
-    },
-    {
-      id: '2',
-      title: 'อาบน้ำตัดขน',
-      pet_name: 'ร็อคเก็ต',
-      reminderDate: '2025-12-19T04:00:00.000Z',
-      time: '09.30 น.',
-      status: 'todo'
-    }
-  ]
-
-  const doneReminders: IReminder[] = [
-    {
-      id: '3',
-      title: 'ตรวจสุขภาพ',
-      pet_name: 'ร็อคเก็ต',
-      reminderDate: '2025-10-10T08:40:00.000Z',
-      time: '15.00 น.',
-      status: 'done'
-    }
-  ]
-
-  const reminders = activeTab === 'todo' ? todoReminders : doneReminders
-
-  // ------------------
-  // HANDLE
-  // ------------------
+  const [activeTab, setActiveTab] = useState<TabType>('to_do')
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  // ------------------
+  // API - Manual execution only!
+  // ------------------
+  const getRemindersApi = useApi(reminderService.getReminders, {
+    showErrorAlert: true
+  })
+
+  const deleteReminderApi = useApi(reminderService.deleteReminder, {
+    showErrorAlert: true,
+    successMessage: 'ลบนัดหมายสำเร็จ',
+    onSuccess: () => {
+      loadReminders()
+    }
+  })
+
+  // ------------------
+  // LOAD DATA
+  // ------------------
+  const loadReminders = useCallback(() => {
+    console.log('🔄 Loading reminders for tab:', activeTab)
+    getRemindersApi.execute({ category: activeTab })
+  }, [activeTab])
+
+  // Fetch on mount
+  useEffect(() => {
+    console.log('🎬 Component mounted')
+    console.log('🌐 API URL:', process.env.EXPO_PUBLIC_API_BASE_URL)
+
+    // Add a small delay to ensure component is ready
+    const timer = setTimeout(() => {
+      loadReminders()
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Refetch when tab changes
+  useEffect(() => {
+    if (activeTab) {
+      loadReminders()
+    }
+  }, [activeTab, loadReminders])
+
+  // ------------------
+  // DELETE HANDLERS
+  // ------------------
   const onDeleteReminder = (id: string) => {
     return () => {
       setDeleteId(id)
@@ -68,7 +77,8 @@ export default async function ReminderList() {
 
   const handleConfirmDelete = () => {
     if (deleteId) {
-      console.log('Delete reminder with id:', deleteId)
+      console.log('🗑️ Deleting reminder:', deleteId)
+      deleteReminderApi.execute(deleteId)
       setDeleteId(null)
     }
   }
@@ -78,78 +88,96 @@ export default async function ReminderList() {
   }
 
   // ------------------
+  // DATA
+  // ------------------
+  const reminders = getRemindersApi.data?.data || []
+  const filteredReminders = reminders.filter(
+    (reminder) => reminder.reminderStatus === activeTab
+  )
+
+  // ------------------
+  // LOADING STATE
+  // ------------------
+  if (getRemindersApi.loading && !getRemindersApi.data) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#5FA7D1" />
+        <Text style={styles.loadingText}>กำลังโหลด...</Text>
+      </View>
+    )
+  }
+
+  // ------------------
   // RENDER
   // ------------------
   return (
-    <ScrollView>
-      <View style={styles.container}>
-        {/* Tab Header */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            onPress={() => setActiveTab('todo')}
-            style={[styles.tabButton, { alignItems: 'center' }]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'todo' && styles.activeTabText
-              ]}
-            >
-              นัดหมาย
-            </Text>
-            {activeTab === 'todo' && <View style={styles.activeUnderline} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('done')}
-            style={styles.tabButton}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'done' && styles.activeTabText
-              ]}
-            >
-              เสร็จสิ้น
-            </Text>
-            {activeTab === 'done' && <View style={styles.activeUnderline} />}
-          </TouchableOpacity>
-        </View>
-
-        {/* IReminder Content */}
-        <ScrollView
-          style={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {_.size(reminders) < 1 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {activeTab === 'todo'
-                  ? 'ไม่มีนัดหมาย'
-                  : 'ไม่มีรายการที่เสร็จสิ้น'}
-              </Text>
-            </View>
-          ) : (
-            _.map(reminders, (reminder) => (
-              <ReminderCard
-                key={reminder?.id}
-                reminder={reminder}
-                onDelete={onDeleteReminder(reminder.id)}
-              />
-            ))
-          )}
-        </ScrollView>
-
-        {/* Floating Add Reminder Button */}
+    <View style={styles.container}>
+      {/* Tab Header */}
+      <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={styles.addReminderButton}
-          onPress={() => console.log('Add new reminder')}
+          onPress={() => setActiveTab('to_do')}
+          style={[styles.tabButton, { alignItems: 'center' }]}
         >
-          <Plus size={32} color="#fff" strokeWidth={3} />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'to_do' && styles.activeTabText
+            ]}
+          >
+            นัดหมาย
+          </Text>
+          {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('done')}
+          style={styles.tabButton}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'done' && styles.activeTabText
+            ]}
+          >
+            เสร็จสิ้น
+          </Text>
+          {activeTab === 'done' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
       </View>
-    </ScrollView>
+
+      {/* Reminder Content */}
+      <ScrollView
+        style={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {_.size(filteredReminders) === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {activeTab === 'to_do'
+                ? 'ไม่มีนัดหมาย'
+                : 'ไม่มีรายการที่เสร็จสิ้น'}
+            </Text>
+          </View>
+        ) : (
+          _.map(filteredReminders, (reminder) => (
+            <ReminderCard
+              key={reminder?.id}
+              reminder={reminder}
+              onDelete={onDeleteReminder(reminder.id)}
+            />
+          ))
+        )}
+      </ScrollView>
+
+      {/* Floating Add Button */}
+      <TouchableOpacity
+        style={styles.addReminderButton}
+        onPress={() => console.log('Add new reminder')}
+      >
+        <Plus size={32} color="#fff" strokeWidth={3} />
+      </TouchableOpacity>
+    </View>
   )
 }
 
@@ -159,6 +187,50 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#fff9f1',
     borderRadius: 24
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff9f1',
+    paddingVertical: 60
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#225877',
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular'
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff9f1',
+    padding: 24
+  },
+  errorText: {
+    color: '#ff3b30',
+    fontSize: 18,
+    fontFamily: 'Prompt_600SemiBold',
+    marginBottom: 8
+  },
+  errorMessage: {
+    color: '#666',
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center',
+    marginBottom: 16
+  },
+  retryButton: {
+    backgroundColor: '#5FA7D1',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Prompt_600SemiBold'
   },
   tabContainer: {
     flexDirection: 'row',

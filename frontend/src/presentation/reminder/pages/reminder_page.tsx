@@ -5,9 +5,14 @@ import ReminderList from '../components/reminder_list'
 
 export default function ReminderPage() {
   return (
-    <View>
+    <View style={{ flex: 1 }}>
+      {/* Calendar takes fixed space */}
       <Calendar />
-      <ReminderList />
+
+      {/* ReminderList takes remaining space */}
+      <View style={{ flex: 1 }}>
+        <ReminderList />
+      </View>
     </View>
   )
 }
