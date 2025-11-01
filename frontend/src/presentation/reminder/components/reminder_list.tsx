@@ -17,12 +17,11 @@ import LoadingComponent from '../../components/loading_component'
 
 type TabType = 'to_do' | 'done'
 
-export default function Test() {
+export default function ReminderList() {
   // ------------------
   // STATE
   // ------------------
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
-  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // ------------------
   // API - Manual execution only!
@@ -35,6 +34,7 @@ export default function Test() {
     showErrorAlert: true,
     successMessage: 'ลบนัดหมายสำเร็จ',
     onSuccess: () => {
+      // Refetch reminders after successful delete
       loadReminders()
     }
   })
@@ -52,7 +52,6 @@ export default function Test() {
     console.log('🎬 Component mounted')
     console.log('🌐 API URL:', process.env.EXPO_PUBLIC_API_BASE_URL)
 
-    // Add a small delay to ensure component is ready
     const timer = setTimeout(() => {
       loadReminders()
     }, 100)
@@ -68,41 +67,31 @@ export default function Test() {
   }, [activeTab, loadReminders])
 
   // ------------------
-  // DELETE HANDLERS
+  // DELETE HANDLER - Fixed!
   // ------------------
-  const onDeleteReminder = (id: string) => {
-    return () => {
+  const handleDeleteReminder = useCallback(
+    (id: string) => {
       Alert.alert(
         'ยืนยันการลบนัดหมาย',
-        'คุณแน่ใจหรือไม่ว่าต้องการลบนัดหมายนัดหมายนี้?',
+        'คุณแน่ใจหรือไม่ว่าต้องการลบนัดหมายนี้?',
         [
           {
             text: 'ยกเลิก',
-            onPress: () => handleCancelDelete(),
             style: 'cancel'
           },
           {
-            text: 'ตกลง',
+            text: 'ลบ',
+            style: 'destructive',
             onPress: () => {
-              handleConfirmDelete()
+              console.log('🗑️ Deleting reminder:', id)
+              deleteReminderApi.execute(id)
             }
           }
         ]
       )
-    }
-  }
-
-  const handleConfirmDelete = () => {
-    if (deleteId) {
-      console.log('🗑️ Deleting reminder:', deleteId)
-      deleteReminderApi.execute(deleteId)
-      setDeleteId(null)
-    }
-  }
-
-  const handleCancelDelete = () => {
-    setDeleteId(null)
-  }
+    },
+    [deleteReminderApi]
+  )
 
   // ------------------
   // DATA
@@ -170,9 +159,10 @@ export default function Test() {
           ) : (
             _.map(filteredReminders, (reminder) => (
               <ReminderCard
-                key={reminder?.id}
+                key={reminder.id}
                 reminder={reminder}
-                onDelete={onDeleteReminder(reminder.id)}
+                onDelete={handleDeleteReminder}
+                isDeleting={deleteReminderApi.loading}
               />
             ))
           )}
@@ -196,38 +186,6 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#fff9f1',
     borderRadius: 24
-  },
-
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff9f1',
-    padding: 24
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 18,
-    fontFamily: 'Prompt_600SemiBold',
-    marginBottom: 8
-  },
-  errorMessage: {
-    color: '#666',
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    textAlign: 'center',
-    marginBottom: 16
-  },
-  retryButton: {
-    backgroundColor: '#5FA7D1',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Prompt_600SemiBold'
   },
   tabContainer: {
     flexDirection: 'row',

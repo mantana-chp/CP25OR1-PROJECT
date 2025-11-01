@@ -11,7 +11,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator
 } from 'react-native'
 
 import { Clock, Info, PawPrint, Trash2 } from 'lucide-react-native'
@@ -21,14 +22,15 @@ const SWIPE_THRESHOLD = -100
 
 interface ReminderCardProps {
   reminder: IReminder
-  onDelete?: (id: string | number) => void
+  onDelete?: (id: string) => void
+  isDeleting?: boolean
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   // CONST
   // ------------------
-  const { reminder, onDelete } = props
+  const { reminder, onDelete, isDeleting = false } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}, HH:mm น.`)
@@ -39,11 +41,15 @@ export default function ReminderCard(props: ReminderCardProps) {
   const translateX = useRef(new Animated.Value(0)).current
   const swipePosition = useRef(0)
 
+  // Track the current position
+  translateX.addListener(({ value }) => {
+    swipePosition.current = value
+  })
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Allow both left swipe (to open) and right swipe (to close)
         return Math.abs(gestureState.dx) > 10
       },
       onPanResponderMove: (_, gestureState) => {
@@ -56,7 +62,6 @@ export default function ReminderCard(props: ReminderCardProps) {
         // If swiping right (closing delete) and delete is open
         else if (gestureState.dx > 0 && currentValue < 0) {
           const newValue = currentValue + gestureState.dx
-          // Don't let it swipe past 0 (closed position)
           translateX.setValue(Math.min(0, newValue))
         }
       },
@@ -67,67 +72,59 @@ export default function ReminderCard(props: ReminderCardProps) {
         if (currentValue < 0) {
           // Swiping right to close
           if (gestureState.dx > 30 || currentValue > -50) {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 7
-            }).start()
+            closeDeleteButton()
           } else {
-            // Keep delete button open
-            Animated.spring(translateX, {
-              toValue: -100,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 7
-            }).start()
+            openDeleteButton()
           }
         } else {
           // Delete button not visible, check if should open
           if (gestureState.dx < SWIPE_THRESHOLD) {
-            Animated.spring(translateX, {
-              toValue: -100,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 7
-            }).start()
+            openDeleteButton()
           } else {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 7
-            }).start()
+            closeDeleteButton()
           }
         }
       }
     })
   ).current
 
-  // Allow tapping outside to close delete button
+  const openDeleteButton = () => {
+    Animated.spring(translateX, {
+      toValue: -100,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7
+    }).start()
+  }
+
+  const closeDeleteButton = () => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7
+    }).start()
+  }
+
+  // Tap card to close delete button
   const handleCardPress = () => {
     const currentValue = swipePosition.current
     if (currentValue < 0) {
-      // Close delete button
-      Animated.spring(translateX, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7
-      }).start()
+      closeDeleteButton()
     }
   }
 
+  // Handle delete button press
   const handleDelete = () => {
-    Animated.timing(translateX, {
-      toValue: -SCREEN_WIDTH,
-      duration: 300,
-      useNativeDriver: true
-    }).start(() => {
-      if (onDelete) {
-        onDelete(reminder.id)
-      }
-    })
+    if (isDeleting) return // Prevent multiple deletes
+
+    // Close the swipe first
+    closeDeleteButton()
+
+    // Trigger the delete callback which will show confirmation
+    if (onDelete) {
+      onDelete(reminder.id)
+    }
   }
 
   // ------------------
@@ -141,9 +138,16 @@ export default function ReminderCard(props: ReminderCardProps) {
           style={styles.deleteButton}
           onPress={handleDelete}
           activeOpacity={0.8}
+          disabled={isDeleting}
         >
-          <Trash2 size={24} color="#fff" />
-          <Text style={styles.deleteText}>ลบ</Text>
+          {isDeleting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <Trash2 size={24} color="#fff" />
+              <Text style={styles.deleteText}>ลบ</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -182,7 +186,9 @@ export default function ReminderCard(props: ReminderCardProps) {
 
             <View style={styles.infoRow}>
               <PawPrint size={16} color="#2E759E" fill="#2E759E" />
-              <Text style={styles.petNameText}>{'-'}</Text>
+              <Text style={styles.petNameText}>
+                {reminder?.petName || '-'}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -192,7 +198,10 @@ export default function ReminderCard(props: ReminderCardProps) {
           </View>
 
           {/* Right side - Info button */}
-          <TouchableOpacity style={styles.infoButton}>
+          <TouchableOpacity 
+            style={styles.infoButton}
+            onPress={() => console.log('Info pressed for:', reminder.id)}
+          >
             <Info size={24} color="#88BEDD" />
           </TouchableOpacity>
         </TouchableOpacity>
@@ -282,7 +291,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_700Bold'
-    // marginBottom: 4
   },
   infoRow: {
     flexDirection: 'row',
