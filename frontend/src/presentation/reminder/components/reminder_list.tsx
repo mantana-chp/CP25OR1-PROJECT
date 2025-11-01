@@ -42,15 +42,11 @@ export default function ReminderList() {
   // LOAD DATA
   // ------------------
   const loadReminders = useCallback(() => {
-    console.log('🔄 Loading reminders for tab:', activeTab)
     getRemindersApi.execute({})
   }, [activeTab])
 
   // Fetch on mount
   useEffect(() => {
-    console.log('🎬 Component mounted')
-    console.log('🌐 API URL:', process.env.EXPO_PUBLIC_API_BASE_URL)
-
     const timer = setTimeout(() => {
       loadReminders()
     }, 100)
