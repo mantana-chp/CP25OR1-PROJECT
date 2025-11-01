@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   Platform,
   StatusBar,
@@ -8,46 +8,46 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { fetchReminderById } from '../../../data/reminder.api';
+} from 'react-native'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { fetchReminderById } from '../../../data/reminder.api'
 
 // --- Helper Functions ---
 const formatDate = (date: Date) => {
-  return date.toLocaleDateString('th-TH');
-};
+  return date.toLocaleDateString('th-TH')
+}
 
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString('th-TH', {
     hour: '2-digit',
     minute: '2-digit',
-  });
-};
+  })
+}
 
 // Parses a "HH:MM:SS" string into a Date object
 const parseApiTime = (timeString: string): Date => {
-  if (!timeString) return new Date();
+  if (!timeString) return new Date()
 
-  const [hours, minutes, seconds] = timeString.split(':').map(Number);
-  const date = new Date();
-  date.setHours(hours || 0, minutes || 0, seconds || 0);
-  return date;
-};
+  const [hours, minutes, seconds] = timeString.split(':').map(Number)
+  const date = new Date()
+  date.setHours(hours || 0, minutes || 0, seconds || 0)
+  return date
+}
 // ---
 
 export default function ReminderDetailPage() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter()
+  const { id } = useLocalSearchParams<{ id: string }>()
 
   // --- State for form fields ---
-  const [title, setTitle] = React.useState('');
-  const [description, setDescription] = React.useState('');
-  const [date, setDate] = React.useState(new Date());
-  const [time, setTime] = React.useState(new Date());
+  const [title, setTitle] = React.useState('')
+  const [description, setDescription] = React.useState('')
+  const [date, setDate] = React.useState(new Date())
+  const [time, setTime] = React.useState(new Date())
 
   // --- State for loading/error ---
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
   // Fetch data when the component mounts
   React.useEffect(() => {
@@ -57,7 +57,7 @@ export default function ReminderDetailPage() {
 
     // [ 1. MOCK VERSION (Currently Active) ]
     // This uses hardcoded ID as a fallback
-    const idToFetch = 'dccccb95-eeb5-434f-9e42-7e8dc0a2c993';
+    const idToFetch = 'dccccb95-eeb5-434f-9e42-7e8dc0a2c993'
 
     // [ 2. INTEGRATED VERSION ]
     // When you merge, comment out or remove the line idToFetch ABOVE
@@ -68,42 +68,42 @@ export default function ReminderDetailPage() {
     // ===================================================================
 
     if (!idToFetch) {
-      setError('No reminder ID provided.');
-      setIsLoading(false);
-      return;
+      setError('No reminder ID provided.')
+      setIsLoading(false)
+      return
     }
 
     const loadReminder = async () => {
       try {
-        setIsLoading(true);
-        const reminderData = await fetchReminderById(idToFetch);
+        setIsLoading(true)
+        const reminderData = await fetchReminderById(idToFetch)
 
         if (reminderData) {
           // Populate the form state with fetched data
-          setTitle(reminderData.reminderName);
-          setDescription(reminderData.description);
-          setDate(new Date(reminderData.reminderDate));
-          setTime(parseApiTime(reminderData.reminderTime));
+          setTitle(reminderData.reminderName)
+          setDescription(reminderData.description)
+          setDate(new Date(reminderData.reminderDate))
+          setTime(parseApiTime(reminderData.reminderTime))
         } else {
-          setError('ไม่พบการแจ้งเตือนนี้');
+          setError('ไม่พบการแจ้งเตือนนี้')
         }
       } catch (err) {
-        setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        setError('เกิดข้อผิดพลาดในการโหลดข้อมูล')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    loadReminder();
-  }, [id]);
+    loadReminder()
+  }, [id])
 
   // Show loading spinner
   if (isLoading) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator size='large' color='#0ea5e9' />
+        <ActivityIndicator size="large" color="#0ea5e9" />
       </View>
-    );
+    )
   }
 
   // Show error message
@@ -115,7 +115,7 @@ export default function ReminderDetailPage() {
           <Text style={styles.addText}>Go Back</Text>
         </Pressable>
       </View>
-    );
+    )
   }
 
   return (
@@ -177,7 +177,7 @@ export default function ReminderDetailPage() {
         {/* --- Form Card --- */}
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -286,4 +286,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     color: '#374151',
   },
-});
+})

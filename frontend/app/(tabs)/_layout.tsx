@@ -1,10 +1,10 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Tabs } from 'expo-router'
+import React from 'react'
+import { StyleSheet, View } from 'react-native'
 
-import { HapticTab } from '@/components/haptic-tab';
-import { useColorScheme } from '@/src/hooks/use-color-scheme.web';
-import { Calendar, PawPrintIcon } from 'lucide-react-native';
+import { HapticTab } from '@/components/haptic-tab'
+import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
+import { Calendar, PawPrintIcon } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused }: any) => {
   return (
@@ -15,11 +15,11 @@ const CustomTabBarIcon = ({ icon: Icon, color, focused }: any) => {
         strokeWidth={focused ? 2.5 : 2}
       />
     </View>
-  );
-};
+  )
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme()
 
   return (
     <Tabs
@@ -92,7 +92,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -107,4 +107,4 @@ const styles = StyleSheet.create({
   iconContainerActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
-});
+})

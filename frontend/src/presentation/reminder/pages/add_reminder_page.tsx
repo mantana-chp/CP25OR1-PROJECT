@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   Platform,
   StatusBar,
@@ -10,62 +10,62 @@ import {
   Modal,
   Button,
   Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
+} from 'react-native'
+import { useRouter } from 'expo-router'
 import DateTimePicker, {
   DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
-import { addReminder } from '../../../data/reminder.api';
-import { IAddReminder } from '../../../domain/add_reminder.domain';
+} from '@react-native-community/datetimepicker'
+import { addReminder } from '../../../data/reminder.api'
+import { IAddReminder } from '../../../domain/add_reminder.domain'
 
 // Helper function to format date for display
 const formatDate = (date: Date) => {
-  return date.toLocaleDateString('th-TH');
-};
+  return date.toLocaleDateString('th-TH')
+}
 
 // Helper function to format time for display
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString('th-TH', {
     hour: '2-digit',
     minute: '2-digit',
-  });
-};
+  })
+}
 
 // Helper functions to format data for the API
 // Formats date to YYYY-MM-DD
 const formatApiDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
-};
+  return date.toISOString().split('T')[0]
+}
 
 // Formats time to HH:MM:SS
 const formatApiTime = (time: Date): string => {
   // .toTimeString() gives "HH:MM:SS GMT+0700 (...)"
-  return time.toTimeString().split(' ')[0];
-};
+  return time.toTimeString().split(' ')[0]
+}
 
 export default function AddReminderPage() {
-  const router = useRouter();
+  const router = useRouter()
 
   // --- State for all form fields ---
-  const [title, setTitle] = React.useState('');
-  const [description, setDescription] = React.useState('');
-  const [date, setDate] = React.useState(new Date());
-  const [time, setTime] = React.useState(new Date());
+  const [title, setTitle] = React.useState('')
+  const [description, setDescription] = React.useState('')
+  const [date, setDate] = React.useState(new Date())
+  const [time, setTime] = React.useState(new Date())
 
   // --- State for pickers ---
-  const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [showTimePicker, setShowTimePicker] = React.useState(false);
+  const [showDatePicker, setShowDatePicker] = React.useState(false)
+  const [showTimePicker, setShowTimePicker] = React.useState(false)
 
   // --- State for loading/submission ---
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   const handleAddReminder = async () => {
     if (!title.trim()) {
-      Alert.alert('เกิดข้อผิดพลาด', 'กรุณาใส่หัวข้อ');
-      return;
+      Alert.alert('เกิดข้อผิดพลาด', 'กรุณาใส่หัวข้อ')
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     // Format data for the API payload
     const reminderData: IAddReminder = {
@@ -73,65 +73,65 @@ export default function AddReminderPage() {
       description: description,
       reminderDate: formatApiDate(date),
       reminderTime: formatApiTime(time),
-    };
+    }
 
     try {
-      const newReminder = await addReminder(reminderData);
+      const newReminder = await addReminder(reminderData)
 
       if (newReminder) {
-        console.log('Successfully added reminder:', newReminder);
-        router.back();
+        console.log('Successfully added reminder:', newReminder)
+        router.back()
       } else {
         Alert.alert(
           'เกิดข้อผิดพลาด',
           'ไม่สามารถเพิ่มการแจ้งเตือนได้ กรุณาลองใหม่อีกครั้ง'
-        );
+        )
       }
     } catch (error) {
-      console.error('An unexpected error occurred:', error);
-      Alert.alert('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดที่ไม่คาดคิด');
+      console.error('An unexpected error occurred:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดที่ไม่คาดคิด')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // Picker Handlers
   const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    const currentDate = selectedDate || date;
+    const currentDate = selectedDate || date
     if (Platform.OS === 'android') {
-      setShowDatePicker(false);
+      setShowDatePicker(false)
     }
     if (event.type === 'set' || Platform.OS === 'ios') {
-      setDate(currentDate);
+      setDate(currentDate)
     } else {
-      setShowDatePicker(false);
+      setShowDatePicker(false)
     }
-  };
+  }
 
   const onTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
-    const currentTime = selectedTime || time;
+    const currentTime = selectedTime || time
     if (Platform.OS === 'android') {
-      setShowTimePicker(false);
+      setShowTimePicker(false)
     }
     if (event.type === 'set' || Platform.OS === 'ios') {
-      setTime(currentTime);
+      setTime(currentTime)
     } else {
-      setShowTimePicker(false);
+      setShowTimePicker(false)
     }
-  };
+  }
 
   const closeIosPicker = () => {
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-  };
+    setShowDatePicker(false)
+    setShowTimePicker(false)
+  }
 
   const handleOpenDatePicker = () => {
-    setShowDatePicker(true);
-  };
+    setShowDatePicker(true)
+  }
 
   const handleOpenTimePicker = () => {
-    setShowTimePicker(true);
-  };
+    setShowTimePicker(true)
+  }
 
   return (
     <View style={styles.screen}>
@@ -166,7 +166,7 @@ export default function AddReminderPage() {
             <Text style={styles.inputLabel}>หัวข้อ</Text>
             <TextInput
               style={styles.input}
-              placeholder='หัวข้ออะไรดีหนอ'
+              placeholder="หัวข้ออะไรดีหนอ"
               value={title}
               onChangeText={setTitle}
               editable={!isSubmitting}
@@ -200,7 +200,7 @@ export default function AddReminderPage() {
           <View>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder='รายละเอียด'
+              placeholder="รายละเอียด"
               multiline
               numberOfLines={4}
               value={description}
@@ -216,50 +216,50 @@ export default function AddReminderPage() {
       {showDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={date}
-          mode='date'
-          display='default'
+          mode="date"
+          display="default"
           onChange={onDateChange}
         />
       )}
       {showTimePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={time}
-          mode='time'
-          display='default'
+          mode="time"
+          display="default"
           onChange={onTimeChange}
         />
       )}
       <Modal
         visible={(showDatePicker || showTimePicker) && Platform.OS === 'ios'}
         transparent={true}
-        animationType='slide'
+        animationType="slide"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             {showDatePicker && (
               <DateTimePicker
                 value={date}
-                mode='date'
-                display='inline'
+                mode="date"
+                display="inline"
                 onChange={onDateChange}
-                textColor='#0ea5e9'
+                textColor="#0ea5e9"
               />
             )}
             {showTimePicker && (
               <DateTimePicker
                 value={time}
-                mode='time'
-                display='spinner'
+                mode="time"
+                display="spinner"
                 onChange={onTimeChange}
-                textColor='#0ea5e9'
+                textColor="#0ea5e9"
               />
             )}
-            <Button title='Done' onPress={closeIosPicker} />
+            <Button title="Done" onPress={closeIosPicker} />
           </View>
         </View>
       </Modal>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -381,4 +381,4 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-});
+})

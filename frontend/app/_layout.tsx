@@ -1,24 +1,24 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
+import { Stack } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
+import 'react-native-reanimated'
 
-import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
-import { NotificationProvider } from '@/context/NotificationContext';
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
+import { NotificationProvider } from '@/context/NotificationContext'
+import { useColorScheme } from '@/src/hooks/use-color-scheme'
 
-import '@/global.css';
-import * as Notifications from 'expo-notifications';
-import * as SplashScreen from 'expo-splash-screen';
+import '@/global.css'
+import * as Notifications from 'expo-notifications'
+import * as SplashScreen from 'expo-splash-screen'
 
 import {
   Prompt_400Regular,
   Prompt_500Medium,
   Prompt_700Bold,
   useFonts,
-} from '@expo-google-fonts/prompt';
+} from '@expo-google-fonts/prompt'
 
-import { useCallback } from 'react';
+import { useCallback } from 'react'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -28,46 +28,46 @@ Notifications.setNotificationHandler({
     shouldShowBanner: true,
     shouldShowList: true,
   }),
-});
+})
 
 export const unstable_settings = {
   anchor: '(tabs)',
-};
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme()
   const [fontsLoaded] = useFonts({
     Prompt_400Regular,
     Prompt_500Medium,
     Prompt_700Bold,
-  });
+  })
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
-      await SplashScreen.hideAsync();
+      await SplashScreen.hideAsync()
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded])
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded) return null
 
   return (
-    <GluestackUIProvider mode='light'>
+    <GluestackUIProvider mode="light">
       <NotificationProvider>
         <ThemeProvider value={DefaultTheme}>
           <Stack>
-            <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
-              name='modal'
+              name="modal"
               options={{ presentation: 'modal', title: 'Modal' }}
             />
             <Stack.Screen
-              name='add_reminder'
+              name="add_reminder"
               options={{ headerShown: false }}
             />
           </Stack>
-          <StatusBar style='auto' />
+          <StatusBar style="auto" />
         </ThemeProvider>
       </NotificationProvider>
     </GluestackUIProvider>
-  );
+  )
 }
