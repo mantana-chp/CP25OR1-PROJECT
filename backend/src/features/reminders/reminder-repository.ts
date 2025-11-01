@@ -20,6 +20,28 @@ export const findById = async (id: string): Promise<reminders | null> => {
   });
 };
 
+export const findByUniqueFields = async (
+  petId: string,
+  reminderName: string,
+  reminderDate: Date,
+  reminderTime: Date | null
+): Promise<reminders | null> => {
+  return await prisma.reminders.findFirst({
+    where: {
+      pet_id: petId,
+      reminder_name: reminderName,
+      reminder_date: reminderDate,
+      reminder_time: reminderTime,
+    },
+  });
+};
+
+export const deleteById = async (id: string): Promise<void> => {
+  await prisma.reminders.delete({
+    where: { id },
+  });
+};
+
 export const getReminderCount = async (): Promise<number> => {
   return prisma.reminders.count();
 };
@@ -34,7 +56,6 @@ export const add = async (newReminder: ReminderCreationData): Promise<Reminder> 
     description: newReminder.description,
     reminder_date: new Date(newReminder.reminderDate),
     reminder_time: newReminder.reminderTime ? new Date(`2000-01-01T${newReminder.reminderTime}Z`) : null, // ได้มาแค่เวลาเลยใส่ date ไว้ อาจจะเปลี่ยน requset ให้มาเป็น timestamp ถ้าทำได้
-    status_updated_at: new Date(),
     created_at: new Date(),
     updated_at: new Date(),
   };
