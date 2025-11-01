@@ -60,7 +60,6 @@ export default function AddReminderPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleAddReminder = async () => {
-    // 1. Basic Validation
     if (!title.trim()) {
       Alert.alert('เกิดข้อผิดพลาด', 'กรุณาใส่หัวข้อ');
       return;
@@ -68,7 +67,7 @@ export default function AddReminderPage() {
 
     setIsSubmitting(true);
 
-    // 2. Format data for the API payload
+    // Format data for the API payload
     const reminderData: IAddReminder = {
       reminderName: title,
       description: description,
@@ -77,7 +76,6 @@ export default function AddReminderPage() {
     };
 
     try {
-      // 3. Call the API function
       const newReminder = await addReminder(reminderData);
 
       if (newReminder) {
@@ -202,7 +200,7 @@ export default function AddReminderPage() {
           <View>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder='รายละเอียดอื่นๆ'
+              placeholder='รายละเอียด'
               multiline
               numberOfLines={4}
               value={description}
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    backgroundColor: '#0ea5e9',
+    backgroundColor: '#5FA7D1',
     padding: 16,
     alignItems: 'center',
     gap: 16,
@@ -311,11 +309,13 @@ const styles = StyleSheet.create({
     color: '#4b5563',
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
+    fontWeight: 'bold',
   },
   addText: {
-    color: '#0284c7',
+    color: '#2E759E',
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
+    fontWeight: 'bold',
   },
   submittingText: {
     color: '#6b7280',
