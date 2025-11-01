@@ -1,9 +1,11 @@
-// lib/api/apiClient.ts
+// src/utils/api/api_client.ts
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import * as SecureStore from 'expo-secure-store'
+import { Platform } from 'react-native'
 
 // API Configuration
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 const TOKEN_KEY = 'auth_token'
 
 // Custom error class for better error handling
@@ -15,6 +17,46 @@ export class ApiError extends Error {
   ) {
     super(message)
     this.name = 'ApiError'
+  }
+}
+
+// 🔧 FIXED: Cross-platform storage utility
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    try {
+      if (Platform.OS === 'web') {
+        return localStorage.getItem(key)
+      } else {
+        return await SecureStore.getItemAsync(key)
+      }
+    } catch (error) {
+      console.error(`Error getting item ${key}:`, error)
+      return null
+    }
+  },
+
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.setItem(key, value)
+      } else {
+        await SecureStore.setItemAsync(key, value)
+      }
+    } catch (error) {
+      console.error(`Error setting item ${key}:`, error)
+    }
+  },
+
+  async removeItem(key: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(key)
+      } else {
+        await SecureStore.deleteItemAsync(key)
+      }
+    } catch (error) {
+      console.error(`Error removing item ${key}:`, error)
+    }
   }
 }
 
@@ -31,6 +73,7 @@ class ApiClient {
       }
     })
 
+    console.log('✅ API Client initialized:', API_BASE_URL)
     this.setupInterceptors()
   }
 
@@ -38,63 +81,77 @@ class ApiClient {
     // Request interceptor - Add auth token
     this.client.interceptors.request.use(
       async (config) => {
-        const token = await SecureStore.getItemAsync(TOKEN_KEY)
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`
+        try {
+          const token = await storage.getItem(TOKEN_KEY)
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+            console.log('🔑 Token added to request')
+          }
+        } catch (error) {
+          console.error('❌ Error getting token:', error)
         }
+        console.log('📤 Request:', config.method?.toUpperCase(), config.url)
         return config
       },
-      (error) => Promise.reject(error)
+      (error) => {
+        console.error('❌ Request error:', error)
+        return Promise.reject(error)
+      }
     )
 
     // Response interceptor - Handle errors globally
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        console.log('✅ Response:', response.status, response.config.url)
+        return response
+      },
       async (error: AxiosError) => {
-      if (error.response) {
-        const { status, data } = error.response
+        console.error('❌ Response error:', error.message)
 
-        // Handle specific status codes
-        switch (status) {
-        case 401:
-          // Unauthorized - Clear token and redirect to login
-          await SecureStore.deleteItemAsync(TOKEN_KEY)
-          throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
+        if (error.response) {
+          const { status, data } = error.response
+          console.error('Status:', status, 'Data:', data)
 
-        case 403:
+          // Handle specific status codes
+          switch (status) {
+            case 401:
+              await storage.removeItem(TOKEN_KEY)
+              throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
+
+            case 403:
+              throw new ApiError(403, 'คุณไม่มีสิทธิ์ในการดำเนินการนี้')
+
+            case 404:
+              throw new ApiError(404, 'ไม่พบทรัพยากร')
+
+            case 422:
+              throw new ApiError(
+                422,
+                'การตรวจสอบล้มเหลว',
+                (data as any)?.errors
+              )
+
+            case 500:
+              throw new ApiError(
+                500,
+                'เกิดข้อผิดพลาดของเซิร์ฟเวอร์ โปรดลองอีกครั้ง'
+              )
+
+            default:
+              throw new ApiError(
+                status,
+                (data as any)?.message || 'เกิดข้อผิดพลาดที่ไม่คาดคิด'
+              )
+          }
+        } else if (error.request) {
+          console.error('❌ Network error - no response received')
           throw new ApiError(
-          403,
-          'คุณไม่มีสิทธิ์ในการดำเนินการนี้'
+            0,
+            'ข้อผิดพลาดของเครือข่าย โปรดตรวจสอบการเชื่อมต่อของคุณ'
           )
-
-        case 404:
-          throw new ApiError(404, 'ไม่พบทรัพยากร')
-
-        case 422:
-          throw new ApiError(
-          422,
-          'การตรวจสอบล้มเหลว',
-          (data as any)?.errors
-          )
-
-        case 500:
-          throw new ApiError(500, 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์ โปรดลองอีกครั้ง')
-
-        default:
-          throw new ApiError(
-          status,
-          (data as any)?.message || 'เกิดข้อผิดพลาดที่ไม่คาดคิด'
-          )
+        } else {
+          throw new ApiError(0, error.message || 'เกิดข้อผิดพลาดที่ไม่คาดคิด')
         }
-      } else if (error.request) {
-        // Network error
-        throw new ApiError(0, 'ข้อผิดพลาดของเครือข่าย โปรดตรวจสอบการเชื่อมต่อของคุณ')
-      } else {
-        throw new ApiError(
-        0,
-        error.message || 'เกิดข้อผิดพลาดที่ไม่คาดคิด'
-        )
-      }
       }
     )
   }
@@ -140,15 +197,17 @@ class ApiClient {
 
   // Auth helpers
   async setToken(token: string): Promise<void> {
-    await SecureStore.setItemAsync(TOKEN_KEY, token)
+    await storage.setItem(TOKEN_KEY, token)
+    console.log('✅ Token saved')
   }
 
   async getToken(): Promise<string | null> {
-    return await SecureStore.getItemAsync(TOKEN_KEY)
+    return await storage.getItem(TOKEN_KEY)
   }
 
   async clearToken(): Promise<void> {
-    await SecureStore.deleteItemAsync(TOKEN_KEY)
+    await storage.removeItem(TOKEN_KEY)
+    console.log('✅ Token cleared')
   }
 }
 

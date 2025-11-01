@@ -1,6 +1,6 @@
 // lib/api/useApi.ts
-import { useCallback, useState } from 'react'
-import { Alert } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Alert } from 'react-native' 
 import { ApiError } from './api_client'
 
 export interface ApiState<T> {
@@ -33,12 +33,25 @@ export function useApi<T, Args extends any[] = any[]>(
     error: null
   })
 
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const execute = useCallback(
     async (...args: Args) => {
-      setState({ data: null, loading: true, error: null })
+      if (!isMountedRef.current) return { data: null, error: null }
+
+      setState((prev) => ({ ...prev, loading: true, error: null }))
 
       try {
         const data = await apiFunction(...args)
+
+        if (!isMountedRef.current) return { data, error: null }
+
         setState({ data, loading: false, error: null })
 
         if (successMessage) {
@@ -51,6 +64,8 @@ export function useApi<T, Args extends any[] = any[]>(
 
         return { data, error: null }
       } catch (err) {
+        if (!isMountedRef.current) return { data: null, error: null }
+
         const error =
           err instanceof ApiError
             ? err
@@ -84,29 +99,30 @@ export function useApi<T, Args extends any[] = any[]>(
 }
 
 /**
- * Hook for API calls that auto-execute on mount
- * @param apiFunction - The API function to call
- * @param args - Arguments to pass to the API function
- * @param options - Configuration options
+ * DEPRECATED: Use useApi with manual execute() instead
+ * This hook can cause Suspense errors on mobile
+ *
+ * @example
+ * // ✅ Use this pattern instead:
+ * const api = useApi(myService.getData);
+ * useEffect(() => { api.execute(); }, []);
  */
 export function useApiQuery<T, Args extends any[] = any[]>(
   apiFunction: (...args: Args) => Promise<T>,
   args: Args,
   options: ApiOptions & { enabled?: boolean } = {}
 ) {
+  console.warn(
+    '⚠️ useApiQuery is deprecated and may cause Suspense errors. Use useApi with manual execute() instead.'
+  )
+
   const { enabled = true, ...apiOptions } = options
   const api = useApi(apiFunction, apiOptions)
 
-  // Auto-execute on mount
-  useState(() => {
-    if (enabled) {
-      api.execute(...args)
-    }
-  })
-
+  // Manual refetch function
   const refetch = useCallback(() => {
     return api.execute(...args)
-  }, [api, args])
+  }, [api.execute, JSON.stringify(args)])
 
   return {
     ...api,

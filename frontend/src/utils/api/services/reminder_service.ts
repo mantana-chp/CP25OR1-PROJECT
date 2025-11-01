@@ -4,7 +4,7 @@ import { apiClient } from '../api_client'
 export const reminderService = {
   getReminders: async (params?: { category?: string; page?: number }) => {
     return apiClient.get<{ reminders: IReminder[]; total: number }>(
-      '/reminders',
+      '/v1/reminders',
       {
         params
       }
@@ -12,18 +12,18 @@ export const reminderService = {
   },
 
   getReminderById: async (id: string) => {
-    return apiClient.get<IReminder>(`/reminders/${id}`)
+    return apiClient.get<IReminder>(`/v1/reminders/${id}`)
   },
 
   createReminder: async (data: Omit<IReminder, 'id'>) => {
-    return apiClient.post<IReminder>('/reminders', data)
+    return apiClient.post<IReminder>('/v1/reminders', data)
   },
 
   updateReminder: async (id: string, data: Partial<IReminder>) => {
-    return apiClient.put<IReminder>(`/reminders/${id}`, data)
+    return apiClient.put<IReminder>(`/v1/reminders/${id}`, data)
   },
 
   deleteReminder: async (id: string) => {
-    return apiClient.delete(`/reminders/${id}`)
+    return apiClient.delete(`/v1/reminders/${id}`)
   }
 }
