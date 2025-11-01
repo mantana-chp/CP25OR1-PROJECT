@@ -51,21 +51,21 @@ export default function RootLayout() {
   if (!fontsLoaded) return null
 
   return (
-    <GluestackUIProvider mode="light">
+    <GluestackUIProvider mode='light'>
       <NotificationProvider>
         <ThemeProvider value={DefaultTheme}>
           <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
             <Stack.Screen
-              name="modal"
+              name='modal'
               options={{ presentation: 'modal', title: 'Modal' }}
             />
             <Stack.Screen
-              name="add_reminder"
+              name='add_reminder'
               options={{ headerShown: false }}
             />
           </Stack>
-          <StatusBar style="auto" />
+          <StatusBar style='auto' />
         </ThemeProvider>
       </NotificationProvider>
     </GluestackUIProvider>
