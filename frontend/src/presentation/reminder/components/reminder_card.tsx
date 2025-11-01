@@ -5,14 +5,14 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/th'
 
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  ActivityIndicator
+  View
 } from 'react-native'
 
 import { Clock, Info, PawPrint, Trash2 } from 'lucide-react-native'
@@ -55,12 +55,9 @@ export default function ReminderCard(props: ReminderCardProps) {
       onPanResponderMove: (_, gestureState) => {
         const currentValue = swipePosition.current
 
-        // If swiping left (opening delete)
         if (gestureState.dx < 0) {
           translateX.setValue(gestureState.dx)
-        }
-        // If swiping right (closing delete) and delete is open
-        else if (gestureState.dx > 0 && currentValue < 0) {
+        } else if (gestureState.dx > 0 && currentValue < 0) {
           const newValue = currentValue + gestureState.dx
           translateX.setValue(Math.min(0, newValue))
         }
@@ -68,16 +65,13 @@ export default function ReminderCard(props: ReminderCardProps) {
       onPanResponderRelease: (_, gestureState) => {
         const currentValue = swipePosition.current
 
-        // If delete button is visible (currentValue < 0)
         if (currentValue < 0) {
-          // Swiping right to close
           if (gestureState.dx > 30 || currentValue > -50) {
             closeDeleteButton()
           } else {
             openDeleteButton()
           }
         } else {
-          // Delete button not visible, check if should open
           if (gestureState.dx < SWIPE_THRESHOLD) {
             openDeleteButton()
           } else {
@@ -106,7 +100,6 @@ export default function ReminderCard(props: ReminderCardProps) {
     }).start()
   }
 
-  // Tap card to close delete button
   const handleCardPress = () => {
     const currentValue = swipePosition.current
     if (currentValue < 0) {
@@ -114,14 +107,11 @@ export default function ReminderCard(props: ReminderCardProps) {
     }
   }
 
-  // Handle delete button press
   const handleDelete = () => {
-    if (isDeleting) return // Prevent multiple deletes
+    if (isDeleting) return
 
-    // Close the swipe first
     closeDeleteButton()
 
-    // Trigger the delete callback which will show confirmation
     if (onDelete) {
       onDelete(reminder.id)
     }
@@ -186,9 +176,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 
             <View style={styles.infoRow}>
               <PawPrint size={16} color="#2E759E" fill="#2E759E" />
-              <Text style={styles.petNameText}>
-                {reminder?.petName || '-'}
-              </Text>
+              <Text style={styles.petNameText}>{reminder?.petName || '-'}</Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -198,7 +186,7 @@ export default function ReminderCard(props: ReminderCardProps) {
           </View>
 
           {/* Right side - Info button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.infoButton}
             onPress={() => console.log('Info pressed for:', reminder.id)}
           >

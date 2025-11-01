@@ -3,12 +3,10 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
 
-// API Configuration
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
 const TOKEN_KEY = 'auth_token'
 
-// Custom error class for better error handling
 export class ApiError extends Error {
   constructor(
     public statusCode: number,
@@ -20,7 +18,6 @@ export class ApiError extends Error {
   }
 }
 
-// 🔧 FIXED: Cross-platform storage utility
 const storage = {
   async getItem(key: string): Promise<string | null> {
     try {
@@ -60,7 +57,6 @@ const storage = {
   }
 }
 
-// API Client Class
 class ApiClient {
   private client: AxiosInstance
 
@@ -99,7 +95,6 @@ class ApiClient {
       }
     )
 
-    // Response interceptor - Handle errors globally
     this.client.interceptors.response.use(
       (response) => {
         console.log('✅ Response:', response.status, response.config.url)
@@ -112,7 +107,6 @@ class ApiClient {
           const { status, data } = error.response
           console.error('Status:', status, 'Data:', data)
 
-          // Handle specific status codes
           switch (status) {
             case 401:
               await storage.removeItem(TOKEN_KEY)
@@ -156,13 +150,11 @@ class ApiClient {
     )
   }
 
-  // Generic request method
   async request<T>(config: AxiosRequestConfig): Promise<T> {
     const response = await this.client.request<T>(config)
     return response.data
   }
 
-  // HTTP Methods
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return this.request<T>({ ...config, method: 'GET', url })
   }

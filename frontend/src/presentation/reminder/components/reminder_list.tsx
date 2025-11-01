@@ -24,7 +24,7 @@ export default function ReminderList() {
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
 
   // ------------------
-  // API - Manual execution only!
+  // API
   // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: true
@@ -34,7 +34,6 @@ export default function ReminderList() {
     showErrorAlert: true,
     successMessage: 'ลบนัดหมายสำเร็จ',
     onSuccess: () => {
-      // Refetch reminders after successful delete
       loadReminders()
     }
   })
@@ -59,7 +58,6 @@ export default function ReminderList() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Refetch when tab changes
   useEffect(() => {
     if (activeTab) {
       loadReminders()
@@ -67,7 +65,7 @@ export default function ReminderList() {
   }, [activeTab, loadReminders])
 
   // ------------------
-  // DELETE HANDLER - Fixed!
+  // DELETE HANDLER
   // ------------------
   const handleDeleteReminder = useCallback(
     (id: string) => {
