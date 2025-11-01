@@ -10,7 +10,7 @@ export interface Reminder {
   reminderDate: Date;
   reminderTime?: string;
   reminderStatus: reminder_status;
-  statusUpdatedAt: Date;
+  statusDoneAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

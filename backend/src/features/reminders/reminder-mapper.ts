@@ -12,7 +12,7 @@ interface PrismaReminder {
   reminder_date: Date;
   reminder_time: Date | null;
   reminder_status: reminder_status;
-  status_updated_at: Date;
+  status_done_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -28,7 +28,7 @@ export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Rem
     reminderDate: prismaReminder.reminder_date,
     reminderTime: prismaReminder.reminder_time ? prismaReminder.reminder_time.toISOString().slice(11, 19) : undefined,
     reminderStatus: prismaReminder.reminder_status,
-    statusUpdatedAt: prismaReminder.status_updated_at,
+    statusDoneAt: prismaReminder.status_done_at ?? undefined,
     createdAt: prismaReminder.created_at,
     updatedAt: prismaReminder.updated_at,
   };

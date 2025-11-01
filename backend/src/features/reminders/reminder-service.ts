@@ -1,7 +1,7 @@
 import * as reminderRepository from './reminder-repository';
 import { Reminder, CreateReminderInput, ReminderCreationData } from './reminder-types';
 import { mapPrismaReminderToReminder } from './reminder-mapper';
-import { NotFoundError, ApiError, BadRequestError } from '../../shared/errors';
+import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
 import { reminder_status } from '../../generated/prisma/client';
 
 export const getAllReminders = async (userId: string): Promise<Reminder[]> => {
@@ -45,11 +45,30 @@ export const deleteReminder = async (id: string, userId: string): Promise<void> 
 };
 
 export const createNewReminder = async (newReminderData: CreateReminderInput, userId: string): Promise<Reminder> => {
+  const petId = "ddd11111-1111-1111-1111-111111111111"; // hardcoded for sprint 1
+  const categoryId = "ccc11111-1111-1111-1111-111111111111"; // hardcoded for sprint 1
+
+  const reminderDate = new Date(newReminderData.reminderDate);
+  const reminderTime = newReminderData.reminderTime ? new Date(`2000-01-01T${newReminderData.reminderTime}Z`) : null;
+
+  const existingReminder = await reminderRepository.findByUniqueFields(
+    petId,
+    newReminderData.reminderName,
+    reminderDate,
+    reminderTime
+  );
+
+  if (existingReminder) {
+    throw new ConflictError('Conflict', [
+      { message: 'A reminder with the same name, date, and time already exists for this pet.', code: 409 },
+    ]);
+  }
+
   const dataForRepo: ReminderCreationData = {
     ...newReminderData,
     user: { connect: { id: userId } },
-    pet: { connect: { id: "ddd11111-1111-1111-1111-111111111111" } },
-    reminder_categories: { connect: { id: "ccc11111-1111-1111-1111-111111111111" } }, // pet, reminder are fixed for sprint 1
+    pet: { connect: { id: petId } },
+    reminder_categories: { connect: { id: categoryId } },
   };
   return await reminderRepository.add(dataForRepo);
 };
