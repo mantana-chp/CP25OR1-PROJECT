@@ -6,13 +6,14 @@ import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { Plus } from 'lucide-react-native'
 import {
-  ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native'
+import LoadingComponent from '../../components/loading_component'
 
 type TabType = 'to_do' | 'done'
 
@@ -43,7 +44,7 @@ export default function Test() {
   // ------------------
   const loadReminders = useCallback(() => {
     console.log('🔄 Loading reminders for tab:', activeTab)
-    getRemindersApi.execute({ category: activeTab })
+    getRemindersApi.execute({})
   }, [activeTab])
 
   // Fetch on mount
@@ -71,7 +72,23 @@ export default function Test() {
   // ------------------
   const onDeleteReminder = (id: string) => {
     return () => {
-      setDeleteId(id)
+      Alert.alert(
+        'ยืนยันการลบนัดหมาย',
+        'คุณแน่ใจหรือไม่ว่าต้องการลบนัดหมายนัดหมายนี้?',
+        [
+          {
+            text: 'ยกเลิก',
+            onPress: () => handleCancelDelete(),
+            style: 'cancel'
+          },
+          {
+            text: 'ตกลง',
+            onPress: () => {
+              handleConfirmDelete()
+            }
+          }
+        ]
+      )
     }
   }
 
@@ -94,18 +111,6 @@ export default function Test() {
   const filteredReminders = reminders.filter(
     (reminder) => reminder.reminderStatus === activeTab
   )
-
-  // ------------------
-  // LOADING STATE
-  // ------------------
-  if (getRemindersApi.loading && !getRemindersApi.data) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#5FA7D1" />
-        <Text style={styles.loadingText}>กำลังโหลด...</Text>
-      </View>
-    )
-  }
 
   // ------------------
   // RENDER
@@ -146,29 +151,33 @@ export default function Test() {
       </View>
 
       {/* Reminder Content */}
-      <ScrollView
-        style={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {_.size(filteredReminders) === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {activeTab === 'to_do'
-                ? 'ไม่มีนัดหมาย'
-                : 'ไม่มีรายการที่เสร็จสิ้น'}
-            </Text>
-          </View>
-        ) : (
-          _.map(filteredReminders, (reminder) => (
-            <ReminderCard
-              key={reminder?.id}
-              reminder={reminder}
-              onDelete={onDeleteReminder(reminder.id)}
-            />
-          ))
-        )}
-      </ScrollView>
+      {getRemindersApi.loading && !getRemindersApi.data ? (
+        <LoadingComponent />
+      ) : (
+        <ScrollView
+          style={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {_.size(filteredReminders) === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {activeTab === 'to_do'
+                  ? 'ไม่มีนัดหมาย'
+                  : 'ไม่มีรายการที่เสร็จสิ้น'}
+              </Text>
+            </View>
+          ) : (
+            _.map(filteredReminders, (reminder) => (
+              <ReminderCard
+                key={reminder?.id}
+                reminder={reminder}
+                onDelete={onDeleteReminder(reminder.id)}
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
 
       {/* Floating Add Button */}
       <TouchableOpacity
@@ -188,19 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff9f1',
     borderRadius: 24
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff9f1',
-    paddingVertical: 60
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#225877',
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular'
-  },
+
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
