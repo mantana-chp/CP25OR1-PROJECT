@@ -161,6 +161,7 @@ export default function ReminderList() {
                 reminder={reminder}
                 onDelete={handleDeleteReminder}
                 isDeleting={deleteReminderApi.loading}
+                canDelete={reminder.reminderStatus !== 'done'}
               />
             ))
           )}

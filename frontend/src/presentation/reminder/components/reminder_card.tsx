@@ -24,13 +24,14 @@ interface ReminderCardProps {
   reminder: IReminder
   onDelete?: (id: string) => void
   isDeleting?: boolean
+  canDelete?: boolean
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   // CONST
   // ------------------
-  const { reminder, onDelete, isDeleting = false } = props
+  const { reminder, onDelete, isDeleting = false, canDelete = true } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}, HH:mm น.`)
@@ -41,7 +42,6 @@ export default function ReminderCard(props: ReminderCardProps) {
   const translateX = useRef(new Animated.Value(0)).current
   const swipePosition = useRef(0)
 
-  // Track the current position
   translateX.addListener(({ value }) => {
     swipePosition.current = value
   })
@@ -50,9 +50,12 @@ export default function ReminderCard(props: ReminderCardProps) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (!canDelete) return false
         return Math.abs(gestureState.dx) > 10
       },
       onPanResponderMove: (_, gestureState) => {
+        if (!canDelete) return
+
         const currentValue = swipePosition.current
 
         if (gestureState.dx < 0) {
@@ -63,6 +66,8 @@ export default function ReminderCard(props: ReminderCardProps) {
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        if (!canDelete) return
+
         const currentValue = swipePosition.current
 
         if (currentValue < 0) {
@@ -100,6 +105,7 @@ export default function ReminderCard(props: ReminderCardProps) {
     }).start()
   }
 
+  // Tap card to close delete button
   const handleCardPress = () => {
     const currentValue = swipePosition.current
     if (currentValue < 0) {
@@ -108,8 +114,8 @@ export default function ReminderCard(props: ReminderCardProps) {
   }
 
   const handleDelete = () => {
-    if (isDeleting) return
-
+    if (isDeleting) return 
+     
     closeDeleteButton()
 
     if (onDelete) {
@@ -122,24 +128,26 @@ export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   return (
     <View style={styles.container}>
-      {/* Delete Button Background */}
-      <View style={styles.deleteButtonContainer}>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={handleDelete}
-          activeOpacity={0.8}
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Trash2 size={24} color="#fff" />
-              <Text style={styles.deleteText}>ลบ</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Delete Button Background - Only show if can delete */}
+      {canDelete && (
+        <View style={styles.deleteButtonContainer}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            activeOpacity={0.8}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Trash2 size={24} color="#fff" />
+                <Text style={styles.deleteText}>ลบ</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Swipeable Card */}
       <Animated.View
@@ -149,7 +157,7 @@ export default function ReminderCard(props: ReminderCardProps) {
             transform: [{ translateX }]
           }
         ]}
-        {...panResponder.panHandlers}
+        {...(canDelete ? panResponder.panHandlers : {})}
       >
         <TouchableOpacity
           activeOpacity={1}
