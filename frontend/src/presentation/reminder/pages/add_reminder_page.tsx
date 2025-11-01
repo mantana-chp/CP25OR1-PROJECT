@@ -31,7 +31,7 @@ const formatTime = (time: Date) => {
   });
 };
 
-// --- NEW: Helper functions to format data for the API ---
+// Helper functions to format data for the API
 // Formats date to YYYY-MM-DD
 const formatApiDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
@@ -81,28 +81,23 @@ export default function AddReminderPage() {
       const newReminder = await addReminder(reminderData);
 
       if (newReminder) {
-        // Success!
         console.log('Successfully added reminder:', newReminder);
-        // (Optional) You could show a success toast here
         router.back();
       } else {
-        // The API function returned null, meaning an error was caught and logged
         Alert.alert(
           'เกิดข้อผิดพลาด',
           'ไม่สามารถเพิ่มการแจ้งเตือนได้ กรุณาลองใหม่อีกครั้ง'
         );
       }
     } catch (error) {
-      // Catch any unexpected errors
       console.error('An unexpected error occurred:', error);
       Alert.alert('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดที่ไม่คาดคิด');
     } finally {
-      // 4. Reset loading state
       setIsSubmitting(false);
     }
   };
 
-  // --- Picker Handlers (no changes needed) ---
+  // Picker Handlers
   const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
     if (Platform.OS === 'android') {
@@ -174,9 +169,9 @@ export default function AddReminderPage() {
             <TextInput
               style={styles.input}
               placeholder='หัวข้ออะไรดีหนอ'
-              value={title} // Connect value
-              onChangeText={setTitle} // Connect handler
-              editable={!isSubmitting} // Disable when loading
+              value={title}
+              onChangeText={setTitle}
+              editable={!isSubmitting}
             />
           </View>
 
@@ -186,7 +181,7 @@ export default function AddReminderPage() {
             <Pressable
               onPress={handleOpenDatePicker}
               style={styles.pickerButton}
-              disabled={isSubmitting} // Disable when loading
+              disabled={isSubmitting}
             >
               <Text style={styles.pickerButtonText}>{formatDate(date)}</Text>
               <Text style={styles.pickerButtonIcon}>📅</Text>
@@ -196,7 +191,7 @@ export default function AddReminderPage() {
             <Pressable
               onPress={handleOpenTimePicker}
               style={styles.pickerButton}
-              disabled={isSubmitting} // Disable when loading
+              disabled={isSubmitting}
             >
               <Text style={styles.pickerButtonText}>{formatTime(time)}</Text>
               <Text style={styles.pickerButtonIcon}>⏰</Text>
@@ -210,16 +205,16 @@ export default function AddReminderPage() {
               placeholder='รายละเอียดอื่นๆ'
               multiline
               numberOfLines={4}
-              value={description} // Connect value
-              onChangeText={setDescription} // Connect handler
-              editable={!isSubmitting} // Disable when loading
+              value={description}
+              onChangeText={setDescription}
+              editable={!isSubmitting}
             />
           </View>
         </View>
-        {/* --- END Form Card --- */}
+        {/* --- Form Card --- */}
       </View>
 
-      {/* --- PICKER COMPONENTS (no changes) --- */}
+      {/* --- PICKER COMPONENTS --- */}
       {showDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={date}
@@ -269,7 +264,6 @@ export default function AddReminderPage() {
   );
 }
 
-// --- Add one new style for the disabled/loading text ---
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -323,11 +317,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
   },
-  // --- NEW STYLE ---
   submittingText: {
-    color: '#6b7280', // A gray color for loading state
+    color: '#6b7280',
   },
-  // ---
+
   inputGroup: {
     marginBottom: 16,
     gap: 4,
