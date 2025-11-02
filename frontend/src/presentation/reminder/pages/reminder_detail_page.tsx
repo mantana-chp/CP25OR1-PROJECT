@@ -1,15 +1,16 @@
-import React from 'react'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
+import React, { useEffect } from 'react'
 import {
+  ActivityIndicator,
   Platform,
-  StatusBar,
   Pressable,
-  View,
+  StatusBar,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
-  ActivityIndicator,
+  View
 } from 'react-native'
-import { useRouter, useLocalSearchParams } from 'expo-router'
 import { fetchReminderById } from '../../../data/reminder.api'
 
 // --- Helper Functions ---
@@ -20,7 +21,7 @@ const formatDate = (date: Date) => {
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString('th-TH', {
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   })
 }
 
@@ -49,23 +50,8 @@ export default function ReminderDetailPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Fetch data when the component mounts
-  React.useEffect(() => {
-    // ===================================================================
-    // --- HOW TO SWITCH BETWEEN MOCK AND PRODUCTION ---
-    // ===================================================================
-
-    // [ 1. MOCK VERSION (Currently Active) ]
-    // This uses hardcoded ID as a fallback
-    const idToFetch = 'dccccb95-eeb5-434f-9e42-7e8dc0a2c993'
-
-    // [ 2. INTEGRATED VERSION ]
-    // When you merge, comment out or remove the line idToFetch ABOVE
-    // and uncomment the line idToFetch BELOW.
-    //
-    // const idToFetch = id;
-
-    // ===================================================================
+  useEffect(() => {
+    const idToFetch = id
 
     if (!idToFetch) {
       setError('No reminder ID provided.')
@@ -124,7 +110,9 @@ export default function ReminderDetailPage() {
         {/* --- Custom Header --- */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()}>
-            <Text style={styles.headerBackIcon}>‹</Text>
+            <Text style={styles.headerBackIcon}>
+              <ChevronLeft color={'#fff'} />
+            </Text>
           </Pressable>
           {/* Changed Title */}
           <Text style={styles.headerTitle}>รายละเอียดการเตือนความจำ</Text>
@@ -167,7 +155,7 @@ export default function ReminderDetailPage() {
           <View>
             <TextInput
               style={[styles.input, styles.textarea, styles.readOnlyInput]}
-              value={description}
+              value={description || '-'}
               multiline
               numberOfLines={4}
               editable={false}
@@ -183,28 +171,28 @@ export default function ReminderDetailPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e5e7eb'
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
   header: {
     flexDirection: 'row',
     backgroundColor: '#5FA7D1',
     padding: 16,
     alignItems: 'center',
-    gap: 16,
+    gap: 16
   },
   headerBackIcon: {
     color: 'white',
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   headerTitle: {
     color: '#ffffff',
     fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -215,17 +203,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1,
+    elevation: 1
   },
   inputGroup: {
     marginBottom: 16,
-    gap: 4,
+    gap: 4
   },
   inputLabel: {
     color: '#6b7280',
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4,
+    marginLeft: 4
   },
   input: {
     borderWidth: 1,
@@ -236,17 +224,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     minHeight: 48,
-    color: '#111827',
+    color: '#111827'
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12,
+    paddingVertical: 12
   },
   row: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 16
   },
   pickerButton: {
     flex: 1,
@@ -257,33 +245,33 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 12,
-    height: 48,
+    height: 48
   },
   pickerButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#111827',
+    color: '#111827'
   },
   pickerButtonIcon: {
-    fontSize: 20,
+    fontSize: 20
   },
   center: {
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   errorText: {
     fontSize: 18,
     color: '#ef4444',
     fontFamily: 'Prompt_700Bold',
-    marginBottom: 20,
+    marginBottom: 20
   },
   addText: {
     color: '#0284c7',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   readOnlyInput: {
     backgroundColor: '#f3f4f6',
-    color: '#374151',
-  },
+    color: '#374151'
+  }
 })

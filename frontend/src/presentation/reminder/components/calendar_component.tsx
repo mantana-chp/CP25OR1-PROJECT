@@ -235,7 +235,6 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#225877',
     fontFamily: 'Prompt_700Bold'
   },
   navigation: {

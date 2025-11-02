@@ -25,13 +25,20 @@ interface ReminderCardProps {
   onDelete?: (id: string) => void
   isDeleting?: boolean
   canDelete?: boolean
+  onPress?: (id: string) => void
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   // CONST
   // ------------------
-  const { reminder, onDelete, isDeleting = false, canDelete = true } = props
+  const {
+    reminder,
+    onDelete,
+    isDeleting = false,
+    canDelete = true,
+    onPress
+  } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}, HH:mm น.`)
@@ -87,6 +94,9 @@ export default function ReminderCard(props: ReminderCardProps) {
     })
   ).current
 
+  // ------------------
+  // HANDLERS
+  // ------------------
   const openDeleteButton = () => {
     Animated.spring(translateX, {
       toValue: -100,
@@ -105,17 +115,9 @@ export default function ReminderCard(props: ReminderCardProps) {
     }).start()
   }
 
-  // Tap card to close delete button
-  const handleCardPress = () => {
-    const currentValue = swipePosition.current
-    if (currentValue < 0) {
-      closeDeleteButton()
-    }
-  }
-
   const handleDelete = () => {
-    if (isDeleting) return 
-     
+    if (isDeleting) return
+
     closeDeleteButton()
 
     if (onDelete) {
@@ -123,6 +125,22 @@ export default function ReminderCard(props: ReminderCardProps) {
     }
   }
 
+  const handleCardPress = () => {
+    if (swipePosition.current < 0) {
+      closeDeleteButton()
+    } else {
+      if (onPress) {
+        onPress(reminder.id)
+      }
+    }
+  }
+
+  const handleInfoPress = () => {
+    closeDeleteButton()
+    if (onPress) {
+      onPress(reminder.id)
+    }
+  }
   // ------------------
   // RENDER
   // ------------------
@@ -196,7 +214,7 @@ export default function ReminderCard(props: ReminderCardProps) {
           {/* Right side - Info button */}
           <TouchableOpacity
             style={styles.infoButton}
-            onPress={() => console.log('Info pressed for:', reminder.id)}
+            onPress={() => handleInfoPress()}
           >
             <Info size={24} color="#88BEDD" />
           </TouchableOpacity>

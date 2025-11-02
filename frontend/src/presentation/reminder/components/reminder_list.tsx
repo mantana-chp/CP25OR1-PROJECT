@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import { useRouter } from 'expo-router'
 import { Plus } from 'lucide-react-native'
 import {
   Alert,
@@ -18,6 +19,11 @@ import LoadingComponent from '../../components/loading_component'
 type TabType = 'to_do' | 'done'
 
 export default function ReminderList() {
+  // ------------------
+  // STATE
+  // ------------------
+  const router = useRouter()
+
   // ------------------
   // STATE
   // ------------------
@@ -61,7 +67,7 @@ export default function ReminderList() {
   }, [activeTab, loadReminders])
 
   // ------------------
-  // DELETE HANDLER
+  // HANDLER
   // ------------------
   const handleDeleteReminder = useCallback(
     (id: string) => {
@@ -86,6 +92,17 @@ export default function ReminderList() {
     },
     [deleteReminderApi]
   )
+
+  const handleAddReminder = () => {
+    router.push('/add-reminder')
+  }
+
+  const handleReminderDetail = (reminderId: string) => {
+    router.push({
+      pathname: '/reminder-detail/[id]',
+      params: { id: reminderId }
+    })
+  }
 
   // ------------------
   // DATA
@@ -158,6 +175,7 @@ export default function ReminderList() {
                 onDelete={handleDeleteReminder}
                 isDeleting={deleteReminderApi.loading}
                 canDelete={reminder.reminderStatus !== 'done'}
+                onPress={() => handleReminderDetail(reminder.id)}
               />
             ))
           )}
@@ -167,7 +185,7 @@ export default function ReminderList() {
       {/* Floating Add Button */}
       <TouchableOpacity
         style={styles.addReminderButton}
-        onPress={() => console.log('Add new reminder')}
+        onPress={handleAddReminder}
       >
         <Plus size={32} color="#fff" strokeWidth={3} />
       </TouchableOpacity>
