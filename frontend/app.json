@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "CP25OR1-frontend",
-    "slug": "CP25OR1-frontend",
+    "name": "CP25OR1Frontend",
+    "slug": "cp25or1frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -22,7 +22,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "package": "dev.expo.mantana.demoapp",
+      "package": "dev.expo.mantana.cp25or1frontend",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json"
@@ -56,9 +56,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2beb546a-15c8-4cde-b0e5-659a9f941667"
+        "projectId": "cb2605bf-e104-4d13-8087-7bb0c3dafa06"
       }
-      // "apiUrl": "https://your-api.com/api" // replace this with production API URL
     },
     "owner": "mantana-chp"
   }
