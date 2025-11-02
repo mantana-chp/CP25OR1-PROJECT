@@ -35,21 +35,21 @@ export default function TabLayout() {
           shadowOpacity: 0,
           height: 84,
           paddingBottom: 10,
-          paddingTop: 10
+          paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 0 // Hide labels
+          fontSize: 0, // Hide labels
         },
-        tabBarShowLabel: false
+        tabBarShowLabel: false,
       }}
     >
       <Tabs.Screen
-        name="index"
+        name='index'
         options={{
           title: 'Calendar',
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon icon={Calendar} color={color} focused={focused} />
-          )
+          ),
         }}
       />
       {/* <Tabs.Screen
@@ -66,7 +66,7 @@ export default function TabLayout() {
         }}
       /> */}
       <Tabs.Screen
-        name="add_reminder"
+        name='add_reminder'
         options={{
           title: 'Add Reminder',
           tabBarIcon: ({ color, focused }) => (
@@ -75,7 +75,20 @@ export default function TabLayout() {
               color={color}
               focused={focused}
             />
-          )
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name='reminder_detail'
+        options={{
+          title: 'Reminder Detail',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={PawPrintIcon}
+              color={color}
+              focused={focused}
+            />
+          ),
         }}
       />
     </Tabs>
@@ -89,9 +102,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   iconContainerActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)'
-  }
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
 })

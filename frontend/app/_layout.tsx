@@ -13,7 +13,7 @@ import {
   Prompt_400Regular,
   Prompt_500Medium,
   Prompt_700Bold,
-  useFonts
+  useFonts,
 } from '@expo-google-fonts/prompt'
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
@@ -26,12 +26,12 @@ Notifications.setNotificationHandler({
     shouldPlaySound: false,
     shouldSetBadge: false,
     shouldShowBanner: true,
-    shouldShowList: true
-  })
+    shouldShowList: true,
+  }),
 })
 
 export const unstable_settings = {
-  anchor: '(tabs)'
+  anchor: '(tabs)',
 }
 
 export default function RootLayout() {
@@ -39,7 +39,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Prompt_400Regular,
     Prompt_500Medium,
-    Prompt_700Bold
+    Prompt_700Bold,
   })
 
   const onLayoutRootView = useCallback(async () => {
@@ -55,10 +55,14 @@ export default function RootLayout() {
       <ErrorProvider>
         <NotificationProvider>
           <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
             <Stack.Screen
-              name="modal"
+              name='modal'
               options={{ presentation: 'modal', title: 'Modal' }}
+            />
+            <Stack.Screen
+              name='add_reminder'
+              options={{ headerShown: false }}
             />
           </Stack>
           <StatusBar style="auto" />
