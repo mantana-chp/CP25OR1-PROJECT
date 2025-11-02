@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import React, { useEffect } from 'react'
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   StatusBar,
@@ -12,6 +11,7 @@ import {
   View
 } from 'react-native'
 import { fetchReminderById } from '../../../data/reminder.api'
+import LoadingComponent from '../../components/loading_component'
 
 // --- Helper Functions ---
 const formatDate = (date: Date) => {
@@ -83,15 +83,6 @@ export default function ReminderDetailPage() {
     loadReminder()
   }, [id])
 
-  // Show loading spinner
-  if (isLoading) {
-    return (
-      <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator size="large" color="#0ea5e9" />
-      </View>
-    )
-  }
-
   // Show error message
   if (error) {
     return (
@@ -118,51 +109,54 @@ export default function ReminderDetailPage() {
           <Text style={styles.headerTitle}>รายละเอียดการเตือนความจำ</Text>
         </View>
 
-        {/* --- Form Card (Read-only) --- */}
-        <View style={styles.formCard}>
-          {/* Title Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>หัวข้อ</Text>
-            <TextInput
-              style={[styles.input, styles.readOnlyInput]}
-              value={title}
-              editable={false}
-            />
-          </View>
-
-          {/* Date / Time Row */}
-          <View style={styles.row}>
-            {/* Date Button */}
-            <Pressable
-              style={[styles.pickerButton, styles.readOnlyInput]}
-              disabled={true}
-            >
-              <Text style={styles.pickerButtonText}>{formatDate(date)}</Text>
-              <Text style={styles.pickerButtonIcon}>📅</Text>
-            </Pressable>
-
-            {/* Time Button */}
-            <Pressable
-              style={[styles.pickerButton, styles.readOnlyInput]}
-              disabled={true}
-            >
-              <Text style={styles.pickerButtonText}>{formatTime(time)}</Text>
-              <Text style={styles.pickerButtonIcon}>⏰</Text>
-            </Pressable>
-          </View>
-
-          {/* Details Input */}
-          <View>
-            <TextInput
-              style={[styles.input, styles.textarea, styles.readOnlyInput]}
-              value={description || '-'}
-              multiline
-              numberOfLines={4}
-              editable={false}
-            />
-          </View>
-        </View>
         {/* --- Form Card --- */}
+        {isLoading ? (
+          <LoadingComponent />
+        ) : (
+          <View style={styles.formCard}>
+            {/* Title Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>หัวข้อ</Text>
+              <TextInput
+                style={[styles.input, styles.readOnlyInput]}
+                value={title}
+                editable={false}
+              />
+            </View>
+
+            {/* Date / Time Row */}
+            <View style={styles.row}>
+              {/* Date Button */}
+              <Pressable
+                style={[styles.pickerButton, styles.readOnlyInput]}
+                disabled={true}
+              >
+                <Text style={styles.pickerButtonText}>{formatDate(date)}</Text>
+                <Text style={styles.pickerButtonIcon}>📅</Text>
+              </Pressable>
+
+              {/* Time Button */}
+              <Pressable
+                style={[styles.pickerButton, styles.readOnlyInput]}
+                disabled={true}
+              >
+                <Text style={styles.pickerButtonText}>{formatTime(time)}</Text>
+                <Text style={styles.pickerButtonIcon}>⏰</Text>
+              </Pressable>
+            </View>
+
+            {/* Details Input */}
+            <View>
+              <TextInput
+                style={[styles.input, styles.textarea, styles.readOnlyInput]}
+                value={description || '-'}
+                multiline
+                numberOfLines={4}
+                editable={false}
+              />
+            </View>
+          </View>
+        )}
       </View>
     </View>
   )
