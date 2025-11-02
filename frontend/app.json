@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "demo-app",
-    "slug": "demo-app",
+    "name": "CP25OR1-frontend",
+    "slug": "CP25OR1-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "demoapp",
+    "scheme": "cp25or1-frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "dev.expo.mantana.demoapp",
+      "bundleIdentifier": "dev.expo.mantana.CP25OR1-frontend",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -58,6 +58,7 @@
       "eas": {
         "projectId": "2beb546a-15c8-4cde-b0e5-659a9f941667"
       }
+      // "apiUrl": "https://your-api.com/api" // replace this with production API URL
     },
     "owner": "mantana-chp"
   }
