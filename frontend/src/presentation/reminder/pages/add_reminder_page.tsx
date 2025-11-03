@@ -1,22 +1,23 @@
+import DateTimePicker, {
+  DateTimePickerEvent
+} from '@react-native-community/datetimepicker'
+import { useRouter } from 'expo-router'
 import React from 'react'
 import {
+  Alert,
+  Button,
+  Modal,
   Platform,
-  StatusBar,
   Pressable,
-  View,
+  StatusBar,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
-  Modal,
-  Button,
-  Alert,
+  View
 } from 'react-native'
-import { useRouter } from 'expo-router'
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker'
 import { addReminder } from '../../../data/reminder.api'
 import { IAddReminder } from '../../../domain/add_reminder.domain'
+import Header from '../../components/header_component'
 
 // Helper function to format date for display
 const formatDate = (date: Date) => {
@@ -27,7 +28,7 @@ const formatDate = (date: Date) => {
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString('th-TH', {
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   })
 }
 
@@ -72,7 +73,7 @@ export default function AddReminderPage() {
       reminderName: title,
       description: description,
       reminderDate: formatApiDate(date),
-      reminderTime: formatApiTime(time),
+      reminderTime: formatApiTime(time)
     }
 
     try {
@@ -136,13 +137,7 @@ export default function AddReminderPage() {
   return (
     <View style={styles.screen}>
       <View style={styles.safeArea}>
-        {/* --- Custom Header --- */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} disabled={isSubmitting}>
-            <Text style={styles.headerBackIcon}>‹</Text>
-          </Pressable>
-          <Text style={styles.headerTitle}>เพิ่มการเตือนความจำ</Text>
-        </View>
+        <Header title="เพิ่มการเตือนความจำ" goBack={!isSubmitting} />
 
         {/* --- Form Card --- */}
         <View style={styles.formCard}>
@@ -265,28 +260,11 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e5e7eb'
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    backgroundColor: '#5FA7D1',
-    padding: 16,
-    alignItems: 'center',
-    gap: 16,
-  },
-  headerBackIcon: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -297,39 +275,39 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1,
+    elevation: 1
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   submittingText: {
-    color: '#6b7280',
+    color: '#6b7280'
   },
 
   inputGroup: {
     marginBottom: 16,
-    gap: 4,
+    gap: 4
   },
   inputLabel: {
     color: '#6b7280',
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4,
+    marginLeft: 4
   },
   input: {
     borderWidth: 1,
@@ -339,17 +317,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48,
+    minHeight: 48
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12,
+    paddingVertical: 12
   },
   row: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 16
   },
   pickerButton: {
     flex: 1,
@@ -360,25 +338,25 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 12,
-    height: 48,
+    height: 48
   },
   pickerButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#374151',
+    color: '#374151'
   },
   pickerButtonIcon: {
-    fontSize: 20,
+    fontSize: 20
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)'
   },
   modalContent: {
     backgroundColor: '#ffffff',
     padding: 20,
     borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
+    borderTopRightRadius: 20
+  }
 })
