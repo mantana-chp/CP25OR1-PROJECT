@@ -161,7 +161,7 @@ export default function AddReminderPage() {
             <Text style={styles.inputLabel}>หัวข้อ</Text>
             <TextInput
               style={styles.input}
-              placeholder="หัวข้ออะไรดีหนอ"
+              placeholder="หัวข้อการเตือนความจำ"
               value={title}
               onChangeText={setTitle}
               editable={!isSubmitting}
