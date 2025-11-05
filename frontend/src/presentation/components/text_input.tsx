@@ -5,6 +5,8 @@ interface TextInputProps {
   title: string
   value: string
   placeholder: string
+  multiline?: boolean
+  numberOfLines?: number
   required: boolean
   disable?: boolean
   error?: string | null
@@ -29,9 +31,10 @@ export default function InputText(props: TextInputProps) {
           placeholder={props.placeholder}
           value={props.value}
           onChangeText={props.onChangeText}
-          // editable={!props.required}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          multiline={props.multiline}
+          numberOfLines={props.numberOfLines}
         />
         <Text style={{ color: '#BF1737', marginTop: 4 }}>{props.error}</Text>
       </View>
