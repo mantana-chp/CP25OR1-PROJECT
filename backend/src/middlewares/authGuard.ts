@@ -1,14 +1,37 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserPayload } from '../shared/types';
+import jwt from 'jsonwebtoken';
+import { config } from '../config';
+import { UnauthorizedError } from '../shared/errors';
 
-// mock auth for prep for authentication
-export const authGuard = (req: Request, res: Response, next: NextFunction) => {
+interface TokenPayload {
+  userId: string;
+  installationId: string;
+}
 
-  const mockUser: UserPayload = {
-    id: '11111111-1111-1111-1111-111111111111',
-  };
+export const authGuard = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  const xInstallationId = req.headers['x-installation-id'] as string;
 
-  req.user = mockUser;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next(new UnauthorizedError('No token provided'));
+  }
 
-  next();
+  if (!xInstallationId) {
+    return next(new UnauthorizedError('X-Installation-Id header missing'));
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, config.jwt.secret) as TokenPayload;
+
+    if (decoded.installationId !== xInstallationId) {
+      return next(new UnauthorizedError('Invalid token for this installation'));
+    }
+
+    req.user = { id: decoded.userId };
+    next();
+  } catch (error) {
+    return next(new UnauthorizedError('Invalid token'));
+  }
 };

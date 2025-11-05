@@ -19,6 +19,12 @@ export class BadRequestError extends ApiError {
   }
 }
 
+export class UnauthorizedError extends ApiError {
+  constructor(message: string = "Unauthorized") {
+    super(message, 401);
+  }
+}
+
 export class ConflictError extends ApiError {
   constructor(message: string = "Conflict", errors?: Array<{ message: string; path?: string[]; code?: number }>) {
     super(message, 409, errors);
