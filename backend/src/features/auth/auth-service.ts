@@ -37,7 +37,7 @@ class AuthService {
       });
     }
 
-    await prisma.sessions.deleteMany({ where: { user_id: user.id } });
+    await prisma.sessions.deleteMany({ where: { user_id: user.id } }); // delete old sessions after login
 
     const { accessToken, refreshToken } = await this.generateAndSaveTokens(user.id, installationId);
 
