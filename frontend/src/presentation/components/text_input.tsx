@@ -7,7 +7,8 @@ interface TextInputProps {
   placeholder: string
   multiline?: boolean
   numberOfLines?: number
-  required: boolean
+  keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad'
+  required?: boolean
   disable?: boolean
   error?: string | null
   onChangeText: (text: string) => void
@@ -24,10 +25,7 @@ export default function InputText(props: TextInputProps) {
           {props.required && <Text style={styles.required}>*</Text>}
         </Text>
         <TextInput
-          style={[
-            styles.input,
-            isFocused && styles.inputFocused // Apply when focused
-          ]}
+          style={[styles.input, isFocused && styles.inputFocused]}
           placeholder={props.placeholder}
           value={props.value}
           onChangeText={props.onChangeText}
@@ -35,8 +33,11 @@ export default function InputText(props: TextInputProps) {
           onBlur={() => setIsFocused(false)}
           multiline={props.multiline}
           numberOfLines={props.numberOfLines}
+          keyboardType={props.keyboardType}
         />
-        <Text style={{ color: '#BF1737', marginTop: 4 }}>{props.error}</Text>
+        {props.error && (
+          <Text style={{ color: '#BF1737', marginTop: 4 }}>{props.error}</Text>
+        )}
       </View>
     </>
   )

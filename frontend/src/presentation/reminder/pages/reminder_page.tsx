@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
+import Header from '../../components/header_component'
 import Calendar from '../components/calendar_component'
 import ReminderList from '../components/reminder_list'
 
@@ -42,6 +43,7 @@ export default function ReminderPage() {
 
   return (
     <View style={styles.container}>
+      <Header title="ปฏิทิน" />
       <Calendar
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}

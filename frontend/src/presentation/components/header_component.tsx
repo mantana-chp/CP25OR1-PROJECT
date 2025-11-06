@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { useRouter } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 interface HeaderProps {
@@ -21,10 +22,17 @@ export default function Header(props: HeaderProps) {
     <View style={styles.header}>
       {props.goBack && (
         <Pressable onPress={() => router.back()}>
-          <Text style={styles.headerBackIcon}>‹</Text>
+          <Text style={styles.headerBackIcon}>
+            <ChevronLeft color="white" />
+          </Text>
         </Pressable>
       )}
-      <Text style={[styles.headerTitle, !props.goBack && { flex: 1, textAlign: 'center' }]}>
+      <Text
+        style={[
+          styles.headerTitle,
+          !props.goBack && { flex: 1, textAlign: 'center' }
+        ]}
+      >
         {props.title}
       </Text>
     </View>
@@ -35,7 +43,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     backgroundColor: '#5FA7D1',
-    padding: 16,
+    padding: 24,
     alignItems: 'center',
     gap: 16
   },

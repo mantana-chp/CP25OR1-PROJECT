@@ -1,5 +1,5 @@
 import { DropdownOption } from '@/src/domain/common.domain'
-import { ChevronDown } from 'lucide-react-native'
+import { ChevronsUpDown } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   FlatList,
@@ -15,7 +15,7 @@ interface DropdownProps {
   title: string
   value: string
   placeholder: string
-  required: boolean
+  required?: boolean
   options: DropdownOption[]
   disable?: boolean
   error?: string | null
@@ -66,7 +66,7 @@ export default function Dropdown(props: DropdownProps) {
           >
             {displayText}
           </Text>
-          <ChevronDown
+          <ChevronsUpDown
             size={20}
             color={props.disable ? '#9ca3af' : '#225877'}
             style={styles.icon}
@@ -149,7 +149,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    wordWrap: 'break-all'
   },
   inputDisabled: {
     backgroundColor: '#f3f4f6',
@@ -171,10 +172,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 4 // For Android
+    elevation: 4
   },
   placeholderText: {
-    color: '#9ca3af'
+    color: '#A6A6A6',
+    fontFamily: 'Prompt_400Regular',
+    textOverflow: 'ellipsis'
   },
   icon: {
     marginLeft: 8
@@ -218,7 +221,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_700Bold'
   },
   closeButton: {
     fontSize: 24,

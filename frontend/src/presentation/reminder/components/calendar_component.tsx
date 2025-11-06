@@ -218,8 +218,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -253,7 +251,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#fff',
     fontWeight: '600',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_400Regular'
   },
   navButton: {
     padding: 6,
@@ -273,7 +271,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#64748b',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_400Regular'
   },
   calendarGrid: {
     flexDirection: 'row',

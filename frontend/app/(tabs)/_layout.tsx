@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
-import { Calendar } from 'lucide-react-native'
+import { Calendar, PawPrintIcon } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused }: any) => {
   return (
@@ -34,8 +34,9 @@ export default function TabLayout() {
           elevation: 0,
           shadowOpacity: 0,
           height: 84,
-          paddingBottom: 10,
-          paddingTop: 10
+          paddingTop: 24,
+          justifyContent: 'center',
+          alignItems: 'center'
         },
         tabBarLabelStyle: {
           fontSize: 0 // Hide labels
@@ -52,6 +53,19 @@ export default function TabLayout() {
           )
         }}
       />
+      <Tabs.Screen
+        name="pet_profile"
+        options={{
+          title: 'Pet Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={PawPrintIcon}
+              color={color}
+              focused={focused}
+            />
+          )
+        }}
+      />
     </Tabs>
   )
 }
@@ -63,6 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    alignContent: 'center',
     backgroundColor: 'transparent'
   },
   iconContainerActive: {
