@@ -123,7 +123,11 @@ export default function PetProfileForm() {
         <DatePicker
           title="วันเกิด"
           placeholder="วัน/เดือน/ปีเกิด"
-          value={new Date()}
+          value={
+            formik.values.birth_date
+              ? new Date(formik.values.birth_date)
+              : undefined
+          }
           onChange={(v) => formik.setFieldValue('birth_date', v)}
         />
         <Pressable

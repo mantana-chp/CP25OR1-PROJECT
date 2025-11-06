@@ -5,7 +5,7 @@ import { UserPayload } from '../shared/types';
 export const authGuard = (req: Request, res: Response, next: NextFunction) => {
 
   const mockUser: UserPayload = {
-    id: '11111111-1111-1111-1111-111111111111',
+    id: 'fcbfd675-adc0-44c0-a6a4-d8cba2d6d179',
   };
 
   req.user = mockUser;

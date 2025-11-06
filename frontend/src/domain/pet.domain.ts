@@ -7,7 +7,7 @@ export interface IPetProfile {
   breed_id: string
   pet_name: string
   gender: string
-  birth_date: Date
+  birth_date: Date | null
   weight: string
   created_at: string
   updated_at: string
@@ -21,7 +21,7 @@ export const petProfileInitValue = (v: IPetProfile): IPetProfile => {
     species_id: v.species_id || '',
     breed_id: v.breed_id || '',
     gender: v.gender || '',
-    birth_date: v?.birth_date ? parseDate(v.birth_date) : new Date(),
+    birth_date: v?.birth_date ? parseDate(v.birth_date) : null,
     weight: v.weight || '',
     created_at: v.created_at || '',
     updated_at: v.updated_at || ''
@@ -37,7 +37,7 @@ export const petProfileValidateSchema = yup.object().shape({
     .number()
     .typeError('กรุณากรอกน้ำหนักเป็นตัวเลข')
     .min(0, 'กรุณากรอกน้ำหนักสัตว์เลี้ยงให้ถูกต้อง'),
-  birth_date: yup.date()
+  birth_date: yup.date().nullable()
 })
 
 const parseDate = (dateValue: any): Date => {

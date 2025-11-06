@@ -16,7 +16,7 @@ import {
 
 interface DatePickerProps {
   title: string
-  value: Date
+  value: Date | undefined
   placeholder?: string
   required?: boolean
   disabled?: boolean
@@ -27,7 +27,8 @@ interface DatePickerProps {
 export default function DatePicker(props: DatePickerProps) {
   const [showPicker, setShowPicker] = useState(false)
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return ''
     return date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
@@ -74,14 +75,19 @@ export default function DatePicker(props: DatePickerProps) {
             props.error && styles.pickerButtonError
           ]}
         >
-          <Text
-            style={[
-              styles.pickerButtonText,
-              props.disabled && styles.pickerButtonTextDisabled
-            ]}
-          >
-            {formatDate(props.value)}
-          </Text>
+          {props.value === undefined ? (
+            <Text style={styles.placeholderText}>{props.placeholder}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.pickerButtonText,
+                props.disabled && styles.pickerButtonTextDisabled
+              ]}
+            >
+              {formatDate(props.value)}
+            </Text>
+          )}
+
           <Text style={styles.pickerButtonIcon}>
             <CalendarDays color={'#A6A6A6'} />
           </Text>
@@ -93,7 +99,7 @@ export default function DatePicker(props: DatePickerProps) {
       {/* Android Picker */}
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
-          value={props.value}
+          value={props.value || new Date()}
           mode="date"
           display="default"
           onChange={handleChange}
@@ -113,7 +119,7 @@ export default function DatePicker(props: DatePickerProps) {
               </View>
 
               <DateTimePicker
-                value={props.value}
+                value={props.value || new Date()}
                 mode="date"
                 display="inline"
                 onChange={handleChange}
@@ -168,6 +174,10 @@ const styles = StyleSheet.create({
   },
   pickerButtonError: {
     borderColor: '#BF1737'
+  },
+  placeholderText: {
+    fontFamily: 'Prompt_400Regular',
+    color: '#A6A6A6'
   },
   pickerButtonText: {
     fontSize: 16,
