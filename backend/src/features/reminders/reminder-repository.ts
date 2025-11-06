@@ -1,8 +1,7 @@
 import prisma from '../../libs/db';
-import { Reminder, ReminderCreationData } from './reminder-types';
+import { Reminder } from './reminder-types';
 import { mapPrismaReminderToReminder } from './reminder-mapper';
-import { Prisma } from '../../generated/prisma/client';
-import { v4 as uuidv4 } from 'uuid';
+import { Prisma, reminder_status } from '../../generated/prisma/client';
 import { reminders } from '../../generated/prisma/client';
 
 export const findAllByUserId = async (userId: string): Promise<Reminder[]> => {
@@ -46,22 +45,28 @@ export const getReminderCount = async (): Promise<number> => {
   return prisma.reminders.count();
 };
 
-export const add = async (newReminder: ReminderCreationData): Promise<Reminder> => {
-  const dataToCreate: Prisma.remindersCreateInput = {
-    id: uuidv4(),
-    users: newReminder.user, // Connect user
-    pets: newReminder.pet, // Connect pet
-    reminder_categories: newReminder.reminder_categories, // Connect category
-    reminder_name: newReminder.reminderName,
-    description: newReminder.description,
-    reminder_date: new Date(newReminder.reminderDate),
-    reminder_time: newReminder.reminderTime ? new Date(`2000-01-01T${newReminder.reminderTime}Z`) : null, // ได้มาแค่เวลาเลยใส่ date ไว้ อาจจะเปลี่ยน requset ให้มาเป็น timestamp ถ้าทำได้
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
-
+export const add = async (data: Prisma.remindersCreateInput): Promise<Reminder> => {
   const createdPrismaReminder = await prisma.reminders.create({
-    data: dataToCreate,
+    data,
   });
   return mapPrismaReminderToReminder(createdPrismaReminder);
+};
+
+export const update = async (id: string, data: Prisma.remindersUpdateInput): Promise<Reminder> => {
+  const updatedPrismaReminder = await prisma.reminders.update({
+    where: { id },
+    data,
+  });
+  return mapPrismaReminderToReminder(updatedPrismaReminder);
+};
+
+export const updateStatusForIds = async (ids: string[], status: reminder_status) => {
+  return await prisma.reminders.updateMany({
+    where: {
+      id: { in: ids },
+    },
+    data: {
+      reminder_status: status,
+    },
+  });
 };

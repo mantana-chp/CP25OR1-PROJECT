@@ -31,3 +31,10 @@ export const deleteReminder = asyncHandler(async (req: Request, res: Response) =
   await reminderService.deleteReminder(reminderId, userId);
   sendSuccess(res, undefined, 200); // 200 OK not 204 just for consistency
 });
+
+export const toggleReminderStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id: reminderId } = getReminderByIdSchema.parse(req.params);
+  const { id: userId } = req.user!;
+  const updatedReminder = await reminderService.toggleReminderStatus(reminderId, userId);
+  sendSuccess(res, updatedReminder);
+});
