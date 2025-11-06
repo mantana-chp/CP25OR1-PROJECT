@@ -54,7 +54,7 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     throw new BadRequestError('You must create a pet profile before creating reminders.');
   }
 
-  const categoryId = "ccc11111-1111-1111-1111-111111111111"; // hardcoded for sprint 1
+  const categoryId = "7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f"; // hardcoded for sprint 1
 
   const reminderDate = new Date(newReminderData.reminderDate);
   const reminderTime = newReminderData.reminderTime ? new Date(`1970-01-01T${newReminderData.reminderTime}Z`) : null;
@@ -126,4 +126,37 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
   };
 
   return await reminderRepository.update(id, updateData);
+};
+
+export const updateOverdueReminders = async (): Promise<void> => {
+  const now = new Date();
+
+  const overdueReminders = await prisma.reminders.findMany({
+    where: {
+      reminder_status: 'to_do',
+      reminder_date: { lte: now },
+    },
+  });
+
+  const remindersToUpdate = overdueReminders.filter(r => {
+    if (!r.reminder_time) {
+      // For date-only reminders, compare full days in UTC
+      const reminderDay = new Date(Date.UTC(r.reminder_date.getUTCFullYear(), r.reminder_date.getUTCMonth(), r.reminder_date.getUTCDate()));
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      return reminderDay < today; // Overdue if reminder day is strictly before today
+    } else {
+      // For reminders with time, construct a GMT+7 date and convert to UTC for robust comparison
+      const datePart = r.reminder_date.toISOString().split('T')[0];
+      const timePart = r.reminder_time.toISOString().split('T')[1].split('.')[0];
+      const isoStringWithOffset = `${datePart}T${timePart}+07:00`; // Explicitly GMT+7
+      const reminderDateTime = new Date(isoStringWithOffset);
+      return reminderDateTime < now; // Overdue if reminder datetime is strictly in the past
+    }
+  });
+
+  if (remindersToUpdate.length > 0) {
+    const idsToUpdate = remindersToUpdate.map(r => r.id);
+    await reminderRepository.updateStatusForIds(idsToUpdate, reminder_status.overdue);
+    console.log(`Updated ${idsToUpdate.length} reminders to overdue.`);
+  }
 };

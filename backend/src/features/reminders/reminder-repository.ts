@@ -1,7 +1,7 @@
 import prisma from '../../libs/db';
 import { Reminder } from './reminder-types';
 import { mapPrismaReminderToReminder } from './reminder-mapper';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, reminder_status } from '../../generated/prisma/client';
 import { reminders } from '../../generated/prisma/client';
 
 export const findAllByUserId = async (userId: string): Promise<Reminder[]> => {
@@ -58,4 +58,15 @@ export const update = async (id: string, data: Prisma.remindersUpdateInput): Pro
     data,
   });
   return mapPrismaReminderToReminder(updatedPrismaReminder);
+};
+
+export const updateStatusForIds = async (ids: string[], status: reminder_status) => {
+  return await prisma.reminders.updateMany({
+    where: {
+      id: { in: ids },
+    },
+    data: {
+      reminder_status: status,
+    },
+  });
 };
