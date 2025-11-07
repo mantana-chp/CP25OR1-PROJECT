@@ -1,11 +1,10 @@
-import _ from 'lodash'
-import React, { useCallback, useEffect, useState } from 'react'
-
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useRouter } from 'expo-router'
+import _ from 'lodash'
 import { Plus } from 'lucide-react-native'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -19,19 +18,11 @@ import LoadingComponent from '../../components/loading_component'
 type TabType = 'to_do' | 'done'
 
 export default function ReminderList() {
-  // ------------------
-  // STATE
-  // ------------------
   const router = useRouter()
+  // const { isAuthenticated, isLoading: authLoading } = useAuth() // ← Add this
 
-  // ------------------
-  // STATE
-  // ------------------
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
 
-  // ------------------
-  // API
-  // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: true
   })
@@ -44,21 +35,10 @@ export default function ReminderList() {
     }
   })
 
-  // ------------------
-  // LOAD DATA
-  // ------------------
   const loadReminders = useCallback(() => {
+    console.log('🔄 Loading reminders for tab:', activeTab)
     getRemindersApi.execute({})
   }, [activeTab])
-
-  // Fetch on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadReminders()
-    }, 100)
-
-    return () => clearTimeout(timer)
-  }, [])
 
   useEffect(() => {
     if (activeTab) {
@@ -66,9 +46,14 @@ export default function ReminderList() {
     }
   }, [activeTab, loadReminders])
 
-  // ------------------
-  // HANDLER
-  // ------------------
+  const handleAddReminder = () => {
+    router.push('/add-reminder')
+  }
+
+  const handleReminderDetail = (reminderId: string) => {
+    router.push(`/reminder-detail/${reminderId}`)
+  }
+
   const handleDeleteReminder = useCallback(
     (id: string) => {
       Alert.alert(
@@ -93,28 +78,11 @@ export default function ReminderList() {
     [deleteReminderApi]
   )
 
-  const handleAddReminder = () => {
-    router.push('/add-reminder')
-  }
-
-  const handleReminderDetail = (reminderId: string) => {
-    router.push({
-      pathname: '/reminder-detail/[id]',
-      params: { id: reminderId }
-    })
-  }
-
-  // ------------------
-  // DATA
-  // ------------------
   const reminders = getRemindersApi.data?.data || []
   const filteredReminders = reminders.filter(
     (reminder) => reminder.reminderStatus === activeTab
   )
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       {/* Tab Header */}
@@ -173,9 +141,9 @@ export default function ReminderList() {
                 key={reminder.id}
                 reminder={reminder}
                 onDelete={handleDeleteReminder}
+                onPress={handleReminderDetail}
                 isDeleting={deleteReminderApi.loading}
                 canDelete={reminder.reminderStatus !== 'done'}
-                onPress={() => handleReminderDetail(reminder.id)}
               />
             ))
           )}
@@ -199,6 +167,29 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#fff9f1',
     borderRadius: 24
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff9f1'
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#225877',
+    fontFamily: 'Prompt_400Regular'
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff9f1'
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#BF1737',
+    fontFamily: 'Prompt_400Regular'
   },
   tabContainer: {
     flexDirection: 'row',

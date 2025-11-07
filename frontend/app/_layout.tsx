@@ -1,13 +1,8 @@
 import { Stack } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
 import 'react-native-reanimated'
-
-import { NotificationProvider } from '@/context/NotificationContext'
-import { useColorScheme } from '@/src/hooks/use-color-scheme'
 
 import '@/global.css'
 import * as Notifications from 'expo-notifications'
-import * as SplashScreen from 'expo-splash-screen'
 
 import {
   Prompt_400Regular,
@@ -17,8 +12,11 @@ import {
 } from '@expo-google-fonts/prompt'
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider'
+import { NotificationProvider } from '@/context/NotificationContext'
+import { AuthProvider, useAuth } from '@/src/context/AuthContext'
+import AuthLoadingScreen from '@/src/presentation/components/AuthLoadingScreen'
 import { ErrorProvider } from '@/src/presentation/components/error_context'
-import { useCallback } from 'react'
+import { Text, View } from 'react-native'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -35,49 +33,47 @@ export const unstable_settings = {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme()
   const [fontsLoaded] = useFonts({
     Prompt_400Regular,
     Prompt_500Medium,
     Prompt_700Bold
   })
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
-      await SplashScreen.hideAsync()
-    }
-  }, [fontsLoaded])
-
   if (!fontsLoaded) return null
 
   return (
-    <GluestackUIProvider mode="light">
-      <ErrorProvider>
-        <NotificationProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: 'modal', title: 'Modal' }}
-            />
-            <Stack.Screen
-              name="add-reminder"
-              options={{
-                presentation: 'modal',
-                headerShown: false
-              }}
-            />
-            <Stack.Screen
-              name="reminder_detail/[id]"
-              options={{
-                presentation: 'modal',
-                headerShown: false
-              }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
-        </NotificationProvider>
-      </ErrorProvider>
-    </GluestackUIProvider>
+    <AuthProvider>
+      <GluestackUIProvider mode="light">
+        <ErrorProvider>
+          <NotificationProvider>
+            <RootLayoutNav />
+          </NotificationProvider>
+        </ErrorProvider>
+      </GluestackUIProvider>
+    </AuthProvider>
+  )
+}
+
+// This is INSIDE AuthProvider, so useAuth() works
+function RootLayoutNav() {
+  const { isLoading, isAuthenticated, error } = useAuth()
+
+  if (isLoading) {
+    return <AuthLoadingScreen />
+  }
+
+  if (error || !isAuthenticated) {
+    return (
+      <View>
+        <Text>Error: {error}</Text>
+      </View>
+    )
+  }
+
+  return (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="add-reminder" options={{ presentation: 'modal' }} />
+    </Stack>
   )
 }

@@ -1,22 +1,30 @@
 import { apiClient } from '@/src/utils/api/api_client'
 import { authService } from '@/src/utils/api/services/auth_service'
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState
+} from 'react'
 
 interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   token: string | null
   error: string | null
+  refreshAuth: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  isLoading: true,
-  token: null,
-  error: null
-})
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider')
+  }
+  return context
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -25,50 +33,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log('🚀 AuthProvider mounted')
     initAuth()
   }, [])
 
   const initAuth = async () => {
-    console.log('เข้านี่นะ');
-    
-    try {
-      console.log('🔐 Fetching authentication token...')
+    console.log('🔐 Starting authentication...')
 
-      // Check if token already exists
+    try {
+      setIsLoading(true)
+
+      // Step 1: Check for existing token
+      console.log('📝 Checking for existing token...')
       const existingToken = await apiClient.getToken()
+      console.log('Existing token:', existingToken ? 'Found' : 'Not found')
 
       if (existingToken) {
-        console.log('✅ Token found in storage')
+        console.log('✅ Using existing token')
         setToken(existingToken)
         setIsAuthenticated(true)
+        setError(null)
       } else {
+        // Step 2: Fetch new token from backend
         console.log('🔄 Fetching new token from server...')
+        const response = await authService.fetchToken()
+        console.log('Token response:', response)
 
-        // Fetch new token from backend
-        const response = await authService.fetchToken({
-          installationId: 'unique-installation-id',
-          platform: 'ios',
-          platformDeviceId: 'unique-device-id',
-          platformIdSource: 'ios_keychain'
-        })
-
-        // Save token
+        // Step 3: Save token
         await apiClient.setToken(response.accessToken)
+        console.log('✅ Token saved to storage')
 
-        console.log('✅ Token fetched and saved')
         setToken(response.accessToken)
         setIsAuthenticated(true)
+        setError(null)
       }
 
-      setError(null)
-    } catch (err) {
-      console.error('❌ Auth initialization failed:', err)
-      setError('Failed to authenticate')
+      console.log('🎉 Authentication successful!')
+    } catch (err: any) {
+      console.error('❌ Authentication failed:', err)
+      console.error('Error details:', JSON.stringify(err, null, 2))
+      setError(err?.message || 'Authentication failed')
       setIsAuthenticated(false)
+      setToken(null)
     } finally {
       setIsLoading(false)
+      console.log('✅ Authentication initialization complete')
     }
   }
+
+  const refreshAuth = useCallback(async () => {
+    console.log('🔄 Refreshing authentication...')
+    await initAuth()
+  }, [])
+
+  console.log('Auth State:', {
+    isLoading,
+    isAuthenticated,
+    hasToken: !!token,
+    error
+  })
 
   return (
     <AuthContext.Provider
@@ -76,7 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isLoading,
         token,
-        error
+        error,
+        refreshAuth
       }}
     >
       {children}
