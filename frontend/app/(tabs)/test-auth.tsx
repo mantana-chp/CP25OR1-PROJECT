@@ -159,8 +159,9 @@ export default function TestAuthScreen() {
         status: response.status,
         data: {
           user: response.data.data.user,
-          accessToken: response.data.accessToken?.substring(0, 50) + '...',
-          refreshToken: response.data.refreshToken?.substring(0, 50) + '...'
+          accessToken: response.data.data.accessToken?.substring(0, 50) + '...',
+          refreshToken:
+            response.data.data.refreshToken?.substring(0, 50) + '...'
         }
       })
     } catch (err: any) {
