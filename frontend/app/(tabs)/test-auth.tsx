@@ -75,15 +75,18 @@ export default function TestAuthScreen() {
       console.log('✅ Response status:', response.status)
       console.log('✅ Response data:', response.data)
 
+      console.log(response.data.data.accessToken)
+
       setResult({
         type: 'deviceLogin',
         status: response.status,
         data: {
           user: response.data.user,
-          accessToken: response.data.accessToken?.substring(0, 50) + '...',
-          refreshToken: response.data.refreshToken?.substring(0, 50) + '...',
-          fullAccessToken: response.data.accessToken,
-          fullRefreshToken: response.data.refreshToken
+          accessToken: response.data.data.accessToken?.substring(0, 50) + '...',
+          refreshToken:
+            response.data.data.refreshToken?.substring(0, 50) + '...',
+          fullAccessToken: response.data.data.accessToken,
+          fullRefreshToken: response.data.data.refreshToken
         }
       })
     } catch (err: any) {
@@ -155,7 +158,7 @@ export default function TestAuthScreen() {
         type: 'refresh',
         status: response.status,
         data: {
-          user: response.data.user,
+          user: response.data.data.user,
           accessToken: response.data.accessToken?.substring(0, 50) + '...',
           refreshToken: response.data.refreshToken?.substring(0, 50) + '...'
         }
