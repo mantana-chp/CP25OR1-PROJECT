@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
-import { Calendar, PawPrintIcon } from 'lucide-react-native'
+import { Calendar, FlaskConical, PawPrintIcon } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused }: any) => {
   return (
@@ -60,6 +60,19 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon
               icon={PawPrintIcon}
+              color={color}
+              focused={focused}
+            />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name="test-auth"
+        options={{
+          title: 'Test Auth',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={FlaskConical}
               color={color}
               focused={focused}
             />
