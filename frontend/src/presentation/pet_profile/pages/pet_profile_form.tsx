@@ -39,8 +39,7 @@ export default function PetProfileForm() {
       router.back()
     }
   })
-  console.log(formik?.errors)
-
+  
   const petTypeOptions = [
     { label: 'สุนัข', value: 'dog' },
     { label: 'แมว', value: 'cat' },
