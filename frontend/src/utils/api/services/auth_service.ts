@@ -10,7 +10,9 @@ export const authService = {
    * Device-based login/registration
    * Automatically creates account if device is new
    */
-  deviceLogin: async (): Promise<DeviceLoginResponse> => {
+  deviceLogin: async (): Promise<
+    DeviceLoginResponse & { installationId: string }
+  > => {
     const deviceIdentifiers = await deviceIdService.getDeviceIdentifiers()
 
     console.log('📱 [Auth] Device Login with:', {
@@ -31,8 +33,11 @@ export const authService = {
     )
 
     console.log('✅ [Auth] Device login successful')
-    // Extract nested data from response
-    return response.data
+    // Extract nested data from response and include installationId
+    return {
+      ...response.data,
+      installationId: deviceIdentifiers.installationId
+    }
   },
 
   /**

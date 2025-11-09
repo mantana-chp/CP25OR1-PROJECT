@@ -72,12 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await authService.deviceLogin()
         console.log('Device login response:', response)
 
-        // Step 4: Save tokens
+        // Step 4: Save tokens and installation ID
         await apiClient.setToken(
           response.accessToken,
           response.refreshToken || ''
         )
-        console.log('✅ Tokens saved to storage')
+        await apiClient.setInstallationId(response.installationId)
+        console.log('✅ Tokens and installation ID saved to storage')
 
         setToken(response.accessToken)
         setIsAuthenticated(true)

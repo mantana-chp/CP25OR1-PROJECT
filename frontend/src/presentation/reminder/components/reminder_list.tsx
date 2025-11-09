@@ -4,7 +4,7 @@ import { useApi } from '@/src/utils/api/use_api'
 import { Link, useRouter } from 'expo-router'
 import _ from 'lodash'
 import { Plus } from 'lucide-react-native'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -31,20 +31,20 @@ export default function ReminderList() {
     showErrorAlert: true,
     successMessage: 'ลบนัดหมายสำเร็จ',
     onSuccess: () => {
-      // loadReminders()
+      loadReminders()
     }
   })
 
-  // const loadReminders = useCallback(() => {
-  //   console.log('🔄 Loading reminders for tab:', activeTab)
-  //   getRemindersApi.execute({})
-  // }, [activeTab])
+  const loadReminders = useCallback(() => {
+    console.log('🔄 Loading reminders for tab:', activeTab)
+    getRemindersApi.execute({})
+  }, [activeTab])
 
-  // useEffect(() => {
-  //   if (activeTab) {
-  //     loadReminders()
-  //   }
-  // }, [activeTab, loadReminders])
+  useEffect(() => {
+    if (activeTab) {
+      loadReminders()
+    }
+  }, [activeTab, loadReminders])
 
   const handleAddReminder = () => {
     router.push('/(tabs)/add-reminder')
