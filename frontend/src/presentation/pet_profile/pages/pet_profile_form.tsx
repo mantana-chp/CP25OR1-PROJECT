@@ -1,5 +1,18 @@
+import { useRouter } from 'expo-router'
 import { useFormik } from 'formik'
 import React, { useState } from 'react'
+
+import DatePicker from '../../components/date_picker'
+import Dropdown from '../../components/dropdown'
+import Header from '../../components/header_component'
+import InputText from '../../components/text_input'
+
+import {
+  IPetProfile,
+  petProfileInitValue,
+  petProfileValidateSchema
+} from '@/src/domain/pet.domain'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import {
   Alert,
   Image,
@@ -9,18 +22,6 @@ import {
   Text,
   View
 } from 'react-native'
-
-import {
-  IPetProfile,
-  petProfileInitValue,
-  petProfileValidateSchema
-} from '@/src/domain/pet.domain'
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
-import { useRouter } from 'expo-router'
-import DatePicker from '../../components/date_picker'
-import Dropdown from '../../components/dropdown'
-import Header from '../../components/header_component'
-import InputText from '../../components/text_input'
 
 export default function PetProfileForm() {
   const router = useRouter()
