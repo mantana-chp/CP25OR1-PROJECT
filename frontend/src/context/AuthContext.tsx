@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Step 1: Check for existing token
       console.log('📝 Checking for existing token...')
-      const existingToken = await apiClient.getToken()
+      const existingToken = await apiClient.getAccessToken()
       console.log('Existing token:', existingToken ? 'Found' : 'Not found')
 
       if (existingToken) {
@@ -60,7 +60,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Token response:', response)
 
         // Step 3: Save token
-        await apiClient.setToken(response.accessToken)
+        await apiClient.setToken(
+          response.accessToken,
+          response.refreshToken || ''
+        )
         console.log('✅ Token saved to storage')
 
         setToken(response.accessToken)

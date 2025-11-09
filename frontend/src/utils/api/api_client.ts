@@ -5,7 +5,9 @@ import { Platform } from 'react-native'
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
-const TOKEN_KEY = 'auth_token'
+const ACCESS_TOKEN_KEY = 'accessToken'
+const REFRESH_TOKEN_KEY = 'refreshToken'
+const INSTALLATION_ID_KEY = 'installationId'
 
 export class ApiError extends Error {
   constructor(
@@ -78,15 +80,22 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config) => {
         try {
-          const token = await storage.getItem(TOKEN_KEY)
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-            console.log('🔑 Token added to request')
+          const accessToken = await storage.getItem(ACCESS_TOKEN_KEY)
+          const installationId = await storage.getItem(INSTALLATION_ID_KEY)
+
+          if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`
           }
+          if (installationId) {
+            config.headers['X-Installation-Id'] = installationId
+          }
+
+          console.log('📤 Request:', config.method?.toUpperCase(), config.url)
+          return config
         } catch (error) {
           console.error('❌ Error getting token:', error)
         }
-        console.log('📤 Request:', config.method?.toUpperCase(), config.url)
+
         return config
       },
       (error) => {
@@ -109,7 +118,7 @@ class ApiClient {
 
           switch (status) {
             case 401:
-              await storage.removeItem(TOKEN_KEY)
+              await storage.removeItem(ACCESS_TOKEN_KEY)
               throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
 
             case 403:
@@ -188,18 +197,29 @@ class ApiClient {
   }
 
   // Auth helpers
-  async setToken(token: string): Promise<void> {
-    await storage.setItem(TOKEN_KEY, token)
-    console.log('✅ Token saved')
+  async setToken(accessToken: string, refreshToken: string): Promise<void> {
+    await storage.setItem(ACCESS_TOKEN_KEY, accessToken)
+    await storage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+    console.log('✅ Tokens saved')
+  }
+  
+  async getAccessToken(): Promise<string | null> {
+    return await storage.getItem(ACCESS_TOKEN_KEY)
   }
 
-  async getToken(): Promise<string | null> {
-    return await storage.getItem(TOKEN_KEY)
+  async getRefreshToken(): Promise<string | null> {
+    return await storage.getItem(REFRESH_TOKEN_KEY)
   }
 
-  async clearToken(): Promise<void> {
-    await storage.removeItem(TOKEN_KEY)
-    console.log('✅ Token cleared')
+  async clearTokens(): Promise<void> {
+    await storage.removeItem(ACCESS_TOKEN_KEY)
+    await storage.removeItem(REFRESH_TOKEN_KEY)
+    console.log('✅ Tokens cleared')
+  }
+
+  // ⬇️ เพิ่ม Helper สำหรับ InstallationId
+  async setInstallationId(id: string): Promise<void> {
+    await storage.setItem(INSTALLATION_ID_KEY, id)
   }
 }
 

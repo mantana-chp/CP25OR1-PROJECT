@@ -47,7 +47,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Index',
+          title: 'Reminder',
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon icon={Calendar} color={color} focused={focused} />
           )
