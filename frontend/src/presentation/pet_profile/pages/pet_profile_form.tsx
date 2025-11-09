@@ -1,6 +1,7 @@
 import { useFormik } from 'formik'
-import React from 'react'
+import React, { useState } from 'react'
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import {
   petProfileInitValue,
   petProfileValidateSchema
 } from '@/src/domain/pet.domain'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useRouter } from 'expo-router'
 import DatePicker from '../../components/date_picker'
 import Dropdown from '../../components/dropdown'
@@ -23,6 +25,7 @@ import InputText from '../../components/text_input'
 
 export default function PetProfileForm() {
   const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ------------------
   // FORMIK
@@ -33,29 +36,66 @@ export default function PetProfileForm() {
     validateOnChange: false,
     validateOnBlur: false,
     validateOnMount: false,
-    onSubmit: (values) => {
-      console.log(values)
-      formik.resetForm()
-      router.back()
+    onSubmit: async (values) => {
+      try {
+        setIsSubmitting(true)
+        console.log('📝 Creating pet profile:', values)
+
+        // Remove the 'id' field before sending to API
+        const { id, ...petData } = values
+
+        // Convert weight to number for API
+        const petDataToSend = {
+          ...petData,
+          weight: petData.weight ? Number(petData.weight) : 0
+        } as any // Type assertion since API expects number but form uses string
+
+        // Call the API to create pet profile
+        const response = await petProfileService.createPetProfile(petDataToSend)
+        console.log('✅ Pet profile created successfully:', response)
+
+        // Show success message
+        Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
+          {
+            text: 'ตกลง',
+            onPress: () => {
+              formik.resetForm()
+              router.push('/(tabs)')
+            }
+          }
+        ])
+      } catch (error: any) {
+        console.error('❌ Error creating pet profile:', error)
+        Alert.alert(
+          'เกิดข้อผิดพลาด',
+          error?.message ||
+            'ไม่สามารถบันทึกโปรไฟล์สัตว์เลี้ยงได้ กรุณาลองใหม่อีกครั้ง'
+        )
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   })
-  
+
   const petTypeOptions = [
-    { label: 'สุนัข', value: 'dog' },
-    { label: 'แมว', value: 'cat' },
-    { label: 'นก', value: 'bird' },
-    { label: 'ปลา', value: 'fish' }
+    { id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'cat' },
+    { id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'rabbit' },
+    { id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'bird' },
+    { id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'dog' },
+    { id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'hamster' }
   ]
 
   const breedOptions = [
-    { label: 'พันธุ์ไทย', value: 'thai' },
-    { label: 'พันธุ์ผสม', value: 'mixed' },
-    { label: 'พันธุ์ต่างประเทศ', value: 'foreign' }
+    { id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', name: 'Pomeranian' },
+    { id: '3f6c8a1e-5d2b-4e9a-8c4f-1b7d0a5e9c3f', name: 'Golden Retriever' },
+    { id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'Siamese' },
+    { id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', name: 'Holland Lop' },
+    { id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', name: 'Cockatiel' }
   ]
 
   const genderOptions = [
-    { label: 'ผู้', value: 'male' },
-    { label: 'เมีย', value: 'female' }
+    { name: 'ผู้', id: 'male' },
+    { name: 'เมีย', id: 'female' }
   ]
 
   // ------------------
@@ -131,14 +171,18 @@ export default function PetProfileForm() {
         />
         <Pressable
           onPress={() => formik.handleSubmit()}
+          disabled={isSubmitting}
           style={{
             alignItems: 'center',
             padding: 12,
-            backgroundColor: '#5FA7D1',
-            borderRadius: 24
+            backgroundColor: isSubmitting ? '#A0C4D4' : '#5FA7D1',
+            borderRadius: 24,
+            opacity: isSubmitting ? 0.7 : 1
           }}
         >
-          <Text style={styles.saveText}>บันทึกโปรไฟล์</Text>
+          <Text style={styles.saveText}>
+            {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกโปรไฟล์'}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>

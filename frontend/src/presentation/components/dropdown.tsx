@@ -26,8 +26,8 @@ export default function Dropdown(props: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
 
-  const selectedOption = props.options.find((opt) => opt.value === props.value)
-  const displayText = selectedOption ? selectedOption.label : props.placeholder
+  const selectedOption = props.options.find((opt) => opt.id === props.value)
+  const displayText = selectedOption ? selectedOption.name : props.placeholder
 
   const handleSelect = (value: string) => {
     props.onSelect(value)
@@ -94,24 +94,24 @@ export default function Dropdown(props: DropdownProps) {
 
             <FlatList
               data={props.options}
-              keyExtractor={(item) => item.value}
+              keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.option,
-                    item.value === props.value && styles.optionSelected
+                    item.id === props.value && styles.optionSelected
                   ]}
-                  onPress={() => handleSelect(item.value)}
+                  onPress={() => handleSelect(item.id)}
                 >
                   <Text
                     style={[
                       styles.optionText,
-                      item.value === props.value && styles.optionTextSelected
+                      item.id === props.value && styles.optionTextSelected
                     ]}
                   >
-                    {item.label}
+                    {item.name}
                   </Text>
-                  {item.value === props.value && (
+                  {item.id === props.value && (
                     <Text style={styles.checkmark}>✓</Text>
                   )}
                 </TouchableOpacity>
