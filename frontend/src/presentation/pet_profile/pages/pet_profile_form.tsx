@@ -41,20 +41,16 @@ export default function PetProfileForm() {
         setIsSubmitting(true)
         console.log('📝 Creating pet profile:', values)
 
-        // Remove the 'id' field before sending to API
         const { id, ...petData } = values
 
-        // Convert weight to number for API
         const petDataToSend = {
           ...petData,
           weight: petData.weight ? Number(petData.weight) : 0
-        } as any // Type assertion since API expects number but form uses string
+        } as any
 
-        // Call the API to create pet profile
         const response = await petProfileService.createPetProfile(petDataToSend)
         console.log('✅ Pet profile created successfully:', response)
 
-        // Show success message
         Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
           {
             text: 'ตกลง',
