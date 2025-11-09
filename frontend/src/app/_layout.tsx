@@ -1,10 +1,11 @@
 import { SplashScreen, Stack } from 'expo-router'
-import 'react-native-reanimated'
+import React, { useEffect } from 'react'
 
-import '@/global.css'
 import * as Notifications from 'expo-notifications'
 
 import { NotificationProvider } from '@/context/NotificationContext'
+import { AuthProvider } from '../context/AuthContext'
+
 import {
   Prompt_400Regular,
   Prompt_500Medium,
@@ -12,9 +13,9 @@ import {
   useFonts
 } from '@expo-google-fonts/prompt'
 import { StatusBar } from 'expo-status-bar'
-import React from 'react'
 import { Platform } from 'react-native'
-import { AuthProvider } from '../context/AuthContext'
+
+import LoadingComponent from '../presentation/components/loading_component'
 
 const isWeb = Platform.OS === 'web'
 
@@ -35,41 +36,45 @@ Notifications.setNotificationHandler({
 export default function RootLayout() {
   console.log('📱 [RootLayout] Component rendering...')
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Prompt_400Regular,
     Prompt_500Medium,
     Prompt_700Bold
   })
 
-  if (!fontsLoaded) return null
-  console.log('🔤 [RootLayout] Fonts loaded: true')
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      if (!isWeb) {
+        SplashScreen.hideAsync()
+      }
+    }
+  }, [fontsLoaded, fontError])
 
-  // const { isLoading, isAuthenticated, error } = useAuth()
+  if (!fontsLoaded && !fontError) {
+    return <LoadingComponent />
+  }
 
-  // if (isLoading) {
-  //   return <LoadingComponent />
-  // }
-
-  // if (error || !isAuthenticated) {
-  //   return (
-  //     <View>
-  //       <Text>Error: {error}</Text>
-  //     </View>
-  //   )
-  // }
   return (
     <React.Fragment>
       <NotificationProvider>
         <StatusBar style="auto" />
         <AuthProvider>
           <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            <Stack.Screen
+            <Stack.Protected guard={false}>
+              <Stack.Screen name="home" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack.Protected>
+
+            <Stack.Protected guard={true}>
+              <Stack.Screen
+                name="onboarding"
+                options={{ headerShown: false }}
+              />
+            </Stack.Protected>
+            {/* <Stack.Screen
               name="add-reminder"
               options={{ presentation: 'modal' }}
-            />
+            /> */}
           </Stack>
         </AuthProvider>
       </NotificationProvider>

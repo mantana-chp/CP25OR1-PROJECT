@@ -1,63 +1,69 @@
-import Constants from 'expo-constants'
-import * as Device from 'expo-device'
+import { DeviceLoginResponse } from '@/src/domain/auth.domain'
+import {
+  DeviceIdentifiers,
+  deviceIdService
+} from '../../devices/deviceIdService'
 import { apiClient } from '../api_client'
-
-export interface AuthResponse {
-  accessToken: string
-  expiresIn?: number
-  refreshToken?: string
-}
-
-export interface DeviceInfo {
-  deviceId: string
-  deviceName: string
-  platform: string
-  appVersion: string
-}
-
-// Get device information
-const getDeviceInfo = (): DeviceInfo => {
-  return {
-    deviceId: Constants.sessionId || 'unknown',
-    deviceName: Device.deviceName || 'unknown',
-    platform: Device.osName || 'unknown',
-    appVersion: Constants.expoConfig?.version || '1.0.0'
-  }
-}
 
 export const authService = {
   /**
-   * Fetch authentication token from backend
-   * This is called automatically when app loads
+   * Device-based login/registration
+   * Automatically creates account if device is new
    */
-  fetchToken: async (): Promise<AuthResponse> => {
-    const deviceInfo = getDeviceInfo()
+  deviceLogin: async (): Promise<DeviceLoginResponse> => {
+    const deviceIdentifiers = await deviceIdService.getDeviceIdentifiers()
 
-    console.log('📱 Device Info:', deviceInfo)
-
-    return apiClient.post<AuthResponse>('/auth/token', {
-      ...deviceInfo,
-      timestamp: new Date().toISOString()
+    console.log('📱 [Auth] Device Login with:', {
+      installationId: deviceIdentifiers.installationId.substring(0, 8) + '...',
+      platform: deviceIdentifiers.platform,
+      platformIdSource: deviceIdentifiers.platformIdSource
     })
+
+    // Send request matching backend API format exactly
+    const response = await apiClient.post<{ data: DeviceLoginResponse }>(
+      '/v1/auth/device-login',
+      {
+        installationId: deviceIdentifiers.installationId,
+        platform: deviceIdentifiers.platform,
+        platformDeviceId: deviceIdentifiers.platformDeviceId,
+        platformIdSource: deviceIdentifiers.platformIdSource
+      }
+    )
+
+    console.log('✅ [Auth] Device login successful')
+    // Extract nested data from response
+    return response.data
   },
 
   /**
-   * Refresh existing token
-   * Call this periodically to keep token fresh
+   * Refresh access token using refresh token
+   * Headers should include X-Installation-Id
    */
-  refreshToken: async (): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>('/auth/refresh')
+  refreshToken: async (refreshToken: string): Promise<DeviceLoginResponse> => {
+    const deviceIdentifiers = await deviceIdService.getDeviceIdentifiers()
+
+    console.log(
+      '🔄 [Auth] Refreshing token for installation:',
+      deviceIdentifiers.installationId.substring(0, 8) + '...'
+    )
+
+    // The apiClient should add X-Installation-Id header automatically
+    const response = await apiClient.post<{ data: DeviceLoginResponse }>(
+      '/v1/auth/refresh',
+      {
+        refreshToken
+      }
+    )
+
+    console.log('✅ [Auth] Token refreshed successfully')
+    // Extract nested data from response
+    return response.data
   },
 
   /**
-   * Validate if current token is still valid
+   * Get current device identifiers (for debugging)
    */
-  validateToken: async (): Promise<boolean> => {
-    try {
-      await apiClient.get('/auth/validate')
-      return true
-    } catch (error) {
-      return false
-    }
+  getDeviceIdentifiers: async (): Promise<DeviceIdentifiers> => {
+    return deviceIdService.getDeviceIdentifiers()
   }
 }

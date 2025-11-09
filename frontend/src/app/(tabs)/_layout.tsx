@@ -79,20 +79,19 @@ export default function TabLayout() {
           )
         }}
       />
-
       {/* === หน้าที่ซ่อนจาก Tab Bar === */}
       <Tabs.Screen
         name="add-reminder"
         options={{
           title: 'เพิ่มแจ้งเตือน',
-          href: null // ⬅️ ซ่อนจาก Tab Bar
+          href: null
         }}
       />
       <Tabs.Screen
         name="reminder-details/[id]"
         options={{
           title: 'รายละเอียด',
-          href: null // ⬅️ ซ่อนจาก Tab Bar
+          href: null
         }}
       />
     </Tabs>

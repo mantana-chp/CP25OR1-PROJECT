@@ -54,17 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true)
         setError(null)
       } else {
-        // Step 2: Fetch new token from backend
-        console.log('🔄 Fetching new token from server...')
-        const response = await authService.fetchToken()
-        console.log('Token response:', response)
+        // Step 2: Perform device-based login
+        console.log('🔄 Performing device login...')
+        const response = await authService.deviceLogin()
+        console.log('Device login response:', response)
 
-        // Step 3: Save token
+        // Step 3: Save tokens
         await apiClient.setToken(
           response.accessToken,
           response.refreshToken || ''
         )
-        console.log('✅ Token saved to storage')
+        console.log('✅ Tokens saved to storage')
 
         setToken(response.accessToken)
         setIsAuthenticated(true)
