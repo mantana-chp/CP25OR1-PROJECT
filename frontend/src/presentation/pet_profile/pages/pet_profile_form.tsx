@@ -12,7 +12,6 @@ import {
 
 import {
   IPetProfile,
-  // IPetProfileForm,
   petProfileInitValue,
   petProfileValidateSchema
 } from '@/src/domain/pet.domain'
