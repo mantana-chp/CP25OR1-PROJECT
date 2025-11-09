@@ -1,6 +1,6 @@
 import ReminderPage from '@/src/presentation/reminder/pages/reminder_page'
 import React from 'react'
 
-export default function CalendarTab() {
+export default function ReminderTab() {
   return <ReminderPage />
 }
