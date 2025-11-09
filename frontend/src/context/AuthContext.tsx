@@ -1,5 +1,6 @@
 import { apiClient } from '@/src/utils/api/api_client'
 import { authService } from '@/src/utils/api/services/auth_service'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import React, {
   createContext,
   useCallback,
@@ -8,11 +9,15 @@ import React, {
   useState
 } from 'react'
 
+const ONBOARDING_KEY = '@app:hasCompletedOnboarding'
+
 interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   token: string | null
   error: string | null
+  hasCompletedOnboarding: boolean
+  completeOnboarding: () => Promise<void>
   refreshAuth: () => Promise<void>
 }
 
@@ -31,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [token, setToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
 
   useEffect(() => {
     console.log('🚀 AuthProvider mounted')
@@ -43,7 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true)
 
-      // Step 1: Check for existing token
+      // Step 1: Check onboarding status
+      console.log('📱 Checking onboarding status...')
+      const onboardingStatus = await AsyncStorage.getItem(ONBOARDING_KEY)
+      const hasSeenOnboarding = onboardingStatus === 'true'
+      console.log('Onboarding completed:', hasSeenOnboarding)
+      setHasCompletedOnboarding(hasSeenOnboarding)
+
+      // Step 2: Check for existing token
       console.log('📝 Checking for existing token...')
       const existingToken = await apiClient.getAccessToken()
       console.log('Existing token:', existingToken ? 'Found' : 'Not found')
@@ -54,12 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true)
         setError(null)
       } else {
-        // Step 2: Perform device-based login
+        // Step 3: Perform device-based login
         console.log('🔄 Performing device login...')
         const response = await authService.deviceLogin()
         console.log('Device login response:', response)
 
-        // Step 3: Save tokens
+        // Step 4: Save tokens
         await apiClient.setToken(
           response.accessToken,
           response.refreshToken || ''
@@ -89,10 +102,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await initAuth()
   }, [])
 
+  const completeOnboarding = useCallback(async () => {
+    console.log('✅ Completing onboarding...')
+    try {
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true')
+      setHasCompletedOnboarding(true)
+      console.log('🎉 Onboarding completed!')
+    } catch (error) {
+      console.error('❌ Error saving onboarding status:', error)
+    }
+  }, [])
+
   console.log('Auth State:', {
     isLoading,
     isAuthenticated,
     hasToken: !!token,
+    hasCompletedOnboarding,
     error
   })
 
@@ -103,6 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         token,
         error,
+        hasCompletedOnboarding,
+        completeOnboarding,
         refreshAuth
       }}
     >

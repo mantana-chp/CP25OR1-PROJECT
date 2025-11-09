@@ -1,7 +1,16 @@
-import { Link } from 'expo-router'
+import { useAuth } from '@/src/context/AuthContext'
+import { useRouter } from 'expo-router'
 import { Button, Image, StyleSheet, Text, View } from 'react-native'
 
 export default function FinalStep() {
+  const { completeOnboarding } = useAuth()
+  const router = useRouter()
+
+  const handleFinish = async () => {
+    await completeOnboarding()
+    router.replace('/(tabs)')
+  }
+
   return (
     <View style={styles.container}>
       <Image
@@ -10,9 +19,7 @@ export default function FinalStep() {
         resizeMode="contain"
       />
       <Text style={styles.title}>Onboarding Screen 3</Text>
-      <Link href="/(tabs)/pet_profile" push asChild>
-        <Button title="Next" />
-      </Link>
+      <Button title="เริ่มใช้งาน" onPress={handleFinish} />
     </View>
   )
 }
