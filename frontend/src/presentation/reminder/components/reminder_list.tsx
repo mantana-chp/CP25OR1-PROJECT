@@ -1,10 +1,10 @@
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { useRouter } from 'expo-router'
+import { Link, useRouter } from 'expo-router'
 import _ from 'lodash'
 import { Plus } from 'lucide-react-native'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -31,27 +31,27 @@ export default function ReminderList() {
     showErrorAlert: true,
     successMessage: 'ลบนัดหมายสำเร็จ',
     onSuccess: () => {
-      loadReminders()
+      // loadReminders()
     }
   })
 
-  const loadReminders = useCallback(() => {
-    console.log('🔄 Loading reminders for tab:', activeTab)
-    getRemindersApi.execute({})
-  }, [activeTab])
+  // const loadReminders = useCallback(() => {
+  //   console.log('🔄 Loading reminders for tab:', activeTab)
+  //   getRemindersApi.execute({})
+  // }, [activeTab])
 
-  useEffect(() => {
-    if (activeTab) {
-      loadReminders()
-    }
-  }, [activeTab, loadReminders])
+  // useEffect(() => {
+  //   if (activeTab) {
+  //     loadReminders()
+  //   }
+  // }, [activeTab, loadReminders])
 
   const handleAddReminder = () => {
-    router.push('/add-reminder')
+    router.push('/(tabs)/add-reminder')
   }
 
   const handleReminderDetail = (reminderId: string) => {
-    router.push(`/reminder-detail/${reminderId}`)
+    router.push(`/(tabs)/reminder-details/${reminderId}`)
   }
 
   const handleDeleteReminder = useCallback(
@@ -151,12 +151,14 @@ export default function ReminderList() {
       )}
 
       {/* Floating Add Button */}
-      <TouchableOpacity
-        style={styles.addReminderButton}
-        onPress={handleAddReminder}
-      >
-        <Plus size={32} color="#fff" strokeWidth={3} />
-      </TouchableOpacity>
+      <Link href="/(tabs)/add-reminder" push asChild>
+        <TouchableOpacity
+          style={styles.addReminderButton}
+          // onPress={handleAddReminder}
+        >
+          <Plus size={32} color="#fff" strokeWidth={3} />
+        </TouchableOpacity>
+      </Link>
     </View>
   )
 }

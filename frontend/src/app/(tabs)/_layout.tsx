@@ -47,7 +47,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Calendar',
+          title: 'Index',
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon icon={Calendar} color={color} focused={focused} />
           )
@@ -77,6 +77,22 @@ export default function TabLayout() {
               focused={focused}
             />
           )
+        }}
+      />
+
+      {/* === หน้าที่ซ่อนจาก Tab Bar === */}
+      <Tabs.Screen
+        name="add-reminder"
+        options={{
+          title: 'เพิ่มแจ้งเตือน',
+          href: null // ⬅️ ซ่อนจาก Tab Bar
+        }}
+      />
+      <Tabs.Screen
+        name="reminder-details/[id]"
+        options={{
+          title: 'รายละเอียด',
+          href: null // ⬅️ ซ่อนจาก Tab Bar
         }}
       />
     </Tabs>

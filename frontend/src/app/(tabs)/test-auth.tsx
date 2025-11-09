@@ -1,4 +1,4 @@
-import { deviceIdService } from '@/src/utils/devices/deviceIdService'
+// import { deviceIdService } from '@/src/utils/devices/deviceIdService'
 import axios from 'axios'
 import { useState } from 'react'
 import {
@@ -26,11 +26,11 @@ export default function TestAuthScreen() {
       setResult(null)
 
       console.log('🔍 Getting device identifiers...')
-      const ids = await deviceIdService.getDeviceIdentifiers()
+      // const ids = await deviceIdService.getDeviceIdentifiers()
 
-      console.log('✅ Device IDs obtained:', ids)
-      setDeviceIds(ids)
-      setResult({ type: 'deviceIds', data: ids })
+      // console.log('✅ Device IDs obtained:', ids)
+      // setDeviceIds(ids)
+      // setResult({ type: 'deviceIds', data: ids })
     } catch (err: any) {
       console.error('❌ Error getting device IDs:', err)
       setError(err.message || 'Failed to get device IDs')
@@ -46,49 +46,49 @@ export default function TestAuthScreen() {
       setResult(null)
 
       console.log('🔍 Step 1: Getting device identifiers...')
-      const ids = await deviceIdService.getDeviceIdentifiers()
-      console.log('✅ Device IDs:', ids)
-      setDeviceIds(ids)
+      // const ids = await deviceIdService.getDeviceIdentifiers()
+      // console.log('✅ Device IDs:', ids)
+      // setDeviceIds(ids)
 
-      const payload = {
-        installationId: ids.installationId,
-        platform: ids.platform,
-        platformDeviceId: ids.platformDeviceId,
-        platformIdSource: ids.platformIdSource
-      }
+      // const payload = {
+      //   installationId: ids.installationId,
+      //   platform: ids.platform,
+      //   platformDeviceId: ids.platformDeviceId,
+      //   platformIdSource: ids.platformIdSource
+      // }
 
-      console.log('📤 Step 2: Sending device-login request...')
-      console.log('📤 URL:', `${API_BASE_URL}/v1/auth/device-login`)
-      console.log('📤 Payload:', payload)
+      // console.log('📤 Step 2: Sending device-login request...')
+      // console.log('📤 URL:', `${API_BASE_URL}/v1/auth/device-login`)
+      // console.log('📤 Payload:', payload)
 
-      const response = await axios.post(
-        `${API_BASE_URL}/v1/auth/device-login`,
-        payload,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000
-        }
-      )
+      // const response = await axios.post(
+      //   `${API_BASE_URL}/v1/auth/device-login`,
+      //   payload,
+      //   {
+      //     headers: {
+      //       'Content-Type': 'application/json'
+      //     },
+      //     timeout: 15000
+      //   }
+      // )
 
-      console.log('✅ Response status:', response.status)
-      console.log('✅ Response data:', response.data)
+      // console.log('✅ Response status:', response.status)
+      // console.log('✅ Response data:', response.data)
 
-      console.log(response.data.data.accessToken)
+      // console.log(response.data.data.accessToken)
 
-      setResult({
-        type: 'deviceLogin',
-        status: response.status,
-        data: {
-          user: response.data.user,
-          accessToken: response.data.data.accessToken?.substring(0, 50) + '...',
-          refreshToken:
-            response.data.data.refreshToken?.substring(0, 50) + '...',
-          fullAccessToken: response.data.data.accessToken,
-          fullRefreshToken: response.data.data.refreshToken
-        }
-      })
+      // setResult({
+      //   type: 'deviceLogin',
+      //   status: response.status,
+      //   data: {
+      //     user: response.data.user,
+      //     accessToken: response.data.data.accessToken?.substring(0, 50) + '...',
+      //     refreshToken:
+      //       response.data.data.refreshToken?.substring(0, 50) + '...',
+      //     fullAccessToken: response.data.data.accessToken,
+      //     fullRefreshToken: response.data.data.refreshToken
+      //   }
+      // })
     } catch (err: any) {
       console.error('❌ Error during device login:', err)
 
