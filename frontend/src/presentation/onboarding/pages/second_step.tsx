@@ -9,7 +9,11 @@ export default function SecondStep() {
         style={styles.image}
         resizeMode="contain"
       />
-      <Text style={styles.title}>Onboarding Screen 2</Text>
+      <Text style={styles.title}>ไม่พลาดทุกการเตือนสำคัญ</Text>
+      <Text style={styles.subTitle}>
+        รับการแจ้งเตือนเรื่องวัคซีน การหาหมอ
+        และกิจวัตรการดูแลสัตว์เลี้ยงตรงเวลาเสมอ
+      </Text>
       <Link href="/onboarding/final" push asChild>
         <Button title="Next" />
       </Link>
@@ -22,15 +26,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFF9F1',
     padding: 20
   },
   title: {
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: 'bold',
     fontFamily: 'Prompt_700Bold',
     marginBottom: 32,
-    color: '#333'
+    color: '#225877'
+  },
+  subTitle: {
+    fontSize: 17,
+    fontWeight: 'normal',
+    fontFamily: 'Prompt_400Regular',
+    marginBottom: 32,
+    color: '#225877'
   },
   image: {
     width: 200,

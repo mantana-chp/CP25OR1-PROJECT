@@ -9,7 +9,10 @@ export default function FirstStep() {
         style={styles.image}
         resizeMode="contain"
       />
-      <Text style={styles.title}>Onboarding Screen 1</Text>
+      <Text style={styles.title}>ยินดีต้อนรับสู่ [AppName]!</Text>
+      <Text style={styles.subTitle}>
+        ดูแลสุขภาพและความสุขของสัตว์เลี้ยงคุณได้ในที่เดียว
+      </Text>
 
       <Link href="/onboarding/second" push asChild>
         <Button title="Next" />
@@ -23,15 +26,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFF9F1',
     padding: 20
   },
   title: {
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: 'bold',
     fontFamily: 'Prompt_700Bold',
     marginBottom: 32,
-    color: '#333'
+    color: '#225877'
+  },
+  subTitle: {
+    fontSize: 17,
+    fontWeight: 'normal',
+    fontFamily: 'Prompt_400Regular',
+    marginBottom: 32,
+    color: '#225877'
   },
   image: {
     width: 200,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import Header from '../../components/header_component'
 
 export default function PetProfilePage() {
   const petData = {
@@ -27,44 +28,36 @@ export default function PetProfilePage() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Pet Status Section */}
+      <Header title="โปรไฟล์สัตว์เลี้ยง" />
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
-
-        <View style={styles.petIconContainer}>
-          <View style={styles.petIcon}>
-            <Ionicons name="paw" size={32} color="#5BA3D0" />
-          </View>
-          <Text style={styles.petIconLabel}>ร็อคเก็ต</Text>
-        </View>
-      </View>
-
-      {/* Pet Info Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.petAvatar}>
-            <Ionicons name="paw" size={40} color="white" />
-          </View>
-          <View style={styles.cardHeaderText}>
-            <Text style={styles.petName}>ร็อคเก็ต</Text>
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <Ionicons name="male" size={14} color="#5BA3D0" />
-                <Text style={styles.infoText}>พันธุ์</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
-                <Text style={styles.infoText}>{petData.age}</Text>
-              </View>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.petAvatar}>
+              <Ionicons name="paw" size={40} color="white" />
             </View>
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
-                <Text style={styles.infoText}>เพศ ผู้</Text>
+            <View style={styles.cardHeaderText}>
+              <Text style={styles.petName}>ร็อคเก็ต</Text>
+              <View style={styles.infoRow}>
+                <View style={styles.infoItem}>
+                  <Ionicons name="male" size={14} color="#5BA3D0" />
+                  <Text style={styles.infoText}>พันธุ์</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
+                  <Text style={styles.infoText}>{petData.age}</Text>
+                </View>
               </View>
-              <View style={styles.infoItem}>
-                <Ionicons name="fitness-outline" size={14} color="#5BA3D0" />
-                <Text style={styles.infoText}>{petData.weight}</Text>
+              <View style={styles.infoRow}>
+                <View style={styles.infoItem}>
+                  <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
+                  <Text style={styles.infoText}>เพศ ผู้</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Ionicons name="fitness-outline" size={14} color="#5BA3D0" />
+                  <Text style={styles.infoText}>{petData.weight}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -117,7 +110,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 16,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_700Bold'
   },
   petIconContainer: {
     alignItems: 'center',
