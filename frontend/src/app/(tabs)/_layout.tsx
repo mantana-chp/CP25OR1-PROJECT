@@ -34,7 +34,7 @@ export default function TabLayout() {
           elevation: 0,
           shadowOpacity: 0,
           height: 84,
-          paddingTop: 24,
+          paddingTop: 12,
           justifyContent: 'center',
           alignItems: 'center'
         },
@@ -91,6 +91,13 @@ export default function TabLayout() {
         name="reminder-details/[id]"
         options={{
           title: 'รายละเอียด',
+          href: null
+        }}
+      />
+      <Tabs.Screen
+        name="add_pet_form"
+        options={{
+          title: 'สร้างโปรไฟล์สัตว์เลี้ยง',
           href: null
         }}
       />

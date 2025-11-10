@@ -11,23 +11,23 @@ export default function PetInfoCard(props: PetInfoCardProps) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.petAvatar}>
-          <Ionicons name="paw" size={40} color="white" />
+          <Ionicons name="paw" size={42} color="white" />
         </View>
         <View style={styles.cardHeaderText}>
-          <Text style={styles.petName}>ร็อคเก็ต</Text>
+          <Text style={styles.petName}>ดัมดัม</Text>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Ionicons name="male" size={14} color="#5BA3D0" />
+              <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>{'พันธุ์'}</Text>
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>{'อายุ'}</Text>
+              <Text style={styles.infoText}>{`${4} ปี ${8} เดือน`}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
+              <Ionicons name="male" size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>เพศ {props.data.gender}</Text>
             </View>
             <View style={styles.infoItem}>
@@ -44,41 +44,36 @@ export default function PetInfoCard(props: PetInfoCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
-    marginHorizontal: 16,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    borderWidth: 1,
+    borderColor: '#5FA7D1'
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start'
   },
   petAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 80,
     backgroundColor: '#5BA3D0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
+    marginRight: 16
   },
   cardHeaderText: {
     flex: 1
   },
   petName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-    fontFamily: 'Prompt_400Regular'
+    fontSize: 17,
+    color: '#225877',
+    marginBottom: 4,
+    fontFamily: 'Prompt_500Medium'
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 6
+    marginBottom: 4
   },
   infoItem: {
     flexDirection: 'row',
@@ -87,8 +82,8 @@ const styles = StyleSheet.create({
     flex: 1
   },
   infoText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    color: '#225877',
     marginLeft: 4,
     fontFamily: 'Prompt_400Regular'
   }
