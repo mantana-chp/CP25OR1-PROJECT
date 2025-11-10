@@ -101,94 +101,97 @@ export default function PetProfileForm() {
   // RENDER
   // ------------------
   return (
-    <ScrollView>
+    <>
       <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={true} />
-      <View style={styles.formContainer}>
-        <Image
-          source={require('../../../../assets/images/pet_profile.png')}
-          style={{
-            width: 100,
-            height: 100,
-            alignSelf: 'center',
-            marginBottom: 16
-          }}
-        />
-        <InputText
-          title="ชื่อสัตว์เลี้ยง"
-          value={formik.values?.pet_name}
-          placeholder="ชื่อสัตว์เลี้ยง เช่น มะลิ, โบ้, Lucky"
-          required={true}
-          onChangeText={(v) => formik.setFieldValue('pet_name', v)}
-          error={formik?.errors?.pet_name}
-        />
-        <Dropdown
-          title="เพศสัตว์เลี้ยง"
-          options={genderOptions}
-          placeholder="เลือกเพศสัตว์เลี้ยง"
-          required={true}
-          onSelect={(v) => formik.setFieldValue('gender', v)}
-          value={formik.values?.gender}
-          error={formik?.errors?.gender}
-        />
 
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <View style={{ flex: 1 }}>
-            <Dropdown
-              title="ประเภทสัตว์เลี้ยง"
-              options={petTypeOptions}
-              placeholder="เลือกประเภทสัตว์เลี้ยง"
-              required={true}
-              onSelect={(v) => formik.setFieldValue('species_id', v)}
-              value={formik.values?.species_id}
-              error={formik?.errors?.species_id}
-            />
+      <ScrollView>
+        <View style={styles.formContainer}>
+          <Image
+            source={require('../../../../assets/images/pet_profile.png')}
+            style={{
+              width: 100,
+              height: 100,
+              alignSelf: 'center',
+              marginBottom: 16
+            }}
+          />
+          <InputText
+            title="ชื่อสัตว์เลี้ยง"
+            value={formik.values?.pet_name}
+            placeholder="ชื่อสัตว์เลี้ยง เช่น มะลิ, โบ้, Lucky"
+            required={true}
+            onChangeText={(v) => formik.setFieldValue('pet_name', v)}
+            error={formik?.errors?.pet_name}
+          />
+          <Dropdown
+            title="เพศสัตว์เลี้ยง"
+            options={genderOptions}
+            placeholder="เลือกเพศสัตว์เลี้ยง"
+            required={true}
+            onSelect={(v) => formik.setFieldValue('gender', v)}
+            value={formik.values?.gender}
+            error={formik?.errors?.gender}
+          />
+
+          <View style={{ flexDirection: 'row', gap: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Dropdown
+                title="ประเภทสัตว์เลี้ยง"
+                options={petTypeOptions}
+                placeholder="เลือกประเภทสัตว์เลี้ยง"
+                required={true}
+                onSelect={(v) => formik.setFieldValue('species_id', v)}
+                value={formik.values?.species_id}
+                error={formik?.errors?.species_id}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Dropdown
+                title="สายพันธุ์สัตว์เลี้ยง"
+                options={breedOptions}
+                placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
+                onSelect={(v) => formik.setFieldValue('breed_id', v)}
+                value={formik.values?.breed_id}
+              />
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Dropdown
-              title="สายพันธุ์สัตว์เลี้ยง"
-              options={breedOptions}
-              placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
-              onSelect={(v) => formik.setFieldValue('breed_id', v)}
-              value={formik.values?.breed_id}
-            />
-          </View>
+
+          <InputText
+            title="น้ำหนักสัตว์เลี้ยง (กก.)"
+            value={formik.values?.weight}
+            placeholder="น้ำหนักสัตว์เลี้ยง"
+            keyboardType="numeric"
+            onChangeText={(v) => formik.setFieldValue('weight', v)}
+            error={formik?.errors?.weight}
+          />
+          <DatePicker
+            title="วันเกิด"
+            placeholder="วัน/เดือน/ปีเกิด"
+            value={
+              formik.values.birth_date
+                ? new Date(formik.values.birth_date)
+                : undefined
+            }
+            onChange={(v) => formik.setFieldValue('birth_date', v)}
+          />
+          <Pressable
+            onPress={() => formik.handleSubmit()}
+            disabled={isSubmitting}
+            style={{
+              alignItems: 'center',
+              padding: 12,
+              backgroundColor: isSubmitting ? '#A0C4D4' : '#5FA7D1',
+              borderRadius: 24,
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+          >
+            <Text style={styles.saveText}>
+              {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกโปรไฟล์'}
+            </Text>
+          </Pressable>
         </View>
-
-        <InputText
-          title="น้ำหนักสัตว์เลี้ยง (กก.)"
-          value={formik.values?.weight}
-          placeholder="น้ำหนักสัตว์เลี้ยง"
-          keyboardType="numeric"
-          onChangeText={(v) => formik.setFieldValue('weight', v)}
-          error={formik?.errors?.weight}
-        />
-        <DatePicker
-          title="วันเกิด"
-          placeholder="วัน/เดือน/ปีเกิด"
-          value={
-            formik.values.birth_date
-              ? new Date(formik.values.birth_date)
-              : undefined
-          }
-          onChange={(v) => formik.setFieldValue('birth_date', v)}
-        />
-        <Pressable
-          onPress={() => formik.handleSubmit()}
-          disabled={isSubmitting}
-          style={{
-            alignItems: 'center',
-            padding: 12,
-            backgroundColor: isSubmitting ? '#A0C4D4' : '#5FA7D1',
-            borderRadius: 24,
-            opacity: isSubmitting ? 0.7 : 1
-          }}
-        >
-          <Text style={styles.saveText}>
-            {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกโปรไฟล์'}
-          </Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   )
 }
 
