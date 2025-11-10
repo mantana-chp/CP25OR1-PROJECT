@@ -1,74 +1,25 @@
-import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import Header from '../../components/header_component'
+import ReminderCard from '../../reminder/components/reminder_card'
+import PetInfoCard from '../components/pet_info_card'
 
 export default function PetProfilePage() {
-  const petData = {
-    name: 'ร็อคเก็ต',
-    gender: 'ชาย',
-    breed: 'อบ',
-    age: '3 ปี 4 เดือน',
-    weight: '8 กิโลกรัม',
-    color: 'เทา, เหลือง'
-  }
-
-  const appointment = {
-    type: 'อาบน้ำตัดขน',
-    location: 'ร้อคเก็ต',
-    date: '17/09/2568',
-    time: '13.30 น.'
-  }
-
   return (
     <ScrollView style={styles.container}>
       <Header title="โปรไฟล์สัตว์เลี้ยง" />
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.petAvatar}>
-              <Ionicons name="paw" size={40} color="white" />
-            </View>
-            <View style={styles.cardHeaderText}>
-              <Text style={styles.petName}>ร็อคเก็ต</Text>
-              <View style={styles.infoRow}>
-                <View style={styles.infoItem}>
-                  <Ionicons name="male" size={14} color="#5BA3D0" />
-                  <Text style={styles.infoText}>พันธุ์</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
-                  <Text style={styles.infoText}>{petData.age}</Text>
-                </View>
-              </View>
-              <View style={styles.infoRow}>
-                <View style={styles.infoItem}>
-                  <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
-                  <Text style={styles.infoText}>เพศ ผู้</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Ionicons name="fitness-outline" size={14} color="#5BA3D0" />
-                  <Text style={styles.infoText}>{petData.weight}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
+        <PetInfoCard data={petData} />
       </View>
 
       {/* Appointments Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>กิจกรรมที่ใกล้เข้ามา</Text>
 
-        <TouchableOpacity style={styles.appointmentCard}>
+        <ReminderCard reminder={mockReminder} canDelete={false} />
+        {/* <TouchableOpacity style={styles.appointmentCard}>
           <View style={styles.appointmentLeft}>
             <View style={styles.radioButton} />
             <View style={styles.appointmentInfo}>
@@ -90,10 +41,35 @@ export default function PetProfilePage() {
           <View style={styles.appointmentRight}>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </ScrollView>
   )
+}
+
+const petData = {
+  name: 'ร็อคเก็ต',
+  gender: 'ชาย',
+  breed: 'แมว',
+  species: 'เปอร์เซีย',
+  age: '3 ปี 4 เดือน', // คำนวณจากวันเกิด
+  weight: '8 กิโลกรัม'
+}
+
+const mockReminder = {
+  id: '1',
+  userId: 'user123',
+  petId: 'pet456',
+  petName: 'ร็อคเก็ต',
+  categoryId: 'cat001',
+  reminderName: 'อาบน้ำตัดขน',
+  description: 'นัดหมายอาบน้ำและตัดขนที่ร้อคเก็ต',
+  reminderDate: '2025-09-17',
+  reminderTime: '13:30',
+  reminderStatus: 'to_do',
+  statusUpdatedAt: '2025-09-10T10:00:00Z',
+  createdAt: '2025-09-01T08:00:00Z',
+  updatedAt: '2025-09-01T08:00:00Z'
 }
 
 const styles = StyleSheet.create({
@@ -106,11 +82,11 @@ const styles = StyleSheet.create({
     paddingVertical: 20
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#333',
+    color: '#225877',
     marginBottom: 16,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_500Medium'
   },
   petIconContainer: {
     alignItems: 'center',

@@ -8,7 +8,7 @@ export interface IReminder {
   description: string
   reminderDate: string
   reminderTime: string
-  reminderStatus: 'to_do' | 'done' | 'overdue'
+  reminderStatus: string
   statusUpdatedAt: string
   createdAt: string
   updatedAt: string
