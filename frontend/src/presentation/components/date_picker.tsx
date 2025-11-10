@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import DateTimePicker, {
   DateTimePickerEvent
 } from '@react-native-community/datetimepicker'
-import { CalendarDays } from 'lucide-react-native'
+import { CalendarDays, X } from 'lucide-react-native'
 import {
   Button,
   Modal,
@@ -114,7 +114,9 @@ export default function DatePicker(props: DatePickerProps) {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{props.title}</Text>
                 <Pressable onPress={handleClose}>
-                  <Text style={styles.closeButton}>✕</Text>
+                  <Text style={styles.closeButton}>
+                    <X color={'#a6a6a6'} />
+                  </Text>
                 </Pressable>
               </View>
 
@@ -220,7 +222,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_400Regular'
   },
   closeButton: {
     fontSize: 24,

@@ -36,7 +36,14 @@ export default function InputText(props: TextInputProps) {
           keyboardType={props.keyboardType}
         />
         {props.error && (
-          <Text style={{ color: '#BF1737', marginTop: 4, fontSize: 12 }}>
+          <Text
+            style={{
+              color: '#BF1737',
+              marginTop: 4,
+              fontSize: 12,
+              fontFamily: 'Prompt_400Regular'
+            }}
+          >
             {props.error}
           </Text>
         )}
