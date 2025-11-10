@@ -129,22 +129,26 @@ export default function PetProfileForm() {
         />
 
         <View style={{ flexDirection: 'row', gap: 16 }}>
-          <Dropdown
-            title="ประเภทสัตว์เลี้ยง"
-            options={petTypeOptions}
-            placeholder="เลือกประเภทสัตว์เลี้ยง"
-            required={true}
-            onSelect={(v) => formik.setFieldValue('species_id', v)}
-            value={formik.values?.species_id}
-            error={formik?.errors?.species_id}
-          />
-          <Dropdown
-            title="สายพันธุ์สัตว์เลี้ยง"
-            options={breedOptions}
-            placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
-            onSelect={(v) => formik.setFieldValue('breed_id', v)}
-            value={formik.values?.breed_id}
-          />
+          <View style={{ flex: 1 }}>
+            <Dropdown
+              title="ประเภทสัตว์เลี้ยง"
+              options={petTypeOptions}
+              placeholder="เลือกประเภทสัตว์เลี้ยง"
+              required={true}
+              onSelect={(v) => formik.setFieldValue('species_id', v)}
+              value={formik.values?.species_id}
+              error={formik?.errors?.species_id}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Dropdown
+              title="สายพันธุ์สัตว์เลี้ยง"
+              options={breedOptions}
+              placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
+              onSelect={(v) => formik.setFieldValue('breed_id', v)}
+              value={formik.values?.breed_id}
+            />
+          </View>
         </View>
 
         <InputText

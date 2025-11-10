@@ -59,6 +59,8 @@ export default function Dropdown(props: DropdownProps) {
           disabled={props.disable}
         >
           <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={[
               styles.inputText,
               !selectedOption && styles.placeholderText
