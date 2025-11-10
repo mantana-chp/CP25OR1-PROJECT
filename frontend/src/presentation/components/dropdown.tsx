@@ -97,11 +97,16 @@ export default function Dropdown(props: DropdownProps) {
             <FlatList
               data={props.options}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <TouchableOpacity
                   style={[
                     styles.option,
-                    item.id === props.value && styles.optionSelected
+                    item.id === props.value && styles.optionSelected,
+                    // Hide border for last item
+                    index === props.options.length - 1 && styles.optionLast,
+                    // Add border radius for last item
+                    index === props.options.length - 1 &&
+                      styles.optionLastRadius
                   ]}
                   onPress={() => handleSelect(item.id)}
                 >
@@ -240,6 +245,14 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6'
+  },
+  optionLast: {
+    borderBottomWidth: 0
+  },
+  optionLastRadius: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden'
   },
   optionSelected: {
     backgroundColor: '#f0f9ff'
