@@ -102,9 +102,7 @@ export default function Dropdown(props: DropdownProps) {
                   style={[
                     styles.option,
                     item.id === props.value && styles.optionSelected,
-                    // Hide border for last item
                     index === props.options.length - 1 && styles.optionLast,
-                    // Add border radius for last item
                     index === props.options.length - 1 &&
                       styles.optionLastRadius
                   ]}

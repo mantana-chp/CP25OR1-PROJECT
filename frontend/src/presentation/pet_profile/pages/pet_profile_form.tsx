@@ -24,6 +24,9 @@ import {
 } from 'react-native'
 
 export default function PetProfileForm() {
+  // ------------------
+  // CONST
+  // ------------------
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 

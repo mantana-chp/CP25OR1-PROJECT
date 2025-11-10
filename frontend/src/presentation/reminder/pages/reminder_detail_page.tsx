@@ -13,7 +13,6 @@ import {
 import { fetchReminderById } from '../../../data/reminder.api'
 import LoadingComponent from '../../components/loading_component'
 
-// --- Helper Functions ---
 const formatDate = (date: Date) => {
   return date.toLocaleDateString('th-TH')
 }
@@ -25,7 +24,6 @@ const formatTime = (time: Date) => {
   })
 }
 
-// Parses a "HH:MM:SS" string into a Date object
 const parseApiTime = (timeString: string): Date => {
   if (!timeString) return new Date()
 
@@ -34,19 +32,16 @@ const parseApiTime = (timeString: string): Date => {
   date.setHours(hours || 0, minutes || 0, seconds || 0)
   return date
 }
-// ---
 
 export default function ReminderDetailPage() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
 
-  // --- State for form fields ---
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [date, setDate] = React.useState(new Date())
   const [time, setTime] = React.useState(new Date())
 
-  // --- State for loading/error ---
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 

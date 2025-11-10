@@ -19,29 +19,6 @@ export default function PetProfilePage() {
         <Text style={styles.sectionTitle}>กิจกรรมที่ใกล้เข้ามา</Text>
 
         <ReminderCard reminder={mockReminder} canDelete={false} />
-        {/* <TouchableOpacity style={styles.appointmentCard}>
-          <View style={styles.appointmentLeft}>
-            <View style={styles.radioButton} />
-            <View style={styles.appointmentInfo}>
-              <Text style={styles.appointmentType}>{appointment.type}</Text>
-              <View style={styles.appointmentDetails}>
-                <Ionicons name="home-outline" size={14} color="#666" />
-                <Text style={styles.appointmentDetailText}>
-                  {appointment.location}
-                </Text>
-              </View>
-              <View style={styles.appointmentDetails}>
-                <Ionicons name="time-outline" size={14} color="#666" />
-                <Text style={styles.appointmentDetailText}>
-                  {appointment.date}, {appointment.time}
-                </Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.appointmentRight}>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </View>
-        </TouchableOpacity> */}
       </View>
     </ScrollView>
   )
