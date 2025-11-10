@@ -1,10 +1,12 @@
+import { Link, useRouter } from 'expo-router'
+import _ from 'lodash'
+import React, { useCallback, useEffect, useState } from 'react'
+
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { Link, useRouter } from 'expo-router'
-import _ from 'lodash'
+
 import { Plus } from 'lucide-react-native'
-import React, { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -19,7 +21,6 @@ type TabType = 'to_do' | 'done'
 
 export default function ReminderList() {
   const router = useRouter()
-  // const { isAuthenticated, isLoading: authLoading } = useAuth() // ← Add this
 
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
 
@@ -45,10 +46,6 @@ export default function ReminderList() {
       loadReminders()
     }
   }, [activeTab, loadReminders])
-
-  const handleAddReminder = () => {
-    router.push('/(tabs)/add-reminder')
-  }
 
   const handleReminderDetail = (reminderId: string) => {
     router.push(`/(tabs)/reminder-details/${reminderId}`)
@@ -79,9 +76,16 @@ export default function ReminderList() {
   )
 
   const reminders = getRemindersApi.data?.data || []
-  const filteredReminders = reminders.filter(
-    (reminder) => reminder.reminderStatus === activeTab
-  )
+  const filteredReminders = reminders.filter((reminder) => {
+    if (activeTab === 'to_do') {
+      return (
+        reminder.reminderStatus === 'to_do' ||
+        reminder.reminderStatus === 'overdue'
+      )
+    } else {
+      return reminder.reminderStatus === activeTab
+    }
+  })
 
   return (
     <View style={styles.container}>

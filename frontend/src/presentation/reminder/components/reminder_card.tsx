@@ -41,7 +41,11 @@ export default function ReminderCard(props: ReminderCardProps) {
   } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
-  const formattedDate = date.format(`DD/MM/${buddhistYear}, HH:mm น.`)
+
+  const formattedDate = date.format(`DD/MM/${buddhistYear}`)
+  const formattedTime = reminder?.reminderTime
+    ? reminder.reminderTime.substring(0, 5)
+    : ''
 
   // ------------------
   // ANIMATION
@@ -141,6 +145,7 @@ export default function ReminderCard(props: ReminderCardProps) {
       onPress(reminder.id)
     }
   }
+  
   // ------------------
   // RENDER
   // ------------------
@@ -206,8 +211,20 @@ export default function ReminderCard(props: ReminderCardProps) {
             </View>
 
             <View style={styles.infoRow}>
-              <Clock size={16} color="#2E759E" />
-              <Text style={styles.dateTimeText}>{formattedDate}</Text>
+              <Clock
+                size={16}
+                color={
+                  reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
+                }
+              />
+              <Text
+                style={[
+                  styles.dateTimeText,
+                  reminder?.reminderStatus === 'overdue' && styles.overdueText
+                ]}
+              >
+                {formattedDate}, {formattedTime} น.
+              </Text>
             </View>
           </View>
 
@@ -320,6 +337,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#225877',
     fontFamily: 'Prompt_400Regular'
+  },
+  overdueText: {
+    color: '#BF1737',
+    fontWeight: '600'
   },
   infoButton: {
     padding: 4
