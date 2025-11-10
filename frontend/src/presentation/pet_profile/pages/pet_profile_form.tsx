@@ -13,15 +13,8 @@ import {
   petProfileValidateSchema
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native'
+import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
+import PrimaryButton from '../../components/primary_button'
 
 export default function PetProfileForm() {
   // ------------------
@@ -174,21 +167,13 @@ export default function PetProfileForm() {
             }
             onChange={(v) => formik.setFieldValue('birth_date', v)}
           />
-          <Pressable
+          <PrimaryButton
             onPress={() => formik.handleSubmit()}
+            title="บันทึกโปรไฟล์"
             disabled={isSubmitting}
-            style={{
-              alignItems: 'center',
-              padding: 12,
-              backgroundColor: isSubmitting ? '#A0C4D4' : '#5FA7D1',
-              borderRadius: 24,
-              opacity: isSubmitting ? 0.7 : 1
-            }}
-          >
-            <Text style={styles.saveText}>
-              {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกโปรไฟล์'}
-            </Text>
-          </Pressable>
+            isLoading={isSubmitting}
+            loadingText="กำลังบันทึก..."
+          />
         </View>
       </ScrollView>
     </>
