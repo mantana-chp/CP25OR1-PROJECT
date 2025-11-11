@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import reminderRoutes from './features/reminders/reminder-routes';
 import authRoutes from './features/auth/auth-routes';
-import petRoutes from './features/pets/pet-routes'; // Import pet routes
+import petRoutes from './features/pets/pet-routes';
+import notificationRoutes from './features/notifications/notification-routes';
 
 const v1Router = Router();
 
@@ -9,6 +10,7 @@ const v1Router = Router();
 v1Router.use('/auth', authRoutes);
 v1Router.use('/reminders', reminderRoutes);
 v1Router.use('/pets', petRoutes);
+v1Router.use('/notifications', notificationRoutes);
 
 export default v1Router;
 
