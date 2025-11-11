@@ -205,7 +205,15 @@ export default function ReminderCard(props: ReminderCardProps) {
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <Text style={styles.reminderTitle}>{reminder?.reminderName}</Text>
+            <Text
+              style={[
+                styles.reminderTitle,
+                reminder?.reminderStatus === 'overdue' &&
+                  styles.overdueTitleText
+              ]}
+            >
+              {reminder?.reminderName}
+            </Text>
 
             <View style={styles.infoRow}>
               <PawPrint size={16} color="#2E759E" fill="#2E759E" />
@@ -226,7 +234,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                 ]}
               >
                 {formattedTime
-                  ? `${formattedDate} , ${formattedTime} น.`
+                  ? `${formattedDate}, ${formattedTime} น.`
                   : formattedDate}
               </Text>
             </View>
@@ -247,7 +255,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 12,
     position: 'relative'
   },
   deleteButtonContainer: {
@@ -291,10 +299,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16
+    padding: 12
   },
   leftSection: {
-    marginRight: 12
+    marginRight: 14
   },
   checkbox: {
     width: 18,
@@ -321,10 +329,13 @@ const styles = StyleSheet.create({
     gap: 2
   },
   reminderTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_700Bold'
+  },
+  overdueTitleText: {
+    color: '#BF1737'
   },
   infoRow: {
     flexDirection: 'row',
@@ -332,12 +343,12 @@ const styles = StyleSheet.create({
     gap: 8
   },
   petNameText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
   dateTimeText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
