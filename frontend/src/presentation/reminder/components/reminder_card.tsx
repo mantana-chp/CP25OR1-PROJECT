@@ -145,7 +145,7 @@ export default function ReminderCard(props: ReminderCardProps) {
       onPress(reminder.id)
     }
   }
-  
+
   // ------------------
   // RENDER
   // ------------------
@@ -177,7 +177,9 @@ export default function ReminderCard(props: ReminderCardProps) {
         style={[
           styles.reminderCard,
           {
-            transform: [{ translateX }]
+            transform: [{ translateX }],
+            borderLeftColor:
+              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD'
           }
         ]}
         {...(canDelete ? panResponder.panHandlers : {})}
@@ -223,7 +225,9 @@ export default function ReminderCard(props: ReminderCardProps) {
                   reminder?.reminderStatus === 'overdue' && styles.overdueText
                 ]}
               >
-                {formattedTime ? `${formattedDate} , ${formattedTime} น.` : formattedDate}
+                {formattedTime
+                  ? `${formattedDate} , ${formattedTime} น.`
+                  : formattedDate}
               </Text>
             </View>
           </View>
@@ -281,8 +285,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    borderLeftWidth: 6,
-    borderLeftColor: '#88BEDD'
+    borderLeftWidth: 6
   },
   cardTouchable: {
     flex: 1,
