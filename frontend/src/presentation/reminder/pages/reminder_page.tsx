@@ -1,12 +1,34 @@
-import React, { useRef, useState } from 'react'
+import { reminderService } from '@/src/utils/api/services/reminder_service'
+import { useApi } from '@/src/utils/api/use_api'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import Calendar from '../components/calendar_component'
 import ReminderList from '../components/reminder_list'
 
 export default function ReminderPage() {
+  // ------------------
+  // CONST
+  // ------------------
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
   const swipeStartY = useRef(0)
+
+  // ------------------
+  // FETCH
+  // ------------------
+  const getRemindersApi = useApi(reminderService.getReminders, {
+    showErrorAlert: false
+  })
+
+  const loadReminders = useCallback(() => {
+    getRemindersApi.execute({})
+  }, [])
+
+  useEffect(() => {
+    loadReminders()
+  }, [loadReminders])
+
+  const reminders = getRemindersApi.data?.data || []
 
   const panResponder = useRef(
     PanResponder.create({
@@ -37,20 +59,31 @@ export default function ReminderPage() {
     })
   ).current
 
+  // ------------------
+  // HANDLER
+  // ------------------
   const handleToggleCalendar = () => {
     setIsCalendarExpanded(!isCalendarExpanded)
   }
 
+  // ------------------
+  // RENDER
+  // ------------------
   return (
     <View style={styles.container}>
       <Header title="ปฏิทิน" />
       <Calendar
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
+        reminders={reminders}
       />
 
       <View style={styles.reminderContainer} {...panResponder.panHandlers}>
-        <ReminderList />
+        <ReminderList
+          reminders={reminders}
+          isLoading={getRemindersApi.loading}
+          onRefresh={loadReminders}
+        />
       </View>
     </View>
   )

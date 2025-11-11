@@ -1,12 +1,16 @@
-import DateTimePicker, {
-  DateTimePickerEvent
-} from '@react-native-community/datetimepicker'
 import { useRouter } from 'expo-router'
+import { useFormik } from 'formik'
 import React from 'react'
+
 import {
-  Alert,
-  Button,
-  Modal,
+  IReminder,
+  reminderInitValue,
+  reminderValidationSchema
+} from '@/src/domain/reminder.domain'
+import { reminderService } from '@/src/utils/api/services/reminder_service'
+import { useApi } from '@/src/utils/api/use_api'
+
+import {
   Platform,
   Pressable,
   StatusBar,
@@ -15,139 +19,49 @@ import {
   TextInput,
   View
 } from 'react-native'
-import { addReminder } from '../../../data/reminder.api'
-import { IAddReminder } from '../../../domain/add_reminder.domain'
+import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
-
-// Helper function to format date for display
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('th-TH')
-}
-
-// Helper function to format time for display
-const formatTime = (time: Date) => {
-  return time.toLocaleTimeString('th-TH', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// Helper functions to format data for the API
-// Formats date to YYYY-MM-DD
-const formatApiDate = (date: Date): string => {
-  return date.toISOString().split('T')[0]
-}
-
-// Formats time to HH:MM:SS
-const formatApiTime = (time: Date): string => {
-  // .toTimeString() gives "HH:MM:SS GMT+0700 (...)"
-  return time.toTimeString().split(' ')[0]
-}
+import InputText from '../../components/text_input'
+import TimePicker from '../../components/time_picker'
 
 export default function AddReminderPage() {
   const router = useRouter()
 
-  // --- State for all form fields ---
-  const [title, setTitle] = React.useState('')
-  const [description, setDescription] = React.useState('')
-  const [date, setDate] = React.useState(new Date())
-  const [time, setTime] = React.useState(new Date())
-
-  // --- State for pickers ---
-  const [showDatePicker, setShowDatePicker] = React.useState(false)
-  const [showTimePicker, setShowTimePicker] = React.useState(false)
-
-  // --- State for loading/submission ---
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-
-  const handleAddReminder = async () => {
-    if (!title.trim()) {
-      Alert.alert('เกิดข้อผิดพลาด', 'กรุณาใส่หัวข้อ')
-      return
+  const createReminderApi = useApi(reminderService.createReminder, {
+    showErrorAlert: true,
+    successMessage: 'เพิ่มการเตือนความจำสำเร็จ',
+    onSuccess: () => {
+      router.back()
     }
+  })
 
-    setIsSubmitting(true)
-
-    // Format data for the API payload
-    const reminderData: IAddReminder = {
-      reminderName: title,
-      description: description,
-      reminderDate: formatApiDate(date),
-      reminderTime: formatApiTime(time)
+  const formik = useFormik<IReminder>({
+    initialValues: reminderInitValue({} as IReminder),
+    validationSchema: reminderValidationSchema,
+    validateOnBlur: false,
+    validateOnChange: false,
+    onSubmit: async (values) => {
+      console.log('🔄 Submitting reminder:', values)
+      await createReminderApi.execute(values as any)
     }
+  })
 
-    try {
-      const newReminder = await addReminder(reminderData)
-
-      if (newReminder) {
-        console.log('Successfully added reminder:', newReminder)
-        router.back()
-      } else {
-        Alert.alert(
-          'เกิดข้อผิดพลาด',
-          'ไม่สามารถเพิ่มการแจ้งเตือนได้ กรุณาลองใหม่อีกครั้ง'
-        )
-      }
-    } catch (error) {
-      console.error('An unexpected error occurred:', error)
-      Alert.alert('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดที่ไม่คาดคิด')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // Picker Handlers
-  const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    const currentDate = selectedDate || date
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false)
-    }
-    if (event.type === 'set' || Platform.OS === 'ios') {
-      setDate(currentDate)
-    } else {
-      setShowDatePicker(false)
-    }
-  }
-
-  const onTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
-    const currentTime = selectedTime || time
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false)
-    }
-    if (event.type === 'set' || Platform.OS === 'ios') {
-      setTime(currentTime)
-    } else {
-      setShowTimePicker(false)
-    }
-  }
-
-  const closeIosPicker = () => {
-    setShowDatePicker(false)
-    setShowTimePicker(false)
-  }
-
-  const handleOpenDatePicker = () => {
-    setShowDatePicker(true)
-  }
-
-  const handleOpenTimePicker = () => {
-    setShowTimePicker(true)
-  }
+  const isSubmitting = createReminderApi.loading
 
   return (
     <View style={styles.screen}>
       <View style={styles.safeArea}>
         <Header title="เพิ่มการเตือนความจำ" goBack={!isSubmitting} />
 
-        {/* --- Form Card --- */}
         <View style={styles.formCard}>
-          {/* Cancel / Add Row */}
           <View style={styles.cardHeader}>
             <Pressable onPress={() => router.back()} disabled={isSubmitting}>
               <Text style={styles.cancelText}>ยกเลิก</Text>
             </Pressable>
-            <Pressable onPress={handleAddReminder} disabled={isSubmitting}>
-              {/* Show loading text when submitting */}
+            <Pressable
+              onPress={() => formik.handleSubmit()}
+              disabled={isSubmitting}
+            >
               <Text
                 style={[styles.addText, isSubmitting && styles.submittingText]}
               >
@@ -156,103 +70,53 @@ export default function AddReminderPage() {
             </Pressable>
           </View>
 
-          {/* Title Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>หัวข้อ</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="หัวข้อการเตือนความจำ"
-              value={title}
-              onChangeText={setTitle}
-              editable={!isSubmitting}
+          <InputText
+            value={formik.values.reminderName}
+            onChangeText={(v) => formik.setFieldValue('reminderName', v)}
+            placeholder="หัวข้อการเตือนความจำ"
+            title="หัวข้อ"
+            required={true}
+            error={formik.errors.reminderName}
+          />
+
+          <View style={styles.row}>
+            <DatePicker
+              title="วันที่เตือนความจำ"
+              placeholder="วัน/เดือน/ปี"
+              value={
+                formik.values.reminderDate
+                  ? new Date(formik.values.reminderDate)
+                  : undefined
+              }
+              onChange={(v) => formik.setFieldValue('reminderDate', v)}
+              error={formik.errors.reminderDate}
+            />
+
+            <TimePicker
+              title="เวลาที่เตือนความจำ"
+              placeholder="เลือกเวลา"
+              value={formik.values.reminderTime}
+              onChange={(v) => formik.setFieldValue('reminderTime', v)}
             />
           </View>
 
-          {/* Date / Time Row */}
-          <View style={styles.row}>
-            {/* Date Button */}
-            <Pressable
-              onPress={handleOpenDatePicker}
-              style={styles.pickerButton}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.pickerButtonText}>{formatDate(date)}</Text>
-              <Text style={styles.pickerButtonIcon}>📅</Text>
-            </Pressable>
-
-            {/* Time Button */}
-            <Pressable
-              onPress={handleOpenTimePicker}
-              style={styles.pickerButton}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.pickerButtonText}>{formatTime(time)}</Text>
-              <Text style={styles.pickerButtonIcon}>⏰</Text>
-            </Pressable>
-          </View>
-
-          {/* Details Input */}
           <View>
             <TextInput
               style={[styles.input, styles.textarea]}
               placeholder="รายละเอียด"
               multiline
               numberOfLines={4}
-              value={description}
-              onChangeText={setDescription}
+              value={formik.values.description}
+              onChangeText={formik.handleChange('description')}
+              onBlur={formik.handleBlur('description')}
               editable={!isSubmitting}
             />
+            {formik.touched.description && formik.errors.description && (
+              <Text style={styles.errorText}>{formik.errors.description}</Text>
+            )}
           </View>
         </View>
-        {/* --- Form Card --- */}
       </View>
-
-      {/* --- PICKER COMPONENTS --- */}
-      {showDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-        />
-      )}
-      {showTimePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={time}
-          mode="time"
-          display="default"
-          onChange={onTimeChange}
-        />
-      )}
-      <Modal
-        visible={(showDatePicker || showTimePicker) && Platform.OS === 'ios'}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="inline"
-                onChange={onDateChange}
-                textColor="#0ea5e9"
-              />
-            )}
-            {showTimePicker && (
-              <DateTimePicker
-                value={time}
-                mode="time"
-                display="spinner"
-                onChange={onTimeChange}
-                textColor="#0ea5e9"
-              />
-            )}
-            <Button title="Done" onPress={closeIosPicker} />
-          </View>
-        </View>
-      </Modal>
     </View>
   )
 }
@@ -319,6 +183,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     minHeight: 48
   },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    marginTop: 4,
+    marginLeft: 4
+  },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
@@ -328,35 +199,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 16
-  },
-  pickerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    height: 48
-  },
-  pickerButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#374151'
-  },
-  pickerButtonIcon: {
-    fontSize: 20
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)'
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20
   }
 })

@@ -223,7 +223,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                   reminder?.reminderStatus === 'overdue' && styles.overdueText
                 ]}
               >
-                {formattedDate}, {formattedTime} น.
+                {formattedTime ? `${formattedDate} , ${formattedTime} น.` : formattedDate}
               </Text>
             </View>
           </View>

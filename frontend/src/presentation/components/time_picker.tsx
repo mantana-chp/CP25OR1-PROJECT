@@ -15,23 +15,33 @@ import {
 
 interface TimePickerProps {
   title: string
-  value: Date
+  value: string | undefined
   placeholder?: string
   required?: boolean
   disabled?: boolean
   error?: string | null
-  onChange: (time: Date) => void
+  onChange: (time: string) => void
 }
 
 export default function TimePicker(props: TimePickerProps) {
   const [showPicker, setShowPicker] = useState(false)
 
-  const formatTime = (time: Date) => {
-    return time.toLocaleTimeString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    })
+  const getDateValue = (): Date => {
+    if (!props.value) return new Date()
+
+    const [hours, minutes] = props.value.split(':')
+    const date = new Date()
+    date.setHours(parseInt(hours, 10) || 0)
+    date.setMinutes(parseInt(minutes, 10) || 0)
+    date.setSeconds(0)
+    date.setMilliseconds(0)
+    return date
+  }
+
+  const formatTimeToString = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}`
   }
 
   const handleChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
@@ -40,7 +50,8 @@ export default function TimePicker(props: TimePickerProps) {
     }
 
     if (event.type === 'set' && selectedTime) {
-      props.onChange(selectedTime)
+      const timeString = formatTimeToString(selectedTime)
+      props.onChange(timeString)
     } else if (event.type === 'dismissed') {
       setShowPicker(false)
     }
@@ -60,7 +71,7 @@ export default function TimePicker(props: TimePickerProps) {
     <>
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>
-          {props.title}{' '}
+          {props.title}
           {props.required && <Text style={styles.required}>*</Text>}
         </Text>
 
@@ -73,17 +84,19 @@ export default function TimePicker(props: TimePickerProps) {
             props.error && styles.pickerButtonError
           ]}
         >
-          <Text
-            style={[
-              styles.pickerButtonText,
-              props.disabled && styles.pickerButtonTextDisabled
-            ]}
-          >
-            {formatTime(props.value)}
-          </Text>
-          <Text style={styles.pickerButtonIcon}>
-            <Clock color={'#A6A6A6'} />
-          </Text>
+          {!props.value ? (
+            <Text style={styles.placeholderText}>{props.placeholder}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.pickerButtonText,
+                props.disabled && styles.pickerButtonTextDisabled
+              ]}
+            >
+              {props.value}
+            </Text>
+          )}
+          <Clock color={'#A6A6A6'} size={20} />
         </Pressable>
 
         {props.error && <Text style={styles.errorText}>{props.error}</Text>}
@@ -92,7 +105,7 @@ export default function TimePicker(props: TimePickerProps) {
       {/* Android Picker */}
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
-          value={props.value}
+          value={getDateValue()}
           mode="time"
           is24Hour={true}
           display="default"
@@ -113,7 +126,7 @@ export default function TimePicker(props: TimePickerProps) {
               </View>
 
               <DateTimePicker
-                value={props.value}
+                value={getDateValue()}
                 mode="time"
                 is24Hour={true}
                 display="spinner"
@@ -169,6 +182,10 @@ const styles = StyleSheet.create({
   },
   pickerButtonError: {
     borderColor: '#BF1737'
+  },
+  placeholderText: {
+    fontFamily: 'Prompt_400Regular',
+    color: '#A6A6A6'
   },
   pickerButtonText: {
     fontSize: 16,

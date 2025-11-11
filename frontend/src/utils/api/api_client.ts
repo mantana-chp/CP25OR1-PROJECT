@@ -1,4 +1,3 @@
-// src/utils/api/api_client.ts
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'

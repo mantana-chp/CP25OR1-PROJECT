@@ -1,4 +1,3 @@
-// lib/api/useApi.ts
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert } from 'react-native' 
 import { ApiError } from './api_client'
@@ -16,11 +15,6 @@ export interface ApiOptions {
   successMessage?: string
 }
 
-/**
- * Generic hook for API calls with automatic state management and error handling
- * @param apiFunction - The API function to call
- * @param options - Configuration options
- */
 export function useApi<T, Args extends any[] = any[]>(
   apiFunction: (...args: Args) => Promise<T>,
   options: ApiOptions = {}
@@ -98,15 +92,6 @@ export function useApi<T, Args extends any[] = any[]>(
   }
 }
 
-/**
- * DEPRECATED: Use useApi with manual execute() instead
- * This hook can cause Suspense errors on mobile
- *
- * @example
- * // ✅ Use this pattern instead:
- * const api = useApi(myService.getData);
- * useEffect(() => { api.execute(); }, []);
- */
 export function useApiQuery<T, Args extends any[] = any[]>(
   apiFunction: (...args: Args) => Promise<T>,
   args: Args,
@@ -119,7 +104,6 @@ export function useApiQuery<T, Args extends any[] = any[]>(
   const { enabled = true, ...apiOptions } = options
   const api = useApi(apiFunction, apiOptions)
 
-  // Manual refetch function
   const refetch = useCallback(() => {
     return api.execute(...args)
   }, [api.execute, JSON.stringify(args)])

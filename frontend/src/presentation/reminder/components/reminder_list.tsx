@@ -1,7 +1,8 @@
 import { Link, useRouter } from 'expo-router'
 import _ from 'lodash'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 
+import { IReminder } from '@/src/domain/reminder.domain'
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
@@ -19,33 +20,30 @@ import LoadingComponent from '../../components/loading_component'
 
 type TabType = 'to_do' | 'done'
 
-export default function ReminderList() {
+interface ReminderListProps {
+  reminders: IReminder[]
+  isLoading?: boolean
+  onRefresh?: () => void
+}
+
+export default function ReminderList({
+  reminders,
+  isLoading,
+  onRefresh
+}: ReminderListProps) {
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
-
-  const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: true
-  })
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     showErrorAlert: true,
     successMessage: 'ลบนัดหมายสำเร็จ',
     onSuccess: () => {
-      loadReminders()
+      if (onRefresh) {
+        onRefresh()
+      }
     }
   })
-
-  const loadReminders = useCallback(() => {
-    console.log('🔄 Loading reminders for tab:', activeTab)
-    getRemindersApi.execute({})
-  }, [activeTab])
-
-  useEffect(() => {
-    if (activeTab) {
-      loadReminders()
-    }
-  }, [activeTab, loadReminders])
 
   const handleReminderDetail = (reminderId: string) => {
     router.push(`/(tabs)/reminder-details/${reminderId}`)
@@ -75,7 +73,6 @@ export default function ReminderList() {
     [deleteReminderApi]
   )
 
-  const reminders = getRemindersApi.data?.data || []
   const filteredReminders = reminders.filter((reminder) => {
     if (activeTab === 'to_do') {
       return (
@@ -123,7 +120,7 @@ export default function ReminderList() {
       </View>
 
       {/* Reminder Content */}
-      {getRemindersApi.loading && !getRemindersApi.data ? (
+      {isLoading ? (
         <LoadingComponent />
       ) : (
         <ScrollView
@@ -156,10 +153,7 @@ export default function ReminderList() {
 
       {/* Floating Add Button */}
       <Link href="/(tabs)/add-reminder" push asChild>
-        <TouchableOpacity
-          style={styles.addReminderButton}
-          // onPress={handleAddReminder}
-        >
+        <TouchableOpacity style={styles.addReminderButton}>
           <Plus size={32} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       </Link>
