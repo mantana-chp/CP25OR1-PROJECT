@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
+import { tokenRefreshEmitter } from './token_refresh_emitter'
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
@@ -60,6 +61,11 @@ const storage = {
 
 class ApiClient {
   private client: AxiosInstance
+  private isRefreshing = false
+  private failedQueue: Array<{
+    resolve: (value?: any) => void
+    reject: (reason?: any) => void
+  }> = []
 
   constructor() {
     this.client = axios.create({
@@ -72,6 +78,18 @@ class ApiClient {
 
     console.log('✅ API Client initialized:', API_BASE_URL)
     this.setupInterceptors()
+  }
+
+  private processQueue(error: any = null, token: string | null = null) {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error)
+      } else {
+        prom.resolve(token)
+      }
+    })
+
+    this.failedQueue = []
   }
 
   private setupInterceptors() {
@@ -109,15 +127,88 @@ class ApiClient {
         return response
       },
       async (error: AxiosError) => {
+        const originalRequest: any = error.config
         console.error('❌ Response error:', error.message)
 
         if (error.response) {
           const { status, data } = error.response
           console.error('Status:', status, 'Data:', data)
 
+          // Handle 401 - Token refresh logic
+          if (status === 401 && !originalRequest._retry) {
+            if (this.isRefreshing) {
+              // If already refreshing, queue this request
+              return new Promise((resolve, reject) => {
+                this.failedQueue.push({ resolve, reject })
+              })
+                .then((token) => {
+                  originalRequest.headers.Authorization = `Bearer ${token}`
+                  return this.client(originalRequest)
+                })
+                .catch((err) => {
+                  return Promise.reject(err)
+                })
+            }
+
+            originalRequest._retry = true
+            this.isRefreshing = true
+
+            // Emit event to show loading overlay
+            tokenRefreshEmitter.emit(true)
+
+            try {
+              console.log('🔄 Attempting token refresh...')
+              const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY)
+
+              if (!refreshToken) {
+                throw new Error('No refresh token available')
+              }
+
+              // Call refresh token endpoint
+              const response = await this.client.post<{
+                data: { accessToken: string; refreshToken: string }
+              }>('/v1/auth/refresh', {
+                refreshToken
+              })
+
+              const { accessToken, refreshToken: newRefreshToken } =
+                response.data.data
+
+              // Save new tokens
+              await storage.setItem(ACCESS_TOKEN_KEY, accessToken)
+              await storage.setItem(REFRESH_TOKEN_KEY, newRefreshToken)
+
+              console.log('✅ Token refreshed successfully')
+
+              // Update authorization header
+              originalRequest.headers.Authorization = `Bearer ${accessToken}`
+
+              // Process queued requests
+              this.processQueue(null, accessToken)
+
+              // Retry original request
+              return this.client(originalRequest)
+            } catch (refreshError) {
+              console.error('❌ Token refresh failed:', refreshError)
+
+              // Clear tokens on refresh failure
+              await storage.removeItem(ACCESS_TOKEN_KEY)
+              await storage.removeItem(REFRESH_TOKEN_KEY)
+
+              // Process queued requests with error
+              this.processQueue(refreshError, null)
+
+              // Throw error to trigger re-login
+              throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
+            } finally {
+              this.isRefreshing = false
+              // Hide loading overlay
+              tokenRefreshEmitter.emit(false)
+            }
+          }
+
           switch (status) {
             case 401:
-              await storage.removeItem(ACCESS_TOKEN_KEY)
               throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
 
             case 403:
@@ -201,7 +292,7 @@ class ApiClient {
     await storage.setItem(REFRESH_TOKEN_KEY, refreshToken)
     console.log('✅ Tokens saved')
   }
-  
+
   async getAccessToken(): Promise<string | null> {
     return await storage.getItem(ACCESS_TOKEN_KEY)
   }

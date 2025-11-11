@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications'
 
 import { NotificationProvider } from '@/context/NotificationContext'
 import { AuthProvider } from '../context/AuthContext'
+import { TokenRefreshProvider } from '../context/TokenRefreshContext'
 
 import {
   Prompt_400Regular,
@@ -56,17 +57,22 @@ export default function RootLayout() {
 
   return (
     <React.Fragment>
-      <AuthProvider>
-        <NotificationProvider>
-          <StatusBar style="auto" />
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="home" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          </Stack>
-        </NotificationProvider>
-      </AuthProvider>
+      <TokenRefreshProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <StatusBar style="auto" />
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="home" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="onboarding"
+                options={{ headerShown: false }}
+              />
+            </Stack>
+          </NotificationProvider>
+        </AuthProvider>
+      </TokenRefreshProvider>
     </React.Fragment>
   )
 }
