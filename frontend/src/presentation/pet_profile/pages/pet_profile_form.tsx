@@ -70,19 +70,19 @@ export default function PetProfileForm() {
   })
 
   const petTypeOptions = [
-    { id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'cat' },
-    { id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'rabbit' },
-    { id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'bird' },
-    { id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'dog' },
-    { id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'hamster' }
+    { id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'แมว' },
+    { id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'กระต่าย' },
+    { id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'นก' },
+    { id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'สุนัข' },
+    { id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'แฮมสเตอร์' }
   ]
 
   const breedOptions = [
-    { id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', name: 'Pomeranian' },
-    { id: '3f6c8a1e-5d2b-4e9a-8c4f-1b7d0a5e9c3f', name: 'Golden Retriever' },
-    { id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'Siamese' },
-    { id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', name: 'Holland Lop' },
-    { id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', name: 'Cockatiel' }
+    { id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', name: 'ปอมเมอเรเนียน' },
+    { id: '3f6c8a1e-5d2b-4e9a-8c4f-1b7d0a5e9c3f', name: 'โกลเด้น รีทรีฟเวอร์' },
+    { id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'สยาม' },
+    { id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', name: 'ฮอลแลนด์ ลอป' },
+    { id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', name: 'ค็อกคาเทล' }
   ]
 
   const genderOptions = [
