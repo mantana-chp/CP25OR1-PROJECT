@@ -1,7 +1,7 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { CalendarDays, Clock, X } from 'lucide-react-native'
+import { CalendarDays, Clock, SearchX, X } from 'lucide-react-native'
 import React, { useEffect } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
@@ -38,21 +38,32 @@ export default function ReminderDetailModal() {
 
   useEffect(() => {
     if (id) {
-      getReminderApi.execute(id)
+      getReminderApi.execute('acbfd0d5-8f76-4ef3-a045-30200e18f927')
     }
   }, [id])
 
-  // Show error message
-  if (!id || (!getReminderApi.loading && !reminder && getReminderApi.error)) {
+  // Show not found message
+  if (!id || (!getReminderApi.loading && !reminder)) {
     return (
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Pressable style={styles.closeButton} onPress={() => router.back()}>
-            <X color="#374151" size={24} />
-          </Pressable>
-          <View style={styles.center}>
-            <Text style={styles.errorText}>
-              {!id ? 'ไม่พบรหัสการแจ้งเตือน' : 'ไม่พบการแจ้งเตือนนี้'}
+        <Pressable style={styles.backdrop} onPress={() => router.back()} />
+
+        {/* Close Button - Outside Modal */}
+        <Pressable
+          style={styles.closeButtonOutside}
+          onPress={() => router.back()}
+        >
+          <X color="#FFFFFF" size={28} />
+        </Pressable>
+
+        <View style={styles.notFoundContent}>
+          <View style={styles.notFoundContainer}>
+            <SearchX color={'#225877'} size={64} />
+            <Text style={styles.notFoundTitle}>ไม่พบการแจ้งเตือน</Text>
+            <Text style={styles.notFoundMessage}>
+              {!id
+                ? 'ไม่พบรหัสการแจ้งเตือน'
+                : 'นัดหมายนี้อาจถูกลบไปแล้ว หรือไม่มีอยู่ในระบบ'}
             </Text>
           </View>
         </View>
@@ -178,6 +189,23 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5
   },
+  notFoundContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    width: '90%',
+    maxWidth: 400,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5
+  },
+  notFoundContainer: {
+    alignItems: 'center',
+    gap: 16
+  },
   closeButton: {
     position: 'absolute',
     top: 16,
@@ -276,13 +304,32 @@ const styles = StyleSheet.create({
   center: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    padding: 20
   },
   errorText: {
     fontSize: 18,
     color: '#ef4444',
     fontFamily: 'Prompt_700Bold',
     marginBottom: 20
+  },
+  notFoundIcon: {
+    fontSize: 64,
+    marginBottom: 16
+  },
+  notFoundTitle: {
+    fontSize: 22,
+    color: '#374151',
+    fontFamily: 'Prompt_700Bold',
+    marginBottom: 4,
+    textAlign: 'center'
+  },
+  notFoundMessage: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center',
+    lineHeight: 24
   },
   readOnlyInput: {
     backgroundColor: '#f3f4f6',
