@@ -2,6 +2,7 @@ import _ from 'lodash'
 import React, { useRef, useState } from 'react'
 
 import { thaiMonths, weekDays } from '@/src/domain/calendar.domain'
+import { IReminder } from '@/src/domain/reminder.domain'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import {
   Animated,
@@ -24,9 +25,14 @@ if (
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
+  reminders?: IReminder[]
 }
 
-export default function Calendar({ isExpanded, onToggle }: CalendarProps) {
+export default function Calendar({
+  isExpanded,
+  onToggle,
+  reminders = []
+}: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const today = new Date()
   const rotateAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current
@@ -81,6 +87,18 @@ export default function Calendar({ isExpanded, onToggle }: CalendarProps) {
     onToggle()
   }
 
+  // Check if a date has reminders
+  const hasReminders = (date: Date) => {
+    return reminders.some((reminder) => {
+      const reminderDate = new Date(reminder.reminderDate)
+      return (
+        reminderDate.getDate() === date.getDate() &&
+        reminderDate.getMonth() === date.getMonth() &&
+        reminderDate.getFullYear() === date.getFullYear()
+      )
+    })
+  }
+
   const isCurrentMonth =
     currentDate.getMonth() === today.getMonth() &&
     currentDate.getFullYear() === today.getFullYear()
@@ -118,7 +136,9 @@ export default function Calendar({ isExpanded, onToggle }: CalendarProps) {
         day,
         isCurrentMonth: true,
         isToday,
-        // hasEvents: day === 8 || day === 30,
+        hasEvents: hasReminders(
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+        ),
         date: new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
       })
     }
@@ -193,7 +213,7 @@ export default function Calendar({ isExpanded, onToggle }: CalendarProps) {
             >
               {item.day}
             </Text>
-            {/* {item.hasEvents && <View style={styles.eventDot} />} */}
+            {item.hasEvents && <View style={styles.eventDot} />}
           </TouchableOpacity>
         ))}
       </View>
