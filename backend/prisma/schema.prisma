@@ -50,7 +50,7 @@ model push_tokens {
   id           String    @id @db.Uuid
   user_id      String    @db.Uuid
   provider     String
-  token        String
+  token        String    @unique
   last_seen_at DateTime? @db.Timestamptz(6)
   revoked_at   DateTime? @db.Timestamptz(6)
   created_at   DateTime  @default(now()) @db.Timestamptz(6)
@@ -76,7 +76,7 @@ model reminders {
   reminder_time        DateTime?           @db.Time(6)
   reminder_status      reminder_status     @default(to_do)
   status_done_at       DateTime?           @db.Timestamptz(6)
-  status_before_done   reminder_status?    // New field to remember state before 'done'
+  status_before_done   reminder_status?
   created_at           DateTime            @default(now()) @db.Timestamptz(6)
   updated_at           DateTime            @updatedAt @db.Timestamptz(6)
   notifications        notifications[]

@@ -38,7 +38,7 @@ export const deleteReminder = async (id: string, userId: string): Promise<void> 
     if (reminder.reminder_status === reminder_status.done) {
       throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
     } else {
-      throw new BadRequestError('Only "To Do" reminders are deletable.');
+      throw new BadRequestError('Only To Do reminders are deletable.');
     }
   }
 

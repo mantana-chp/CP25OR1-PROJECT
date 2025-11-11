@@ -31,3 +31,9 @@ export const update = async (id: string, data: Prisma.notificationsUpdateInput) 
     data,
   });
 };
+
+export const create = async (data: Prisma.notificationsCreateInput) => {
+  return await prisma.notifications.create({
+    data,
+  });
+};
