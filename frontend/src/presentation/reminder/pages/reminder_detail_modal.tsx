@@ -38,7 +38,7 @@ export default function ReminderDetailModal() {
 
   useEffect(() => {
     if (id) {
-      getReminderApi.execute('acbfd0d5-8f76-4ef3-a045-30200e18f927')
+      getReminderApi.execute(id)
     }
   }, [id])
 
