@@ -93,7 +93,6 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor - Add auth token
     this.client.interceptors.request.use(
       async (config) => {
         try {
