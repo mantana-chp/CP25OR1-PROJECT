@@ -12,7 +12,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 
 import { Clock, Info, PawPrint, Trash2 } from 'lucide-react-native'
@@ -26,6 +26,8 @@ interface ReminderCardProps {
   isDeleting?: boolean
   canDelete?: boolean
   onPress?: (id: string) => void
+  onToggleStatus?: (id: string, currentStatus: string) => void
+  isTempDone?: boolean
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
@@ -37,7 +39,9 @@ export default function ReminderCard(props: ReminderCardProps) {
     onDelete,
     isDeleting = false,
     canDelete = true,
-    onPress
+    onPress,
+    onToggleStatus,
+    isTempDone = false,
   } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
@@ -46,6 +50,8 @@ export default function ReminderCard(props: ReminderCardProps) {
   const formattedTime = reminder?.reminderTime
     ? reminder.reminderTime.substring(0, 5)
     : ''
+
+  const isDone = reminder?.reminderStatus === 'done' || isTempDone
 
   // ------------------
   // ANIMATION
@@ -94,7 +100,7 @@ export default function ReminderCard(props: ReminderCardProps) {
             closeDeleteButton()
           }
         }
-      }
+      },
     })
   ).current
 
@@ -106,7 +112,7 @@ export default function ReminderCard(props: ReminderCardProps) {
       toValue: -100,
       useNativeDriver: true,
       tension: 50,
-      friction: 7
+      friction: 7,
     }).start()
   }
 
@@ -115,7 +121,7 @@ export default function ReminderCard(props: ReminderCardProps) {
       toValue: 0,
       useNativeDriver: true,
       tension: 50,
-      friction: 7
+      friction: 7,
     }).start()
   }
 
@@ -145,7 +151,12 @@ export default function ReminderCard(props: ReminderCardProps) {
       onPress(reminder.id)
     }
   }
-  
+
+  const handleToggleStatus = () => {
+    if (isDone || !onToggleStatus) return
+    onToggleStatus(reminder.id, reminder.reminderStatus)
+  }
+
   // ------------------
   // RENDER
   // ------------------
@@ -161,10 +172,10 @@ export default function ReminderCard(props: ReminderCardProps) {
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color='#fff' size='small' />
             ) : (
               <>
-                <Trash2 size={24} color="#fff" />
+                <Trash2 size={24} color='#fff' />
                 <Text style={styles.deleteText}>ลบ</Text>
               </>
             )}
@@ -177,8 +188,8 @@ export default function ReminderCard(props: ReminderCardProps) {
         style={[
           styles.reminderCard,
           {
-            transform: [{ translateX }]
-          }
+            transform: [{ translateX }],
+          },
         ]}
         {...(canDelete ? panResponder.panHandlers : {})}
       >
@@ -188,25 +199,22 @@ export default function ReminderCard(props: ReminderCardProps) {
           style={styles.cardTouchable}
         >
           {/* Left side - Checkbox circle */}
-          <View style={styles.leftSection}>
-            <View
-              style={[
-                styles.checkbox,
-                reminder?.reminderStatus === 'done' && styles.checkboxCompleted
-              ]}
-            >
-              {reminder?.reminderStatus === 'done' && (
-                <View style={styles.checkboxInner} />
-              )}
+          <TouchableOpacity
+            style={styles.leftSection}
+            onPress={handleToggleStatus}
+            disabled={isDone}
+          >
+            <View style={[styles.checkbox, isDone && styles.checkboxCompleted]}>
+              {isDone && <View style={styles.checkboxInner} />}
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
             <Text style={styles.reminderTitle}>{reminder?.reminderName}</Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={16} color="#2E759E" fill="#2E759E" />
+              <PawPrint size={16} color='#2E759E' fill='#2E759E' />
               <Text style={styles.petNameText}>{reminder?.petName || '-'}</Text>
             </View>
 
@@ -220,7 +228,7 @@ export default function ReminderCard(props: ReminderCardProps) {
               <Text
                 style={[
                   styles.dateTimeText,
-                  reminder?.reminderStatus === 'overdue' && styles.overdueText
+                  reminder?.reminderStatus === 'overdue' && styles.overdueText,
                 ]}
               >
                 {formattedDate}, {formattedTime} น.
@@ -233,7 +241,7 @@ export default function ReminderCard(props: ReminderCardProps) {
             style={styles.infoButton}
             onPress={() => handleInfoPress()}
           >
-            <Info size={24} color="#88BEDD" />
+            <Info size={24} color='#88BEDD' />
           </TouchableOpacity>
         </TouchableOpacity>
       </Animated.View>
@@ -244,7 +252,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    position: 'relative'
+    position: 'relative',
   },
   deleteButtonContainer: {
     position: 'absolute',
@@ -253,7 +261,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 100,
     justifyContent: 'center',
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
   },
   deleteButton: {
     backgroundColor: '#BF1737',
@@ -263,13 +271,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopRightRadius: 16,
     borderBottomRightRadius: 16,
-    gap: 4
+    gap: 4,
   },
   deleteText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_600SemiBold',
   },
   reminderCard: {
     backgroundColor: '#fff',
@@ -282,67 +290,72 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderLeftWidth: 6,
-    borderLeftColor: '#88BEDD'
+    borderLeftColor: '#88BEDD',
   },
   cardTouchable: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16
+    padding: 16,
   },
   leftSection: {
-    marginRight: 12
+    marginRight: 12,
+
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 26,
+    minHeight: 26,
   },
   checkbox: {
     width: 18,
     height: 18,
-    borderRadius: 16,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: '#5FA7D1',
     backgroundColor: '#fff',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   checkboxCompleted: {
     borderColor: '#5FA7D1',
-    backgroundColor: '#5FA7D1'
   },
   checkboxInner: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#fff'
+    width: 10,
+    height: 10,
+    borderRadius: 9,
+    backgroundColor: '#5FA7D1',
   },
   middleSection: {
     flex: 1,
-    gap: 2
+    gap: 2,
   },
   reminderTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   petNameText: {
     fontSize: 14,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   dateTimeText: {
     fontSize: 14,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   overdueText: {
     color: '#BF1737',
-    fontWeight: '600'
+    fontWeight: '600',
   },
   infoButton: {
-    padding: 4
-  }
+    padding: 4,
+  },
 })

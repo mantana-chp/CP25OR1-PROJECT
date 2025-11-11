@@ -6,7 +6,7 @@ export const reminderService = {
     return apiClient.get<{ data: IReminder[]; total: number }>(
       '/v1/reminders',
       {
-        params
+        params,
       }
     )
   },
@@ -25,5 +25,9 @@ export const reminderService = {
 
   deleteReminder: async (id: string) => {
     return apiClient.delete(`/v1/reminders/${id}`)
-  }
+  },
+
+  updateReminderStatus: async (id: string, data: Partial<IReminder>) => {
+    return apiClient.patch<IReminder>(`/v1/reminders/${id}/status`, data)
+  },
 }
