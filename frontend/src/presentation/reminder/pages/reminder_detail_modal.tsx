@@ -102,12 +102,8 @@ export default function ReminderDetailModal() {
         }}
       >
         {/* Header */}
-        <View style={[styles.header, isOverdue && styles.headerOverdue]}>
-          <Text
-            style={[styles.headerTitle, isOverdue && styles.headerTitleOverdue]}
-          >
-            รายละเอียดการเตือนความจำ
-          </Text>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>รายละเอียดการเตือนความจำ</Text>
         </View>
 
         {/* Form Card */}
@@ -294,20 +290,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb'
   },
-  headerOverdue: {
-    backgroundColor: '#FEF2F2',
-    borderBottomColor: '#FCA5A5',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20
-  },
   headerTitle: {
     color: '#225877',
     fontSize: 20,
     fontFamily: 'Prompt_700Bold',
     textAlign: 'center'
-  },
-  headerTitleOverdue: {
-    color: '#DC2626'
   },
   formCard: {
     padding: 16

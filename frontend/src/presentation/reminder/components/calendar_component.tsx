@@ -22,6 +22,18 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
+// Color palette for reminder dots
+const REMINDER_COLORS = [
+  '#5FA7D1', // Blue
+  '#F97316', // Orange
+  '#10B981', // Green
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#F59E0B', // Amber
+  '#06B6D4', // Cyan
+  '#EF4444' // Red
+]
+
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
@@ -99,6 +111,18 @@ export default function Calendar({
     })
   }
 
+  // Get reminder count for a specific date
+  const getReminderCount = (date: Date) => {
+    return reminders.filter((reminder) => {
+      const reminderDate = new Date(reminder.reminderDate)
+      return (
+        reminderDate.getDate() === date.getDate() &&
+        reminderDate.getMonth() === date.getMonth() &&
+        reminderDate.getFullYear() === date.getFullYear()
+      )
+    }).length
+  }
+
   const isCurrentMonth =
     currentDate.getMonth() === today.getMonth() &&
     currentDate.getFullYear() === today.getFullYear()
@@ -137,6 +161,9 @@ export default function Calendar({
         isCurrentMonth: true,
         isToday,
         hasEvents: hasReminders(
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+        ),
+        reminderCount: getReminderCount(
           new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
         ),
         date: new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
@@ -213,14 +240,39 @@ export default function Calendar({
             >
               {item.day}
             </Text>
-            {item.hasEvents && <View style={styles.eventDot} />}
+            {item.hasEvents && item.reminderCount && (
+              <View style={styles.eventIndicatorContainer}>
+                <View style={styles.dotsContainer}>
+                  {Array.from({ length: Math.min(3, item.reminderCount) }).map(
+                    (_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.eventDot,
+                          {
+                            backgroundColor:
+                              REMINDER_COLORS[index % REMINDER_COLORS.length]
+                          }
+                        ]}
+                      />
+                    )
+                  )}
+
+                  {item.reminderCount > 3 && (
+                    <Text style={styles.remainingText}>
+                      +{item.reminderCount - 3}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Toggle Button */}
       <TouchableOpacity
-        style={styles.toggleButton}
+        style={[styles.toggleButton, isExpanded && styles.toggleButtonExpanded]}
         onPress={handleToggle}
         activeOpacity={0.7}
       >
@@ -299,15 +351,14 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.28%',
-    aspectRatio: 1.1,
+    aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 2,
     position: 'relative'
   },
   todayCell: {
     backgroundColor: '#5FA7D1',
-    borderRadius: 50
+    borderRadius: 100
   },
   dayText: {
     fontSize: 15,
@@ -323,18 +374,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'Prompt_700Bold'
   },
-  eventDot: {
+  eventIndicatorContainer: {
     position: 'absolute',
-    bottom: 4,
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#5FA7D1'
+    bottom: -5,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 2,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  eventDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3
+  },
+  remainingText: {
+    fontSize: 9,
+    fontFamily: 'Prompt_500Medium',
+    color: '#A6A6A6',
+    fontWeight: '600'
   },
   toggleButton: {
     alignSelf: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
     paddingHorizontal: 24,
-    marginTop: 4
+    marginTop: 0
+  },
+  toggleButtonExpanded: {
+    marginTop: -64
   }
 })
