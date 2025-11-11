@@ -17,7 +17,7 @@ export default function ReminderPage() {
   // FETCH
   // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const loadReminders = useCallback(() => {
@@ -55,7 +55,7 @@ export default function ReminderPage() {
             setIsCalendarExpanded(true)
           }
         }
-      }
+      },
     })
   ).current
 
@@ -71,7 +71,7 @@ export default function ReminderPage() {
   // ------------------
   return (
     <View style={styles.container}>
-      <Header title="ปฏิทิน" />
+      <Header title='ปฏิทิน' />
       <Calendar
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
@@ -92,9 +92,9 @@ export default function ReminderPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#f5f5f5',
   },
   reminderContainer: {
-    flex: 1
-  }
+    flex: 1,
+  },
 })

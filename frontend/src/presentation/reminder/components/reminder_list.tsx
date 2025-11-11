@@ -1,6 +1,6 @@
 import { Link, useRouter } from 'expo-router'
 import _ from 'lodash'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 
 import { IReminder } from '@/src/domain/reminder.domain'
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
@@ -37,24 +37,23 @@ export default function ReminderList({
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
 
-  const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: true,
-    onSuccess: () => {
-      setTempDoneIds([])
-    },
-  })
-
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     showErrorAlert: true,
     successMessage: 'ลบนัดหมายสำเร็จ',
     onSuccess: () => {
-      loadReminders()
+      if (onRefresh) {
+        onRefresh()
+      }
     },
   })
 
   const updateStatusApi = useApi(reminderService.updateReminderStatus, {
     showErrorAlert: true,
   })
+
+  useEffect(() => {
+    setTempDoneIds([])
+  }, [reminders])
 
   const handleReminderDetail = (reminderId: string) => {
     router.push(`/(tabs)/reminder-details/${reminderId}`)
@@ -95,7 +94,9 @@ export default function ReminderList({
           await updateStatusApi.execute(id, { reminderStatus: 'done' })
 
           setTimeout(() => {
-            loadReminders()
+            if (onRefresh) {
+              onRefresh()
+            }
           }, 200)
         } catch (error) {
           console.error('Failed to update status, reverting UI', error)
@@ -103,10 +104,9 @@ export default function ReminderList({
         }
       }
     },
-    [tempDoneIds, updateStatusApi, loadReminders]
+    [tempDoneIds, updateStatusApi, onRefresh]
   )
 
-  const reminders = getRemindersApi.data?.data || []
   const filteredReminders = reminders.filter((reminder) => {
     if (activeTab === 'to_do') {
       return (
