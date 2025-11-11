@@ -1,11 +1,11 @@
 import * as reminderRepository from './reminder-repository';
-import { Reminder, CreateReminderInput } from './reminder-types';
+import { Reminder, CreateReminderInput, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
 import { Prisma, reminder_status } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
 
-export const getAllReminders = async (userId: string): Promise<Reminder[]> => {
+export const getAllReminders = async (userId: string): Promise<ReminderWithPetName[]> => {
   return await reminderRepository.findAllByUserId(userId);
 };
 

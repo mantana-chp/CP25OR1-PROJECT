@@ -1,7 +1,6 @@
-import { Reminder } from './reminder-types';
-import { reminder_status } from '../../generated/prisma/enums'; // Import from generated enums
+import { Reminder, ReminderWithPetName } from './reminder-types';
+import { reminder_status } from '../../generated/prisma/enums';
 
-// Define the type that Prisma returns for the 'reminders' model
 interface PrismaReminder {
   id: string;
   user_id: string;
@@ -15,6 +14,9 @@ interface PrismaReminder {
   status_done_at: Date | null;
   created_at: Date;
   updated_at: Date;
+}
+interface PrismaReminderWithPet extends PrismaReminder {
+  pets: { pet_name: string } | null;
 }
 
 export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Reminder => {
@@ -31,5 +33,16 @@ export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Rem
     statusDoneAt: prismaReminder.status_done_at ?? undefined,
     createdAt: prismaReminder.created_at,
     updatedAt: prismaReminder.updated_at,
+  };
+};
+
+export const mapPrismaReminderWithPetToReminder = (prismaReminder: PrismaReminderWithPet): ReminderWithPetName => {
+  if (!prismaReminder.pets) {
+    // just for safety
+    throw new Error(`Data integrity error: Reminder ${prismaReminder.id} is missing its associated pet.`);
+  }
+  return {
+    ...mapPrismaReminderToReminder(prismaReminder),
+    pet_name: prismaReminder.pets.pet_name,
   };
 };
