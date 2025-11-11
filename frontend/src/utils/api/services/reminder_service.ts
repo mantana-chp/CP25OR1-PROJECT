@@ -12,7 +12,7 @@ export const reminderService = {
   },
 
   getReminderById: async (id: string) => {
-    return apiClient.get<IReminder>(`/v1/reminders/${id}`)
+    return apiClient.get<{ data: IReminder }>(`/v1/reminders/${id}`)
   },
 
   createReminder: async (data: Omit<IReminder, 'id'>) => {

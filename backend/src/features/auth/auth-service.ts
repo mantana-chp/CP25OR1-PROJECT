@@ -4,7 +4,9 @@ import prisma from '../../libs/db';
 import { config } from '../../config';
 import { platform, platform_id_source } from '../../generated/prisma/client';
 import { NotFoundError, UnauthorizedError } from '../../shared/errors';
+import { logger } from '../../libs/logger';
 
+// Define payload types for clarity
 interface AccessTokenPayload {
   userId: string;
   installationId: string;
@@ -20,6 +22,7 @@ class AuthService {
     let user = await prisma.users.findFirst({ where: { current_platform_device_id: platformDeviceId } });
 
     if (!user) {
+      logger.info(`[Auth] New user registration for device: ${platformDeviceId}`);
       user = await prisma.users.create({
         data: {
           id: uuidv4(),
@@ -30,14 +33,17 @@ class AuthService {
           created_at: new Date(),
         },
       });
-    } else if (user.current_installation_id !== installationId) { // rebind
+    } else if (user.current_installation_id !== installationId) {
+      logger.info(`[Auth] Re-binding user for device: ${platformDeviceId}. New installation ID: ${installationId}`);
       user = await prisma.users.update({
         where: { id: user.id },
         data: { current_installation_id: installationId, updated_at: new Date() },
       });
+    } else {
+      logger.info(`[Auth] User login for device: ${platformDeviceId}`);
     }
 
-    await prisma.sessions.deleteMany({ where: { user_id: user.id } }); // delete old sessions after login
+    await prisma.sessions.deleteMany({ where: { user_id: user.id } });
 
     const { accessToken, refreshToken } = await this.generateAndSaveTokens(user.id, installationId);
 
@@ -73,12 +79,16 @@ class AuthService {
       throw new UnauthorizedError('Installation ID does not match.');
     }
 
+    // --- CORRECTED ROTATION LOGIC ---
+    // 1. Generate the new tokens and session first
     const { accessToken, refreshToken: newRefreshToken, newSessionId } = await this.generateAndSaveTokens(user.id, user.current_installation_id);
 
+    // 2. Invalidate the old session by pointing to the new one
     await prisma.sessions.update({
       where: { id: oldSession.id },
       data: { replaced_by: newSessionId },
     });
+    // ---------------------------------
 
     return { user, accessToken, refreshToken: newRefreshToken };
   }
@@ -88,11 +98,11 @@ class AuthService {
   //     const decoded = jwt.verify(refreshToken, config.refreshToken.secret) as RefreshTokenPayload;
   //     await prisma.sessions.delete({ where: { jti: decoded.jti } });
   //   } catch (error) {
-  //   
+  //     // Fail silently on logout. If the token is invalid, the session is already gone.
   //   }
   // }
 
-  private async generateAndSaveTokens(userId: string, installationId: string) {
+  private async generateAndSaveTokens(userId: string, installationId: string): Promise<{ accessToken: string; refreshToken: string; newSessionId: string; }> {
     const accessToken = this.generateAccessToken(userId, installationId);
     const { token: refreshToken, jti } = this.generateRefreshToken(userId);
 

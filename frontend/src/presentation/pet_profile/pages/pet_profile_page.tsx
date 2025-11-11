@@ -26,7 +26,7 @@ export default function PetProfilePage() {
 
 const petData = {
   name: 'ร็อคเก็ต',
-  gender: 'ชาย',
+  gender: 'ผู้',
   breed: 'แมว',
   species: 'เปอร์เซีย',
   age: '3 ปี 4 เดือน', // คำนวณจากวันเกิด

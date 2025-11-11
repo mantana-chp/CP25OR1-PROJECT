@@ -189,6 +189,8 @@ export default function ReminderCard(props: ReminderCardProps) {
           styles.reminderCard,
           {
             transform: [{ translateX }],
+            borderLeftColor:
+              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD',
           },
         ]}
         {...(canDelete ? panResponder.panHandlers : {})}
@@ -231,7 +233,9 @@ export default function ReminderCard(props: ReminderCardProps) {
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
                 ]}
               >
-                {formattedDate}, {formattedTime} น.
+                {formattedTime
+                  ? `${formattedDate} , ${formattedTime} น.`
+                  : formattedDate}
               </Text>
             </View>
           </View>
@@ -290,7 +294,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderLeftWidth: 6,
-    borderLeftColor: '#88BEDD',
   },
   cardTouchable: {
     flex: 1,
