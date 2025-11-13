@@ -225,7 +225,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 
             <View style={styles.infoRow}>
               <PawPrint size={16} color='#2E759E' fill='#2E759E' />
-              <Text style={styles.petNameText}>{reminder?.petName || '-'}</Text>
+              <Text style={styles.petNameText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
             <View style={styles.infoRow}>

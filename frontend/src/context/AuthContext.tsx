@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Step 2: Check for existing token
       console.log('📝 Checking for existing token...')
       const existingToken = await apiClient.getAccessToken()
-      console.log('Existing token:', existingToken ? 'Found' : 'Not found')
+      console.log('Existing token:', existingToken)
 
       if (existingToken) {
         console.log('✅ Using existing token')
