@@ -1,9 +1,10 @@
+import { IPetProfile } from '@/src/domain/pet.domain'
 import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 interface PetInfoCardProps {
-  data: any // Define a proper type based on your data structure
+  data: IPetProfile
 }
 
 export default function PetInfoCard(props: PetInfoCardProps) {
@@ -18,7 +19,7 @@ export default function PetInfoCard(props: PetInfoCardProps) {
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>{'พันธุ์'}</Text>
+              <Text style={styles.infoText}>{props.data.species} {props.data.breed}</Text>
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
@@ -32,7 +33,7 @@ export default function PetInfoCard(props: PetInfoCardProps) {
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="fitness-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>{props.data.weight}</Text>
+              <Text style={styles.infoText}>{props.data.weight} กิโลกรัม</Text>
             </View>
           </View>
         </View>

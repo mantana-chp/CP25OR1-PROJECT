@@ -1,6 +1,6 @@
 import * as yup from 'yup'
 
-export interface IPetProfile {
+export interface IPetProfileForm {
   id: string
   species_id: string
   breed_id: string
@@ -12,7 +12,7 @@ export interface IPetProfile {
   updated_at: string
 }
 
-export const petProfileInitValue = (v: IPetProfile): IPetProfile => {
+export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
   return {
     id: v.id || '',
     pet_name: v.pet_name || '',
@@ -62,4 +62,14 @@ export interface ISpecies {
 
 export interface ISpeciesAndBreeds {
   data: ISpecies[]
+}
+
+export interface IPetProfile {
+  id: string
+  name: string
+  gender: string
+  species: string
+  breed: string
+  age: number
+  weight: string
 }

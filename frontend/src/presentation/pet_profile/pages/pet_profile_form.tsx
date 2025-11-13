@@ -8,7 +8,7 @@ import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
 
 import {
-  IPetProfile,
+  IPetProfileForm,
   ISpecies,
   petProfileInitValue,
   petProfileValidateSchema
@@ -46,8 +46,8 @@ export default function PetProfileForm() {
   // ------------------
   // FORMIK
   // ------------------
-  const formik = useFormik<IPetProfile>({
-    initialValues: petProfileInitValue({} as IPetProfile),
+  const formik = useFormik<IPetProfileForm>({
+    initialValues: petProfileInitValue({} as IPetProfileForm),
     validationSchema: petProfileValidateSchema,
     validateOnChange: false,
     validateOnBlur: false,

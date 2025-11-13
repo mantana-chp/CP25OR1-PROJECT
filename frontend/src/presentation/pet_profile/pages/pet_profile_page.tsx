@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router'
 import _ from 'lodash'
 
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
@@ -24,6 +25,9 @@ const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
 const CARD_SPACING = 4
 
 export default function PetProfilePage() {
+  // ------------------
+  // CONST
+  // ------------------
   const router = useRouter()
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -35,11 +39,18 @@ export default function PetProfilePage() {
     showErrorAlert: false
   })
 
+  const getPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false
+  })
+
   useEffect(() => {
     getRemindersApi.execute({})
+    getPetsApi.execute()
   }, [])
 
   const reminders = getRemindersApi.data?.data || []
+  const pets = getPetsApi.data?.data || []
+  const firstPet = pets.length > 0 ? pets[0] : null
 
   const upcomingReminders = _.filter(reminders, (reminder) => {
     return reminder.reminderStatus === 'to_do'
@@ -104,7 +115,15 @@ export default function PetProfilePage() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
-        <PetInfoCard data={petData} />
+        {getPetsApi.loading ? (
+          <LoadingComponent />
+        ) : firstPet ? (
+          <PetInfoCard data={firstPet} />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
+          </View>
+        )}
       </View>
 
       {/* Appointments Section */}
@@ -141,15 +160,6 @@ export default function PetProfilePage() {
       </View>
     </ScrollView>
   )
-}
-
-const petData = {
-  name: 'ร็อคเก็ต',
-  gender: 'ผู้',
-  breed: 'แมว',
-  species: 'เปอร์เซีย',
-  age: '3 ปี 4 เดือน', // คำนวณจากวันเกิด
-  weight: '8 กิโลกรัม'
 }
 
 const styles = StyleSheet.create({

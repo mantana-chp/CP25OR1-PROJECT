@@ -1,18 +1,30 @@
-import { IPetProfile, ISpeciesAndBreeds } from '@/src/domain/pet.domain'
+import {
+  IPetProfileForm,
+  IPetProfile,
+  ISpeciesAndBreeds
+} from '@/src/domain/pet.domain'
 import { apiClient } from '../api_client'
 
 export const petProfileService = {
-  getPetProfileById: async (id: string) => {
-    return apiClient.get<IPetProfile>(`/v1/pets/${id}`)
+  /**
+   * Get all pets for the authenticated user
+   */
+  getMyPets: async () => {
+    return apiClient.get<{
+      status: { code: string; description: string }
+      data: IPetProfile[]
+    }>('/v1/pets/me')
   },
 
-  createPetProfile: async (data: Omit<IPetProfile, 'id'>) => {
-    return apiClient.post<IPetProfile>('/v1/pets', data)
+  getPetProfileById: async (id: string) => {
+    return apiClient.get<IPetProfileForm>(`/v1/pets/${id}`)
+  },
+
+  createPetProfile: async (data: Omit<IPetProfileForm, 'id'>) => {
+    return apiClient.post<IPetProfileForm>('/v1/pets', data)
   },
 
   getSpeciesAndBreeds: async () => {
-    return apiClient.get<ISpeciesAndBreeds>(
-      '/v1/meta/species-and-breeds'
-    )
+    return apiClient.get<ISpeciesAndBreeds>('/v1/meta/species-and-breeds')
   }
 }
