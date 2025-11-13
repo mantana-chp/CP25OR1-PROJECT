@@ -25,28 +25,17 @@ class DeviceIdService {
    */
   private async getInstallationId(): Promise<string> {
     try {
-      // Try to get existing installation ID
       let installationId = await AsyncStorage.getItem(INSTALLATION_ID_KEY)
 
       if (!installationId) {
-        // Generate new UUID for first-time installation
         installationId = uuidv4()
         await AsyncStorage.setItem(INSTALLATION_ID_KEY, installationId)
-        console.log(
-          '🆕 [DeviceId] Generated new installation ID:',
-          installationId
-        )
-      } else {
-        console.log(
-          '✅ [DeviceId] Retrieved existing installation ID:',
-          installationId
-        )
       }
 
       return installationId
     } catch (error) {
       console.error('❌ [DeviceId] Error getting installation ID:', error)
-      // Fallback to generated UUID (won't persist)
+
       return uuidv4()
     }
   }
@@ -62,17 +51,13 @@ class DeviceIdService {
 
     try {
       if (platform === 'ios') {
-        // iOS: Use identifierForVendor (changes if all apps from vendor are deleted)
         const iosId = await Application.getIosIdForVendorAsync()
         if (iosId) {
-          console.log('📱 [DeviceId] iOS Vendor ID:', iosId)
           return { deviceId: iosId, source: 'ios_keychain' }
         }
-        // Fallback for iOS: use installation ID
+
         const fallbackId = uuidv4()
-        console.warn(
-          '⚠️ [DeviceId] iOS Vendor ID not available, using UUID fallback'
-        )
+
         return { deviceId: fallbackId, source: 'ios_keychain' }
       } else if (platform === 'android') {
         // Android: Use Android ID (changes on factory reset)
@@ -88,7 +73,6 @@ class DeviceIdService {
         )
         return { deviceId: fallbackId, source: 'android_ssaid' }
       } else {
-        // Web/other platforms: Not supported by backend, default to android for compatibility
         console.warn(
           '⚠️ [DeviceId] Platform not supported by backend, defaulting to android'
         )
@@ -97,7 +81,7 @@ class DeviceIdService {
       }
     } catch (error) {
       console.error('❌ [DeviceId] Error getting platform device ID:', error)
-      // Fallback based on platform
+
       const fallbackId = uuidv4()
       const source = platform === 'ios' ? 'ios_keychain' : 'android_ssaid'
       return { deviceId: fallbackId, source }
@@ -115,7 +99,6 @@ class DeviceIdService {
       this.getPlatformDeviceId()
     ])
 
-    // Ensure platform is either 'ios' or 'android' for backend compatibility
     const platform: 'ios' | 'android' =
       Platform.OS === 'ios' ? 'ios' : 'android'
 
@@ -136,9 +119,6 @@ class DeviceIdService {
     return identifiers
   }
 
-  /**
-   * Get device info for debugging
-   */
   async getDeviceInfo() {
     return {
       brand: Device.brand,
@@ -152,10 +132,6 @@ class DeviceIdService {
     }
   }
 
-  /**
-   * Clear installation ID (for testing purposes)
-   * This will force a new installation ID to be generated
-   */
   async clearInstallationId(): Promise<void> {
     try {
       await AsyncStorage.removeItem(INSTALLATION_ID_KEY)

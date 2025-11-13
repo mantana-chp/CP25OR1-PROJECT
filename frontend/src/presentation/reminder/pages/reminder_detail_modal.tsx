@@ -1,8 +1,14 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { CalendarDays, Clock, SearchX, X } from 'lucide-react-native'
-import React, { useEffect } from 'react'
+import {
+  AlertCircle,
+  CalendarDays,
+  Clock,
+  SearchX,
+  X
+} from 'lucide-react-native'
+import React, { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 
@@ -29,12 +35,14 @@ const parseApiTime = (timeString: string): Date => {
 export default function ReminderDetailModal() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
+  const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
   })
 
   const reminder = getReminderApi?.data?.data
+  const isOverdue = reminder?.reminderStatus === 'overdue'
 
   useEffect(() => {
     if (id) {
@@ -48,15 +56,13 @@ export default function ReminderDetailModal() {
       <View style={styles.modalOverlay}>
         <Pressable style={styles.backdrop} onPress={() => router.back()} />
 
-        {/* Close Button - Outside Modal */}
-        <Pressable
-          style={styles.closeButtonOutside}
-          onPress={() => router.back()}
+        <View
+          style={styles.notFoundContent}
+          onLayout={(event) => {
+            const { y, height } = event.nativeEvent.layout
+            setModalLayout({ y, height })
+          }}
         >
-          <X color="#FFFFFF" size={28} />
-        </Pressable>
-
-        <View style={styles.notFoundContent}>
           <View style={styles.notFoundContainer}>
             <SearchX color={'#225877'} size={64} />
             <Text style={styles.notFoundTitle}>ไม่พบการแจ้งเตือน</Text>
@@ -67,6 +73,19 @@ export default function ReminderDetailModal() {
             </Text>
           </View>
         </View>
+
+        {/* Close Button - Dynamically positioned below modal */}
+        {modalLayout.height > 0 && (
+          <Pressable
+            style={[
+              styles.closeButtonOutside,
+              { top: modalLayout.y + modalLayout.height + 20 }
+            ]}
+            onPress={() => router.back()}
+          >
+            <X color="#FFFFFF" size={28} />
+          </Pressable>
+        )}
       </View>
     )
   }
@@ -75,14 +94,13 @@ export default function ReminderDetailModal() {
     <View style={styles.modalOverlay}>
       <Pressable style={styles.backdrop} onPress={() => router.back()} />
 
-      <Pressable
-        style={styles.closeButtonOutside}
-        onPress={() => router.back()}
+      <View
+        style={styles.modalContent}
+        onLayout={(event) => {
+          const { y, height } = event.nativeEvent.layout
+          setModalLayout({ y, height })
+        }}
       >
-        <X color="#FFFFFF" size={28} />
-      </Pressable>
-
-      <View style={styles.modalContent}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>รายละเอียดการเตือนความจำ</Text>
@@ -93,6 +111,19 @@ export default function ReminderDetailModal() {
           <LoadingComponent />
         ) : (
           <View style={styles.formCard}>
+            {/* Overdue Alert Banner */}
+            {isOverdue && (
+              <View style={styles.overdueAlert}>
+                <AlertCircle color="#DC2626" size={20} />
+                <View style={styles.overdueAlertTextContainer}>
+                  <Text style={styles.overdueAlertTitle}>อ๊ะ! เลยเวลาแล้ว</Text>
+                  <Text style={styles.overdueAlertMessage}>
+                    ดูเหมือนว่ารายการนี้จะเลยกำหนดแล้วนะ
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Title Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>หัวข้อ</Text>
@@ -107,13 +138,17 @@ export default function ReminderDetailModal() {
             <View style={styles.row}>
               {/* Date Button */}
               <Pressable
-                style={[styles.pickerButton, styles.readOnlyInput]}
+                style={[
+                  styles.pickerButton,
+                  styles.readOnlyInput,
+                  isOverdue && styles.overdueInputBorder
+                ]}
                 disabled={true}
               >
                 <Text
                   style={[
                     styles.pickerButtonText,
-                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                    isOverdue && styles.overdueText
                   ]}
                 >
                   {reminder?.reminderDate
@@ -121,19 +156,23 @@ export default function ReminderDetailModal() {
                     : '-'}
                 </Text>
                 <Text style={styles.pickerButtonIcon}>
-                  <CalendarDays color={'#A6A6A6'} />
+                  <CalendarDays color={isOverdue ? '#DC2626' : '#A6A6A6'} />
                 </Text>
               </Pressable>
 
               {/* Time Button */}
               <Pressable
-                style={[styles.pickerButton, styles.readOnlyInput]}
+                style={[
+                  styles.pickerButton,
+                  styles.readOnlyInput,
+                  isOverdue && styles.overdueInputBorder
+                ]}
                 disabled={true}
               >
                 <Text
                   style={[
                     styles.pickerButtonText,
-                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                    isOverdue && styles.overdueText
                   ]}
                 >
                   {reminder?.reminderTime
@@ -141,7 +180,7 @@ export default function ReminderDetailModal() {
                     : '-'}
                 </Text>
                 <Text style={styles.pickerButtonIcon}>
-                  <Clock color={'#A6A6A6'} />
+                  <Clock color={isOverdue ? '#DC2626' : '#A6A6A6'} />
                 </Text>
               </Pressable>
             </View>
@@ -159,6 +198,19 @@ export default function ReminderDetailModal() {
           </View>
         )}
       </View>
+
+      {/* Close Button - Dynamically positioned below modal */}
+      {modalLayout.height > 0 && (
+        <Pressable
+          style={[
+            styles.closeButtonOutside,
+            { top: modalLayout.y + modalLayout.height + 20 }
+          ]}
+          onPress={() => router.back()}
+        >
+          <X color="#FFFFFF" size={28} />
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -220,7 +272,6 @@ const styles = StyleSheet.create({
   },
   closeButtonOutside: {
     position: 'absolute',
-    bottom: '20%',
     left: '50%',
     transform: [{ translateX: -22 }],
     zIndex: 20,
@@ -247,6 +298,32 @@ const styles = StyleSheet.create({
   },
   formCard: {
     padding: 16
+  },
+  overdueAlert: {
+    flexDirection: 'row',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+    alignItems: 'center'
+  },
+  overdueAlertTextContainer: {
+    flex: 1,
+    gap: 2
+  },
+  overdueAlertTitle: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontFamily: 'Prompt_700Bold'
+  },
+  overdueAlertMessage: {
+    color: '#991B1B',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    lineHeight: 16
   },
   inputGroup: {
     marginBottom: 16,
@@ -290,6 +367,10 @@ const styles = StyleSheet.create({
     padding: 12,
     height: 48
   },
+  overdueInputBorder: {
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2'
+  },
   pickerButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
@@ -299,7 +380,8 @@ const styles = StyleSheet.create({
     fontSize: 20
   },
   overdueText: {
-    color: '#BF1737'
+    color: '#DC2626',
+    fontFamily: 'Prompt_600SemiBold'
   },
   center: {
     flex: 1,
