@@ -15,6 +15,10 @@ export interface Reminder {
   updatedAt: Date;
 }
 
+export interface ReminderWithPetName extends Reminder {
+  pet_name: string;
+}
+
 export type CreateReminderInput = {
   reminderName: string;
   description?: string;

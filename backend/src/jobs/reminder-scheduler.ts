@@ -18,5 +18,5 @@ const reminderJob = cron.schedule('*/15 * * * *', async () => { // job run every
 
 export const startSchedulers = () => {
   reminderJob.start();
-  logger.info('Started reminder scheduler.');
+  logger.info('Started reminder scheduler. (every 15 min)');
 };

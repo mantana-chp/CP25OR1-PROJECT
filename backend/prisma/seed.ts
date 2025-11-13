@@ -9,438 +9,110 @@ const prisma = new PrismaClient();
 async function main() {
   console.log(`Start seeding ...`);
 
-  // Seed Users
-  const users: Prisma.usersCreateManyInput[] = [
-    {
-      id: "11111111-1111-1111-1111-111111111111",
-      status: "active",
-      current_installation_id: "install-uuid-001",
-      current_platform: "ios",
-      current_platform_device_id: "ios-device-001",
-      current_platform_id_source: "ios_keychain",
-      created_at: new Date("2025-10-31T06:44:33.488Z"),
-      updated_at: new Date("2025-10-31T06:44:33.488Z"),
-      last_active_at: new Date("2025-10-31T06:44:33.488Z")
-    },
-    {
-      id: "22222222-2222-2222-2222-222222222222",
-      status: "active",
-      current_installation_id: "install-uuid-003",
-      current_platform: "ios",
-      current_platform_device_id: "ios-device-002",
-      current_platform_id_source: "ios_keychain",
-      created_at: new Date("2025-10-31T06:44:33.488Z"),
-      updated_at: new Date("2025-10-31T06:44:33.488Z"),
-      last_active_at: new Date("2025-10-31T06:44:33.488Z")
-    },
-    {
-      id: "33333333-3333-3333-3333-333333333333",
-      status: "disabled",
-      current_installation_id: "install-uuid-004",
-      current_platform: "android",
-      current_platform_device_id: "android-device-002",
-      current_platform_id_source: "android_ssaid",
-      created_at: new Date("2025-10-31T06:44:33.488Z"),
-      updated_at: new Date("2025-10-31T06:44:33.488Z"),
-      last_active_at: null
-    },
-    {
-      id: "44444444-4444-4444-4444-444444444444",
-      status: "active",
-      current_installation_id: "install-uuid-005",
-      current_platform: "ios",
-      current_platform_device_id: "ios-device-003",
-      current_platform_id_source: "ios_keychain",
-      created_at: new Date("2025-10-31T06:44:33.488Z"),
-      updated_at: new Date("2025-10-31T06:44:33.488Z"),
-      last_active_at: new Date("2025-10-31T06:44:33.488Z")
-    },
-    {
-      id: "55555555-5555-5555-5555-555555555555",
-      status: "active",
-      current_installation_id: "install-uuid-006",
-      current_platform: "android",
-      current_platform_device_id: "android-device-003",
-      current_platform_id_source: "android_ssaid",
-      created_at: new Date("2025-10-31T06:44:33.488Z"),
-      updated_at: new Date("2025-10-31T06:44:33.488Z"),
-      last_active_at: new Date("2025-10-31T06:44:33.488Z")
-    },
-    {
-      id: "e2bb3bb4-e6ee-452b-989c-9e97b5f2891f",
-      status: "active",
-      current_installation_id: "77a9dc1b-01cb-4cc6-8391-5df003e49ba5",
-      current_platform: "ios",
-      current_platform_device_id: "f4c38677-cc8e-405c-8eac-383c7f390758",
-      current_platform_id_source: "ios_keychain",
-      created_at: new Date("2025-11-05T14:00:20.394Z"),
-      updated_at: null,
-      last_active_at: null
-    }
-  ];
-  await prisma.users.createMany({ data: users, skipDuplicates: true });
+  // Seed species
+  await prisma.species.createMany({
+    data: [
+      { id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'dog', description: 'Domestic dog' },
+      { id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'cat', description: 'Domestic cat' },
+      { id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'rabbit', description: 'Small herbivorous mammal' },
+      { id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'bird', description: 'Pet bird species' },
+      { id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'hamster', description: 'Small rodent pet' },
+    ],
+    skipDuplicates: true,
+  });
 
-  // Seed Species
-  const species: Prisma.speciesCreateManyInput[] = [
-    { id: "aaa11111-1111-1111-1111-111111111111", name: "dog", description: "Domestic dog" },
-    { id: "aaa22222-2222-2222-2222-222222222222", name: "cat", description: "Domestic cat" },
-    { id: "aaa33333-3333-3333-3333-333333333333", name: "rabbit", description: "Small herbivorous mammal" },
-    { id: "aaa44444-4444-4444-4444-444444444444", name: "bird", description: "Pet bird species" },
-    { id: "aaa55555-5555-5555-5555-555555555555", name: "hamster", description: "Small rodent pet" }
-  ];
-  await prisma.species.createMany({ data: species, skipDuplicates: true });
+  // Seed breeds
+  await prisma.breeds.createMany({
+    data: [
+      { id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'Pomeranian', description: 'Small fluffy dog' },
+      { id: '3f6c8a1e-5d2b-4e9a-8c4f-1b7d0a5e9c3f', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'Golden Retriever', description: 'Friendly large breed' },
+      { id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', species_id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'Siamese', description: 'Elegant short-haired cat' },
+      { id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', species_id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'Holland Lop', description: 'Mini rabbit with floppy ears' },
+      { id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', species_id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'Cockatiel', description: 'Popular small parrot' },
+    ],
+    skipDuplicates: true,
+  });
 
-  // Seed Breeds
-  const breeds: Prisma.breedsCreateManyInput[] = [
-    { id: "bbb11111-1111-1111-1111-111111111111", species_id: "aaa11111-1111-1111-1111-111111111111", name: "Pomeranian", description: "Small fluffy dog" },
-    { id: "bbb22222-2222-2222-2222-222222222222", species_id: "aaa11111-1111-1111-1111-111111111111", name: "Golden Retriever", description: "Friendly large breed" },
-    { id: "bbb33333-3333-3333-3333-333333333333", species_id: "aaa22222-2222-2222-2222-222222222222", name: "Siamese", description: "Elegant short-haired cat" },
-    { id: "bbb44444-4444-4444-4444-444444444444", species_id: "aaa33333-3333-3333-3333-333333333333", name: "Holland Lop", description: "Mini rabbit with floppy ears" },
-    { id: "bbb55555-5555-5555-5555-555555555555", species_id: "aaa44444-4444-4444-4444-444444444444", name: "Cockatiel", description: "Popular small parrot" }
-  ];
-  await prisma.breeds.createMany({ data: breeds, skipDuplicates: true });
+  // Seed users
+  await prisma.users.createMany({
+    data: [
+      { id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', status: 'active', current_installation_id: '6f8b1c7a-4a2d-4f1e-8b4c-9a1d3f0e8b2a', current_platform: 'ios', current_platform_device_id: 'f1e8b2a1-c7d3-4a4d-9f0e-3a4d6b8c0a3d', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-06T10:10:49.860114Z'), updated_at: new Date('2025-11-06T10:10:49.860114Z'), last_active_at: new Date('2025-11-06T10:10:49.860114Z') },
+      { id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', status: 'active', current_installation_id: '9e1f3a4d-6b8c-4f7d-8b2a-1c7d0a3f1e8b', current_platform: 'ios', current_platform_device_id: 'c7d3a4d6-b8c0-4f0e-8b2a-1c7d3a4d6f0e', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-06T10:10:49.860114Z'), updated_at: new Date('2025-11-06T10:10:49.860114Z'), last_active_at: new Date('2025-11-06T10:10:49.860114Z') },
+      { id: 'd3f9e8a1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', status: 'disabled', current_installation_id: '0a3f1e8b-2a4c-4d7f-9e1f-3a4d6b8c0a3d', current_platform: 'android', current_platform_device_id: '4a4d6b8c-0a3d-4f0e-9e1f-3a4d6b8c0a3d', current_platform_id_source: 'android_ssaid', created_at: new Date('2025-11-06T10:10:49.860114Z'), updated_at: new Date('2025-11-06T10:10:49.860114Z'), last_active_at: null },
+      { id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', status: 'active', current_installation_id: '5d7f0a3f-1e8b-4a4c-8b2a-1c7d3a4d6f0e', current_platform: 'ios', current_platform_device_id: '1c7d3a4d-6f0e-4b8c-8b2a-1c7d3a4d6f0e', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-06T10:10:49.860114Z'), updated_at: new Date('2025-11-06T10:10:49.860114Z'), last_active_at: new Date('2025-11-06T10:10:49.860114Z') },
+      { id: 'f7e2a9c1-4b8d-4f6e-9a2c-5d1e8b7a0c3f', status: 'active', current_installation_id: '8b2a1c7d-3a4d-4f0e-9e1f-6b8c0a3f1e8b', current_platform: 'android', current_platform_device_id: '3a4d6f0e-8b2a-4c7d-9f1e-6b8c0a3d1f0e', current_platform_id_source: 'android_ssaid', created_at: new Date('2025-11-06T10:10:49.860114Z'), updated_at: new Date('2025-11-06T10:10:49.860114Z'), last_active_at: new Date('2025-11-06T10:10:49.860114Z') },
+      { id: '51ec0203-661a-470f-8a34-d01f31a0b65a', status: 'active', current_installation_id: '7fb89e7a-59e3-436d-9d0c-b105abb2533c', current_platform: 'ios', current_platform_device_id: '498fb906-fc13-43a7-9706-d3bf2b6e49a5', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-08T09:09:44.414Z'), updated_at: null, last_active_at: null },
+      { id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', status: 'active', current_installation_id: '0b67bce5-a868-4822-872b-67d0865ff1ee', current_platform: 'ios', current_platform_device_id: '8362CB69-91F7-4326-8680-DDD241F9CC8B', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-09T10:12:29.275Z'), updated_at: null, last_active_at: null },
+      { id: 'f3a22f2e-dee2-46b9-bf80-1f4195245570', status: 'active', current_installation_id: 'e3ea719c-aeb5-4f38-b0f6-71a431a8c3bf', current_platform: 'ios', current_platform_device_id: '12ECCE78-114F-4362-93CC-A9E3F1EEDA00', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-10T14:26:34.292Z'), updated_at: null, last_active_at: null },
+      { id: 'de2fb4bf-23b5-44b2-8b9b-1116b374a794', status: 'active', current_installation_id: '9b5d22cf-256c-419d-a7e1-32f0a9a686e8', current_platform: 'ios', current_platform_device_id: 'f4c38677-cc8e-405c-8eac-383c7f390758', current_platform_id_source: 'ios_keychain', created_at: new Date('2025-11-07T07:46:46.766Z'), updated_at: new Date('2025-11-11T04:59:24.385Z'), last_active_at: null },
+    ],
+    skipDuplicates: true,
+  });
 
-  // Seed Reminder Categories
-  const reminder_categories: Prisma.reminder_categoriesCreateManyInput[] = [
-    { id: "ccc11111-1111-1111-1111-111111111111", name: "General", description: "General reminders not tied to specific health tasks" },
-    { id: "ccc22222-2222-2222-2222-222222222222", name: "Vaccination", description: "Vaccination reminders" },
-    { id: "ccc33333-3333-3333-3333-333333333333", name: "Checkup", description: "Routine health check reminders" },
-    { id: "ccc44444-4444-4444-4444-444444444444", name: "Medication", description: "Medicine or supplement reminders" },
-    { id: "ccc55555-5555-5555-5555-555555555555", name: "Deworming", description: "Parasite and deworming schedule reminders" },
-    { id: "ccc66666-6666-6666-6666-666666666666", name: "Grooming", description: "Bath, trim, or hygiene care reminders" },
-    { id: "ccc77777-7777-7777-7777-777777777777", name: "Feeding", description: "Feeding schedule reminders" }
-  ];
-  await prisma.reminder_categories.createMany({ data: reminder_categories, skipDuplicates: true });
+  // Seed pets
+  await prisma.pets.createMany({
+    data: [
+      { id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', breed_id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', pet_name: 'Milo', gender: 'male', birth_date: new Date('2022-02-15'), weight: new Prisma.Decimal(3.5), created_at: new Date('2025-11-06T10:10:49.866084Z'), updated_at: new Date('2025-11-06T10:10:49.866084Z') },
+      { id: 'c9f8a3e1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', species_id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', breed_id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', pet_name: 'Luna', gender: 'female', birth_date: new Date('2021-08-20'), weight: new Prisma.Decimal(4.2), created_at: new Date('2025-11-06T10:10:49.866084Z'), updated_at: new Date('2025-11-06T10:10:49.866084Z') },
+      { id: 'a3e1b8d5-9c3f-4e6a-8b1d-7f4c0a5e9b3d', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', species_id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', breed_id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', pet_name: 'Coco', gender: 'female', birth_date: new Date('2023-01-10'), weight: new Prisma.Decimal(1.8), created_at: new Date('2025-11-06T10:10:49.866084Z'), updated_at: new Date('2025-11-06T10:10:49.866084Z') },
+      { id: '8f2c0e3b-7a4d-4f6e-9a2c-5d1e8b7a0c3f', user_id: 'd3f9e8a1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', species_id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', breed_id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', pet_name: 'Rio', gender: 'male', birth_date: new Date('2020-12-05'), weight: new Prisma.Decimal(0.9), created_at: new Date('2025-11-06T10:10:49.866084Z'), updated_at: new Date('2025-11-06T10:10:49.866084Z') },
+      { id: '6e1a9c2f-4b8d-4a7d-9e1f-6c0b5e8a3d7f', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', species_id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', breed_id: null, pet_name: 'Hammy', gender: 'male', birth_date: new Date('2023-03-11'), weight: new Prisma.Decimal(0.3), created_at: new Date('2025-11-06T10:10:49.866084Z'), updated_at: new Date('2025-11-06T10:10:49.866084Z') },
+      { id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', species_id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', breed_id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', pet_name: 'ดัมดัม', gender: 'male', birth_date: new Date('2025-11-07'), weight: new Prisma.Decimal(6.5), created_at: new Date('2025-11-09T15:49:01.443Z'), updated_at: new Date('2025-11-09T15:49:01.443Z') },
+    ],
+    skipDuplicates: true,
+  });
 
-  // Seed Pets
-  const pets: Prisma.petsCreateManyInput[] = [
-    {
-      id: "ddd11111-1111-1111-1111-111111111111",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      species_id: "aaa11111-1111-1111-1111-111111111111",
-      breed_id: "bbb11111-1111-1111-1111-111111111111",
-      pet_name: "Milo",
-      gender: "male",
-      birth_date: new Date("2022-02-15T00:00:00.000Z"),
-      weight: "3.5",
-      created_at: new Date("2025-10-31T06:44:33.495Z"),
-      updated_at: new Date("2025-10-31T06:44:33.495Z")
-    },
-    {
-      id: "ddd22222-2222-2222-2222-222222222222",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      species_id: "aaa22222-2222-2222-2222-222222222222",
-      breed_id: "bbb33333-3333-3333-3333-333333333333",
-      pet_name: "Luna",
-      gender: "female",
-      birth_date: new Date("2021-08-20T00:00:00.000Z"),
-      weight: "4.2",
-      created_at: new Date("2025-10-31T06:44:33.495Z"),
-      updated_at: new Date("2025-10-31T06:44:33.495Z")
-    },
-    {
-      id: "ddd33333-3333-3333-3333-333333333333",
-      user_id: "22222222-2222-2222-2222-222222222222",
-      species_id: "aaa33333-3333-3333-3333-333333333333",
-      breed_id: "bbb44444-4444-4444-4444-444444444444",
-      pet_name: "Coco",
-      gender: "female",
-      birth_date: new Date("2023-01-10T00:00:00.000Z"),
-      weight: "1.8",
-      created_at: new Date("2025-10-31T06:44:33.495Z"),
-      updated_at: new Date("2025-10-31T06:44:33.495Z")
-    },
-    {
-      id: "ddd44444-4444-4444-4444-444444444444",
-      user_id: "33333333-3333-3333-3333-333333333333",
-      species_id: "aaa44444-4444-4444-4444-444444444444",
-      breed_id: "bbb55555-5555-5555-5555-555555555555",
-      pet_name: "Rio",
-      gender: "male",
-      birth_date: new Date("2020-12-05T00:00:00.000Z"),
-      weight: "0.9",
-      created_at: new Date("2025-10-31T06:44:33.495Z"),
-      updated_at: new Date("2025-10-31T06:44:33.495Z")
-    },
-    {
-      id: "ddd55555-5555-5555-5555-555555555555",
-      user_id: "44444444-4444-4444-4444-444444444444",
-      species_id: "aaa55555-5555-5555-5555-555555555555",
-      breed_id: null,
-      pet_name: "Hammy",
-      gender: "male",
-      birth_date: new Date("2023-03-11T00:00:00.000Z"),
-      weight: "0.3",
-      created_at: new Date("2025-10-31T06:44:33.495Z"),
-      updated_at: new Date("2025-10-31T06:44:33.495Z")
-    }
-  ];
-  await prisma.pets.createMany({ data: pets, skipDuplicates: true });
+  // Seed reminder_categories
+  await prisma.reminder_categories.createMany({
+    data: [
+      { id: '7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f', name: 'General', description: 'General reminders not tied to specific health tasks' },
+      { id: '9a2b8e3d-5c1f-4a7b-8d4e-6f0c5b7a1d9e', name: 'Vaccination', description: 'Vaccination reminders' },
+      { id: 'b4e8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', name: 'Checkup', description: 'Routine health check reminders' },
+      { id: 'd1f9a3e8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', name: 'Medication', description: 'Medicine or supplement reminders' },
+      { id: 'f8e2c1a9-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'Deworming', description: 'Parasite and deworming schedule reminders' },
+      { id: '2a9c1e8f-4b7d-4a6e-9c2f-1a4b0e8d3c7f', name: 'Grooming', description: 'Bath, trim, or hygiene care reminders' },
+      { id: '4d6e8a3c-1f5b-4e7b-9a2d-8f1c0e3b7a4d', name: 'Feeding', description: 'Feeding schedule reminders' },
+    ],
+    skipDuplicates: true,
+  });
 
-  // Seed Reminders
-  const reminders: Prisma.remindersCreateManyInput[] = [
-    {
-      id: "eee11111-1111-1111-1111-111111111111",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc22222-2222-2222-2222-222222222222",
-      reminder_name: "Rabies Vaccine",
-      description: "Annual rabies shot",
-      reminder_date: new Date("2025-10-01T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T09:00:00.000Z"),
-      reminder_status: "done",
-      status_done_at: new Date("2025-10-31T06:44:33.496Z"),
-      created_at: new Date("2025-10-31T06:44:33.496Z"),
-      updated_at: new Date("2025-10-31T06:44:33.496Z")
-    },
-    {
-      id: "eee22222-2222-2222-2222-222222222222",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd22222-2222-2222-2222-222222222222",
-      category_id: "ccc33333-3333-3333-3333-333333333333",
-      reminder_name: "Health Checkup",
-      description: "Annual vet visit",
-      reminder_date: new Date("2025-10-24T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T14:00:00.000Z"),
-      reminder_status: "overdue",
-      status_done_at: new Date("2025-10-31T06:44:33.496Z"),
-      created_at: new Date("2025-10-31T06:44:33.496Z"),
-      updated_at: new Date("2025-10-31T06:44:33.496Z")
-    },
-    {
-      id: "eee33333-3333-3333-3333-333333333333",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc66666-6666-6666-6666-666666666666",
-      reminder_name: "Grooming Session",
-      description: "Trim and clean",
-      reminder_date: new Date("2025-11-02T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T10:00:00.000Z"),
-      reminder_status: "to_do",
-      status_done_at: new Date("2025-10-31T06:44:33.496Z"),
-      created_at: new Date("2025-10-31T06:44:33.496Z"),
-      updated_at: new Date("2025-10-31T06:44:33.496Z")
-    },
-    {
-      id: "eee44444-4444-4444-4444-444444444444",
-      user_id: "22222222-2222-2222-2222-222222222222",
-      pet_id: "ddd33333-3333-3333-3333-333333333333",
-      category_id: "ccc44444-4444-4444-4444-444444444444",
-      reminder_name: "Vitamin Supplement",
-      description: "Monthly rabbit vitamins",
-      reminder_date: new Date("2025-11-05T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T08:30:00.000Z"),
-      reminder_status: "to_do",
-      status_done_at: new Date("2025-10-31T06:44:33.496Z"),
-      created_at: new Date("2025-10-31T06:44:33.496Z"),
-      updated_at: new Date("2025-10-31T06:44:33.496Z")
-    },
-    {
-      id: "eee55555-5555-5555-5555-555555555555",
-      user_id: "44444444-4444-4444-4444-444444444444",
-      pet_id: "ddd55555-5555-5555-5555-555555555555",
-      category_id: "ccc77777-7777-7777-7777-777777777777",
-      reminder_name: "Feeding Time",
-      description: "Schedule feeding reminder",
-      reminder_date: new Date("2025-11-01T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T07:30:00.000Z"),
-      reminder_status: "to_do",
-      status_done_at: new Date("2025-10-31T06:44:33.496Z"),
-      created_at: new Date("2025-10-31T06:44:33.496Z"),
-      updated_at: new Date("2025-10-31T06:44:33.496Z")
-    },
-    {
-      id: "84aa3c91-67f1-47c1-8c15-974ea0be2e19",
-      user_id: "22222222-2222-2222-2222-222222222222",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "refactor two",
-      description: "Get the new brand of kibble.",
-      reminder_date: new Date("2025-11-05T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T18:00:00.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-01T04:28:37.469Z"),
-      updated_at: new Date("2025-11-01T04:28:37.469Z")
-    },
-    {
-      id: "e766b5e2-2b5f-41ca-b1d2-740f21b8863f",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "Test CP1",
-      description: "blahblah",
-      reminder_date: new Date("2025-11-05T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T17:00:00.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-01T14:08:45.842Z"),
-      updated_at: new Date("2025-11-01T14:08:45.842Z")
-    },
-    {
-      id: "0bc12f4a-eb24-44a2-a305-5a419d16a8af",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "Test CP3",
-      description: "blahblah",
-      reminder_date: new Date("2025-11-05T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T17:00:00.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-01T14:08:50.304Z"),
-      updated_at: new Date("2025-11-01T14:08:50.304Z")
-    },
-    {
-      id: "dccccb95-eeb5-434f-9e42-7e8dc0a2c993",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "T3",
-      description: "T\n",
-      reminder_date: new Date("2025-11-01T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T21:36:39.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-01T14:37:01.437Z"),
-      updated_at: new Date("2025-11-01T14:37:01.437Z")
-    },
-    {
-      id: "939378ea-5282-4c5d-8ced-90b8b7f32504",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "T5",
-      description: "T",
-      reminder_date: new Date("2025-11-12T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T22:13:34.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-01T15:22:45.533Z"),
-      updated_at: new Date("2025-11-01T15:22:45.533Z")
-    },
-    {
-      id: "f45c672b-f8dd-4a0b-9bec-1a8b435c672f",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "T6",
-      description: "T",
-      reminder_date: new Date("2025-11-02T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T13:31:35.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-02T06:28:38.137Z"),
-      updated_at: new Date("2025-11-02T06:28:38.137Z")
-    },
-    {
-      id: "e14d9fe8-297d-43b1-871b-40ccbea1f870",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "สวัสดี",
-      description: "ที่นี่ไทยแลนด์",
-      reminder_date: new Date("2025-11-02T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T21:50:55.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-02T14:51:14.462Z"),
-      updated_at: new Date("2025-11-02T14:51:14.462Z")
-    },
-    {
-      id: "44b25ff8-0fdf-4531-917e-6b7dcda64ece",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "กินข้าว",
-      description: "",
-      reminder_date: new Date("2025-11-03T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T16:06:39.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-03T09:06:47.898Z"),
-      updated_at: new Date("2025-11-03T09:06:47.898Z")
-    },
-    {
-      id: "f59d28e1-5537-44b5-b3ee-ee9e572aa01b",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "T7",
-      description: "T\n",
-      reminder_date: new Date("2025-11-06T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T20:34:56.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-03T13:35:15.872Z"),
-      updated_at: new Date("2025-11-03T13:35:15.872Z")
-    },
-    {
-      id: "5c75be1e-9f5d-4d48-85b2-e1b9f80a09c0",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      pet_id: "ddd11111-1111-1111-1111-111111111111",
-      category_id: "ccc11111-1111-1111-1111-111111111111",
-      reminder_name: "สวัสดีวันพุธ",
-      description: "",
-      reminder_date: new Date("2025-11-05T00:00:00.000Z"),
-      reminder_time: new Date("1970-01-01T14:47:01.000Z"),
-      reminder_status: "to_do",
-      status_done_at: null,
-      created_at: new Date("2025-11-05T07:47:11.672Z"),
-      updated_at: new Date("2025-11-05T07:47:11.672Z")
-    }
-  ];
-  await prisma.reminders.createMany({ data: reminders, skipDuplicates: true });
+  // Seed reminders
+  await prisma.reminders.createMany({
+    data: [
+      { id: 'b9d2e1a8-3c5f-4e7b-9a2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', category_id: '9a2b8e3d-5c1f-4a7b-8d4e-6f0c5b7a1d9e', reminder_name: 'Rabies Vaccine', description: 'Annual rabies shot', reminder_date: new Date('2025-10-07'), reminder_time: new Date('1970-01-01T09:00:00Z'), reminder_status: 'done', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: 'overdue', created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
+      { id: 'd5f8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'c9f8a3e1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', category_id: 'b4e8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', reminder_name: 'Health Checkup', description: 'Annual vet visit', reminder_date: new Date('2025-10-30'), reminder_time: new Date('1970-01-01T14:00:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
+      { id: '2c7f0a3e-9d4b-4f6e-8a3c-5d1e8b7a0c2f', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', pet_id: 'a3e1b8d5-9c3f-4e6a-8b1d-7f4c0a5e9b3d', category_id: 'd1f9a3e8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', reminder_name: 'Vitamin Supplement', description: 'Monthly rabbit vitamins', reminder_date: new Date('2025-11-11'), reminder_time: new Date('1970-01-01T08:30:00Z'), reminder_status: 'done', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: 'to_do', created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
+      { id: '5b1e8d7a-3c5f-4e9a-8b4d-6f2c0e3b7a5d', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', pet_id: '6e1a9c2f-4b8d-4a7d-9e1f-6c0b5e8a3d7f', category_id: '4d6e8a3c-1f5b-4e7b-9a2d-8f1c0e3b7a4d', reminder_name: 'Feeding Time', description: 'Schedule feeding reminder', reminder_date: new Date('2025-11-07'), reminder_time: new Date('1970-01-01T07:30:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-07T07:30:00.107Z') },
+      { id: 'f1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', category_id: '2a9c1e8f-4b7d-4a6e-9c2f-1a4b0e8d3c7f', reminder_name: 'Grooming Session', description: 'Trim and clean', reminder_date: new Date('2025-11-08'), reminder_time: new Date('1970-01-01T10:00:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-08T06:30:00.240Z') },
+      { id: '0e416f24-58dd-4680-8a80-73b2f518c69c', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', pet_id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', category_id: '7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f', reminder_name: 'Test CP4', description: 'blahblah', reminder_date: new Date('2025-12-12'), reminder_time: new Date('1970-01-01T17:00:00Z'), reminder_status: 'to_do', status_done_at: null, status_before_done: null, created_at: new Date('2025-11-10T09:25:36.298Z'), updated_at: new Date('2025-11-10T09:25:36.298Z') },
+      { id: 'c147f850-238e-41d0-8f54-2f1fceda4cf0', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', pet_id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', category_id: '7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f', reminder_name: 'เทส Overdue', description: 'blahblah', reminder_date: new Date('2025-11-10'), reminder_time: new Date('1970-01-01T17:30:00Z'), reminder_status: 'overdue', status_done_at: null, status_before_done: null, created_at: new Date('2025-11-10T10:28:21.724Z'), updated_at: new Date('2025-11-10T10:30:00.077Z') },
+    ],
+    skipDuplicates: true,
+  });
 
-  // Seed Notifications
-  const notifications: Prisma.notificationsCreateManyInput[] = [
-    {
-      id: "fff11111-1111-1111-1111-111111111111",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      reminder_id: "eee11111-1111-1111-1111-111111111111",
-      sent_at: new Date("2025-10-02T06:44:33.498Z"),
-      status: "sent",
-      read_at: new Date("2025-10-03T06:44:33.498Z"),
-      created_at: new Date("2025-10-31T06:44:33.498Z")
-    },
-    {
-      id: "fff22222-2222-2222-2222-222222222222",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      reminder_id: "eee22222-2222-2222-2222-222222222222",
-      sent_at: new Date("2025-10-28T06:44:33.498Z"),
-      status: "sent",
-      read_at: new Date("2025-10-31T06:44:33.498Z"),
-      created_at: new Date("2025-10-31T06:44:33.498Z")
-    },
-    {
-      id: "fff33333-3333-3333-3333-333333333333",
-      user_id: "11111111-1111-1111-1111-111111111111",
-      reminder_id: "eee33333-3333-3333-3333-333333333333",
-      sent_at: new Date("2025-10-31T06:44:33.498Z"),
-      status: "pending",
-      read_at: new Date("2025-10-31T06:44:33.498Z"),
-      created_at: new Date("2025-10-31T06:44:33.498Z")
-    },
-    {
-      id: "fff44444-4444-4444-4444-444444444444",
-      user_id: "22222222-2222-2222-2222-222222222222",
-      reminder_id: "eee44444-4444-4444-4444-444444444444",
-      sent_at: new Date("2025-10-31T06:44:33.498Z"),
-      status: "pending",
-      read_at: new Date("2025-10-31T06:44:33.498Z"),
-      created_at: new Date("2025-10-31T06:44:33.498Z")
-    },
-    {
-      id: "fff55555-5555-5555-5555-555555555555",
-      user_id: "44444444-4444-4444-4444-444444444444",
-      reminder_id: "eee55555-5555-5555-5555-555555555555",
-      sent_at: new Date("2025-10-31T06:44:33.498Z"),
-      status: "pending",
-      read_at: new Date("2025-10-31T06:44:33.498Z"),
-      created_at: new Date("2025-10-31T06:44:33.498Z")
-    }
-  ];
-  await prisma.notifications.createMany({ data: notifications, skipDuplicates: true });
+  // Seed notifications
+  await prisma.notifications.createMany({
+    data: [
+      { id: '9e3f1c5b-0a7e-4a6d-8e3f-1c5b0a7e9d2f', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', reminder_id: 'b9d2e1a8-3c5f-4e7b-9a2d-8f1c0e3b7a4d', sent_at: new Date('2025-10-08T10:10:49.869895Z'), status: 'sent', read_at: new Date('2025-10-09T10:10:49.869895Z'), created_at: new Date('2025-11-06T10:10:49.869895Z') },
+      { id: '7d4b8f2c-1e6a-4f8e-9a2c-5d1e8b7a0c3f', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', reminder_id: 'd5f8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', sent_at: new Date('2025-11-03T10:10:49.869895Z'), status: 'sent', read_at: new Date('2025-11-06T10:10:49.869895Z'), created_at: new Date('2025-11-06T10:10:49.869895Z') },
+      { id: '4a7d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', reminder_id: 'f1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', sent_at: new Date('2025-11-06T10:10:49.869895Z'), status: 'pending', read_at: new Date('2025-11-06T10:10:49.869895Z'), created_at: new Date('2025-11-06T10:10:49.869895Z') },
+      { id: '1c5b0a7e-9d2f-4e9a-8b4d-6f2c0e3b7a5d', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', reminder_id: '2c7f0a3e-9d4b-4f6e-8a3c-5d1e8b7a0c2f', sent_at: new Date('2025-11-06T10:10:49.869895Z'), status: 'pending', read_at: new Date('2025-11-06T10:10:49.869895Z'), created_at: new Date('2025-11-06T10:10:49.869895Z') },
+      { id: '3e8a1d9c-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', reminder_id: '5b1e8d7a-3c5f-4e9a-8b4d-6f2c0e3b7a5d', sent_at: new Date('2025-11-06T10:10:49.869895Z'), status: 'pending', read_at: new Date('2025-11-06T10:10:49.869895Z'), created_at: new Date('2025-11-06T10:10:49.869895Z') },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Seed push_tokens
+  await prisma.push_tokens.createMany({
+    data: [
+      { id: 'b2d8e1a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', provider: 'expo', token: 'ExponentPushToken[abc123]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
+      { id: 'e8f1c0a3-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', provider: 'expo', token: 'ExponentPushToken[xyz789]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
+      { id: '9a3e1f8d-7c4b-4e6a-9b1d-7f5c0a8e3b2a', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', provider: 'fcm', token: 'FCMToken[test123]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
+      { id: 'c1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: 'd3f9e8a1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', provider: 'expo', token: 'ExponentPushToken[test456]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
+      { id: 'f0a3e1b7-9d4b-4f6e-8a3c-5d1e8b7a0c2f', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', provider: 'fcm', token: 'FCMToken[test789]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
+    ],
+    skipDuplicates: true,
+  });
 
   console.log(`Seeding finished.`);
 }
