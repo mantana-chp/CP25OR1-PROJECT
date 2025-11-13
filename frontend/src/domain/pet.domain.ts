@@ -48,3 +48,18 @@ const parseDate = (dateValue: any): Date => {
     return new Date()
   }
 }
+
+export interface IBreed {
+  id: string
+  name: string
+}
+
+export interface ISpecies {
+  id: string
+  name: string
+  breeds: IBreed[]
+}
+
+export interface ISpeciesAndBreeds {
+  data: ISpecies[]
+}

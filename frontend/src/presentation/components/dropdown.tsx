@@ -54,7 +54,11 @@ export default function Dropdown(props: DropdownProps) {
         </Text>
 
         <TouchableOpacity
-          style={[styles.input, isFocused && styles.inputFocused]}
+          style={[
+            styles.input,
+            isFocused && styles.inputFocused,
+            props.disable && styles.inputDisabled
+          ]}
           onPress={handleOpen}
           disabled={props.disable}
         >
@@ -63,7 +67,8 @@ export default function Dropdown(props: DropdownProps) {
             ellipsizeMode="tail"
             style={[
               styles.inputText,
-              !selectedOption && styles.placeholderText
+              !selectedOption && styles.placeholderText,
+              props.disable && styles.inputTextDisabled
             ]}
           >
             {displayText}
@@ -169,6 +174,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     color: '#225877'
+  },
+  inputTextDisabled: {
+    color: '#9ca3af'
   },
   inputFocused: {
     borderColor: '#5FA7D1',
