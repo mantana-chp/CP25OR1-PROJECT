@@ -1,5 +1,7 @@
 import { apiClient } from '@/src/utils/api/api_client'
 import { authService } from '@/src/utils/api/services/auth_service'
+import { userService } from '@/src/utils/api/services/user_service'
+import { registerForPushNotificationsAsync } from '@/src/utils/registerForPushNotificationsAsync'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import React, {
   createContext,
@@ -85,6 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(null)
       }
 
+      // Step 5: Register push notification token
+      await registerPushNotification()
+
       console.log('🎉 Authentication successful!')
     } catch (err: any) {
       console.error('❌ Authentication failed:', err)
@@ -95,6 +100,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
       console.log('✅ Authentication initialization complete')
+    }
+  }
+
+  const registerPushNotification = async () => {
+    try {
+      console.log('🔔 Registering push notifications...')
+      const pushToken = await registerForPushNotificationsAsync()
+
+      if (pushToken) {
+        console.log('📤 Sending push token to backend:', pushToken)
+        await userService.registerPushToken({
+          token: pushToken,
+          provider: 'expo'
+        })
+        console.log('✅ Push token registered successfully')
+      }
+    } catch (error) {
+      // Don't fail authentication if push notification fails
+      console.warn('⚠️ Push notification registration failed:', error)
     }
   }
 

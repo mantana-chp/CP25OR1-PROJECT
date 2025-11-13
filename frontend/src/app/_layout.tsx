@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications'
 import { NotificationProvider } from '@/context/NotificationContext'
 import { AuthProvider } from '../context/AuthContext'
 import { TokenRefreshProvider } from '../context/TokenRefreshContext'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 
 import {
   Prompt_400Regular,
@@ -36,6 +37,9 @@ Notifications.setNotificationHandler({
 
 export default function RootLayout() {
   console.log('📱 [RootLayout] Component rendering...')
+
+  // Initialize push notification listeners
+  usePushNotifications()
 
   const [fontsLoaded, fontError] = useFonts({
     Prompt_400Regular,
