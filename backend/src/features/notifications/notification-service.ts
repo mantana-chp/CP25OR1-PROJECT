@@ -138,8 +138,8 @@ async function createNotificationAndPreparePush(reminder: any, messagesToSend: P
       messagesToSend.push({
         to: token.token,
         sound: 'default' as const,
-        title: `Reminder: ${reminder.reminder_name}`,
-        body: `It's time for ${reminder.pets.pet_name}'s reminder!`,
+        title: `แจ้งเตือนน: ${reminder.reminder_name}`,
+        body: `ถึงเวลาของน้อง ${reminder.pets.pet_name} แล้วว`,
         data: { reminderId: reminder.id, notificationId: newNotification.id }, // Pass notificationId
       });
     }
