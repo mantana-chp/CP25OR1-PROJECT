@@ -10,10 +10,6 @@ import {
 import { logger } from '../../libs/logger'
 import { notification_status } from '../../generated/prisma/client'
 
-// export const getNotifications = async (userId: string, isRead?: boolean) => {
-//   return await notificationRepository.findManyByUserId(userId, isRead);
-// };
-
 export const getNotifications = async (userId: string, isRead?: boolean) => {
   const notificationsFromDb = await notificationRepository.findManyByUserId(
     userId,
@@ -26,7 +22,7 @@ export const getNotifications = async (userId: string, isRead?: boolean) => {
     const { reminders, ...rest } = noti
     return {
       ...rest,
-      reminder: reminders, // Rename 'reminders' (from Prisma) to 'reminder' (for frontend)
+      reminder: reminders,
     }
   })
 
@@ -110,10 +106,10 @@ export const processAndSendNotifications = async () => {
         messagesToSend
       )
       if (newNotification && reminder.user.push_tokens.length > 0) {
-        // Map the push token to the newly created notification ID
-        // Assuming one push token per user for simplicity here, or first token
-        notificationIdsToUpdate[reminder.user.push_tokens[0].token] =
-          newNotification.id
+        // Map ALL push tokens to this one notification ID
+        for (const token of reminder.user.push_tokens) {
+          notificationIdsToUpdate[token.token] = newNotification.id
+        }
       }
     }
   }
@@ -126,13 +122,10 @@ export const processAndSendNotifications = async () => {
     const tickets = await expoPushService.send(messagesToSend)
 
     // Process tickets and update notification status
-    for (const ticket of tickets) {
-      // Find the corresponding notification ID using the push token (assuming 1:1 for now)
-      // This mapping needs to be more robust if a user has multiple tokens or if messagesToSend contains multiple messages for the same user
-      const notificationId =
-        notificationIdsToUpdate[
-          messagesToSend.find((m) => m.to === ticket.id)?.to || ''
-        ] // This mapping is flawed, needs to be by reminder_id or a unique message ID
+    for (const [index, ticket] of tickets.entries()) {
+      const originalMessage = messagesToSend[index]
+      const pushToken = originalMessage.to
+      const notificationId = notificationIdsToUpdate[pushToken]
 
       if (notificationId) {
         if (ticket.status === 'ok') {
@@ -151,6 +144,10 @@ export const processAndSendNotifications = async () => {
             `[NotificationJob] Notification ${notificationId} status updated to 'failed': ${ticket.message}`
           )
         }
+      } else {
+        logger.warn(
+          `[NotificationJob] Could not find notificationId for token ${pushToken} in notificationIdsToUpdate map.`
+        )
       }
     }
   }
