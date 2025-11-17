@@ -4,7 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/th'
-import { CalendarDays, PawPrint } from 'lucide-react-native'
+import { Clock, PawPrint } from 'lucide-react-native'
 
 interface NotificationCardProps {
   notification: INotification
@@ -31,39 +31,45 @@ export default function NotificationCard({
     : ''
 
   const cardStyle = [styles.card, isRead && styles.readCard]
-  const titleStyle = [styles.title, isRead && styles.readText]
-  const infoStyle = [styles.infoText, isRead && styles.readText]
-  const iconColor = isRead ? '#A6A6A6' : '#2E759E'
+  const titleStyle = [
+    styles.title,
+    reminder?.reminderStatus === 'overdue' && styles.overdueTitleText,
+    isRead && styles.readText,
+  ]
+  const infoStyle = [
+    styles.infoText,
+    reminder?.reminderStatus === 'overdue' && styles.overdueDateTimeText,
+    isRead && styles.readText,
+  ]
+  const iconColor = isRead
+    ? '#A6A6A6'
+    : reminder?.reminderStatus === 'overdue'
+    ? '#BF1737'
+    : '#2E759E'
 
   return (
     <TouchableOpacity
-      //   style={styles.card}
       style={cardStyle}
       activeOpacity={0.7}
       onPress={() => onPress(notification)}
     >
-      <Text style={titleStyle}>{reminder.reminderName}</Text>
-      {/* <Text
-        style={[
-          //   styles.reminderTitle,
-          styles.titleStyle,
-          reminder?.reminderStatus === 'overdue' && styles.overdueTitleText,
-        ]}
-      >
-        {reminder?.reminderName}
-      </Text> */}
+      {/* Middle section - Content */}
+      <View style={styles.middleSection}>
+        <Text style={titleStyle}>{reminder?.reminderName}</Text>
 
-      <View style={styles.infoRow}>
-        <PawPrint size={18} color={iconColor} fill={iconColor} />
-        <Text style={infoStyle}>{reminder.pet_name || '-'}</Text>
-      </View>
+        <View style={styles.infoRow}>
+          <PawPrint size={18} color={iconColor} fill={iconColor} />
+          <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
+        </View>
 
-      <View style={styles.infoRow}>
-        <CalendarDays size={18} color={iconColor} />
-        <Text style={infoStyle}>
-          {formattedDate}
-          {formattedTime ? `, ${formattedTime}` : ''}
-        </Text>
+        <View style={styles.infoRow}>
+          <Clock size={18} color={iconColor} />
+          <Text style={infoStyle}>
+            {formattedTime
+              ? `${formattedDate}, ${formattedTime} น.`
+              : formattedDate}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   )
@@ -96,6 +102,13 @@ const styles = StyleSheet.create({
   },
   overdueTitleText: {
     color: '#BF1737',
+  },
+  overdueDateTimeText: {
+    color: '#BF1737',
+  },
+  middleSection: {
+    flex: 1,
+    gap: 2,
   },
   infoRow: {
     flexDirection: 'row',
