@@ -54,8 +54,6 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     throw new BadRequestError('You must create a pet profile before creating reminders.');
   }
 
-  const categoryId = "7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f"; // hardcoded for sprint 1
-
   const reminderDate = new Date(newReminderData.reminderDate);
   const reminderTime = newReminderData.reminderTime ? new Date(`1970-01-01T${newReminderData.reminderTime}Z`) : null;
 
@@ -77,7 +75,6 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     reminder_time: reminderTime,
     user: { connect: { id: userId } },
     pets: { connect: { id: pet.id } },
-    reminder_categories: { connect: { id: categoryId } },
   };
 
   return await reminderRepository.add(dataToCreate);

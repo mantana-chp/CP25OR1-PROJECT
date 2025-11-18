@@ -1,10 +1,10 @@
-import { reminder_status } from '../../generated/prisma/enums';
+import { reminder_status, category_name } from '../../generated/prisma/client';
 
 export interface Reminder {
   id: string;
   userId: string;
   petId: string;
-  categoryId: string;
+  categoryName: category_name;
   reminderName?: string;
   description?: string;
   reminderDate: Date;
@@ -30,5 +30,4 @@ export type CreateReminderInput = {
 export type ReminderCreationData = CreateReminderInput & {
   user: { connect: { id: string } };
   pet: { connect: { id: string } };
-  reminder_categories: { connect: { id: string } };
 };

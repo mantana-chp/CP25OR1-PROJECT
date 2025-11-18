@@ -15,7 +15,7 @@ export const getNotifications = asyncHandler(async (req: Request, res: Response)
 
 export const updateNotification = asyncHandler(async (req: Request, res: Response) => {
   const { id: userId } = req.user!;
-  const { id: notificationId } = z.object({ id: z.string().uuid() }).parse(req.params);
+  const { id: notificationId } = z.object({ id: z.uuid() }).parse(req.params);
   const { read } = updateNotificationSchema.parse(req).body;
 
   const updatedNotification = await notificationService.markAsRead(notificationId, userId, read);

@@ -3,7 +3,7 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-import { PrismaClient, Prisma } from '../src/generated/prisma/client';
+import { PrismaClient, Prisma, category_name } from '../src/generated/prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -12,11 +12,11 @@ async function main() {
   // Seed species
   await prisma.species.createMany({
     data: [
-      { id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'dog', description: 'Domestic dog' },
-      { id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'cat', description: 'Domestic cat' },
-      { id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'rabbit', description: 'Small herbivorous mammal' },
-      { id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'bird', description: 'Pet bird species' },
-      { id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'hamster', description: 'Small rodent pet' },
+      { id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'dog', name_th: 'สุนัข', description: 'Domestic dog', description_th: 'สุนัขเลี้ยง' },
+      { id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'cat', name_th: 'แมว', description: 'Domestic cat', description_th: 'แมวเลี้ยง' },
+      { id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'rabbit', name_th: 'กระต่าย', description: 'Small herbivorous mammal', description_th: 'สัตว์เลี้ยงลูกด้วยนมกินพืชขนาดเล็ก' },
+      { id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'bird', name_th: 'นก', description: 'Pet bird species', description_th: 'นกเลี้ยง' },
+      { id: 'e9f2c1a8-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'hamster', name_th: 'แฮมสเตอร์', description: 'Small rodent pet', description_th: 'สัตว์ฟันแทะขนาดเล็ก' },
     ],
     skipDuplicates: true,
   });
@@ -24,11 +24,11 @@ async function main() {
   // Seed breeds
   await prisma.breeds.createMany({
     data: [
-      { id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'Pomeranian', description: 'Small fluffy dog' },
-      { id: '3f6c8a1e-5d2b-4e9a-8c4f-1b7d0a5e9c3f', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'Golden Retriever', description: 'Friendly large breed' },
-      { id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', species_id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'Siamese', description: 'Elegant short-haired cat' },
-      { id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', species_id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'Holland Lop', description: 'Mini rabbit with floppy ears' },
-      { id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', species_id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'Cockatiel', description: 'Popular small parrot' },
+      { id: '1d9a3e2f-8b4c-4a7d-9e1f-6c0b5e8a3d7f', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'Pomeranian', name_th: 'ปอมเมอเรเนียน', description: 'Small fluffy dog', description_th: 'สุนัขขนปุยตัวเล็ก' },
+      { id: '3f6c8a1e-5d2b-4e9a-8c4f-1b7d0a5e9c3f', species_id: 'c2e1a8d5-3b7f-4c6e-9a1d-8f2b0c5e7a4d', name: 'Golden Retriever', name_th: 'โกลเดนรีทรีฟเวอร์', description: 'Friendly large breed', description_th: 'สุนัขพันธุ์ใหญ่ที่เป็นมิตร' },
+      { id: '6a8d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', species_id: '5e8b3d1f-7c4a-4e8b-9a2d-6f1c0e3b7a5d', name: 'Siamese', name_th: 'แมวสยาม', description: 'Elegant short-haired cat', description_th: 'แมวขนสั้นที่สง่างาม' },
+      { id: '8c1f0a3e-7d4b-4f6e-9a2c-5d1e8b7a0c3f', species_id: '8a4d2f1e-9b7c-4a6d-8e3f-1c5b0a7e9d2f', name: 'Holland Lop', name_th: 'ฮอลแลนด์ลอป', description: 'Mini rabbit with floppy ears', description_th: 'กระต่ายแคระหูตก' },
+      { id: 'a2e3b8d5-1c7f-4e9a-8b4d-6f2c0e3b7a5d', species_id: 'b6d1e8a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', name: 'Cockatiel', name_th: 'ค็อกคาเทล', description: 'Popular small parrot', description_th: 'นกแก้วขนาดเล็กยอดนิยม' },
     ],
     skipDuplicates: true,
   });
@@ -62,30 +62,16 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // Seed reminder_categories
-  await prisma.reminder_categories.createMany({
-    data: [
-      { id: '7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f', name: 'General', description: 'General reminders not tied to specific health tasks' },
-      { id: '9a2b8e3d-5c1f-4a7b-8d4e-6f0c5b7a1d9e', name: 'Vaccination', description: 'Vaccination reminders' },
-      { id: 'b4e8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', name: 'Checkup', description: 'Routine health check reminders' },
-      { id: 'd1f9a3e8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', name: 'Medication', description: 'Medicine or supplement reminders' },
-      { id: 'f8e2c1a9-7d4b-4f6e-8a3c-5d1e8b7a0c2f', name: 'Deworming', description: 'Parasite and deworming schedule reminders' },
-      { id: '2a9c1e8f-4b7d-4a6e-9c2f-1a4b0e8d3c7f', name: 'Grooming', description: 'Bath, trim, or hygiene care reminders' },
-      { id: '4d6e8a3c-1f5b-4e7b-9a2d-8f1c0e3b7a4d', name: 'Feeding', description: 'Feeding schedule reminders' },
-    ],
-    skipDuplicates: true,
-  });
-
   // Seed reminders
   await prisma.reminders.createMany({
     data: [
-      { id: 'b9d2e1a8-3c5f-4e7b-9a2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', category_id: '9a2b8e3d-5c1f-4a7b-8d4e-6f0c5b7a1d9e', reminder_name: 'Rabies Vaccine', description: 'Annual rabies shot', reminder_date: new Date('2025-10-07'), reminder_time: new Date('1970-01-01T09:00:00Z'), reminder_status: 'done', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: 'overdue', created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
-      { id: 'd5f8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'c9f8a3e1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', category_id: 'b4e8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', reminder_name: 'Health Checkup', description: 'Annual vet visit', reminder_date: new Date('2025-10-30'), reminder_time: new Date('1970-01-01T14:00:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
-      { id: '2c7f0a3e-9d4b-4f6e-8a3c-5d1e8b7a0c2f', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', pet_id: 'a3e1b8d5-9c3f-4e6a-8b1d-7f4c0a5e9b3d', category_id: 'd1f9a3e8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', reminder_name: 'Vitamin Supplement', description: 'Monthly rabbit vitamins', reminder_date: new Date('2025-11-11'), reminder_time: new Date('1970-01-01T08:30:00Z'), reminder_status: 'done', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: 'to_do', created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
-      { id: '5b1e8d7a-3c5f-4e9a-8b4d-6f2c0e3b7a5d', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', pet_id: '6e1a9c2f-4b8d-4a7d-9e1f-6c0b5e8a3d7f', category_id: '4d6e8a3c-1f5b-4e7b-9a2d-8f1c0e3b7a4d', reminder_name: 'Feeding Time', description: 'Schedule feeding reminder', reminder_date: new Date('2025-11-07'), reminder_time: new Date('1970-01-01T07:30:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-07T07:30:00.107Z') },
-      { id: 'f1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', category_id: '2a9c1e8f-4b7d-4a6e-9c2f-1a4b0e8d3c7f', reminder_name: 'Grooming Session', description: 'Trim and clean', reminder_date: new Date('2025-11-08'), reminder_time: new Date('1970-01-01T10:00:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-08T06:30:00.240Z') },
-      { id: '0e416f24-58dd-4680-8a80-73b2f518c69c', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', pet_id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', category_id: '7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f', reminder_name: 'Test CP4', description: 'blahblah', reminder_date: new Date('2025-12-12'), reminder_time: new Date('1970-01-01T17:00:00Z'), reminder_status: 'to_do', status_done_at: null, status_before_done: null, created_at: new Date('2025-11-10T09:25:36.298Z'), updated_at: new Date('2025-11-10T09:25:36.298Z') },
-      { id: 'c147f850-238e-41d0-8f54-2f1fceda4cf0', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', pet_id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', category_id: '7f5d1e9c-3a8b-4d6e-9c2f-1a4b0e8d3c7f', reminder_name: 'เทส Overdue', description: 'blahblah', reminder_date: new Date('2025-11-10'), reminder_time: new Date('1970-01-01T17:30:00Z'), reminder_status: 'overdue', status_done_at: null, status_before_done: null, created_at: new Date('2025-11-10T10:28:21.724Z'), updated_at: new Date('2025-11-10T10:30:00.077Z') },
+      { id: 'b9d2e1a8-3c5f-4e7b-9a2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', category_name: category_name.Vaccination, reminder_name: 'Rabies Vaccine', description: 'Annual rabies shot', reminder_date: new Date('2025-10-07'), reminder_time: new Date('1970-01-01T09:00:00Z'), reminder_status: 'done', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: 'overdue', created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
+      { id: 'd5f8c1a9-7d3f-4e6a-9b2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'c9f8a3e1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', category_name: category_name.Checkup, reminder_name: 'Health Checkup', description: 'Annual vet visit', reminder_date: new Date('2025-10-30'), reminder_time: new Date('1970-01-01T14:00:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
+      { id: '2c7f0a3e-9d4b-4f6e-8a3c-5d1e8b7a0c2f', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', pet_id: 'a3e1b8d5-9c3f-4e6a-8b1d-7f4c0a5e9b3d', category_name: category_name.Medication, reminder_name: 'Vitamin Supplement', description: 'Monthly rabbit vitamins', reminder_date: new Date('2025-11-11'), reminder_time: new Date('1970-01-01T08:30:00Z'), reminder_status: 'done', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: 'to_do', created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-06T10:10:49.868069Z') },
+      { id: '5b1e8d7a-3c5f-4e9a-8b4d-6f2c0e3b7a5d', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', pet_id: '6e1a9c2f-4b8d-4a7d-9e1f-6c0b5e8a3d7f', category_name: category_name.Feeding, reminder_name: 'Feeding Time', description: 'Schedule feeding reminder', reminder_date: new Date('2025-11-07'), reminder_time: new Date('1970-01-01T07:30:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-07T07:30:00.107Z') },
+      { id: 'f1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', pet_id: 'e6b3c2a1-8d4f-4e6a-9b1d-7f5c0a8e3b2a', category_name: category_name.Grooming, reminder_name: 'Grooming Session', description: 'Trim and clean', reminder_date: new Date('2025-11-08'), reminder_time: new Date('1970-01-01T10:00:00Z'), reminder_status: 'overdue', status_done_at: new Date('2025-11-06T10:10:49.868069Z'), status_before_done: null, created_at: new Date('2025-11-06T10:10:49.868069Z'), updated_at: new Date('2025-11-08T06:30:00.240Z') },
+      { id: '0e416f24-58dd-4680-8a80-73b2f518c69c', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', pet_id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', category_name: category_name.General, reminder_name: 'Test CP4', description: 'blahblah', reminder_date: new Date('2025-12-12'), reminder_time: new Date('1970-01-01T17:00:00Z'), reminder_status: 'to_do', status_done_at: null, status_before_done: null, created_at: new Date('2025-11-10T09:25:36.298Z'), updated_at: new Date('2025-11-10T09:25:36.298Z') },
+      { id: 'c147f850-238e-41d0-8f54-2f1fceda4cf0', user_id: '7c3d3f22-460c-42cd-87c1-b68b93e7576f', pet_id: 'a1ea975d-50fd-4e7d-88d5-730b6e8dd403', category_name: category_name.General, reminder_name: 'เทส Overdue', description: 'blahblah', reminder_date: new Date('2025-11-10'), reminder_time: new Date('1970-01-01T17:30:00Z'), reminder_status: 'overdue', status_done_at: null, status_before_done: null, created_at: new Date('2025-11-10T10:28:21.724Z'), updated_at: new Date('2025-11-10T10:30:00.077Z') },
     ],
     skipDuplicates: true,
   });
@@ -105,11 +91,11 @@ async function main() {
   // Seed push_tokens
   await prisma.push_tokens.createMany({
     data: [
-      { id: 'b2d8e1a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', provider: 'expo', token: 'ExponentPushToken[abc123]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
-      { id: 'e8f1c0a3-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', provider: 'expo', token: 'ExponentPushToken[xyz789]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
-      { id: '9a3e1f8d-7c4b-4e6a-9b1d-7f5c0a8e3b2a', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', provider: 'fcm', token: 'FCMToken[test123]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
-      { id: 'c1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: 'd3f9e8a1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', provider: 'expo', token: 'ExponentPushToken[test456]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
-      { id: 'f0a3e1b7-9d4b-4f6e-8a3c-5d1e8b7a0c2f', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', provider: 'fcm', token: 'FCMToken[test789]', last_seen_at: null, revoked_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z'), updated_at: null },
+      { id: 'b2d8e1a9-3c5f-4e7b-9a2d-8f1c0e3b7a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', token: 'ExponentPushToken[abc123]', last_seen_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z') },
+      { id: 'e8f1c0a3-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: '4b1a3d0f-4e89-4a41-8b4d-2bbd1a6c0c28', token: 'ExponentPushToken[xyz789]', last_seen_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z') },
+      { id: '9a3e1f8d-7c4b-4e6a-9b1d-7f5c0a8e3b2a', user_id: '9c7a4f1e-6d2f-4a8b-9e3d-1a4f0c8e3b2a', token: 'FCMToken[test123]', last_seen_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z') },
+      { id: 'c1a9e3d8-5b2c-4f8e-8a6d-9c3b1e7f2a4d', user_id: 'd3f9e8a1-5b2c-4f8e-8a6d-9c3b1e7f2a4d', token: 'ExponentPushToken[test456]', last_seen_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z') },
+      { id: 'f0a3e1b7-9d4b-4f6e-8a3c-5d1e8b7a0c2f', user_id: 'a1b8d5e2-9c3f-4e6a-8b1d-7f4c0a5e9b3d', token: 'FCMToken[test789]', last_seen_at: null, created_at: new Date('2025-11-06T10:10:49.873915Z') },
     ],
     skipDuplicates: true,
   });

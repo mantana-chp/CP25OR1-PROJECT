@@ -1,11 +1,11 @@
 import { Reminder, ReminderWithPetName } from './reminder-types';
-import { reminder_status } from '../../generated/prisma/enums';
+import { reminder_status, category_name } from '../../generated/prisma/client';
 
 interface PrismaReminder {
   id: string;
   user_id: string;
   pet_id: string;
-  category_id: string;
+  category_name: category_name;
   reminder_name: string | null;
   description: string | null;
   reminder_date: Date;
@@ -24,7 +24,7 @@ export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Rem
     id: prismaReminder.id,
     userId: prismaReminder.user_id,
     petId: prismaReminder.pet_id,
-    categoryId: prismaReminder.category_id,
+    categoryName: prismaReminder.category_name,
     reminderName: prismaReminder.reminder_name ?? undefined,
     description: prismaReminder.description ?? undefined,
     reminderDate: prismaReminder.reminder_date,
