@@ -19,7 +19,7 @@ export const getReminderById = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const createReminder = asyncHandler(async (req: Request, res: Response) => {
-  const validatedData: CreateReminderInput = createReminderSchema.parse(req.body);
+  const validatedData: CreateReminderInput = createReminderSchema.parse(req).body;
   const { id: userId } = req.user!;
   const newReminder = await reminderService.createNewReminder(validatedData, userId);
   sendSuccess(res, newReminder, 201);

@@ -24,6 +24,7 @@ export type CreateReminderInput = {
   description?: string;
   reminderDate: string;
   reminderTime?: string; // converted date,time value to Date in repository
+  categoryName?: category_name;
 };
 
 // Internal type for creating a reminder in the repository

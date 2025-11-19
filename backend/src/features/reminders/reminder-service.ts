@@ -2,7 +2,7 @@ import * as reminderRepository from './reminder-repository';
 import { Reminder, CreateReminderInput, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
-import { Prisma, reminder_status } from '../../generated/prisma/client';
+import { Prisma, reminder_status, category_name } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
 
 export const getAllReminders = async (userId: string): Promise<ReminderWithPetName[]> => {
@@ -73,6 +73,7 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     description: newReminderData.description,
     reminder_date: reminderDate,
     reminder_time: reminderTime,
+    category_name: newReminderData.categoryName || category_name.General, // Default to General
     user: { connect: { id: userId } },
     pets: { connect: { id: pet.id } },
   };
