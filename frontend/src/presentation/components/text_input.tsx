@@ -25,7 +25,11 @@ export default function InputText(props: TextInputProps) {
           {props.required && <Text style={styles.required}>*</Text>}
         </Text>
         <TextInput
-          style={[styles.input, isFocused && styles.inputFocused]}
+          style={[
+            styles.input,
+            isFocused && styles.inputFocused,
+            props.error && styles.textInputError
+          ]}
           placeholder={props.placeholder}
           value={props.value}
           onChangeText={props.onChangeText}
@@ -85,5 +89,8 @@ const styles = StyleSheet.create({
   },
   required: {
     color: '#BF1737'
+  },
+  textInputError: {
+    borderColor: '#BF1737'
   }
 })

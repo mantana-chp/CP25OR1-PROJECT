@@ -91,6 +91,7 @@ export default function AddReminderPage() {
                 }
                 onChange={(v) => formik.setFieldValue('reminderDate', v)}
                 error={formik.errors.reminderDate}
+                required={true}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -106,7 +107,7 @@ export default function AddReminderPage() {
           <View>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder="รายละเอียด"
+              placeholder="รายละเอียดอื่นๆ"
               multiline
               numberOfLines={4}
               value={formik.values.description}
