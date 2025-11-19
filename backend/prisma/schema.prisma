@@ -163,6 +163,6 @@ enum category_name {
   Checkup     @map("ตรวจสุขภาพ")
   Medication  @map("ยา/อาหารเสริม")
   Deworming   @map("พยาธิ/เห็บหมัด")
-  Grooming    @map("ความสะอาดและกรูมมิ่ง")
+  Grooming    @map("กรูมมิ่ง")
   Feeding     @map("ให้อาหาร")
 }
