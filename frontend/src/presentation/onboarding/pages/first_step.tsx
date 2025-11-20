@@ -5,23 +5,31 @@ import PrimaryButton from '../../components/primary_button'
 export default function FirstStep() {
   return (
     <View style={styles.container}>
-      <Image
-        source={require('@/assets/images/onboard-1.png')}
-        style={styles.image}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>ยินดีต้อนรับสู่ [AppName]!</Text>
-      <Text style={styles.subTitle}>
-        ดูแลสุขภาพและความสุขของสัตว์เลี้ยงคุณได้ในที่เดียว
-      </Text>
-
-      <Link href="/onboarding/second" push asChild>
-        <PrimaryButton
-          title="ถัดไป"
-          onPress={() => {}}
-          style={{ width: '100%' }}
+      <View style={styles.content}>
+        <Image
+          source={require('@/assets/images/onboard-1.png')}
+          style={styles.image}
+          resizeMode="contain"
         />
-      </Link>
+        <Text style={styles.title}>ยินดีต้อนรับสู่ [AppName]!</Text>
+        <Text style={styles.subTitle}>
+          ดูแลสุขภาพและความสุขของสัตว์เลี้ยงคุณได้ในที่เดียว
+        </Text>
+
+        <View style={styles.dotsContainer}>
+          <View style={[styles.dot, styles.activeDot]} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
+
+        <Link href="/onboarding/second" push asChild>
+          <PrimaryButton
+            title="ถัดไป"
+            onPress={() => {}}
+            style={{ width: '100%' }}
+          />
+        </Link>
+      </View>
     </View>
   )
 }
@@ -29,27 +37,51 @@ export default function FirstStep() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#FFF9F1',
     padding: 20
   },
-  title: {
-    fontSize: 21,
-    fontWeight: 'bold',
-    fontFamily: 'Prompt_700Bold',
-    marginBottom: 32,
-    color: '#225877'
-  },
-  subTitle: {
-    fontSize: 17,
-    fontWeight: 'normal',
-    fontFamily: 'Prompt_400Regular',
-    marginBottom: 32,
-    color: '#225877'
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   image: {
-    width: 200,
-    height: 200
+    width: 300,
+    height: 300,
+    marginBottom: 40
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: 'Prompt_700Bold',
+    marginBottom: 16,
+    color: '#225877',
+    textAlign: 'center'
+  },
+  subTitle: {
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    marginBottom: 40,
+    color: '#225877',
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 20
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 24
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#D1D5DB'
+  },
+  activeDot: {
+    backgroundColor: '#5FA7D1',
+    width: 24
   }
 })
