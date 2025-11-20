@@ -31,7 +31,7 @@ export interface IReminder {
   userId: string
   petId: string
   pet_name: string
-  categoryId: string
+  categoryName: string
   reminderName: string
   description: string
   reminderDate: string
@@ -48,7 +48,7 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     userId: v.userId || '',
     petId: v.petId || '',
     pet_name: v.pet_name || '',
-    categoryId: v.categoryId || '',
+    categoryName: v.categoryName || '',
     reminderName: v.reminderName || '',
     description: v.description || '',
     reminderDate: v.reminderDate || '',

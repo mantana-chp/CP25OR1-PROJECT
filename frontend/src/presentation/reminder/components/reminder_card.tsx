@@ -73,7 +73,7 @@ export default function ReminderCard(props: ReminderCardProps) {
     : ''
 
   const isDone = reminder?.reminderStatus === 'done' || isTempDone
-  const categoryInfo = getCategoryInfo(reminder?.categoryId || 'Feeding')
+  const categoryInfo = getCategoryInfo(reminder?.categoryName || 'General')
   const CategoryIcon = ICON_MAP[categoryInfo.icon] || Tag
 
   // ------------------
@@ -165,13 +165,6 @@ export default function ReminderCard(props: ReminderCardProps) {
       if (onPress) {
         onPress(reminder.id)
       }
-    }
-  }
-
-  const handleInfoPress = () => {
-    closeDeleteButton()
-    if (onPress) {
-      onPress(reminder.id)
     }
   }
 
@@ -409,8 +402,5 @@ const styles = StyleSheet.create({
   overdueText: {
     color: '#BF1737',
     fontWeight: '600'
-  },
-  infoButton: {
-    padding: 4
   }
 })

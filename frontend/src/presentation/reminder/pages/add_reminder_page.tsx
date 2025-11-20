@@ -23,6 +23,7 @@ import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
+import CategorySelector from '../components/category_selector'
 
 export default function AddReminderPage() {
   const router = useRouter()
@@ -103,6 +104,13 @@ export default function AddReminderPage() {
               />
             </View>
           </View>
+
+          <CategorySelector
+            value={formik.values.categoryName}
+            onChange={(v) => formik.setFieldValue('categoryName', v)}
+            error={formik.errors.categoryName}
+            required={true}
+          />
 
           <View>
             <TextInput
