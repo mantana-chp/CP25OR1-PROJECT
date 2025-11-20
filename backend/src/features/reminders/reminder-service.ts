@@ -2,7 +2,7 @@ import * as reminderRepository from './reminder-repository';
 import { Reminder, CreateReminderInput, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
-import { Prisma, reminder_status } from '../../generated/prisma/client';
+import { Prisma, reminder_status, category_name } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
 
 export const getAllReminders = async (userId: string): Promise<ReminderWithPetName[]> => {
@@ -73,6 +73,7 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     description: newReminderData.description,
     reminder_date: reminderDate,
     reminder_time: reminderTime,
+    category_name: newReminderData.categoryName || category_name.General, // Default to General
     user: { connect: { id: userId } },
     pets: { connect: { id: pet.id } },
   };
@@ -94,25 +95,32 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
   let newStatus: reminder_status;
   let newStatusBeforeDone: reminder_status | null = reminder.status_before_done;
   let newStatusDoneAt: Date | null = reminder.status_done_at;
+  let isHealthRecord = reminder.is_health; // Default to current state
+
+  const healthCategories: category_name[] = [
+    category_name.Vaccination,
+    category_name.Checkup,
+    category_name.Medication,
+    category_name.Deworming,
+  ];
 
   switch (reminder.reminder_status) {
     case 'to_do':
-      newStatus = reminder_status.done;
-      newStatusBeforeDone = reminder_status.to_do;
-      newStatusDoneAt = new Date();
-      break;
     case 'overdue':
       newStatus = reminder_status.done;
-      newStatusBeforeDone = reminder_status.overdue;
+      newStatusBeforeDone = reminder.reminder_status;
       newStatusDoneAt = new Date();
+      if (healthCategories.includes(reminder.category_name)) {
+        isHealthRecord = true;
+      }
       break;
     case 'done':
       newStatus = reminder.status_before_done || reminder_status.to_do; // Default to 'to_do' if not set
       newStatusBeforeDone = null;
       newStatusDoneAt = null;
+      isHealthRecord = false; // Revert health record status on undo
       break;
     default:
-      // Should not be reachable
       throw new Error('Invalid reminder status');
   }
 
@@ -120,6 +128,7 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
     reminder_status: newStatus,
     status_before_done: newStatusBeforeDone,
     status_done_at: newStatusDoneAt,
+    is_health: isHealthRecord,
   };
 
   return await reminderRepository.update(id, updateData);
@@ -137,12 +146,12 @@ export const updateOverdueReminders = async (): Promise<void> => {
 
   const remindersToUpdate = overdueReminders.filter(r => {
     if (!r.reminder_time) {
-      // For date-only reminders, compare full days in UTC
+      // date only reminder gonna compare by full day
       const reminderDay = new Date(Date.UTC(r.reminder_date.getUTCFullYear(), r.reminder_date.getUTCMonth(), r.reminder_date.getUTCDate()));
       const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       return reminderDay < today; // Overdue if reminder day is strictly before today
     } else {
-      // For reminders with time, construct a GMT+7 date and convert to UTC for robust comparison
+      // with specific time, construct a GMT+7 date and convert to UTC for robust comparison
       const datePart = r.reminder_date.toISOString().split('T')[0];
       const timePart = r.reminder_time.toISOString().split('T')[1].split('.')[0];
       const isoStringWithOffset = `${datePart}T${timePart}+07:00`; // Explicitly GMT+7

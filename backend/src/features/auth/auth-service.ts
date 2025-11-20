@@ -3,10 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../libs/db';
 import { config } from '../../config';
 import { platform, platform_id_source } from '../../generated/prisma/client';
-import { NotFoundError, UnauthorizedError } from '../../shared/errors';
+import { UnauthorizedError } from '../../shared/errors';
 import { logger } from '../../libs/logger';
 
-// Define payload types for clarity
 interface AccessTokenPayload {
   userId: string;
   installationId: string;
@@ -79,11 +78,9 @@ class AuthService {
       throw new UnauthorizedError('Installation ID does not match.');
     }
 
-    // --- CORRECTED ROTATION LOGIC ---
-    // 1. Generate the new tokens and session first
     const { accessToken, refreshToken: newRefreshToken, newSessionId } = await this.generateAndSaveTokens(user.id, user.current_installation_id);
 
-    // 2. Invalidate the old session by pointing to the new one
+    // make old sesion invalid
     await prisma.sessions.update({
       where: { id: oldSession.id },
       data: { replaced_by: newSessionId },

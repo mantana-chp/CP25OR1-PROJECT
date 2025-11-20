@@ -14,6 +14,7 @@ interface PrismaReminder {
   status_done_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  is_health: boolean;
 }
 interface PrismaReminderWithPet extends PrismaReminder {
   pets: { pet_name: string } | null;
