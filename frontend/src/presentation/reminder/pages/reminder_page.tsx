@@ -1,6 +1,7 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
+import React, { useCallback, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import Calendar from '../components/calendar_component'
@@ -17,16 +18,18 @@ export default function ReminderPage() {
   // FETCH
   // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
 
   const loadReminders = useCallback(() => {
     getRemindersApi.execute({})
   }, [])
 
-  useEffect(() => {
-    loadReminders()
-  }, [loadReminders])
+  useFocusEffect(
+    useCallback(() => {
+      loadReminders()
+    }, [loadReminders])
+  )
 
   const reminders = getRemindersApi.data?.data || []
 
@@ -55,7 +58,7 @@ export default function ReminderPage() {
             setIsCalendarExpanded(true)
           }
         }
-      },
+      }
     })
   ).current
 
@@ -71,7 +74,7 @@ export default function ReminderPage() {
   // ------------------
   return (
     <View style={styles.container}>
-      <Header title='ปฏิทิน' />
+      <Header title="ปฏิทิน" />
       <Calendar
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
@@ -92,9 +95,9 @@ export default function ReminderPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f5f5f5'
   },
   reminderContainer: {
-    flex: 1,
-  },
+    flex: 1
+  }
 })
