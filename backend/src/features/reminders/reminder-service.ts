@@ -146,12 +146,12 @@ export const updateOverdueReminders = async (): Promise<void> => {
 
   const remindersToUpdate = overdueReminders.filter(r => {
     if (!r.reminder_time) {
-      // For date-only reminders, compare full days in UTC
+      // date only reminder gonna compare by full day
       const reminderDay = new Date(Date.UTC(r.reminder_date.getUTCFullYear(), r.reminder_date.getUTCMonth(), r.reminder_date.getUTCDate()));
       const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       return reminderDay < today; // Overdue if reminder day is strictly before today
     } else {
-      // For reminders with time, construct a GMT+7 date and convert to UTC for robust comparison
+      // with specific time, construct a GMT+7 date and convert to UTC for robust comparison
       const datePart = r.reminder_date.toISOString().split('T')[0];
       const timePart = r.reminder_time.toISOString().split('T')[1].split('.')[0];
       const isoStringWithOffset = `${datePart}T${timePart}+07:00`; // Explicitly GMT+7

@@ -3,7 +3,7 @@ import { asyncHandler } from '../../shared/asyncHandler';
 import * as notificationService from './notification-service';
 import { sendSuccess } from '../../shared/response';
 import { getNotificationsSchema, updateNotificationSchema } from './notification-schema';
-import { z } from 'zod'; // Keep z import for req.params validation
+import { z } from 'zod';
 
 export const getNotifications = asyncHandler(async (req: Request, res: Response) => {
   const { id: userId } = req.user!;

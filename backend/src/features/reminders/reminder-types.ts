@@ -27,7 +27,6 @@ export type CreateReminderInput = {
   categoryName?: category_name;
 };
 
-// Internal type for creating a reminder in the repository
 export type ReminderCreationData = CreateReminderInput & {
   user: { connect: { id: string } };
   pet: { connect: { id: string } };

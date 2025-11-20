@@ -5,7 +5,7 @@ import petRoutes from './features/pets/pet-routes';
 import notificationRoutes from './features/notifications/notification-routes';
 import userRoutes from './features/users/user-routes';
 import metaRoutes from './features/meta/meta-routes';
-import healthRecordRoutes from './features/health-record/health-record-routes'; // Import health record routes
+import healthRecordRoutes from './features/health-record/health-record-routes';
 
 const v1Router = Router();
 

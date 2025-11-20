@@ -1,6 +1,5 @@
 import { logger } from '../libs/logger';
 
-// Define the structure of a push notification message
 export interface PushMessage {
   to: string;
   sound?: 'default';
@@ -9,7 +8,6 @@ export interface PushMessage {
   data?: object;
 }
 
-// Define the structure of a ticket received from Expo's push/send endpoint
 export interface ExpoPushTicket {
   id: string;
   status: 'ok' | 'error';
@@ -45,7 +43,6 @@ class ExpoPushService {
 
       if (responseData.errors) {
         logger.error('Expo API returned errors:', new Error(JSON.stringify(responseData.errors)));
-        // Depending on severity, you might want to throw or handle differently
       }
 
       // Log the results, checking for errors reported by Expo

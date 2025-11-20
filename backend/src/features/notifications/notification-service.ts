@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid'
 import {
   expoPushService,
   PushMessage,
-  ExpoPushTicket,
 } from '../../services/expo-push-service'
 import { logger } from '../../libs/logger'
 import { notification_status } from '../../generated/prisma/client'
@@ -65,7 +64,7 @@ export const processAndSendNotifications = async () => {
     where: {
       reminder_status: { in: ['to_do', 'overdue'] }, // Include overdue reminders
       notifications: {
-        none: {}, // Find reminders with no associated notifications
+        none: {}, // find reminders with no notification
       },
     },
     include: {
