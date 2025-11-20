@@ -1,4 +1,4 @@
-import { IReminder } from '@/src/domain/reminder.domain'
+import { IReminder, getCategoryInfo } from '@/src/domain/reminder.domain'
 import React, { useRef } from 'react'
 
 import dayjs from 'dayjs'
@@ -12,10 +12,21 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 
-import { Clock, Info, PawPrint, Trash2 } from 'lucide-react-native'
+import {
+  Bone,
+  Clock,
+  PawPrint,
+  Pill,
+  Pipette,
+  Scissors,
+  Stethoscope,
+  Syringe,
+  Tag,
+  Trash2
+} from 'lucide-react-native'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const SWIPE_THRESHOLD = -100
@@ -30,6 +41,16 @@ interface ReminderCardProps {
   isTempDone?: boolean
 }
 
+const ICON_MAP: Record<string, any> = {
+  Tag,
+  Syringe,
+  Stethoscope,
+  Pill,
+  Pipette,
+  Scissors,
+  Bone
+}
+
 export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   // CONST
@@ -41,7 +62,7 @@ export default function ReminderCard(props: ReminderCardProps) {
     canDelete = true,
     onPress,
     onToggleStatus,
-    isTempDone = false,
+    isTempDone = false
   } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
@@ -52,6 +73,8 @@ export default function ReminderCard(props: ReminderCardProps) {
     : ''
 
   const isDone = reminder?.reminderStatus === 'done' || isTempDone
+  const categoryInfo = getCategoryInfo(reminder?.categoryId || 'Feeding')
+  const CategoryIcon = ICON_MAP[categoryInfo.icon] || Tag
 
   // ------------------
   // ANIMATION
@@ -100,7 +123,7 @@ export default function ReminderCard(props: ReminderCardProps) {
             closeDeleteButton()
           }
         }
-      },
+      }
     })
   ).current
 
@@ -112,7 +135,7 @@ export default function ReminderCard(props: ReminderCardProps) {
       toValue: -100,
       useNativeDriver: true,
       tension: 50,
-      friction: 7,
+      friction: 7
     }).start()
   }
 
@@ -121,7 +144,7 @@ export default function ReminderCard(props: ReminderCardProps) {
       toValue: 0,
       useNativeDriver: true,
       tension: 50,
-      friction: 7,
+      friction: 7
     }).start()
   }
 
@@ -172,10 +195,10 @@ export default function ReminderCard(props: ReminderCardProps) {
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <ActivityIndicator color='#fff' size='small' />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Trash2 size={24} color='#fff' />
+                <Trash2 size={24} color="#fff" />
                 <Text style={styles.deleteText}>ลบ</Text>
               </>
             )}
@@ -190,8 +213,8 @@ export default function ReminderCard(props: ReminderCardProps) {
           {
             transform: [{ translateX }],
             borderLeftColor:
-              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD',
-          },
+              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD'
+          }
         ]}
         {...(canDelete ? panResponder.panHandlers : {})}
       >
@@ -224,8 +247,10 @@ export default function ReminderCard(props: ReminderCardProps) {
             </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={16} color='#2E759E' fill='#2E759E' />
-              <Text style={styles.petNameText}>{reminder?.pet_name || '-'}</Text>
+              <PawPrint size={16} color="#2E759E" fill="#2E759E" />
+              <Text style={styles.petNameText}>
+                {reminder?.pet_name || '-'}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -238,7 +263,7 @@ export default function ReminderCard(props: ReminderCardProps) {
               <Text
                 style={[
                   styles.dateTimeText,
-                  reminder?.reminderStatus === 'overdue' && styles.overdueText,
+                  reminder?.reminderStatus === 'overdue' && styles.overdueText
                 ]}
               >
                 {formattedTime
@@ -248,13 +273,21 @@ export default function ReminderCard(props: ReminderCardProps) {
             </View>
           </View>
 
-          {/* Right side - Info button */}
-          <TouchableOpacity
-            style={styles.infoButton}
-            onPress={() => handleInfoPress()}
+          {/* Right side - Category tag */}
+          <View
+            style={[
+              styles.categoryTag,
+              {
+                backgroundColor: categoryInfo.color + '20',
+                borderColor: categoryInfo.color
+              }
+            ]}
           >
-            <Info size={24} color='#88BEDD' />
-          </TouchableOpacity>
+            <CategoryIcon size={12} color={categoryInfo.color} />
+            <Text style={[styles.categoryText, { color: categoryInfo.color }]}>
+              {categoryInfo.label}
+            </Text>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -273,7 +306,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 100,
     justifyContent: 'center',
-    alignItems: 'flex-end',
+    alignItems: 'flex-end'
   },
   deleteButton: {
     backgroundColor: '#BF1737',
@@ -283,13 +316,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopRightRadius: 16,
     borderBottomRightRadius: 16,
-    gap: 4,
+    gap: 4
   },
   deleteText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_500Medium'
   },
   reminderCard: {
     backgroundColor: '#fff',
@@ -301,7 +334,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    borderLeftWidth: 6,
+    borderLeftWidth: 6
   },
   cardTouchable: {
     flex: 1,
@@ -320,26 +353,40 @@ const styles = StyleSheet.create({
     borderColor: '#5FA7D1',
     backgroundColor: '#fff',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   checkboxCompleted: {
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   checkboxInner: {
     width: 10,
     height: 10,
     borderRadius: 9,
-    backgroundColor: '#5FA7D1',
+    backgroundColor: '#5FA7D1'
   },
   middleSection: {
     flex: 1,
-    gap: 2,
+    gap: 2
+  },
+  categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 0.5
+  },
+  categoryText: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'Prompt_400Regular'
   },
   reminderTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   overdueTitleText: {
     color: '#BF1737'
@@ -347,23 +394,23 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   petNameText: {
     fontSize: 13,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   dateTimeText: {
     fontSize: 13,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   overdueText: {
     color: '#BF1737',
-    fontWeight: '600',
+    fontWeight: '600'
   },
   infoButton: {
-    padding: 4,
-  },
+    padding: 4
+  }
 })
