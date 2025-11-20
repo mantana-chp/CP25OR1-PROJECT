@@ -1,6 +1,7 @@
 import { useAuth } from '@/src/context/AuthContext'
 import { useRouter } from 'expo-router'
-import { Button, Image, StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, View } from 'react-native'
+import PrimaryButton from '../../components/primary_button'
 
 export default function FinalStep() {
   const { completeOnboarding } = useAuth()
@@ -23,7 +24,11 @@ export default function FinalStep() {
         พูดคุยกับผู้ช่วยอัจฉริยะ เพื่อรับคำแนะนำการดูแลสัตว์เลี้ยง
         และการแจ้งเตือนเฉพาะตัวของสัตว์เลี้ยง
       </Text>
-      <Button title="เริ่มต้นใช้งาน" onPress={handleFinish} />
+      <PrimaryButton
+        title="เริ่มต้นใช้งาน"
+        onPress={handleFinish}
+        style={{ width: '100%' }}
+      />
     </View>
   )
 }

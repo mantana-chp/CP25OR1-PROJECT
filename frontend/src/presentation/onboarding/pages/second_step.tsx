@@ -1,5 +1,6 @@
 import { Link } from 'expo-router'
-import { Button, Image, StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, View } from 'react-native'
+import PrimaryButton from '../../components/primary_button'
 
 export default function SecondStep() {
   return (
@@ -15,7 +16,11 @@ export default function SecondStep() {
         และกิจวัตรการดูแลสัตว์เลี้ยงตรงเวลาเสมอ
       </Text>
       <Link href="/onboarding/final" push asChild>
-        <Button title="Next" />
+        <PrimaryButton
+          title="ถัดไป"
+          onPress={() => {}}
+          style={{ width: '100%' }}
+        />
       </Link>
     </View>
   )
