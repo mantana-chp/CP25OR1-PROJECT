@@ -248,9 +248,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#225877',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_500Medium'
   },
   closeButton: {
     fontSize: 24,

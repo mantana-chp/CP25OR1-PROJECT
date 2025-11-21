@@ -280,18 +280,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16
   },
-  closeButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 10,
-    borderRadius: 20,
-    padding: 8,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
   closeButtonOutside: {
     position: 'absolute',
     left: '50%',
@@ -327,26 +315,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: 'Prompt_500Medium',
     color: '#225877'
-  },
-  inputGroup: {
-    marginBottom: 16,
-    gap: 4
-  },
-  inputLabel: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    marginLeft: 4
-  },
-  categoryDisplay: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    minHeight: 48,
-    justifyContent: 'center',
-    backgroundColor: '#f9fafb'
   },
   categoryTag: {
     flexDirection: 'row',
@@ -407,23 +375,7 @@ const styles = StyleSheet.create({
   },
   overdueText: {
     color: '#DC2626',
-    fontFamily: 'Prompt_600SemiBold'
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#ef4444',
-    fontFamily: 'Prompt_700Bold',
-    marginBottom: 20
-  },
-  notFoundIcon: {
-    fontSize: 64,
-    marginBottom: 16
+    fontFamily: 'Prompt_500Medium'
   },
   notFoundTitle: {
     fontSize: 22,

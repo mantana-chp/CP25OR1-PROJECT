@@ -161,14 +161,12 @@ const styles = StyleSheet.create({
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    fontWeight: 'bold'
+    fontFamily: 'Prompt_400Regular'
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    fontWeight: 'bold'
+    fontFamily: 'Prompt_700Bold'
   },
   submittingText: {
     color: '#6b7280'

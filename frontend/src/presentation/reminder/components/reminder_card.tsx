@@ -372,12 +372,10 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 10,
-    fontWeight: '600',
     fontFamily: 'Prompt_400Regular'
   },
   reminderTitle: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_700Bold'
   },
@@ -401,6 +399,6 @@ const styles = StyleSheet.create({
   },
   overdueText: {
     color: '#BF1737',
-    fontWeight: '600'
+    fontFamily: 'Prompt_500Medium'
   }
 })
