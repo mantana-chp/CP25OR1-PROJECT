@@ -30,7 +30,7 @@ export default function AddReminderPage() {
 
   const createReminderApi = useApi(reminderService.createReminder, {
     showErrorAlert: true,
-    successMessage: 'เพิ่มการเตือนความจำสำเร็จ',
+    successMessage: 'เพิ่มเตือนความจำสำเร็จ',
     onSuccess: () => {
       router.back()
     }
@@ -51,7 +51,7 @@ export default function AddReminderPage() {
   return (
     <View style={styles.screen}>
       <View style={styles.safeArea}>
-        <Header title="เพิ่มการเตือนความจำ" goBack={!isSubmitting} />
+        <Header title="เพิ่มเตือนความจำ" goBack={!isSubmitting} />
 
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
@@ -73,7 +73,7 @@ export default function AddReminderPage() {
           <InputText
             value={formik.values.reminderName}
             onChangeText={(v) => formik.setFieldValue('reminderName', v)}
-            placeholder="หัวข้อการเตือนความจำ"
+            placeholder="หัวข้อเตือนความจำ"
             title="หัวข้อ"
             required={true}
             error={formik.errors.reminderName}

@@ -1,6 +1,6 @@
 import { Link, useRouter } from 'expo-router'
 import _ from 'lodash'
-import React, { useCallback, useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import { IReminder } from '@/src/domain/reminder.domain'
 import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
@@ -14,7 +14,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 
@@ -29,7 +29,7 @@ interface ReminderListProps {
 export default function ReminderList({
   reminders,
   isLoading,
-  onRefresh,
+  onRefresh
 }: ReminderListProps) {
   const router = useRouter()
 
@@ -39,16 +39,16 @@ export default function ReminderList({
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     showErrorAlert: true,
-    successMessage: 'ลบนัดหมายสำเร็จ',
+    successMessage: 'ลบนัดเตือนความจำสำเร็จ',
     onSuccess: () => {
       if (onRefresh) {
         onRefresh()
       }
-    },
+    }
   })
 
   const updateStatusApi = useApi(reminderService.updateReminderStatus, {
-    showErrorAlert: true,
+    showErrorAlert: true
   })
 
   useEffect(() => {
@@ -62,12 +62,12 @@ export default function ReminderList({
   const handleDeleteReminder = useCallback(
     (id: string) => {
       Alert.alert(
-        'ยืนยันการลบนัดหมาย',
-        'คุณแน่ใจหรือไม่ว่าต้องการลบนัดหมายนี้?',
+        'ยืนยันการลบเตือนความจำ',
+        'คุณแน่ใจหรือไม่ว่าต้องการลบเตือนความจำนี้?',
         [
           {
             text: 'ยกเลิก',
-            style: 'cancel',
+            style: 'cancel'
           },
           {
             text: 'ลบ',
@@ -75,8 +75,8 @@ export default function ReminderList({
             onPress: () => {
               console.log('🗑️ Deleting reminder:', id)
               deleteReminderApi.execute(id)
-            },
-          },
+            }
+          }
         ]
       )
     },
@@ -129,10 +129,10 @@ export default function ReminderList({
           <Text
             style={[
               styles.tabText,
-              activeTab === 'to_do' && styles.activeTabText,
+              activeTab === 'to_do' && styles.activeTabText
             ]}
           >
-            นัดหมาย
+            เตือนความจำ
           </Text>
           {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
@@ -144,7 +144,7 @@ export default function ReminderList({
           <Text
             style={[
               styles.tabText,
-              activeTab === 'done' && styles.activeTabText,
+              activeTab === 'done' && styles.activeTabText
             ]}
           >
             เสร็จสิ้น
@@ -166,7 +166,7 @@ export default function ReminderList({
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
                 {activeTab === 'to_do'
-                  ? 'ไม่มีนัดหมาย'
+                  ? 'ไม่มีเตือนความจำ'
                   : 'ไม่มีรายการที่เสร็จสิ้น'}
               </Text>
             </View>
@@ -188,9 +188,9 @@ export default function ReminderList({
       )}
 
       {/* Floating Add Button */}
-      <Link href='/(tabs)/add-reminder' push asChild>
+      <Link href="/(tabs)/add-reminder" push asChild>
         <TouchableOpacity style={styles.addReminderButton}>
-          <Plus size={32} color='#fff' strokeWidth={3} />
+          <Plus size={32} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       </Link>
     </View>
@@ -202,30 +202,30 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     backgroundColor: '#fff9f1',
-    borderRadius: 24,
+    borderRadius: 24
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff9f1',
+    backgroundColor: '#fff9f1'
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff9f1',
+    backgroundColor: '#fff9f1'
   },
   errorText: {
     fontSize: 16,
     color: '#BF1737',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   tabContainer: {
     flexDirection: 'row',
@@ -233,19 +233,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
-    backgroundColor: '#fff9f1',
+    backgroundColor: '#fff9f1'
   },
   tabButton: {
-    paddingBottom: 8,
+    paddingBottom: 8
   },
   tabText: {
     color: '#C4C4C4',
     fontSize: 20,
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   activeTabText: {
     color: '#225877',
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   activeUnderline: {
     position: 'absolute',
@@ -253,24 +253,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#225877',
+    backgroundColor: '#225877'
   },
   contentContainer: {
-    flex: 1,
+    flex: 1
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 100
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 60
   },
   emptyText: {
     color: '#C4C4C4',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   addReminderButton: {
     position: 'absolute',
@@ -287,6 +287,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    overflow: 'visible',
-  },
+    overflow: 'visible'
+  }
 })

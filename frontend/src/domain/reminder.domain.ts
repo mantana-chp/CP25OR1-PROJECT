@@ -8,7 +8,7 @@ export interface ICategoryInfo {
 
 export const CATEGORY_MAP: Record<string, ICategoryInfo> = {
   General: { label: 'ทั่วไป', color: '#6B7280', icon: 'Tag' },
-  Vaccination: { label: 'วัคซีน', color: '#EF4444', icon: 'Syringe' },
+  Vaccination: { label: 'วัคซีน', color: '#EC4899', icon: 'Syringe' },
   Checkup: { label: 'ตรวจสุขภาพ', color: '#3B82F6', icon: 'Stethoscope' },
   Medication: { label: 'ยา/อาหารเสริม', color: '#10B981', icon: 'Pill' },
   Deworming: { label: 'พยาธิ/เห็บหมัด', color: '#F59E0B', icon: 'Pipette' },
@@ -63,7 +63,7 @@ export const reminderInitValue = (v: IReminder): IReminder => {
 export const reminderValidationSchema = yup.object().shape({
   reminderName: yup
     .string()
-    .required('กรุณาใส่หัวข้อการเตือนความจำ')
+    .required('กรุณาใส่หัวข้อเตือนความจำ')
     .max(100, 'หัวข้อต้องไม่เกิน 100 ตัวอักษร'),
   description: yup.string().max(500, 'รายละเอียดต้องไม่เกิน 500 ตัวอักษร'),
   reminderDate: yup.string().required('กรุณาเลือกวันที่'),

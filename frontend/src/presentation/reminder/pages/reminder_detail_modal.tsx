@@ -91,7 +91,7 @@ export default function ReminderDetailModal() {
             <Text style={styles.notFoundMessage}>
               {!id
                 ? 'ไม่พบรหัสการแจ้งเตือน'
-                : 'นัดหมายนี้อาจถูกลบไปแล้ว หรือไม่มีอยู่ในระบบ'}
+                : 'เตือนความจำนี้อาจถูกลบไปแล้ว หรือไม่มีอยู่ในระบบ'}
             </Text>
           </View>
         </View>
@@ -125,7 +125,7 @@ export default function ReminderDetailModal() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>รายละเอียดการเตือนความจำ</Text>
+          <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
         </View>
 
         {/* Form Card */}
@@ -150,7 +150,7 @@ export default function ReminderDetailModal() {
                 ]}
               >
                 {CategoryIcon && (
-                  <CategoryIcon size={20} color={categoryInfo.color} />
+                  <CategoryIcon size={14} color={categoryInfo.color} />
                 )}
                 <Text
                   style={[styles.categoryText, { color: categoryInfo.color }]}
@@ -351,16 +351,15 @@ const styles = StyleSheet.create({
   categoryTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
     alignSelf: 'flex-start'
   },
   categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 12,
     fontFamily: 'Prompt_500Medium'
   },
   input: {
