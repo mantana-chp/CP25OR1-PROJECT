@@ -50,11 +50,30 @@ export default function TimePicker(props: TimePickerProps) {
     }
 
     if (event.type === 'set' && selectedTime) {
-      const timeString = formatTimeToString(selectedTime)
+      // Round minutes to nearest 15-minute interval
+      const roundedTime = roundToNearest15Minutes(selectedTime)
+      const timeString = formatTimeToString(roundedTime)
       props.onChange(timeString)
     } else if (event.type === 'dismissed') {
       setShowPicker(false)
     }
+  }
+
+  const roundToNearest15Minutes = (date: Date): Date => {
+    const rounded = new Date(date)
+    const minutes = date.getMinutes()
+    const roundedMinutes = Math.round(minutes / 15) * 15
+
+    if (roundedMinutes === 60) {
+      rounded.setHours(rounded.getHours() + 1)
+      rounded.setMinutes(0)
+    } else {
+      rounded.setMinutes(roundedMinutes)
+    }
+
+    rounded.setSeconds(0)
+    rounded.setMilliseconds(0)
+    return rounded
   }
 
   const handleOpen = () => {
@@ -110,6 +129,7 @@ export default function TimePicker(props: TimePickerProps) {
           is24Hour={true}
           display="default"
           onChange={handleChange}
+          minuteInterval={15}
         />
       )}
 
@@ -133,6 +153,8 @@ export default function TimePicker(props: TimePickerProps) {
                 onChange={handleChange}
                 textColor="#5FA7D1"
                 style={styles.picker}
+                minuteInterval={15}
+                locale="th-TH"
               />
 
               <View style={styles.modalFooter}>
@@ -236,7 +258,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8
   },
   picker: {
-    height: 200
+    height: 200,
+    width: '100%',
+    alignSelf: 'center'
   },
   modalFooter: {
     paddingHorizontal: 16,
