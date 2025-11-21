@@ -42,8 +42,7 @@ export default function AddReminderPage() {
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      console.log('🔄 Submitting reminder:', values)
-      await createReminderApi.execute(values as any)
+      await createReminderApi.execute(values as IReminder)
     }
   })
 
