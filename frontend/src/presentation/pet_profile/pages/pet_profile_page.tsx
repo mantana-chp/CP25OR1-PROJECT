@@ -110,55 +110,57 @@ export default function PetProfilePage() {
   // REDER
   // ------------------
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <Header title="โปรไฟล์สัตว์เลี้ยง" />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
-        {getPetsApi.loading ? (
-          <LoadingComponent />
-        ) : firstPet ? (
-          <PetInfoCard data={firstPet} />
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
-          </View>
-        )}
-      </View>
+      <ScrollView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
+          {getPetsApi.loading ? (
+            <LoadingComponent />
+          ) : firstPet ? (
+            <PetInfoCard data={firstPet} />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
+            </View>
+          )}
+        </View>
 
-      {/* Appointments Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>กิจกรรมที่ใกล้เข้ามา</Text>
+        {/* Appointments Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>กิจกรรมที่ใกล้เข้ามา</Text>
 
-        {/* Reminder Content */}
-        {getRemindersApi.loading ? (
-          <LoadingComponent />
-        ) : upcomingReminders.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>ไม่มีกิจกรรมที่กำลังจะมาถึง</Text>
-          </View>
-        ) : (
-          <>
-            <FlatList
-              ref={flatListRef}
-              data={upcomingReminders}
-              renderItem={renderReminderCard}
-              keyExtractor={(item) => item.id}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={CARD_WIDTH + CARD_SPACING}
-              snapToAlignment="center"
-              decelerationRate="fast"
-              contentContainerStyle={styles.flatListContent}
-              onViewableItemsChanged={onViewableItemsChanged}
-              viewabilityConfig={viewabilityConfig}
-            />
-            {renderDotIndicators()}
-          </>
-        )}
-      </View>
-    </ScrollView>
+          {/* Reminder Content */}
+          {getRemindersApi.loading ? (
+            <LoadingComponent />
+          ) : upcomingReminders.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>ไม่มีกิจกรรมที่กำลังจะมาถึง</Text>
+            </View>
+          ) : (
+            <>
+              <FlatList
+                ref={flatListRef}
+                data={upcomingReminders}
+                renderItem={renderReminderCard}
+                keyExtractor={(item) => item.id}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={CARD_WIDTH + CARD_SPACING}
+                snapToAlignment="center"
+                decelerationRate="fast"
+                contentContainerStyle={styles.flatListContent}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+              />
+              {renderDotIndicators()}
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   )
 }
 
