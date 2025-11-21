@@ -48,14 +48,23 @@ export default function AddReminderPage() {
 
   const isSubmitting = createReminderApi.loading
 
+  const handleBack = () => {
+    formik.resetForm()
+    router.back()
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.safeArea}>
-        <Header title="เพิ่มเตือนความจำ" goBack={!isSubmitting} />
+        <Header
+          title="เพิ่มเตือนความจำ"
+          goBack={!isSubmitting}
+          onBackPress={handleBack}
+        />
 
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
-            <Pressable onPress={() => router.back()} disabled={isSubmitting}>
+            <Pressable onPress={handleBack} disabled={isSubmitting}>
               <Text style={styles.cancelText}>ยกเลิก</Text>
             </Pressable>
             <Pressable
