@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   formCard: {
     backgroundColor: '#ffffff',
     margin: 16,
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 18
   },
   cancelText: {
     color: '#4b5563',
@@ -170,17 +170,6 @@ const styles = StyleSheet.create({
   },
   submittingText: {
     color: '#6b7280'
-  },
-
-  inputGroup: {
-    marginBottom: 16,
-    gap: 4
-  },
-  inputLabel: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    marginLeft: 4
   },
   input: {
     borderWidth: 1,
@@ -206,7 +195,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16
+    gap: 8
   }
 })

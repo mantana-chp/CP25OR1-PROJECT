@@ -139,27 +139,6 @@ export default function ReminderDetailModal() {
               {reminder?.reminderName || ''}
             </Text>
 
-            {categoryInfo && (
-              <View
-                style={[
-                  styles.categoryTag,
-                  {
-                    backgroundColor: categoryInfo.color + '20',
-                    borderColor: categoryInfo.color
-                  }
-                ]}
-              >
-                {CategoryIcon && (
-                  <CategoryIcon size={14} color={categoryInfo.color} />
-                )}
-                <Text
-                  style={[styles.categoryText, { color: categoryInfo.color }]}
-                >
-                  {categoryInfo.label}
-                </Text>
-              </View>
-            )}
-
             <View style={styles.row}>
               <Pressable
                 style={[
@@ -217,6 +196,27 @@ export default function ReminderDetailModal() {
                 editable={false}
               />
             </View>
+
+            {categoryInfo && (
+              <View
+                style={[
+                  styles.categoryTag,
+                  {
+                    backgroundColor: categoryInfo.color + '20',
+                    borderColor: categoryInfo.color
+                  }
+                ]}
+              >
+                {CategoryIcon && (
+                  <CategoryIcon size={14} color={categoryInfo.color} />
+                )}
+                <Text
+                  style={[styles.categoryText, { color: categoryInfo.color }]}
+                >
+                  {categoryInfo.label}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   pickerButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#111827'
+    color: '#225877'
   },
   pickerButtonIcon: {
     fontSize: 20

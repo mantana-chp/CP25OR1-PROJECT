@@ -170,9 +170,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#225877',
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4
+    marginLeft: 4,
+  
   },
   required: {
     color: '#ef4444'
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#e5e7eb',
     gap: 8
   },
