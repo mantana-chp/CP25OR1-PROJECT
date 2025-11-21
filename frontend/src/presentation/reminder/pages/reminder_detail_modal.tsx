@@ -1,16 +1,34 @@
+import { getCategoryInfo } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
-  AlertCircle,
+  Bone,
   CalendarDays,
   Clock,
+  Pill,
+  Pipette,
+  Scissors,
   SearchX,
+  Stethoscope,
+  Syringe,
+  Tag,
   X
 } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
+import OverdueAlert from '../components/overdue_alert'
+
+const ICON_MAP: Record<string, any> = {
+  Tag,
+  Syringe,
+  Stethoscope,
+  Pill,
+  Pipette,
+  Scissors,
+  Bone
+}
 
 const formatDate = (date: Date) => {
   return date.toLocaleDateString('th-TH')
@@ -43,6 +61,10 @@ export default function ReminderDetailModal() {
 
   const reminder = getReminderApi?.data?.data
   const isOverdue = reminder?.reminderStatus === 'overdue'
+  const categoryInfo = reminder?.categoryName
+    ? getCategoryInfo(reminder.categoryName)
+    : null
+  const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
 
   useEffect(() => {
     if (id) {
@@ -111,32 +133,34 @@ export default function ReminderDetailModal() {
           <LoadingComponent />
         ) : (
           <View style={styles.formCard}>
-            {/* Overdue Alert Banner */}
-            {isOverdue && (
-              <View style={styles.overdueAlert}>
-                <AlertCircle color="#DC2626" size={20} />
-                <View style={styles.overdueAlertTextContainer}>
-                  <Text style={styles.overdueAlertTitle}>อ๊ะ! เลยเวลาแล้ว</Text>
-                  <Text style={styles.overdueAlertMessage}>
-                    ดูเหมือนว่ารายการนี้จะเลยกำหนดแล้วนะ
-                  </Text>
-                </View>
+            {isOverdue && <OverdueAlert />}
+
+            <Text style={styles.reminderTitle}>
+              {reminder?.reminderName || ''}
+            </Text>
+
+            {categoryInfo && (
+              <View
+                style={[
+                  styles.categoryTag,
+                  {
+                    backgroundColor: categoryInfo.color + '20',
+                    borderColor: categoryInfo.color
+                  }
+                ]}
+              >
+                {CategoryIcon && (
+                  <CategoryIcon size={20} color={categoryInfo.color} />
+                )}
+                <Text
+                  style={[styles.categoryText, { color: categoryInfo.color }]}
+                >
+                  {categoryInfo.label}
+                </Text>
               </View>
             )}
 
-            {/* Title Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>หัวข้อ</Text>
-              <TextInput
-                style={[styles.input, styles.readOnlyInput]}
-                value={reminder?.reminderName || ''}
-                editable={false}
-              />
-            </View>
-
-            {/* Date / Time Row */}
             <View style={styles.row}>
-              {/* Date Button */}
               <Pressable
                 style={[
                   styles.pickerButton,
@@ -160,7 +184,6 @@ export default function ReminderDetailModal() {
                 </Text>
               </Pressable>
 
-              {/* Time Button */}
               <Pressable
                 style={[
                   styles.pickerButton,
@@ -185,7 +208,6 @@ export default function ReminderDetailModal() {
               </Pressable>
             </View>
 
-            {/* Details Input */}
             <View>
               <TextInput
                 style={[styles.input, styles.textarea, styles.readOnlyInput]}
@@ -297,33 +319,14 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   formCard: {
-    padding: 16
+    padding: 20,
+    gap: 16
   },
-  overdueAlert: {
-    flexDirection: 'row',
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-    alignItems: 'center'
-  },
-  overdueAlertTextContainer: {
-    flex: 1,
-    gap: 2
-  },
-  overdueAlertTitle: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontFamily: 'Prompt_700Bold'
-  },
-  overdueAlertMessage: {
-    color: '#991B1B',
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    lineHeight: 16
+  reminderTitle: {
+    fontSize: 17,
+    fontWeight: '500',
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
   },
   inputGroup: {
     marginBottom: 16,
@@ -334,6 +337,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     marginLeft: 4
+  },
+  categoryDisplay: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 48,
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb'
+  },
+  categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'flex-start'
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Prompt_500Medium'
   },
   input: {
     borderWidth: 1,
@@ -353,8 +381,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16
+    gap: 12
   },
   pickerButton: {
     flex: 1,
