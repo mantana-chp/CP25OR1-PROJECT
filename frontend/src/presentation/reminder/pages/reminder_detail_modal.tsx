@@ -1,7 +1,6 @@
 import { getCategoryInfo } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
   Bone,
   CalendarDays,
@@ -50,9 +49,15 @@ const parseApiTime = (timeString: string): Date => {
   return date
 }
 
-export default function ReminderDetailModal() {
-  const router = useRouter()
-  const { id } = useLocalSearchParams<{ id: string }>()
+interface ReminderDetailModalProps {
+  id: string
+  onClose: () => void
+}
+
+export default function ReminderDetailModal({
+  id,
+  onClose
+}: ReminderDetailModalProps) {
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
 
   const getReminderApi = useApi(reminderService.getReminderById, {
@@ -76,7 +81,7 @@ export default function ReminderDetailModal() {
   if (!id || (!getReminderApi.loading && !reminder)) {
     return (
       <View style={styles.modalOverlay}>
-        <Pressable style={styles.backdrop} onPress={() => router.back()} />
+        <Pressable style={styles.backdrop} onPress={onClose} />
 
         <View
           style={styles.notFoundContent}
@@ -103,7 +108,7 @@ export default function ReminderDetailModal() {
               styles.closeButtonOutside,
               { top: modalLayout.y + modalLayout.height + 20 }
             ]}
-            onPress={() => router.back()}
+            onPress={onClose}
           >
             <X color="#FFFFFF" size={28} />
           </Pressable>
@@ -114,7 +119,7 @@ export default function ReminderDetailModal() {
 
   return (
     <View style={styles.modalOverlay}>
-      <Pressable style={styles.backdrop} onPress={() => router.back()} />
+      <Pressable style={styles.backdrop} onPress={onClose} />
 
       <View
         style={styles.modalContent}
@@ -228,7 +233,7 @@ export default function ReminderDetailModal() {
             styles.closeButtonOutside,
             { top: modalLayout.y + modalLayout.height + 20 }
           ]}
-          onPress={() => router.back()}
+          onPress={onClose}
         >
           <X color="#FFFFFF" size={28} />
         </Pressable>

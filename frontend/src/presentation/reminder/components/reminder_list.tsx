@@ -10,6 +10,7 @@ import { useApi } from '@/src/utils/api/use_api'
 import { Plus } from 'lucide-react-native'
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +18,7 @@ import {
   View
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
+import ReminderDetailModal from '../pages/reminder_detail_modal'
 
 type TabType = 'to_do' | 'done'
 
@@ -36,6 +38,9 @@ export default function ReminderList({
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
+  const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
+    null
+  )
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     showErrorAlert: true,
@@ -56,7 +61,7 @@ export default function ReminderList({
   }, [reminders])
 
   const handleReminderDetail = (reminderId: string) => {
-    router.push(`/(tabs)/reminder-details/${reminderId}`)
+    setSelectedReminderId(reminderId)
   }
 
   const handleDeleteReminder = useCallback(
@@ -193,6 +198,19 @@ export default function ReminderList({
           <Plus size={32} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       </Link>
+
+      {/* Reminder Detail Modal */}
+      <Modal
+        visible={!!selectedReminderId}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedReminderId(null)}
+      >
+        <ReminderDetailModal
+          id={selectedReminderId || ''}
+          onClose={() => setSelectedReminderId(null)}
+        />
+      </Modal>
     </View>
   )
 }
