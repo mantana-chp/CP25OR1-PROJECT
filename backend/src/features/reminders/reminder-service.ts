@@ -34,12 +34,8 @@ export const deleteReminder = async (id: string, userId: string): Promise<void> 
     throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
   }
 
-  if (reminder.reminder_status !== reminder_status.to_do) {
-    if (reminder.reminder_status === reminder_status.done) {
-      throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
-    } else {
-      throw new BadRequestError('Only To Do reminders are deletable.');
-    }
+  if (reminder.reminder_status === reminder_status.done) {
+    throw new BadRequestError('Reminders with status Done cannot be deleted.');
   }
 
   await reminderRepository.deleteById(id);
