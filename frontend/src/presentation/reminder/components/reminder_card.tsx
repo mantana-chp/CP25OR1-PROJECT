@@ -169,7 +169,7 @@ export default function ReminderCard(props: ReminderCardProps) {
   }
 
   const handleToggleStatus = () => {
-    if (isDone || !onToggleStatus) return
+    if (!onToggleStatus) return
     onToggleStatus(reminder.id, reminder.reminderStatus)
   }
 
@@ -220,7 +220,6 @@ export default function ReminderCard(props: ReminderCardProps) {
           <TouchableOpacity
             style={styles.leftSection}
             onPress={handleToggleStatus}
-            disabled={isDone}
           >
             <View style={[styles.checkbox, isDone && styles.checkboxCompleted]}>
               {isDone && <View style={styles.checkboxInner} />}
@@ -339,9 +338,9 @@ const styles = StyleSheet.create({
     marginRight: 14
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: '#5FA7D1',
     backgroundColor: '#fff',
@@ -352,9 +351,9 @@ const styles = StyleSheet.create({
     borderColor: '#5FA7D1'
   },
   checkboxInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 9,
+    width: 12,
+    height: 12,
+    borderRadius: 12,
     backgroundColor: '#5FA7D1'
   },
   middleSection: {

@@ -92,19 +92,22 @@ export default function ReminderList({
     async (id: string, currentStatus: string) => {
       if (tempDoneIds.includes(id)) return
 
+      // Optimistic UI update for to_do/overdue -> done
       if (currentStatus === 'to_do' || currentStatus === 'overdue') {
         setTempDoneIds((prev) => [...prev, id])
+      }
 
-        try {
-          await updateStatusApi.execute(id, { reminderStatus: 'done' })
+      try {
+        await updateStatusApi.execute(id)
 
-          setTimeout(() => {
-            if (onRefresh) {
-              onRefresh()
-            }
-          }, 200)
-        } catch (error) {
-          console.error('Failed to update status, reverting UI', error)
+        setTimeout(() => {
+          if (onRefresh) {
+            onRefresh()
+          }
+        }, 200)
+      } catch (error) {
+        console.error('Failed to update status', error)
+        if (currentStatus === 'to_do' || currentStatus === 'overdue') {
           setTempDoneIds((prev) => prev.filter((doneId) => doneId !== id))
         }
       }
