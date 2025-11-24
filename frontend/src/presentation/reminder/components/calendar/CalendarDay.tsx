@@ -33,45 +33,46 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
   onPress
 }) => {
   return (
-    <TouchableOpacity
-      style={[styles.dayCell, isToday && styles.todayCell]}
-      onPress={() => onPress(date)}
-    >
-      <Text
-        style={[
-          styles.dayText,
-          !isCurrentMonth && styles.inactiveDayText,
-          isToday && styles.todayText
-        ]}
-      >
-        {day}
-      </Text>
-      {hasEvents && reminderCount && (
-        <View style={styles.eventIndicatorContainer}>
-          <View style={styles.dotsContainer}>
-            {/* Show up to 3 colored dots */}
-            {Array.from({ length: Math.min(3, reminderCount) }).map(
-              (_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.eventDot,
-                    {
-                      backgroundColor:
-                        REMINDER_COLORS[index % REMINDER_COLORS.length]
-                    }
-                  ]}
-                />
-              )
-            )}
-
-            {/* Show "+X" text if more than 3 reminders */}
-            {reminderCount > 3 && (
-              <Text style={styles.remainingText}>+{reminderCount - 3}</Text>
-            )}
-          </View>
+    <TouchableOpacity style={styles.dayCell} onPress={() => onPress(date)}>
+      <View style={styles.dayContent}>
+        <View style={[styles.dayNumberContainer, isToday && styles.todayCell]}>
+          <Text
+            style={[
+              styles.dayText,
+              !isCurrentMonth && styles.inactiveDayText,
+              isToday && styles.todayText
+            ]}
+          >
+            {day}
+          </Text>
         </View>
-      )}
+        {hasEvents && reminderCount && (
+          <View style={styles.eventIndicatorContainer}>
+            <View style={styles.dotsContainer}>
+              {/* Show up to 3 colored dots */}
+              {Array.from({ length: Math.min(3, reminderCount) }).map(
+                (_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.eventDot,
+                      {
+                        backgroundColor:
+                          REMINDER_COLORS[index % REMINDER_COLORS.length]
+                      }
+                    ]}
+                  />
+                )
+              )}
+
+              {/* Show "+X" text if more than 3 reminders */}
+              {reminderCount > 3 && (
+                <Text style={styles.remainingText}>+{reminderCount - 3}</Text>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   )
 }
@@ -81,12 +82,24 @@ const styles = StyleSheet.create({
     width: '14.28%',
     aspectRatio: 1,
     justifyContent: 'center',
+    alignItems: 'center'
+  },
+  dayContent: {
+    justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative'
+    gap: 2
+  },
+  dayNumberContainer: {
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   todayCell: {
     backgroundColor: '#5FA7D1',
-    borderRadius: 100
+    borderRadius: 100,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   dayText: {
     fontSize: 15,
@@ -103,8 +116,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_700Bold'
   },
   eventIndicatorContainer: {
-    position: 'absolute',
-    bottom: -5,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center'
