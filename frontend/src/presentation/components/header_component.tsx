@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 interface HeaderProps {
   title: string
   goBack?: boolean
+  onBackPress?: () => void
 }
 
 export default function Header(props: HeaderProps) {
@@ -16,6 +17,14 @@ export default function Header(props: HeaderProps) {
   // ------------------
   const router = useRouter()
   const insets = useSafeAreaInsets()
+
+  const handleBackPress = () => {
+    if (props.onBackPress) {
+      props.onBackPress()
+    } else {
+      router.back()
+    }
+  }
 
   // ------------------
   // RENDER
@@ -31,7 +40,7 @@ export default function Header(props: HeaderProps) {
       ]}
     >
       {props.goBack && (
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={handleBackPress}>
           <Text style={styles.headerBackIcon}>
             <ChevronLeft color="white" />
           </Text>

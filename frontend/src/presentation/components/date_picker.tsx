@@ -127,6 +127,7 @@ export default function DatePicker(props: DatePickerProps) {
                 onChange={handleChange}
                 textColor="#5FA7D1"
                 style={styles.picker}
+                locale="th-TH"
               />
 
               <View style={styles.modalFooter}>
@@ -220,9 +221,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_500Medium'
   },
   closeButton: {
     fontSize: 24,
@@ -230,7 +231,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8
   },
   picker: {
-    height: 200
+    height: 200,
+    width: '100%',
+    alignSelf: 'center'
   },
   modalFooter: {
     paddingHorizontal: 16,

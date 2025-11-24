@@ -23,13 +23,14 @@ import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
+import CategorySelector from '../components/category_selector'
 
 export default function AddReminderPage() {
   const router = useRouter()
 
   const createReminderApi = useApi(reminderService.createReminder, {
     showErrorAlert: true,
-    successMessage: 'เพิ่มการเตือนความจำสำเร็จ',
+    successMessage: 'เพิ่มเตือนความจำสำเร็จ',
     onSuccess: () => {
       router.back()
     }
@@ -41,21 +42,29 @@ export default function AddReminderPage() {
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      console.log('🔄 Submitting reminder:', values)
-      await createReminderApi.execute(values as any)
+      await createReminderApi.execute(values as IReminder)
     }
   })
 
   const isSubmitting = createReminderApi.loading
 
+  const handleBack = () => {
+    formik.resetForm()
+    router.back()
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.safeArea}>
-        <Header title="เพิ่มการเตือนความจำ" goBack={!isSubmitting} />
+        <Header
+          title="เพิ่มเตือนความจำ"
+          goBack={!isSubmitting}
+          onBackPress={handleBack}
+        />
 
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
-            <Pressable onPress={() => router.back()} disabled={isSubmitting}>
+            <Pressable onPress={handleBack} disabled={isSubmitting}>
               <Text style={styles.cancelText}>ยกเลิก</Text>
             </Pressable>
             <Pressable
@@ -73,7 +82,7 @@ export default function AddReminderPage() {
           <InputText
             value={formik.values.reminderName}
             onChangeText={(v) => formik.setFieldValue('reminderName', v)}
-            placeholder="หัวข้อการเตือนความจำ"
+            placeholder="หัวข้อเตือนความจำ"
             title="หัวข้อ"
             required={true}
             error={formik.errors.reminderName}
@@ -103,6 +112,13 @@ export default function AddReminderPage() {
               />
             </View>
           </View>
+
+          <CategorySelector
+            value={formik.values.categoryName}
+            onChange={(v) => formik.setFieldValue('categoryName', v)}
+            error={formik.errors.categoryName}
+            required={true}
+          />
 
           <View>
             <TextInput
@@ -137,7 +153,7 @@ const styles = StyleSheet.create({
   formCard: {
     backgroundColor: '#ffffff',
     margin: 16,
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -149,33 +165,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 18
   },
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    fontWeight: 'bold'
+    fontFamily: 'Prompt_400Regular'
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    fontWeight: 'bold'
+    fontFamily: 'Prompt_700Bold'
   },
   submittingText: {
     color: '#6b7280'
-  },
-
-  inputGroup: {
-    marginBottom: 16,
-    gap: 4
-  },
-  inputLabel: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    marginLeft: 4
   },
   input: {
     borderWidth: 1,
@@ -201,7 +204,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16
+    gap: 8
   }
 })

@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_400Regular',
     color: '#374151',
     textAlign: 'center'
   },
