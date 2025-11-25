@@ -15,7 +15,7 @@ import {
   View
 } from 'react-native'
 import { useCalendar } from '../../../hooks/useCalendar'
-import { CalendarDay } from './calendar/CalendarDay'
+import CalendarDay from './calendar/CalendarDay'
 import CalendarHeader from './calendar/CalendarHeader'
 import WeekDaysRow from './calendar/WeekDaysRow'
 
