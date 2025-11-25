@@ -1,17 +1,6 @@
+import { IReminder, getCategoryInfo } from '@/src/domain/reminder.domain'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-
-// Color palette for reminder dots
-const REMINDER_COLORS = [
-  '#5FA7D1', // Blue
-  '#F97316', // Orange
-  '#10B981', // Green
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#F59E0B', // Amber
-  '#06B6D4', // Cyan
-  '#EF4444' // Red
-]
 
 interface CalendarDayProps {
   day: number
@@ -19,19 +8,26 @@ interface CalendarDayProps {
   isToday: boolean
   hasEvents?: boolean
   reminderCount?: number
+  reminders?: IReminder[]
   date: Date
   onPress: (date: Date) => void
 }
 
-export const CalendarDay: React.FC<CalendarDayProps> = ({
+export default function CalendarDay({
   day,
   isCurrentMonth,
   isToday,
   hasEvents,
   reminderCount,
+  reminders = [],
   date,
   onPress
-}) => {
+}: CalendarDayProps) {
+  // Get category colors for this day's reminders
+  const reminderColors = reminders
+    .slice(0, 3) // Only show up to 3 dots
+    .map((reminder) => getCategoryInfo(reminder.categoryName).color)
+
   return (
     <TouchableOpacity style={styles.dayCell} onPress={() => onPress(date)}>
       <View style={styles.dayContent}>
@@ -49,25 +45,17 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
         {hasEvents && reminderCount && (
           <View style={styles.eventIndicatorContainer}>
             <View style={styles.dotsContainer}>
-              {/* Show up to 3 colored dots */}
-              {Array.from({ length: Math.min(3, reminderCount) }).map(
-                (_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.eventDot,
-                      {
-                        backgroundColor:
-                          REMINDER_COLORS[index % REMINDER_COLORS.length]
-                      }
-                    ]}
-                  />
-                )
-              )}
+              {/* Show up to 3 colored dots based on category colors */}
+              {reminderColors.map((color, index) => (
+                <View
+                  key={index}
+                  style={[styles.eventDot, { backgroundColor: color }]}
+                />
+              ))}
 
               {/* Show "+X" text if more than 3 reminders */}
               {reminderCount > 3 && (
-                <Text style={styles.remainingText}>+{reminderCount - 3}</Text>
+                <Text style={styles.reminderCount}>+{reminderCount - 3}</Text>
               )}
             </View>
           </View>
@@ -131,10 +119,9 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3
   },
-  remainingText: {
+  reminderCount: {
     fontSize: 9,
     fontFamily: 'Prompt_500Medium',
-    color: '#A6A6A6',
-    fontWeight: '600'
+    color: '#A6A6A6'
   }
 })

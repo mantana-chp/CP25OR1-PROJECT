@@ -8,6 +8,7 @@ interface DayInfo {
   isToday: boolean
   hasEvents?: boolean
   reminderCount?: number
+  reminders?: IReminder[]
   date: Date
 }
 
@@ -47,6 +48,17 @@ export const useCalendar = (reminders: IReminder[] = []) => {
         reminderDate.getFullYear() === date.getFullYear()
       )
     }).length
+  }
+
+  const getRemindersForDate = (date: Date) => {
+    return reminders.filter((reminder) => {
+      const reminderDate = new Date(reminder.reminderDate)
+      return (
+        reminderDate.getDate() === date.getDate() &&
+        reminderDate.getMonth() === date.getMonth() &&
+        reminderDate.getFullYear() === date.getFullYear()
+      )
+    })
   }
 
   const renderCalendar = (): DayInfo[] => {
@@ -89,6 +101,7 @@ export const useCalendar = (reminders: IReminder[] = []) => {
         isToday,
         hasEvents: hasReminders(date),
         reminderCount: getReminderCount(date),
+        reminders: getRemindersForDate(date),
         date
       })
     }
