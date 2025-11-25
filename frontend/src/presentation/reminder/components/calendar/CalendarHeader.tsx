@@ -11,13 +11,13 @@ interface CalendarHeaderProps {
   onGoToToday: () => void
 }
 
-export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
+export default function CalendarHeader({
   currentDate,
   isCurrentMonth,
   onPreviousMonth,
   onNextMonth,
   onGoToToday
-}) => {
+}: CalendarHeaderProps) {
   return (
     <View style={styles.header}>
       <Text style={styles.headerText}>

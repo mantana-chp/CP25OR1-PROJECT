@@ -16,8 +16,8 @@ import {
 } from 'react-native'
 import { useCalendar } from '../../../hooks/useCalendar'
 import { CalendarDay } from './calendar/CalendarDay'
-import { CalendarHeader } from './calendar/CalendarHeader'
-import { WeekDaysRow } from './calendar/WeekDaysRow'
+import CalendarHeader from './calendar/CalendarHeader'
+import WeekDaysRow from './calendar/WeekDaysRow'
 
 if (
   Platform.OS === 'android' &&
@@ -90,6 +90,7 @@ export default function Calendar({
             isToday={item.isToday}
             hasEvents={item.hasEvents}
             reminderCount={item.reminderCount}
+            reminders={item.reminders}
             date={item.date}
             onPress={handleDatePress}
           />

@@ -3,7 +3,7 @@ import _ from 'lodash'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
-export const WeekDaysRow: React.FC = () => {
+export default function WeekDaysRow() {
   return (
     <View style={styles.weekDaysRow}>
       {_.map(weekDays, (day, index) => (
