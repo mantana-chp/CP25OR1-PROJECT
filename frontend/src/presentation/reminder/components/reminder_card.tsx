@@ -206,7 +206,9 @@ export default function ReminderCard(props: ReminderCardProps) {
           {
             transform: [{ translateX }],
             borderLeftColor:
-              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD'
+              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD',
+            backgroundColor:
+              reminder?.reminderStatus === 'overdue' ? '#FEF2F2' : '#fff'
           }
         ]}
         {...(canDelete ? panResponder.panHandlers : {})}
@@ -217,14 +219,15 @@ export default function ReminderCard(props: ReminderCardProps) {
           style={styles.cardTouchable}
         >
           {/* Left side - Checkbox circle */}
-          <TouchableOpacity
+            <TouchableOpacity
             style={styles.leftSection}
             onPress={handleToggleStatus}
-          >
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
             <View style={[styles.checkbox, isDone && styles.checkboxCompleted]}>
               {isDone && <View style={styles.checkboxInner} />}
             </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
@@ -239,8 +242,21 @@ export default function ReminderCard(props: ReminderCardProps) {
             </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={16} color="#2E759E" fill="#2E759E" />
-              <Text style={styles.petNameText}>
+              <PawPrint
+                size={16}
+                color={
+                  reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
+                }
+                fill={
+                  reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
+                }
+              />
+              <Text
+                style={[
+                  styles.petNameText,
+                  reminder?.reminderStatus === 'overdue' && styles.overdueText
+                ]}
+              >
                 {reminder?.pet_name || '-'}
               </Text>
             </View>
@@ -326,7 +342,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    borderLeftWidth: 6
+    borderLeftWidth: 8
   },
   cardTouchable: {
     flex: 1,
@@ -341,9 +357,8 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 18,
-    borderWidth: 2,
-    borderColor: '#5FA7D1',
-    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#A6A6A6',
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -379,7 +394,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_700Bold'
   },
   overdueTitleText: {
-    color: '#BF1737'
+    color: '#BF1737',
+    fontFamily: 'Prompt_700Bold'
   },
   infoRow: {
     flexDirection: 'row',
@@ -398,6 +414,6 @@ const styles = StyleSheet.create({
   },
   overdueText: {
     color: '#BF1737',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_700Bold'
   }
 })

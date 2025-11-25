@@ -5,6 +5,7 @@ import {
   Bone,
   CalendarDays,
   Clock,
+  PawPrint,
   Pill,
   Pipette,
   Scissors,
@@ -15,7 +16,7 @@ import {
   X
 } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import OverdueAlert from '../components/overdue_alert'
 
@@ -76,6 +77,7 @@ export default function ReminderDetailModal({
       getReminderApi.execute(id)
     }
   }, [id])
+  console.log(reminder)
 
   // Show not found message
   if (!id || (!getReminderApi.loading && !reminder)) {
@@ -144,63 +146,37 @@ export default function ReminderDetailModal({
               {reminder?.reminderName || ''}
             </Text>
 
-            <View style={styles.row}>
-              <Pressable
-                style={[
-                  styles.pickerButton,
-                  styles.readOnlyInput,
-                  isOverdue && styles.overdueInputBorder
-                ]}
-                disabled={true}
-              >
-                <Text
-                  style={[
-                    styles.pickerButtonText,
-                    isOverdue && styles.overdueText
-                  ]}
-                >
-                  {reminder?.reminderDate
-                    ? formatDate(new Date(reminder.reminderDate))
-                    : '-'}
-                </Text>
-                <Text style={styles.pickerButtonIcon}>
-                  <CalendarDays color={isOverdue ? '#DC2626' : '#A6A6A6'} />
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.pickerButton,
-                  styles.readOnlyInput,
-                  isOverdue && styles.overdueInputBorder
-                ]}
-                disabled={true}
-              >
-                <Text
-                  style={[
-                    styles.pickerButtonText,
-                    isOverdue && styles.overdueText
-                  ]}
-                >
-                  {reminder?.reminderTime
-                    ? formatTime(parseApiTime(reminder.reminderTime))
-                    : '-'}
-                </Text>
-                <Text style={styles.pickerButtonIcon}>
-                  <Clock color={isOverdue ? '#DC2626' : '#A6A6A6'} />
-                </Text>
-              </Pressable>
+            <View style={styles.infoRow}>
+              <PawPrint size={20} color={'#2E759E'} fill={'#2E759E'} />
+              <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
-            <View>
-              <TextInput
-                style={[styles.input, styles.textarea, styles.readOnlyInput]}
-                value={reminder?.description || '-'}
-                multiline
-                numberOfLines={4}
-                editable={false}
+            <View style={styles.infoRow}>
+              <CalendarDays
+                size={20}
+                color={isOverdue ? '#DC2626' : '#225877'}
               />
+              <Text style={[styles.infoText, isOverdue && styles.overdueText]}>
+                {reminder?.reminderDate
+                  ? formatDate(new Date(reminder.reminderDate))
+                  : '-'}
+              </Text>
+              <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
+              <Text style={[styles.infoText, isOverdue && styles.overdueText]}>
+                {reminder?.reminderTime
+                  ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
+                  : '-'}
+              </Text>
             </View>
+
+            {/* {reminder?.description && reminder.description !== '-' && ( */}
+            <View style={styles.descriptionSection}>
+              <Text style={styles.descriptionLabel}>รายละเอียด</Text>
+              <Text style={styles.descriptionText}>
+                {reminder?.description || '-'}
+              </Text>
+            </View>
+            {/* )} */}
 
             {categoryInfo && (
               <View
@@ -226,7 +202,7 @@ export default function ReminderDetailModal({
         )}
       </View>
 
-      {/* Close Button - Dynamically positioned below modal */}
+      {/* Close Button */}
       {modalLayout.height > 0 && (
         <Pressable
           style={[
@@ -299,16 +275,16 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   header: {
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb'
   },
   headerTitle: {
     color: '#225877',
-    fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
+    fontSize: 17,
+    fontFamily: 'Prompt_400Regular',
     textAlign: 'center'
   },
   formCard: {
@@ -316,8 +292,7 @@ const styles = StyleSheet.create({
     gap: 16
   },
   reminderTitle: {
-    fontSize: 17,
-    fontWeight: '500',
+    fontSize: 20,
     fontFamily: 'Prompt_500Medium',
     color: '#225877'
   },
@@ -335,6 +310,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Prompt_500Medium'
   },
+  descriptionSection: {
+    gap: 2
+  },
+  descriptionLabel: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#A6A6A6'
+  },
+  descriptionText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877',
+    lineHeight: 24
+  },
   input: {
     borderWidth: 1,
     borderColor: '#d1d5db',
@@ -351,36 +340,19 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingVertical: 12
   },
-  row: {
+  infoRow: {
     flexDirection: 'row',
-    gap: 12
-  },
-  pickerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    height: 48
+    gap: 8
   },
-  overdueInputBorder: {
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2'
-  },
-  pickerButtonText: {
+  infoText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     color: '#225877'
   },
-  pickerButtonIcon: {
-    fontSize: 20
-  },
   overdueText: {
     color: '#DC2626',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_700Bold'
   },
   notFoundTitle: {
     fontSize: 22,
