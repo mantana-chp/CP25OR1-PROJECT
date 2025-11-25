@@ -43,6 +43,7 @@ export default function AddReminderPage() {
     validateOnChange: false,
     onSubmit: async (values) => {
       await createReminderApi.execute(values as IReminder)
+      formik.resetForm()
     }
   })
 
