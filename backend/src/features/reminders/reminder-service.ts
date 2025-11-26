@@ -2,8 +2,26 @@ import * as reminderRepository from './reminder-repository';
 import { Reminder, CreateReminderInput, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderWithPetToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
-import { Prisma, reminder_status, category_name } from '../../generated/prisma/client';
+import { Prisma, reminder_status, category_name, reminders } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
+
+const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
+  if (!reminder.reminder_time) {
+    // For date-only reminders, compare full days in UTC
+    const reminderDay = new Date(
+      Date.UTC(reminder.reminder_date.getUTCFullYear(), reminder.reminder_date.getUTCMonth(), reminder.reminder_date.getUTCDate())
+    );
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    return reminderDay < today; // Overdue if reminder day is strictly before today
+  } else {
+    // For reminders with time, construct a GMT+7 date and convert to UTC for robust comparison
+    const datePart = reminder.reminder_date.toISOString().split('T')[0];
+    const timePart = reminder.reminder_time.toISOString().split('T')[1].split('.')[0];
+    const isoStringWithOffset = `${datePart}T${timePart}+07:00`; // Explicitly GMT+7
+    const reminderDateTime = new Date(isoStringWithOffset);
+    return reminderDateTime < now; // Overdue if reminder datetime is strictly in the past
+  }
+};
 
 export const getAllReminders = async (userId: string): Promise<ReminderWithPetName[]> => {
   return await reminderRepository.findAllByUserId(userId);
@@ -111,7 +129,7 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
       }
       break;
     case 'done':
-      newStatus = reminder.status_before_done || reminder_status.to_do; // Default to 'to_do' if not set
+      newStatus = isReminderOverdue(reminder, new Date()) ? reminder_status.overdue : reminder_status.to_do;
       newStatusBeforeDone = null;
       newStatusDoneAt = null;
       isHealthRecord = false; // Revert health record status on undo
@@ -133,28 +151,14 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
 export const updateOverdueReminders = async (): Promise<void> => {
   const now = new Date();
 
-  const overdueReminders = await prisma.reminders.findMany({
+  const remindersToCheck = await prisma.reminders.findMany({
     where: {
       reminder_status: 'to_do',
       reminder_date: { lte: now },
     },
   });
 
-  const remindersToUpdate = overdueReminders.filter(r => {
-    if (!r.reminder_time) {
-      // date only reminder gonna compare by full day
-      const reminderDay = new Date(Date.UTC(r.reminder_date.getUTCFullYear(), r.reminder_date.getUTCMonth(), r.reminder_date.getUTCDate()));
-      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      return reminderDay < today; // Overdue if reminder day is strictly before today
-    } else {
-      // with specific time, construct a GMT+7 date and convert to UTC for robust comparison
-      const datePart = r.reminder_date.toISOString().split('T')[0];
-      const timePart = r.reminder_time.toISOString().split('T')[1].split('.')[0];
-      const isoStringWithOffset = `${datePart}T${timePart}+07:00`; // Explicitly GMT+7
-      const reminderDateTime = new Date(isoStringWithOffset);
-      return reminderDateTime < now; // Overdue if reminder datetime is strictly in the past
-    }
-  });
+  const remindersToUpdate = remindersToCheck.filter(r => isReminderOverdue(r, now));
 
   if (remindersToUpdate.length > 0) {
     const idsToUpdate = remindersToUpdate.map(r => r.id);
