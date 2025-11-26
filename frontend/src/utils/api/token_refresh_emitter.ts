@@ -1,7 +1,9 @@
 type Listener = (isRefreshing: boolean) => void
+type SessionExpiredListener = () => void
 
 class TokenRefreshEmitter {
   private listeners: Listener[] = []
+  private sessionExpiredListeners: SessionExpiredListener[] = []
 
   subscribe(listener: Listener) {
     this.listeners.push(listener)
@@ -12,6 +14,19 @@ class TokenRefreshEmitter {
 
   emit(isRefreshing: boolean) {
     this.listeners.forEach((listener) => listener(isRefreshing))
+  }
+
+  onSessionExpired(listener: SessionExpiredListener) {
+    this.sessionExpiredListeners.push(listener)
+    return () => {
+      this.sessionExpiredListeners = this.sessionExpiredListeners.filter(
+        (l) => l !== listener
+      )
+    }
+  }
+
+  emitSessionExpired() {
+    this.sessionExpiredListeners.forEach((listener) => listener())
   }
 }
 
