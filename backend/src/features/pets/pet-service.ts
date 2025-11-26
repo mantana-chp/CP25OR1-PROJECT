@@ -1,6 +1,7 @@
 import * as petRepository from './pet-repository';
 import { ApiError, NotFoundError, ConflictError } from '../../shared/errors';
 import { Prisma } from '../../generated/prisma/client';
+import { formatAgeFromBirthDate } from '../../shared/utils';
 
 export type PetCreationData = {
   pet_name: string;
@@ -38,17 +39,7 @@ export const getPetProfile = async (userId: string) => {
     throw new NotFoundError('Pet not found for this user.');
   }
 
-  let age = null;
-  if (pet.birth_date) {
-    const today = new Date();
-    const birthDate = new Date(pet.birth_date);
-    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      calculatedAge--;
-    }
-    age = calculatedAge;
-  }
+  const age = formatAgeFromBirthDate(pet.birth_date);
 
   return {
     id: pet.id,

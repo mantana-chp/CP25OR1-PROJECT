@@ -8,7 +8,7 @@ import { requestLogger } from './middlewares/request-logger';
 const app = express();
 
 app.use(express.json());
-app.use(cors()); // ***make it only allow specific origins in production***
+app.use(cors());
 app.use(helmet()); // Use helmet for security
 
 // Request Logger
