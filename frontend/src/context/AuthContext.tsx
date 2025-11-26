@@ -1,6 +1,7 @@
 import { apiClient } from '@/src/utils/api/api_client'
 import { authService } from '@/src/utils/api/services/auth_service'
 import { userService } from '@/src/utils/api/services/user_service'
+import { tokenRefreshEmitter } from '@/src/utils/api/token_refresh_emitter'
 import { registerForPushNotificationsAsync } from '@/src/utils/registerForPushNotificationsAsync'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import React, {
@@ -43,7 +44,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('🚀 AuthProvider mounted')
     initAuth()
+
+    // Listen for session expired events (when refresh token fails)
+    const unsubscribe = tokenRefreshEmitter.onSessionExpired(async () => {
+      console.log('🔄 Session expired, performing device re-login...')
+      await performDeviceLogin()
+    })
+
+    return unsubscribe
   }, [])
+
+  const performDeviceLogin = async () => {
+    try {
+      console.log('🔄 Performing device login...')
+      const response = await authService.deviceLogin()
+      console.log('Device login response:', response)
+
+      // Save tokens and installation ID
+      await apiClient.setToken(
+        response.accessToken,
+        response.refreshToken || ''
+      )
+      await apiClient.setInstallationId(response.installationId)
+      console.log('✅ Tokens and installation ID saved to storage')
+
+      setToken(response.accessToken)
+      setIsAuthenticated(true)
+      setError(null)
+
+      // Register push notification token
+      await registerPushNotification()
+
+      console.log('🎉 Device login successful!')
+    } catch (err: any) {
+      console.error('❌ Device login failed:', err)
+      setError(err?.message || 'Device login failed')
+      setIsAuthenticated(false)
+      setToken(null)
+      throw err
+    }
+  }
 
   const initAuth = async () => {
     console.log('🔐 Starting authentication...')
@@ -61,34 +101,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Step 2: Check for existing token
       console.log('📝 Checking for existing token...')
       const existingToken = await apiClient.getAccessToken()
-      console.log('Existing token:', existingToken)
+      const existingRefreshToken = await apiClient.getRefreshToken()
+      console.log('Existing token:', existingToken ? 'Found' : 'Not found')
+      console.log(
+        'Existing refresh token:',
+        existingRefreshToken ? 'Found' : 'Not found'
+      )
 
-      if (existingToken) {
+      if (existingToken && existingRefreshToken) {
         console.log('✅ Using existing token')
         setToken(existingToken)
         setIsAuthenticated(true)
         setError(null)
+
+        // Try to register push notification token
+        // If this fails due to invalid token, the session expired event will be triggered
+        try {
+          await registerPushNotification()
+        } catch (error) {
+          console.warn('⚠️ Push notification registration failed during init')
+          // If push registration fails, the token refresh interceptor will handle it
+          // and trigger session expired event if needed
+        }
       } else {
-        // Step 3: Perform device-based login
-        console.log('🔄 Performing device login...')
-        const response = await authService.deviceLogin()
-        console.log('Device login response:', response)
-
-        // Step 4: Save tokens and installation ID
-        await apiClient.setToken(
-          response.accessToken,
-          response.refreshToken || ''
-        )
-        await apiClient.setInstallationId(response.installationId)
-        console.log('✅ Tokens and installation ID saved to storage')
-
-        setToken(response.accessToken)
-        setIsAuthenticated(true)
-        setError(null)
+        // Step 3: Clear any partial tokens and perform device-based login
+        console.log('🧹 No valid token pair found, clearing tokens...')
+        await apiClient.clearTokens()
+        await performDeviceLogin()
       }
-
-      // Step 5: Register push notification token
-      await registerPushNotification()
 
       console.log('🎉 Authentication successful!')
     } catch (err: any) {
