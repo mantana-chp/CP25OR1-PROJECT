@@ -1,24 +1,9 @@
 import { Reminder, ReminderWithPetName } from './reminder-types';
-import { reminder_status, category_name } from '../../generated/prisma/client';
+import { Prisma, reminders as PrismaReminder } from '../../generated/prisma/client';
 
-interface PrismaReminder {
-  id: string;
-  user_id: string;
-  pet_id: string;
-  category_name: category_name;
-  reminder_name: string | null;
-  description: string | null;
-  reminder_date: Date;
-  reminder_time: Date | null;
-  reminder_status: reminder_status;
-  status_done_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
-  is_health: boolean;
-}
-interface PrismaReminderWithPet extends PrismaReminder {
-  pets: { pet_name: string } | null;
-}
+type PrismaReminderWithPet = Prisma.remindersGetPayload<{
+  include: { pets: true };
+}>;
 
 export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Reminder => {
   return {

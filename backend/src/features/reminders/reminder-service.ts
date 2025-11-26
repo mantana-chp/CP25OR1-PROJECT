@@ -1,6 +1,6 @@
 import * as reminderRepository from './reminder-repository';
 import { Reminder, CreateReminderInput, ReminderWithPetName } from './reminder-types';
-import { mapPrismaReminderToReminder } from './reminder-mapper';
+import { mapPrismaReminderWithPetToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
 import { Prisma, reminder_status, category_name } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
@@ -9,7 +9,7 @@ export const getAllReminders = async (userId: string): Promise<ReminderWithPetNa
   return await reminderRepository.findAllByUserId(userId);
 };
 
-export const getReminderById = async (id: string, userId: string): Promise<Reminder> => {
+export const getReminderById = async (id: string, userId: string): Promise<ReminderWithPetName> => {
   const reminder = await reminderRepository.findById(id);
 
   if (!reminder) {
@@ -20,7 +20,7 @@ export const getReminderById = async (id: string, userId: string): Promise<Remin
     throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
   }
 
-  return mapPrismaReminderToReminder(reminder);
+  return mapPrismaReminderWithPetToReminder(reminder);
 };
 
 export const deleteReminder = async (id: string, userId: string): Promise<void> => {
@@ -35,7 +35,7 @@ export const deleteReminder = async (id: string, userId: string): Promise<void> 
   }
 
   if (reminder.reminder_status === reminder_status.done) {
-    throw new BadRequestError('Reminders with status Done cannot be deleted.');
+    throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
   }
 
   await reminderRepository.deleteById(id);

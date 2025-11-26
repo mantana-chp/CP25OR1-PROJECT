@@ -1,8 +1,11 @@
 import prisma from '../../libs/db';
 import { Reminder, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderToReminder, mapPrismaReminderWithPetToReminder } from './reminder-mapper';
-import { Prisma, reminder_status } from '../../generated/prisma/client';
-import { reminders } from '../../generated/prisma/client';
+import { Prisma, reminder_status, reminders } from '../../generated/prisma/client';
+
+type ReminderWithPetPayload = Prisma.remindersGetPayload<{
+  include: { pets: true };
+}>;
 
 export const findAllByUserId = async (userId: string): Promise<ReminderWithPetName[]> => {
   const prismaReminders = await prisma.reminders.findMany({
@@ -10,15 +13,18 @@ export const findAllByUserId = async (userId: string): Promise<ReminderWithPetNa
       user_id: userId,
     },
     include: {
-      pets: true, // Include the related pet data
+      pets: true,
     },
   });
   return prismaReminders.map(mapPrismaReminderWithPetToReminder);
 };
 
-export const findById = async (id: string): Promise<reminders | null> => {
+export const findById = async (id: string): Promise<ReminderWithPetPayload | null> => {
   return await prisma.reminders.findUnique({
     where: { id },
+    include: {
+      pets: true,
+    },
   });
 };
 
