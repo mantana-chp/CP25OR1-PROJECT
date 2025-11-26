@@ -15,15 +15,17 @@ export default function PetInfoCard(props: PetInfoCardProps) {
           <Ionicons name="paw" size={42} color="white" />
         </View>
         <View style={styles.cardHeaderText}>
-          <Text style={styles.petName}>ดัมดัม</Text>
+          <Text style={styles.petName}>{props.data.name}</Text>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>{props.data.species} {props.data.breed}</Text>
+              <Text style={styles.infoText}>
+                {props.data.species} {props.data.breed}
+              </Text>
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>{`${4} ปี ${8} เดือน`}</Text>
+              <Text style={styles.infoText}>{props.data.age}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>

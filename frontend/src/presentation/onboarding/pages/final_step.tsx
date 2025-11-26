@@ -5,12 +5,18 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 
 export default function FinalStep() {
-  const { completeOnboarding } = useAuth()
+  const { completeOnboarding, hasPetProfile } = useAuth()
   const router = useRouter()
 
   const handleFinish = async () => {
     await completeOnboarding()
-    router.replace('/(tabs)')
+
+    // Check if user has pet profile
+    if (!hasPetProfile) {
+      router.replace('/(tabs)/add_pet_form')
+    } else {
+      router.replace('/(tabs)')
+    }
   }
 
   return (

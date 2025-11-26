@@ -16,12 +16,14 @@ import {
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
+import { useAuth } from '@/src/context/AuthContext'
 
 export default function PetProfileForm() {
   // ------------------
   // CONST
   // ------------------
   const router = useRouter()
+  const { checkPetProfile, hasPetProfile } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>('')
@@ -67,12 +69,15 @@ export default function PetProfileForm() {
         const response = await petProfileService.createPetProfile(petDataToSend)
         console.log('✅ Pet profile created successfully:', response)
 
+        // Update pet profile status in auth context
+        await checkPetProfile()
+
         Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
           {
             text: 'ตกลง',
             onPress: () => {
               formik.resetForm()
-              router.push('/(tabs)')
+              router.replace('/(tabs)')
             }
           }
         ])
@@ -125,7 +130,10 @@ export default function PetProfileForm() {
   // ------------------
   return (
     <>
-      <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={true} />
+      <Header
+        title="สร้างโปรไฟล์สัตว์เลี้ยง"
+        goBack={hasPetProfile} // Only show back button if user already has pets
+      />
 
       <ScrollView>
         <View style={styles.formContainer}>

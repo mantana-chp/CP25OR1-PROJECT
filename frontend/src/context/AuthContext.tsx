@@ -1,5 +1,6 @@
 import { apiClient } from '@/src/utils/api/api_client'
 import { authService } from '@/src/utils/api/services/auth_service'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { userService } from '@/src/utils/api/services/user_service'
 import { tokenRefreshEmitter } from '@/src/utils/api/token_refresh_emitter'
 import { registerForPushNotificationsAsync } from '@/src/utils/registerForPushNotificationsAsync'
@@ -20,8 +21,10 @@ interface AuthContextType {
   token: string | null
   error: string | null
   hasCompletedOnboarding: boolean
+  hasPetProfile: boolean
   completeOnboarding: () => Promise<void>
   refreshAuth: () => Promise<void>
+  checkPetProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
+  const [hasPetProfile, setHasPetProfile] = useState(false)
 
   useEffect(() => {
     console.log('🚀 AuthProvider mounted')
@@ -130,6 +134,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await performDeviceLogin()
       }
 
+      // Step 4: Check if user has pet profile (only if onboarding completed)
+      if (hasSeenOnboarding) {
+        await checkPetProfile()
+      }
+
       console.log('🎉 Authentication successful!')
     } catch (err: any) {
       console.error('❌ Authentication failed:', err)
@@ -140,6 +149,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
       console.log('✅ Authentication initialization complete')
+    }
+  }
+
+  const checkPetProfile = async () => {
+    try {
+      console.log('🐾 Checking for pet profiles...')
+      const response = await petProfileService.getMyPets()
+      const hasPets = response.data && response.data.length > 0
+      console.log('Has pet profiles:', hasPets)
+      setHasPetProfile(hasPets)
+    } catch (error) {
+      console.warn('⚠️ Error checking pet profiles:', error)
+      setHasPetProfile(false)
     }
   }
 
@@ -172,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true')
       setHasCompletedOnboarding(true)
+      await checkPetProfile()
       console.log('🎉 Onboarding completed!')
     } catch (error) {
       console.error('❌ Error saving onboarding status:', error)
@@ -194,8 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         error,
         hasCompletedOnboarding,
+        hasPetProfile,
         completeOnboarding,
-        refreshAuth
+        refreshAuth,
+        checkPetProfile
       }}
     >
       {children}

@@ -197,6 +197,9 @@ class ApiClient {
               // Process queued requests with error
               this.processQueue(refreshError, null)
 
+              // Emit session expired event to trigger device re-login
+              tokenRefreshEmitter.emitSessionExpired()
+
               // Throw error to trigger re-login
               throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
             } finally {
