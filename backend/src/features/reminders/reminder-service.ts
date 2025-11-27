@@ -71,23 +71,36 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
   const reminderDate = new Date(newReminderData.reminderDate);
   const reminderTime = newReminderData.reminderTime ? new Date(`1970-01-01T${newReminderData.reminderTime}Z`) : null;
 
-  const existingReminder = await reminderRepository.findByUniqueFields(
-    pet.id,
-    newReminderData.reminderName,
-    reminderDate,
-    reminderTime
-  );
+  const now = new Date();
+  let initialStatus: reminder_status;
 
-  if (existingReminder) {
-    throw new ConflictError('A reminder with the same name, date, and time already exists for this pet.');
-  }
+  // temporary reminder object to use the isReminderOverdue helper
+  const tempReminder: reminders = {
+    id: '', // Not used in isReminderOverdue
+    user_id: userId,
+    pet_id: pet.id,
+    reminder_name: newReminderData.reminderName,
+    description: newReminderData.description ?? null,
+    reminder_date: reminderDate,
+    reminder_time: reminderTime,
+    reminder_status: reminder_status.to_do,
+    status_done_at: null,
+    created_at: now,
+    updated_at: now,
+    status_before_done: null,
+    category_name: newReminderData.categoryName || category_name.General,
+    is_health: false,
+  };
+
+  initialStatus = isReminderOverdue(tempReminder, now) ? reminder_status.overdue : reminder_status.to_do;
 
   const dataToCreate: Prisma.remindersCreateInput = {
     reminder_name: newReminderData.reminderName,
     description: newReminderData.description,
     reminder_date: reminderDate,
     reminder_time: reminderTime,
-    category_name: newReminderData.categoryName || category_name.General, // Default to General
+    category_name: newReminderData.categoryName || category_name.General,
+    reminder_status: initialStatus,
     user: { connect: { id: userId } },
     pets: { connect: { id: pet.id } },
   };
