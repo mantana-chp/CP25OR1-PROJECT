@@ -43,3 +43,6 @@ app-example
 /ios
 /android
 google-services.json
+
+deploy_key
+deploy_key.pub
