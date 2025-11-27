@@ -4,7 +4,10 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/th'
+import utc from 'dayjs/plugin/utc'
 import { Clock, PawPrint } from 'lucide-react-native'
+
+dayjs.extend(utc)
 
 interface NotificationCardProps {
   notification: INotification
@@ -22,12 +25,12 @@ export default function NotificationCard({
   if (!reminder) {
     return null
   }
-
+  
   const date = dayjs(reminder.reminder_date).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}`)
   const formattedTime = reminder?.reminder_time
-    ? reminder.reminder_time.substring(0, 5)
+    ? dayjs(reminder.reminder_time).utc().format('HH:mm น.')
     : ''
 
   const cardStyle = [styles.card, isRead && styles.readCard]
@@ -66,7 +69,7 @@ export default function NotificationCard({
           <Clock size={18} color={iconColor} />
           <Text style={infoStyle}>
             {formattedTime
-              ? `${formattedDate}, ${formattedTime} น.`
+              ? `${formattedDate}, ${formattedTime}`
               : formattedDate}
           </Text>
         </View>
