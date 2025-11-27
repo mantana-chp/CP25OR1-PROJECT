@@ -1,6 +1,6 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
@@ -11,6 +11,7 @@ export default function ReminderPage() {
   // ------------------
   // CONST
   // ------------------
+  const params = useLocalSearchParams<{ reminderId?: string }>()
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
   const swipeStartY = useRef(0)
 
@@ -86,6 +87,7 @@ export default function ReminderPage() {
           reminders={reminders}
           isLoading={getRemindersApi.loading}
           onRefresh={loadReminders}
+          initialReminderId={params.reminderId}
         />
       </View>
     </View>

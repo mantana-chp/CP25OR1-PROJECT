@@ -243,11 +243,8 @@ export default function ReminderCard(props: ReminderCardProps) {
 
             <View style={styles.infoRow}>
               <PawPrint
-                size={16}
+                size={14}
                 color={
-                  reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
-                }
-                fill={
                   reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
                 }
               />
@@ -263,7 +260,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 
             <View style={styles.infoRow}>
               <Clock
-                size={16}
+                size={14}
                 color={
                   reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
                 }

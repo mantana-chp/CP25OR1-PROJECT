@@ -35,12 +35,13 @@ export function usePushNotifications() {
     if (!data) return
 
     if (data.reminderId) {
-      router.push(`/(tabs)/reminder-details/${data.reminderId}`)
-    }
-    else if (data.petId) {
+      router.push({
+        pathname: '/(tabs)',
+        params: { reminderId: data.reminderId }
+      })
+    } else if (data.petId) {
       router.push('/(tabs)/pet_profile')
-    }
-    else {
+    } else {
       router.push('/(tabs)')
     }
   }

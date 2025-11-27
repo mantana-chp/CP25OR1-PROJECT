@@ -26,12 +26,14 @@ interface ReminderListProps {
   reminders: IReminder[]
   isLoading?: boolean
   onRefresh?: () => void
+  initialReminderId?: string | null
 }
 
 export default function ReminderList({
   reminders,
   isLoading,
-  onRefresh
+  onRefresh,
+  initialReminderId
 }: ReminderListProps) {
   const router = useRouter()
 
@@ -39,7 +41,7 @@ export default function ReminderList({
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
   const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
-    null
+    initialReminderId || null
   )
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
@@ -59,6 +61,12 @@ export default function ReminderList({
   useEffect(() => {
     setTempDoneIds([])
   }, [reminders])
+
+  useEffect(() => {
+    if (initialReminderId) {
+      setSelectedReminderId(initialReminderId)
+    }
+  }, [initialReminderId])
 
   const handleReminderDetail = (reminderId: string) => {
     setSelectedReminderId(reminderId)
