@@ -3,7 +3,7 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-import { PrismaClient, Prisma, category_name } from '../src/generated/prisma/client';
+import { PrismaClient, Prisma, category_name, VaccineLogicType, VaccineCategory } from '../src/generated/prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -32,6 +32,83 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+
+  // Seed vaccines
+  console.log('Seeding vaccines...');
+  const dog = await prisma.species.findUnique({ where: { name: 'dog' } });
+  const cat = await prisma.species.findUnique({ where: { name: 'cat' } });
+
+  if (dog && cat) {
+    const vaccines = [
+      // Dog Vaccines
+      {
+        species_id: dog.id,
+        vaccine_name: 'DHPP',
+        vaccine_name_th: 'วัคซีนรวม 5 โรค',
+        vaccine_type: VaccineCategory.core,
+        min_age_days: 42, // 6 weeks
+        primary_series_logic: VaccineLogicType.UNTIL_AGE,
+        primary_interval_days: 21, // 3 weeks
+        primary_target_value: 112, // 16 weeks
+        adult_primary_dose_count: 2,
+        booster_1_interval_days: 365,
+        booster_repeat_interval_days: 1095, // 3 years
+        reference_source: 'WSAVA 2016',
+      },
+      {
+        species_id: dog.id,
+        vaccine_name: 'Rabies',
+        vaccine_name_th: 'วัคซีนโรคพิษสุนัขบ้า',
+        vaccine_type: VaccineCategory.core,
+        min_age_days: 84, // 12 weeks
+        primary_series_logic: VaccineLogicType.FIXED_COUNT,
+        primary_interval_days: 0,
+        primary_target_value: 1,
+        adult_primary_dose_count: 1,
+        booster_1_interval_days: 365,
+        booster_repeat_interval_days: 365, // 1 year
+        reference_source: 'WSAVA 2016',
+      },
+      // Cat Vaccines
+      {
+        species_id: cat.id,
+        vaccine_name: 'FVRCP',
+        vaccine_name_th: 'วัคซีนรวม 3 โรค',
+        vaccine_type: VaccineCategory.core,
+        min_age_days: 42, // 6 weeks
+        primary_series_logic: VaccineLogicType.UNTIL_AGE,
+        primary_interval_days: 28, // 4 weeks
+        primary_target_value: 112, // 16 weeks
+        adult_primary_dose_count: 2,
+        booster_1_interval_days: 365,
+        booster_repeat_interval_days: 1095, // 3 years
+        reference_source: 'AAFP 2020',
+      },
+      {
+        species_id: cat.id,
+        vaccine_name: 'Rabies',
+        vaccine_name_th: 'วัคซีนโรคพิษสุนัขบ้า',
+        vaccine_type: VaccineCategory.core,
+        min_age_days: 84, // 12 weeks
+        primary_series_logic: VaccineLogicType.FIXED_COUNT,
+        primary_interval_days: 0,
+        primary_target_value: 1,
+        adult_primary_dose_count: 1,
+        booster_1_interval_days: 365,
+        booster_repeat_interval_days: 365, // 1 year
+        reference_source: 'AAFP 2020',
+      },
+    ];
+
+    for (const vaccine of vaccines) {
+      await prisma.vaccine.upsert({
+        where: { species_id_vaccine_name: { species_id: vaccine.species_id, vaccine_name: vaccine.vaccine_name } },
+        update: {},
+        create: vaccine,
+      });
+    }
+  }
+  console.log('Vaccines seeded.');
 
   // Seed users
   await prisma.users.createMany({

@@ -90,6 +90,7 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     status_before_done: null,
     category_name: newReminderData.categoryName || category_name.General,
     is_health: false,
+    parent_id: newReminderData.parentId ?? null,
   };
 
   initialStatus = isReminderOverdue(tempReminder, now) ? reminder_status.overdue : reminder_status.to_do;
@@ -103,6 +104,7 @@ export const createNewReminder = async (newReminderData: CreateReminderInput, us
     reminder_status: initialStatus,
     user: { connect: { id: userId } },
     pets: { connect: { id: pet.id } },
+    ...(newReminderData.parentId && { parent: { connect: { id: newReminderData.parentId } } }),
   };
 
   return await reminderRepository.add(dataToCreate);

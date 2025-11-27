@@ -1,8 +1,12 @@
 import { Reminder, ReminderWithPetName } from './reminder-types';
 import { Prisma, reminders as PrismaReminder } from '../../generated/prisma/client';
 
+// This payload type now includes children, but the children are base 'reminders'
 type PrismaReminderWithPet = Prisma.remindersGetPayload<{
-  include: { pets: true };
+  include: {
+    pets: true;
+    children: true;
+  };
 }>;
 
 export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Reminder => {
@@ -27,8 +31,16 @@ export const mapPrismaReminderWithPetToReminder = (prismaReminder: PrismaReminde
     // just for safety
     throw new Error(`Data integrity error: Reminder ${prismaReminder.id} is missing its associated pet.`);
   }
-  return {
+
+  const mappedParent = {
     ...mapPrismaReminderToReminder(prismaReminder),
     pet_name: prismaReminder.pets.pet_name,
   };
+
+  if (prismaReminder.children && prismaReminder.children.length > 0) {
+    // Map children using the simpler mapper, as they don't have pet data
+    mappedParent.children = prismaReminder.children.map(mapPrismaReminderToReminder);
+  }
+
+  return mappedParent;
 };

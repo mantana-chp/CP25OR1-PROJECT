@@ -72,9 +72,16 @@ model reminders {
   status_before_done reminder_status?
   category_name      category_name    @default(General)
   is_health          Boolean          @default(false)
+
+  // Relations
   notifications      notifications[]
   pets               pets             @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user               users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  // Self-referencing relationship for parent-child reminders
+  parent_id          String?          @db.Uuid
+  parent             reminders?       @relation("ReminderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children           reminders[]      @relation("ReminderHierarchy")
 }
 
 model sessions {
@@ -98,6 +105,30 @@ model species {
   description_th String?
   breeds         breeds[]
   pets           pets[]
+  vaccine        vaccine[]
+}
+
+model vaccine {
+  id                           Int                @id @default(autoincrement())
+  species_id                   String             @db.Uuid
+  vaccine_name                 String
+  vaccine_name_th              String?
+  vaccine_type                 VaccineCategory
+  min_age_days                 Int                @default(0)
+  primary_series_logic         VaccineLogicType
+  primary_interval_days        Int                @default(0)
+  primary_target_value         Int
+  adult_primary_dose_count     Int                @default(1)
+  booster_1_interval_days      Int
+  booster_repeat_interval_days Int
+  reference_source             String?
+  created_at                   DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime           @default(now()) @db.Timestamptz(6)
+
+  species species @relation(fields: [species_id], references: [id], onDelete: Cascade)
+
+  @@unique([species_id, vaccine_name])
+  @@map("vaccine")
 }
 
 model users {
@@ -166,4 +197,14 @@ enum category_name {
   Deworming   @map("พยาธิ/เห็บหมัด")
   Grooming    @map("ความสะอาดและกรูมมิ่ง")
   Feeding     @map("ให้อาหาร")
+}
+
+enum VaccineLogicType {
+  UNTIL_AGE
+  FIXED_COUNT
+}
+
+enum VaccineCategory {
+  core
+  non_core
 }

@@ -8,6 +8,7 @@ export const createReminderSchema = z.object({
     reminderDate: z.string().min(1, 'Reminder Date is required'),
     reminderTime: z.string().optional(),
     categoryName: z.enum(category_name).optional(),
+    parentId: z.uuid().optional(),
   }),
 });
 
