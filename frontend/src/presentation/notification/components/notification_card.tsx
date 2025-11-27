@@ -15,7 +15,7 @@ interface NotificationCardProps {
 export default function NotificationCard({
   notification,
   onPress,
-  isRead,
+  isRead
 }: NotificationCardProps) {
   const { reminder } = notification
 
@@ -23,27 +23,27 @@ export default function NotificationCard({
     return null
   }
 
-  const date = dayjs(reminder.reminderDate).locale('th')
+  const date = dayjs(reminder.reminder_date).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}`)
-  const formattedTime = reminder?.reminderTime
-    ? reminder.reminderTime.substring(0, 5) + ' น.'
+  const formattedTime = reminder?.reminder_time
+    ? reminder.reminder_time.substring(0, 5)
     : ''
 
   const cardStyle = [styles.card, isRead && styles.readCard]
   const titleStyle = [
     styles.title,
-    reminder?.reminderStatus === 'overdue' && styles.overdueTitleText,
-    isRead && styles.readText,
+    reminder?.reminder_status === 'overdue' && styles.overdueTitleText,
+    isRead && styles.readText
   ]
   const infoStyle = [
     styles.infoText,
-    reminder?.reminderStatus === 'overdue' && styles.overdueDateTimeText,
-    isRead && styles.readText,
+    reminder?.reminder_status === 'overdue' && styles.overdueDateTimeText,
+    isRead && styles.readText
   ]
   const iconColor = isRead
     ? '#A6A6A6'
-    : reminder?.reminderStatus === 'overdue'
+    : reminder?.reminder_status === 'overdue'
     ? '#BF1737'
     : '#2E759E'
 
@@ -55,11 +55,11 @@ export default function NotificationCard({
     >
       {/* Middle section - Content */}
       <View style={styles.middleSection}>
-        <Text style={titleStyle}>{reminder?.reminderName}</Text>
+        <Text style={titleStyle}>{reminder?.reminder_name}</Text>
 
         <View style={styles.infoRow}>
           <PawPrint size={18} color={iconColor} fill={iconColor} />
-          <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
+          <Text style={styles.infoText}>{reminder?.pets?.pet_name || '-'}</Text>
         </View>
 
         <View style={styles.infoRow}>
@@ -77,7 +77,7 @@ export default function NotificationCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#E0F2FE',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -86,44 +86,44 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 3
   },
   title: {
     fontSize: 18,
     fontFamily: 'Prompt_700Bold',
     color: '#225877',
-    marginBottom: 4,
+    marginBottom: 4
   },
   reminderTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   overdueTitleText: {
-    color: '#BF1737',
+    color: '#BF1737'
   },
   overdueDateTimeText: {
-    color: '#BF1737',
+    color: '#BF1737'
   },
   middleSection: {
     flex: 1,
-    gap: 2,
+    gap: 2
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   infoText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   readCard: {
-    backgroundColor: '#D9D9D9',
+    backgroundColor: '#ffffff'
   },
   readText: {
-    color: '#A6A6A6',
-  },
+    color: '#6b7280'
+  }
 })
