@@ -96,10 +96,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
 
       // Step 1: Check onboarding status
-      console.log('📱 Checking onboarding status...')
       const onboardingStatus = await AsyncStorage.getItem(ONBOARDING_KEY)
       const hasSeenOnboarding = onboardingStatus === 'true'
-      console.log('Onboarding completed:', hasSeenOnboarding)
       setHasCompletedOnboarding(hasSeenOnboarding)
 
       // Step 2: Check for existing token
@@ -120,19 +118,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true)
         setError(null)
 
-        // Try to register push notification token
-        // If this fails due to invalid token, the session expired event will be triggered
         try {
           await registerPushNotification()
         } catch (error) {
           console.warn('⚠️ Push notification registration failed during init')
-          // Clear invalid tokens and re-login
           await apiClient.clearTokens()
           await performDeviceLogin()
         }
       } else {
         // Step 3: Clear any partial tokens and perform device-based login
-        console.log('🧹 No valid token pair found, clearing tokens...')
         await apiClient.clearTokens()
         await performDeviceLogin()
       }
