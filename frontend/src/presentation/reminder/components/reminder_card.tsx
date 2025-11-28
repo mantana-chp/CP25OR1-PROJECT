@@ -326,12 +326,11 @@ const styles = StyleSheet.create({
   deleteText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
     fontFamily: 'Prompt_500Medium'
   },
   reminderCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -339,7 +338,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    borderLeftWidth: 8
+    borderLeftWidth: 6
   },
   cardTouchable: {
     flex: 1,

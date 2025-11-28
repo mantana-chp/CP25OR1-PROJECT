@@ -26,20 +26,7 @@ export const authService = {
       installationId: deviceIdentifiers.installationId
     }
   },
-
-  refreshToken: async (refreshToken: string): Promise<DeviceLoginResponse> => {
-    await deviceIdService.getDeviceIdentifiers()
-
-    const response = await apiClient.post<{ data: DeviceLoginResponse }>(
-      '/v1/auth/refresh',
-      {
-        refreshToken
-      }
-    )
-
-    return response.data
-  },
-
+  
   getDeviceIdentifiers: async (): Promise<DeviceIdentifiers> => {
     return deviceIdService.getDeviceIdentifiers()
   }

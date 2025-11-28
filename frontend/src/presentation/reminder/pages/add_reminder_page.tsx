@@ -46,7 +46,12 @@ export default function AddReminderPage() {
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      await createReminderApi.execute(values as IReminder)
+      const submitData = {
+        ...values,
+        categoryName: values.categoryName || 'General'
+      }
+
+      await createReminderApi.execute(submitData)
       formik.resetForm()
     },
   })
