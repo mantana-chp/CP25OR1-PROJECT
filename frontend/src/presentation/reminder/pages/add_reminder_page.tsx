@@ -10,6 +10,7 @@ import {
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import {
   Platform,
   Pressable,
@@ -42,9 +43,12 @@ export default function AddReminderPage() {
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
+      const getMyPets = await petProfileService.getMyPets()
+
       const submitData = {
         ...values,
-        categoryName: values.categoryName || 'General'
+        categoryName: values.categoryName || 'General',
+        petId: getMyPets.data[0]?.id || ''
       }
 
       await createReminderApi.execute(submitData)
