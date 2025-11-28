@@ -263,6 +263,15 @@ const options: swaggerJSDoc.Options = {
             ageInDays: { type: 'integer' }
           }
         },
+        Vaccine: {
+            type: 'object',
+            properties: {
+                id: { type: 'integer' },
+                species_id: { type: 'string', format: 'uuid' },
+                vaccine_name: { type: 'string' },
+                vaccine_name_th: { type: 'string' },
+            }
+        },
         // Meta Schemas
         Breed: {
           type: 'object',

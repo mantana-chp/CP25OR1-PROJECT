@@ -125,3 +125,34 @@ export const calculateVaccineSchedule = async (input: CalculateScheduleInput): P
 
   return schedule;
 };
+
+export const getVaccinesForPet = async (petId: string, userId: string) => {
+  const pet = await prisma.pets.findUnique({
+    where: { id: petId },
+  });
+
+  if (!pet) {
+    throw new NotFoundError('Pet not found');
+  }
+
+  if (pet.user_id !== userId) {
+    throw new ApiError('Forbidden: User does not own this pet.', 403);
+  }
+
+  const vaccines = await prisma.vaccine.findMany({
+    where: {
+      species_id: pet.species_id,
+    },
+    select: {
+      id: true,
+      species_id: true,
+      vaccine_name: true,
+      vaccine_name_th: true,
+    },
+    orderBy: {
+      vaccine_name: 'asc',
+    },
+  });
+
+  return vaccines;
+};

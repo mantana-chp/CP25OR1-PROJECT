@@ -1,6 +1,11 @@
 import { Router } from 'express';
-import { calculateScheduleController } from './vaccine-schedule-controller';
+import {
+  calculateScheduleController,
+  getVaccinesForPetController,
+} from './vaccine-schedule-controller';
 import { authGuard } from '../../middlewares/authGuard';
+import { validate } from '../../middlewares/validate';
+import { getVaccinesForPetSchema } from './vaccine-schedule-schema';
 
 const vaccineScheduleRoutes = Router();
 
@@ -36,5 +41,39 @@ const vaccineScheduleRoutes = Router();
  *         description: Unauthorized.
  */
 vaccineScheduleRoutes.post('/calculate', authGuard, calculateScheduleController);
+
+/**
+ * @openapi
+ * /vaccines/{petId}:
+ *   get:
+ *     tags: [Vaccines]
+ *     summary: Get available vaccines for a specific pet
+ *     description: Retrieves a list of all vaccine templates that are applicable to the specified pet's species.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - in: path
+ *         name: petId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The ID of the pet to get available vaccines for.
+ *     responses:
+ *       200:
+ *         description: An array of available vaccine templates. Returns an empty array if none are found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Vaccine'
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+vaccineScheduleRoutes.get('/:petId', authGuard, validate(getVaccinesForPetSchema), getVaccinesForPetController);
 
 export default vaccineScheduleRoutes;

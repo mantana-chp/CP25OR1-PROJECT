@@ -7,3 +7,9 @@ export const calculateScheduleSchema = z.object({
     startDate: z.string().optional(),
   }),
 });
+
+export const getVaccinesForPetSchema = z.object({
+  params: z.object({
+    petId: z.uuid(),
+  }),
+});

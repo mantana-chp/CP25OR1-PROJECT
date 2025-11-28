@@ -17,3 +17,11 @@ export const calculateScheduleController = asyncHandler(async (req: Request, res
 
   sendSuccess(res, schedule);
 });
+
+export const getVaccinesForPetController = asyncHandler(async (req: Request, res: Response) => {
+    const { petId } = req.params;
+    const { id: userId } = req.user!;
+
+    const vaccines = await vaccineScheduleService.getVaccinesForPet(petId, userId);
+    sendSuccess(res, vaccines);
+});
