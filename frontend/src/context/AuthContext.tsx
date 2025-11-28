@@ -107,10 +107,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const existingToken = await apiClient.getAccessToken()
       const existingRefreshToken = await apiClient.getRefreshToken()
       console.log('Existing token:', existingToken ? 'Found' : 'Not found')
+      console.log('Existing token:', existingToken)
       console.log(
         'Existing refresh token:',
         existingRefreshToken ? 'Found' : 'Not found'
       )
+      console.log('Existing refresh token:', existingRefreshToken)
 
       if (existingToken && existingRefreshToken) {
         console.log('✅ Using existing token')
@@ -124,8 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await registerPushNotification()
         } catch (error) {
           console.warn('⚠️ Push notification registration failed during init')
-          // If push registration fails, the token refresh interceptor will handle it
-          // and trigger session expired event if needed
+          // Clear invalid tokens and re-login
+          await apiClient.clearTokens()
+          await performDeviceLogin()
         }
       } else {
         // Step 3: Clear any partial tokens and perform device-based login
