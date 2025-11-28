@@ -77,8 +77,10 @@ export default function RecurringReminderCard({
 
   const formatDate = (dateString: string) => {
     const date = dayjs(dateString).locale('th')
-    const year = date.year() + 543
-    return date.format(`DD MMM ${year}`)
+    const formattedDate = `${date.format('วันdddd DD MMM')} ${
+      date.year() + 543
+    }`
+    return formattedDate
   }
 
   const formatTime = (timeString: string) => {

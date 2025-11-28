@@ -65,9 +65,7 @@ export default function ReminderCard(props: ReminderCardProps) {
     isTempDone = false
   } = props
   const date = dayjs(reminder.reminderDate).locale('th')
-  const buddhistYear = date.year() + 543
-
-  const formattedDate = date.format(`DD/MM/${buddhistYear}`)
+  const formattedDate = `${date.format('วันdddd DD MMM')} ${date.year() + 543}`
   const formattedTime = reminder?.reminderTime
     ? reminder.reminderTime.substring(0, 5)
     : ''
@@ -219,15 +217,15 @@ export default function ReminderCard(props: ReminderCardProps) {
           style={styles.cardTouchable}
         >
           {/* Left side - Checkbox circle */}
-            <TouchableOpacity
+          <TouchableOpacity
             style={styles.leftSection}
             onPress={handleToggleStatus}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+          >
             <View style={[styles.checkbox, isDone && styles.checkboxCompleted]}>
               {isDone && <View style={styles.checkboxInner} />}
             </View>
-            </TouchableOpacity>
+          </TouchableOpacity>
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>

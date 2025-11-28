@@ -54,14 +54,14 @@ export default function ReminderList({
     },
     {
       id: '2',
-      date: '2025-09-18T00:00:00.000Z',
+      date: '2025-09-17T00:00:00.000Z',
       time: '10:00:00',
       instanceNumber: 2,
       isCompleted: false
     },
     {
       id: '3',
-      date: '2025-10-16T00:00:00.000Z',
+      date: '2025-10-20T00:00:00.000Z',
       time: '14:30:00',
       instanceNumber: 3,
       isCompleted: false

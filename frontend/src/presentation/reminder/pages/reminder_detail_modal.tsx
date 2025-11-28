@@ -118,6 +118,7 @@ export default function ReminderDetailModal({
       </View>
     )
   }
+  console.log(reminder?.reminderDate)
 
   return (
     <View style={styles.modalOverlay}>
@@ -158,7 +159,12 @@ export default function ReminderDetailModal({
               />
               <Text style={[styles.infoText, isOverdue && styles.overdueText]}>
                 {reminder?.reminderDate
-                  ? formatDate(new Date(reminder.reminderDate))
+                  ? new Date(reminder.reminderDate).toLocaleDateString('th-TH', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
                   : '-'}
               </Text>
               <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
