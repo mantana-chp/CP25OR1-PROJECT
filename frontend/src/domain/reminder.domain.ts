@@ -1,4 +1,5 @@
 import * as yup from 'yup'
+import { IVaccineSchedule } from './vaccine.domain'
 
 export interface ICategoryInfo {
   label: string
@@ -13,7 +14,7 @@ export const CATEGORY_MAP: Record<string, ICategoryInfo> = {
   Medication: { label: 'ยา/อาหารเสริม', color: '#10B981', icon: 'Pill' },
   Deworming: { label: 'พยาธิ/เห็บหมัด', color: '#F59E0B', icon: 'Pipette' },
   Grooming: { label: 'กรูมมิ่ง', color: '#8B5CF6', icon: 'Scissors' },
-  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' }
+  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' },
 }
 
 export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
@@ -21,7 +22,7 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
     CATEGORY_MAP[categoryId] || {
       label: 'ทั่วไป',
       color: '#6B7280',
-      icon: 'Tag'
+      icon: 'Tag',
     }
   )
 }
@@ -40,6 +41,7 @@ export interface IReminder {
   statusUpdatedAt: string
   createdAt: string
   updatedAt: string
+  vaccineSchedule?: IVaccineSchedule
 }
 
 export const reminderInitValue = (v: IReminder): IReminder => {
@@ -56,7 +58,8 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     reminderStatus: v.reminderStatus || 'to_do',
     statusUpdatedAt: v.statusUpdatedAt || '',
     createdAt: v.createdAt || '',
-    updatedAt: v.updatedAt || ''
+    updatedAt: v.updatedAt || '',
+    vaccineSchedule: v.vaccineSchedule,
   }
 }
 
@@ -67,5 +70,5 @@ export const reminderValidationSchema = yup.object().shape({
     .max(100, 'หัวข้อต้องไม่เกิน 100 ตัวอักษร'),
   description: yup.string().max(500, 'รายละเอียดต้องไม่เกิน 500 ตัวอักษร'),
   reminderDate: yup.string().required('กรุณาเลือกวันที่'),
-  reminderTime: yup.string()
+  reminderTime: yup.string(),
 })

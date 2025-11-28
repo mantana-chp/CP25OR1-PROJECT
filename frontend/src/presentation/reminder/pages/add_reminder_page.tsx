@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React from 'react'
+import React, { useState } from 'react'
 
 import {
   IReminder,
   reminderInitValue,
-  reminderValidationSchema
+  reminderValidationSchema,
 } from '@/src/domain/reminder.domain'
+import { IVaccineSchedule } from '@/src/domain/vaccine.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
@@ -17,23 +18,26 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native'
+import { Syringe } from 'lucide-react-native'
 import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
+import VaccineScheduleModal from '../components/vaccine_schedule_modal'
 
 export default function AddReminderPage() {
   const router = useRouter()
+  const [showVaccineModal, setShowVaccineModal] = useState(false)
 
   const createReminderApi = useApi(reminderService.createReminder, {
     showErrorAlert: true,
     successMessage: 'เพิ่มเตือนความจำสำเร็จ',
     onSuccess: () => {
       router.back()
-    }
+    },
   })
 
   const formik = useFormik<IReminder>({
@@ -44,7 +48,7 @@ export default function AddReminderPage() {
     onSubmit: async (values) => {
       await createReminderApi.execute(values as IReminder)
       formik.resetForm()
-    }
+    },
   })
 
   const isSubmitting = createReminderApi.loading
@@ -54,11 +58,15 @@ export default function AddReminderPage() {
     router.back()
   }
 
+  const handleVaccineScheduleSave = (schedule: IVaccineSchedule) => {
+    formik.setFieldValue('vaccineSchedule', schedule)
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.safeArea}>
         <Header
-          title="เพิ่มเตือนความจำ"
+          title='เพิ่มเตือนความจำ'
           goBack={!isSubmitting}
           onBackPress={handleBack}
         />
@@ -83,8 +91,8 @@ export default function AddReminderPage() {
           <InputText
             value={formik.values.reminderName}
             onChangeText={(v) => formik.setFieldValue('reminderName', v)}
-            placeholder="หัวข้อเตือนความจำ"
-            title="หัวข้อ"
+            placeholder='หัวข้อเตือนความจำ'
+            title='หัวข้อ'
             required={true}
             error={formik.errors.reminderName}
           />
@@ -92,8 +100,8 @@ export default function AddReminderPage() {
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <DatePicker
-                title="วันที่เตือนความจำ"
-                placeholder="วัน/เดือน/ปี"
+                title='วันที่เตือนความจำ'
+                placeholder='วัน/เดือน/ปี'
                 value={
                   formik.values.reminderDate
                     ? new Date(formik.values.reminderDate)
@@ -106,8 +114,8 @@ export default function AddReminderPage() {
             </View>
             <View style={{ flex: 1 }}>
               <TimePicker
-                title="เวลาที่เตือนความจำ"
-                placeholder="เลือกเวลา"
+                title='เวลาที่เตือนความจำ'
+                placeholder='เลือกเวลา'
                 value={formik.values.reminderTime}
                 onChange={(v) => formik.setFieldValue('reminderTime', v)}
               />
@@ -121,10 +129,20 @@ export default function AddReminderPage() {
             required={true}
           />
 
+          {formik.values.categoryName === 'Vaccination' && (
+            <Pressable
+              style={styles.vaccineButton}
+              onPress={() => setShowVaccineModal(true)}
+            >
+              <Syringe size={20} color='#fff' strokeWidth={2} />
+              <Text style={styles.vaccineButtonText}>เลือกตารางเวลาวัคซีน</Text>
+            </Pressable>
+          )}
+
           <View>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder="รายละเอียดอื่นๆ"
+              placeholder='รายละเอียดอื่นๆ'
               multiline
               numberOfLines={4}
               value={formik.values.description}
@@ -138,6 +156,12 @@ export default function AddReminderPage() {
           </View>
         </View>
       </View>
+
+      <VaccineScheduleModal
+        visible={showVaccineModal}
+        onClose={() => setShowVaccineModal(false)}
+        onSave={handleVaccineScheduleSave}
+      />
     </View>
   )
 }
@@ -145,11 +169,11 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb'
+    backgroundColor: '#e5e7eb',
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -160,26 +184,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18
+    marginBottom: 18,
   },
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   submittingText: {
-    color: '#6b7280'
+    color: '#6b7280',
   },
   input: {
     borderWidth: 1,
@@ -189,22 +213,38 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48
+    minHeight: 48,
   },
   errorText: {
     color: '#ef4444',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4
+    marginLeft: 4,
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12
+    paddingVertical: 12,
   },
   row: {
     flexDirection: 'row',
-    gap: 8
-  }
+    gap: 8,
+  },
+  vaccineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#5FA7D1',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  vaccineButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+  },
 })
