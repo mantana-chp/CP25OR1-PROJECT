@@ -62,7 +62,7 @@ export default function NotificationCard({
 
         <View style={styles.infoRow}>
           <PawPrint size={18} color={iconColor} fill={iconColor} />
-          <Text style={styles.infoText}>{reminder?.pets?.pet_name || '-'}</Text>
+          <Text style={infoStyle}>{reminder?.pets?.pet_name || '-'}</Text>
         </View>
 
         <View style={styles.infoRow}>
