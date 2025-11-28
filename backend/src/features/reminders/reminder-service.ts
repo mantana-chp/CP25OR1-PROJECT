@@ -1,8 +1,8 @@
 import * as reminderRepository from './reminder-repository';
-import { Reminder, ReminderWithPetName } from './reminder-types';
+import { ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderWithPetToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
-import { Prisma, reminder_status, category_name, reminders } from '../../generated/prisma/client';
+import { reminder_status, category_name, reminders } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
 import { CreateReminderPayload } from './reminder-schema';
 
@@ -151,57 +151,111 @@ export const createNewReminder = async (newReminderData: CreateReminderPayload, 
 };
 
 
-export const toggleReminderStatus = async (id: string, userId: string): Promise<Reminder> => {
-  const reminder = await reminderRepository.findById(id);
+export const toggleReminderStatus = async (id: string, userId: string): Promise<ReminderWithPetName> => {
+  const reminderToToggle = await reminderRepository.findById(id);
 
-  if (!reminder) {
+  if (!reminderToToggle) {
     throw new NotFoundError('Reminder not found');
   }
 
-  if (reminder.user_id !== userId) {
+  if (reminderToToggle.user_id !== userId) {
     throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
   }
 
-  let newStatus: reminder_status;
-  let newStatusBeforeDone: reminder_status | null = reminder.status_before_done;
-  let newStatusDoneAt: Date | null = reminder.status_done_at;
-  let isHealthRecord = reminder.is_health; // Default to current state
+  await prisma.$transaction(async (tx) => {
+    let newStatus: reminder_status;
+    let newStatusBeforeDone: reminder_status | null = reminderToToggle.status_before_done;
+    let newStatusDoneAt: Date | null = reminderToToggle.status_done_at;
+    let isHealthRecord = reminderToToggle.is_health; // Default to current state
 
-  const healthCategories: category_name[] = [
-    category_name.Vaccination,
-    category_name.Checkup,
-    category_name.Medication,
-    category_name.Deworming,
-  ];
+    const healthCategories: category_name[] = [
+      category_name.Vaccination,
+      category_name.Checkup,
+      category_name.Medication,
+      category_name.Deworming,
+    ];
 
-  switch (reminder.reminder_status) {
-    case 'to_do':
-    case 'overdue':
-      newStatus = reminder_status.done;
-      newStatusBeforeDone = reminder.reminder_status;
-      newStatusDoneAt = new Date();
-      if (healthCategories.includes(reminder.category_name)) {
-        isHealthRecord = true;
+    switch (reminderToToggle.reminder_status) {
+      case 'to_do':
+      case 'overdue':
+        newStatus = reminder_status.done;
+        newStatusBeforeDone = reminderToToggle.reminder_status;
+        newStatusDoneAt = new Date();
+        if (healthCategories.includes(reminderToToggle.category_name)) {
+          isHealthRecord = true;
+        }
+        break;
+      case 'done':
+        newStatus = isReminderOverdue(reminderToToggle, new Date()) ? reminder_status.overdue : reminder_status.to_do;
+        newStatusBeforeDone = null;
+        newStatusDoneAt = null;
+        isHealthRecord = false; // Revert health record status on undo
+        break;
+      default:
+        throw new Error('Invalid reminder status');
+    }
+
+    // Update the toggled reminder
+    await tx.reminders.update({
+      where: { id: id },
+      data: {
+        reminder_status: newStatus,
+        status_before_done: newStatusBeforeDone,
+        status_done_at: newStatusDoneAt,
+        is_health: isHealthRecord,
+      },
+    });
+
+    // If the toggled reminder is a child, check and update its parent
+    if (reminderToToggle.parent_id) {
+      const parentId = reminderToToggle.parent_id;
+
+      // Get all siblings
+      const siblings = await tx.reminders.findMany({
+        where: { parent_id: parentId },
+      });
+
+      const allChildrenDone = siblings.every((r) => r.reminder_status === reminder_status.done);
+
+      const parent = await tx.reminders.findUnique({ where: { id: parentId } });
+      if (parent) {
+        if (allChildrenDone) {
+          if (parent.reminder_status !== reminder_status.done) {
+            await tx.reminders.update({
+              where: { id: parentId },
+              data: {
+                reminder_status: reminder_status.done,
+                status_before_done: parent.reminder_status,
+                status_done_at: new Date(),
+                is_health: true, // parent-child is always a health record
+              },
+            });
+          }
+        } else {
+          if (parent.reminder_status === reminder_status.done) {
+            const newParentStatus = isReminderOverdue(parent, new Date()) ? reminder_status.overdue : reminder_status.to_do;
+            await tx.reminders.update({
+              where: { id: parentId },
+              data: {
+                reminder_status: newParentStatus,
+                status_before_done: null,
+                status_done_at: null,
+              },
+            });
+          }
+        }
       }
-      break;
-    case 'done':
-      newStatus = isReminderOverdue(reminder, new Date()) ? reminder_status.overdue : reminder_status.to_do;
-      newStatusBeforeDone = null;
-      newStatusDoneAt = null;
-      isHealthRecord = false; // Revert health record status on undo
-      break;
-    default:
-      throw new Error('Invalid reminder status');
+    }
+  });
+
+  // Re-fetch the updated reminder to return the correct data structure
+  const updatedReminder = await reminderRepository.findById(id);
+  if (!updatedReminder) {
+    // This should be unreachable if the initial find succeeded
+    throw new Error('Failed to retrieve reminder after update.');
   }
 
-  const updateData: Prisma.remindersUpdateInput = {
-    reminder_status: newStatus,
-    status_before_done: newStatusBeforeDone,
-    status_done_at: newStatusDoneAt,
-    is_health: isHealthRecord,
-  };
-
-  return await reminderRepository.update(id, updateData);
+  return mapPrismaReminderWithPetToReminder(updatedReminder);
 };
 
 export const updateOverdueReminders = async (): Promise<void> => {

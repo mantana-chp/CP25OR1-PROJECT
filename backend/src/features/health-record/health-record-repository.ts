@@ -5,6 +5,7 @@ export const findAllByUserId = async (userId: string) => {
     where: {
       user_id: userId,
       is_health: true,
+      parent_id: null,
     },
     include: {
       pets: true, // Include pet data to get the pet's name
