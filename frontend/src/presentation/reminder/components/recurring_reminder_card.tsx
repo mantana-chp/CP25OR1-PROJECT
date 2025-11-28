@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Clock,
   Hourglass,
   PawPrint,
   Pill,
@@ -182,12 +183,15 @@ export default function RecurringReminderCard({
 
               <View style={styles.instanceLeft}>
                 <View style={styles.instanceInfo}>
-                  <Text style={styles.instanceDate}>
-                    {formatDate(instance.date)}, {formatTime(instance.time)}
-                  </Text>
                   <Text style={styles.instanceLabel}>
                     วัคซีนเข้มที่ {instance.instanceNumber}/{totalCount}
                   </Text>
+                  <View style={styles.infoRow}>
+                    <Clock size={12} color="#225877" />
+                    <Text style={styles.instanceDate}>
+                      {formatDate(instance.date)}, {formatTime(instance.time)}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -336,13 +340,13 @@ const styles = StyleSheet.create({
     gap: 4
   },
   instanceDate: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
     color: '#225877'
   },
   instanceLabel: {
     fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_700Bold',
     color: '#225877'
   }
 })
