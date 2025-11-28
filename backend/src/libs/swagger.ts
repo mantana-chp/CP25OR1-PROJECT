@@ -186,7 +186,7 @@ const options: swaggerJSDoc.Options = {
             updated_at: { type: 'string', format: 'date-time' },
           }
         },
-        CreateReminderBody: {
+        SimpleReminderObject: {
           type: 'object',
           required: ['reminderName', 'reminderDate'],
           properties: {
@@ -195,7 +195,24 @@ const options: swaggerJSDoc.Options = {
             reminderDate: { type: 'string', format: 'date' },
             reminderTime: { type: 'string', format: 'time', example: '14:30:00' },
             categoryName: { type: 'string', enum: ['General', 'Vaccination', 'Checkup', 'Medication', 'Deworming', 'Grooming', 'Feeding'] },
-            parentId: { type: 'string', format: 'uuid' },
+          }
+        },
+        CreateReminderBody: {
+          type: 'object',
+          required: ['petId', 'reminderName', 'reminderDate'],
+          properties: {
+            petId: { type: 'string', format: 'uuid' },
+            reminderName: { type: 'string' },
+            description: { type: 'string' },
+            reminderDate: { type: 'string', format: 'date' },
+            reminderTime: { type: 'string', format: 'time', example: '14:30:00' },
+            categoryName: { type: 'string', enum: ['General', 'Vaccination', 'Checkup', 'Medication', 'Deworming', 'Grooming', 'Feeding'] },
+            children: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/SimpleReminderObject'
+              }
+            }
           }
         },
         UpdateReminderBody: {

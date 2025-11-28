@@ -20,17 +20,3 @@ export interface ReminderWithPetName extends Reminder {
   pet_name: string;
   children?: Reminder[]; // Children should be of the base Reminder type
 }
-
-export type CreateReminderInput = {
-  reminderName: string;
-  description?: string;
-  reminderDate: string;
-  reminderTime?: string; // converted date,time value to Date in repository
-  categoryName?: category_name;
-  parentId?: string; // Add parentId for creating child reminders
-};
-
-export type ReminderCreationData = CreateReminderInput & {
-  user: { connect: { id: string } };
-  pet: { connect: { id: string } };
-};
