@@ -301,10 +301,14 @@ const options: swaggerJSDoc.Options = {
             },
             name: {
               type: 'string',
-              description: 'The name of the breed.',
-              example: 'Golden Retriever',
+              description: 'The Thai name of the breed.',
+              example: 'ค็อกคาเทล'
             },
-          },
+            description_th: {
+              type: 'string',
+              description: 'The Thai description of the breed.'
+            }
+          }
         },
         SpeciesWithBreeds: {
           type: 'object',
@@ -317,8 +321,12 @@ const options: swaggerJSDoc.Options = {
             },
             name: {
               type: 'string',
-              description: 'The name of the species.',
-              example: 'Dog',
+              description: 'The Thai name of the species.',
+              example: 'หมา'
+            },
+            description_th: {
+              type: 'string',
+              description: 'The Thai description of the species.'
             },
             breeds: {
               type: 'array',
