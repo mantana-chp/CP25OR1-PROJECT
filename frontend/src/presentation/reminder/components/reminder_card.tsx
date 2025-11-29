@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Modal,
   PanResponder,
   StyleSheet,
   Text,
@@ -53,6 +54,11 @@ const ICON_MAP: Record<string, any> = {
 
 export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
+  // STATE
+  // ------------------
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+
+  // ------------------
   // CONST
   // ------------------
   const {
@@ -86,40 +92,26 @@ export default function ReminderCard(props: ReminderCardProps) {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (!canDelete) return false
-        return Math.abs(gestureState.dx) > 10
+        return Math.abs(gestureState.dx) > 5
       },
       onPanResponderMove: (_, gestureState) => {
-        if (!canDelete) return
-
-        const currentValue = swipePosition.current
-
         if (gestureState.dx < 0) {
-          translateX.setValue(gestureState.dx)
-        } else if (gestureState.dx > 0 && currentValue < 0) {
-          const newValue = currentValue + gestureState.dx
-          translateX.setValue(Math.min(0, newValue))
+          translateX.setValue(Math.max(gestureState.dx, -80))
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (!canDelete) return
-
-        const currentValue = swipePosition.current
-
-        if (currentValue < 0) {
-          if (gestureState.dx > 30 || currentValue > -50) {
-            closeDeleteButton()
-          } else {
-            openDeleteButton()
-          }
+        if (gestureState.dx < -40) {
+          Animated.spring(translateX, {
+            toValue: -80,
+            useNativeDriver: true
+          }).start()
         } else {
-          if (gestureState.dx < SWIPE_THRESHOLD) {
-            openDeleteButton()
-          } else {
-            closeDeleteButton()
-          }
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true
+          }).start()
         }
       }
     })
@@ -128,14 +120,6 @@ export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   // HANDLERS
   // ------------------
-  const openDeleteButton = () => {
-    Animated.spring(translateX, {
-      toValue: -100,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7
-    }).start()
-  }
 
   const closeDeleteButton = () => {
     Animated.spring(translateX, {
@@ -146,14 +130,23 @@ export default function ReminderCard(props: ReminderCardProps) {
     }).start()
   }
 
-  const handleDelete = () => {
+  const handleDeletePress = () => {
+    setShowDeleteModal(true)
+  }
+
+  const handleConfirmDelete = () => {
     if (isDeleting) return
 
+    setShowDeleteModal(false)
     closeDeleteButton()
 
     if (onDelete) {
       onDelete(reminder.id)
     }
+  }
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false)
   }
 
   const handleCardPress = () => {
@@ -181,7 +174,7 @@ export default function ReminderCard(props: ReminderCardProps) {
         <View style={styles.deleteButtonContainer}>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={handleDelete}
+            onPress={handleDeletePress}
             activeOpacity={0.8}
             disabled={isDeleting}
           >
@@ -293,6 +286,45 @@ export default function ReminderCard(props: ReminderCardProps) {
           </View>
         </TouchableOpacity>
       </Animated.View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>ยืนยันการลบ</Text>
+            <Text style={styles.modalMessage}>
+              คุณต้องการลบเตือนความจำ{' '}
+              <Text style={styles.modalBold}>{reminder.reminderName}</Text>{' '}
+              หรือไม่?
+            </Text>
+            <Text style={styles.modalSubMessage}>
+              การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelDelete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButtonModal]}
+                onPress={handleConfirmDelete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deleteButtonText}>ลบ</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -409,5 +441,72 @@ const styles = StyleSheet.create({
   overdueText: {
     color: '#BF1737',
     fontFamily: 'Prompt_700Bold'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    gap: 16
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Prompt_700Bold',
+    color: '#225877',
+    textAlign: 'center'
+  },
+  modalMessage: {
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877',
+    textAlign: 'center',
+    lineHeight: 24
+  },
+  modalBold: {
+    fontFamily: 'Prompt_700Bold',
+    color: '#ef4444'
+  },
+  modalSubMessage: {
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium',
+    color: '#6b7280',
+    textAlign: 'center'
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db'
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+    color: '#4b5563'
+  },
+  deleteButtonModal: {
+    backgroundColor: '#ef4444'
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_700Bold',
+    color: '#fff'
   }
 })

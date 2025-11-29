@@ -50,6 +50,9 @@ export default function DatePicker(props: DatePickerProps) {
 
   const handleOpen = () => {
     if (!props.disabled) {
+      if (!props.value) {
+        props.onChange(new Date())
+      }
       setShowPicker(true)
     }
   }
