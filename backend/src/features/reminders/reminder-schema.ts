@@ -1,14 +1,23 @@
 import { z } from 'zod';
 import { category_name } from '../../generated/prisma/client';
 
+const simpleReminderObject = z.object({
+  reminderName: z.string().min(1, 'Reminder Name is required'),
+  description: z.string().optional(),
+  reminderDate: z.string().min(1, 'Reminder Date is required'),
+  reminderTime: z.string().optional(),
+  categoryName: z.enum(category_name).optional(),
+});
+
 export const createReminderSchema = z.object({
   body: z.object({
+    petId: z.uuid(),
     reminderName: z.string().min(1, 'Reminder Name is required'),
     description: z.string().optional(),
     reminderDate: z.string().min(1, 'Reminder Date is required'),
     reminderTime: z.string().optional(),
     categoryName: z.enum(category_name).optional(),
-    parentId: z.uuid().optional(),
+    children: z.array(simpleReminderObject).optional(),
   }),
 });
 

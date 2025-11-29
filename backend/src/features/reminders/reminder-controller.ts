@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import * as reminderService from './reminder-service';
-import { createReminderSchema, getReminderByIdSchema } from './reminder-schema';
-import { CreateReminderInput } from './reminder-types';
+import { createReminderSchema, getReminderByIdSchema, CreateReminderPayload } from './reminder-schema';
 import { asyncHandler } from '../../shared/asyncHandler';
 import { sendSuccess } from '../../shared/response';
 
@@ -19,7 +18,7 @@ export const getReminderById = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const createReminder = asyncHandler(async (req: Request, res: Response) => {
-  const validatedData: CreateReminderInput = createReminderSchema.parse(req).body;
+  const validatedData: CreateReminderPayload = createReminderSchema.parse(req).body;
   const { id: userId } = req.user!;
   const newReminder = await reminderService.createNewReminder(validatedData, userId);
   sendSuccess(res, newReminder, 201);
