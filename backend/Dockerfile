@@ -2,6 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
 # 1) ติดตั้ง deps (รวม dev) แต่ต้องมี prisma + prisma.config.ts ให้พร้อมก่อน postinstall
 COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
@@ -20,6 +23,9 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
 
 # 1) ต้องมี prisma + prisma.config.ts ก่อน เพราะ npm ci จะรัน postinstall (prisma generate)
 COPY package.json package-lock.json prisma.config.ts ./

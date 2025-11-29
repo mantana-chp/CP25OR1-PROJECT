@@ -2,7 +2,10 @@ version: "3.9"
 
 services:
   backend:
-    build: .
+    build:
+      context: .
+      args:
+        DATABASE_URL: ${DATABASE_URL}
     container_name: backend
     env_file:
       - .env
