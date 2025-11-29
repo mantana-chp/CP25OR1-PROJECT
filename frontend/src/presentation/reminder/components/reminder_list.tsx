@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router'
+import { Link } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 
@@ -8,7 +8,6 @@ import { useApi } from '@/src/utils/api/use_api'
 
 import { Plus } from 'lucide-react-native'
 import {
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -36,41 +35,14 @@ export default function ReminderList({
   onRefresh,
   initialReminderId
 }: ReminderListProps) {
-  const router = useRouter()
-
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
   const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
     initialReminderId || null
   )
-  const [recurringInstances, setRecurringInstances] = useState([
-    {
-      id: '1',
-      date: '2025-08-21T00:00:00.000Z',
-      time: '13:30:00',
-      instanceNumber: 1,
-      isCompleted: false
-    },
-    {
-      id: '2',
-      date: '2025-09-17T00:00:00.000Z',
-      time: '10:00:00',
-      instanceNumber: 2,
-      isCompleted: false
-    },
-    {
-      id: '3',
-      date: '2025-10-20T00:00:00.000Z',
-      time: '14:30:00',
-      instanceNumber: 3,
-      isCompleted: false
-    }
-  ])
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
-    showErrorAlert: true,
-    successMessage: 'ลบนัดเตือนความจำสำเร็จ',
     onSuccess: () => {
       if (onRefresh) {
         onRefresh()
@@ -97,25 +69,9 @@ export default function ReminderList({
   }
 
   const handleDeleteReminder = useCallback(
-    (id: string) => {
-      Alert.alert(
-        'ยืนยันการลบเตือนความจำ',
-        'คุณแน่ใจหรือไม่ว่าต้องการลบเตือนความจำนี้?',
-        [
-          {
-            text: 'ยกเลิก',
-            style: 'cancel'
-          },
-          {
-            text: 'ลบ',
-            style: 'destructive',
-            onPress: () => {
-              console.log('🗑️ Deleting reminder:', id)
-              deleteReminderApi.execute(id)
-            }
-          }
-        ]
-      )
+    async (id: string) => {
+      console.log('🗑️ Deleting reminder:', id)
+      await deleteReminderApi.execute(id)
     },
     [deleteReminderApi]
   )
@@ -124,7 +80,6 @@ export default function ReminderList({
     async (id: string, currentStatus: string) => {
       if (tempDoneIds.includes(id)) return
 
-      // Optimistic UI update for to_do/overdue -> done
       if (currentStatus === 'to_do' || currentStatus === 'overdue') {
         setTempDoneIds((prev) => [...prev, id])
       }
@@ -146,16 +101,6 @@ export default function ReminderList({
     },
     [tempDoneIds, updateStatusApi, onRefresh]
   )
-
-  const handleToggleInstance = (instanceId: string) => {
-    setRecurringInstances((prev) =>
-      prev.map((instance) =>
-        instance.id === instanceId
-          ? { ...instance, isCompleted: !instance.isCompleted }
-          : instance
-      )
-    )
-  }
 
   const filteredReminders = reminders.filter((reminder) => {
     if (activeTab === 'to_do') {
@@ -222,26 +167,29 @@ export default function ReminderList({
             </View>
           ) : (
             <>
-              <RecurringReminderCard
-                reminder={reminders[0]}
-                instances={recurringInstances}
-                onToggleInstance={(instanceId) =>
-                  handleToggleInstance(instanceId)
-                }
-                onPress={(id) => console.log('Card pressed', id)}
-              />
-              {_.map(filteredReminders, (reminder) => (
-                <ReminderCard
-                  key={reminder.id}
-                  reminder={reminder}
-                  onDelete={handleDeleteReminder}
-                  onPress={handleReminderDetail}
-                  isDeleting={deleteReminderApi.loading}
-                  canDelete={reminder.reminderStatus !== 'done'}
-                  onToggleStatus={handleToggleStatus}
-                  isTempDone={tempDoneIds.includes(reminder.id)}
-                />
-              ))}
+              {_.map(filteredReminders, (reminder) =>
+                reminder.children && reminder.children.length > 0 ? (
+                  <RecurringReminderCard
+                    key={reminder.id}
+                    reminder={reminder}
+                    instances={reminder.children || []}
+                    onPress={() => handleReminderDetail(reminder.id)}
+                    onDelete={(id) => handleDeleteReminder(id)}
+                    onRefresh={onRefresh}
+                  />
+                ) : (
+                  <ReminderCard
+                    key={reminder.id}
+                    reminder={reminder}
+                    onDelete={handleDeleteReminder}
+                    onPress={handleReminderDetail}
+                    isDeleting={deleteReminderApi.loading}
+                    canDelete={reminder.reminderStatus !== 'done'}
+                    onToggleStatus={handleToggleStatus}
+                    isTempDone={tempDoneIds.includes(reminder.id)}
+                  />
+                )
+              )}
             </>
           )}
         </ScrollView>
