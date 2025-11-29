@@ -40,6 +40,7 @@ export interface IReminder {
   statusUpdatedAt: string
   createdAt: string
   updatedAt: string
+  children?: IReminder[]
 }
 
 export const reminderInitValue = (v: IReminder): IReminder => {

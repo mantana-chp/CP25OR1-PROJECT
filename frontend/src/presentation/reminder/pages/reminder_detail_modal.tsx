@@ -4,7 +4,11 @@ import { useApi } from '@/src/utils/api/use_api'
 import {
   Bone,
   CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronUp,
   Clock,
+  Hourglass,
   PawPrint,
   Pill,
   Pipette,
@@ -59,7 +63,11 @@ export default function ReminderDetailModal({
   id,
   onClose
 }: ReminderDetailModalProps) {
+  // ------------------
+  // STATE & CONST
+  // ------------------
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
+  const [isChildrenExpanded, setIsChildrenExpanded] = useState(false)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
@@ -72,12 +80,14 @@ export default function ReminderDetailModal({
     : null
   const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
 
+  // ------------------
+  // USE-EFFECTS
+  // ------------------
   useEffect(() => {
     if (id) {
       getReminderApi.execute(id)
     }
   }, [id])
-  console.log(reminder)
 
   // Show not found message
   if (!id || (!getReminderApi.loading && !reminder)) {
@@ -118,8 +128,10 @@ export default function ReminderDetailModal({
       </View>
     )
   }
-  console.log(reminder?.reminderDate)
 
+  // ------------------
+  // RENDER
+  // ------------------
   return (
     <View style={styles.modalOverlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -159,12 +171,15 @@ export default function ReminderDetailModal({
               />
               <Text style={[styles.infoText, isOverdue && styles.overdueText]}>
                 {reminder?.reminderDate
-                  ? new Date(reminder.reminderDate).toLocaleDateString('th-TH', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })
+                  ? new Date(reminder.reminderDate).toLocaleDateString(
+                      'th-TH',
+                      {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }
+                    )
                   : '-'}
               </Text>
               <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
@@ -183,6 +198,104 @@ export default function ReminderDetailModal({
               </Text>
             </View>
             {/* )} */}
+
+            {/* Child Reminders Section */}
+            {reminder?.children && reminder.children.length > 0 && (
+              <View style={styles.childReminderSection}>
+                <Pressable
+                  style={styles.childReminderHeader}
+                  onPress={() => setIsChildrenExpanded(!isChildrenExpanded)}
+                >
+                  <Text style={styles.childReminderTitle}>
+                    วัคซีนทั้งหมด ({reminder.children.length} เข็ม)
+                  </Text>
+                  {isChildrenExpanded ? (
+                    <ChevronUp size={20} color="#225877" />
+                  ) : (
+                    <ChevronDown size={20} color="#225877" />
+                  )}
+                </Pressable>
+
+                {isChildrenExpanded && (
+                  <View style={styles.childReminderList}>
+                    {[...reminder.children]
+                      .sort(
+                        (a, b) =>
+                          new Date(a.reminderDate).getTime() -
+                          new Date(b.reminderDate).getTime()
+                      )
+                      .map((child, index) => {
+                        const isCompleted = child.reminderStatus === 'done'
+                        const isOverdueChild =
+                          child.reminderStatus === 'overdue'
+                        return (
+                          <View key={child.id} style={styles.childReminderItem}>
+                            <View style={styles.childReminderLeft}>
+                              <Text style={styles.childReminderNumber}>
+                                เข็มที่ {index + 1}
+                              </Text>
+                              <View style={styles.childReminderInfo}>
+                                <CalendarDays
+                                  size={14}
+                                  color={isOverdueChild ? '#DC2626' : '#225877'}
+                                />
+                                <Text
+                                  style={[
+                                    styles.childReminderText,
+                                    isOverdueChild && styles.overdueText
+                                  ]}
+                                >
+                                  {child.reminderDate
+                                    ? new Date(
+                                        child.reminderDate
+                                      ).toLocaleDateString('th-TH', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric'
+                                      })
+                                    : '-'}
+                                </Text>
+                                <Clock
+                                  size={14}
+                                  color={isOverdueChild ? '#DC2626' : '#225877'}
+                                />
+                                <Text
+                                  style={[
+                                    styles.childReminderText,
+                                    isOverdueChild && styles.overdueText
+                                  ]}
+                                >
+                                  {child.reminderTime
+                                    ? `${formatTime(
+                                        parseApiTime(child.reminderTime)
+                                      )} น.`
+                                    : '-'}
+                                </Text>
+                              </View>
+                            </View>
+                            <View
+                              style={[
+                                styles.childStatusIcon,
+                                {
+                                  backgroundColor: isCompleted
+                                    ? '#E6FFFA'
+                                    : '#FFF4E6'
+                                }
+                              ]}
+                            >
+                              {isCompleted ? (
+                                <Check size={18} color="#15AD90" />
+                              ) : (
+                                <Hourglass size={18} color="#FF9531" />
+                              )}
+                            </View>
+                          </View>
+                        )
+                      })}
+                  </View>
+                )}
+              </View>
+            )}
 
             {categoryInfo && (
               <View
@@ -377,5 +490,62 @@ const styles = StyleSheet.create({
   readOnlyInput: {
     backgroundColor: '#f3f4f6',
     color: '#374151'
+  },
+  childReminderSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 16
+  },
+  childReminderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8
+  },
+  childReminderTitle: {
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
+  },
+  childReminderList: {
+    marginTop: 8,
+    gap: 12
+  },
+  childReminderItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#5FA7D1'
+  },
+  childReminderLeft: {
+    flex: 1,
+    gap: 4
+  },
+  childReminderNumber: {
+    fontSize: 14,
+    fontFamily: 'Prompt_700Bold',
+    color: '#225877'
+  },
+  childReminderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap'
+  },
+  childReminderText: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877'
+  },
+  childStatusIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
   }
 })
