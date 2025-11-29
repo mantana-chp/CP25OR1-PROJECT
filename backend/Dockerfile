@@ -2,12 +2,12 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# ติดตั้ง dependencies (รวม dev)
-COPY package.json package-lock.json ./
+# 1) ติดตั้ง deps (รวม dev) แต่ต้องมี prisma + prisma.config.ts ให้พร้อมก่อน postinstall
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
 RUN npm ci
 
-# ต้อง copy prisma ก่อน เพราะ build script ใช้ prisma generate
-COPY prisma ./prisma
+# 2) ค่อย copy source ที่เหลือ
 COPY tsconfig.json ./
 COPY src ./src
 
@@ -21,14 +21,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# copy package file + prisma ก่อน เพื่อให้ postinstall (prisma generate) ใช้ได้
-COPY package.json package-lock.json ./
+# 1) ต้องมี prisma + prisma.config.ts ก่อน เพราะ npm ci จะรัน postinstall (prisma generate)
+COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
-
-# ติดตั้งเฉพาะ production deps (จะรัน postinstall → prisma generate)
 RUN npm ci --omit=dev
 
-# copy compiled code จาก builder
+# 2) copy code ที่ build แล้วจาก builder
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
