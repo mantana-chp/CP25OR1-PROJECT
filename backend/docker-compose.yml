@@ -9,7 +9,7 @@ services:
     container_name: backend
     env_file:
       - .env
-    ports:
+    expose:
       - "3000"
     restart: unless-stopped
     extra_hosts:
