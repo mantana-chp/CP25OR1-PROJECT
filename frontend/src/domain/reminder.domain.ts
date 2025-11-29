@@ -1,5 +1,4 @@
 import * as yup from 'yup'
-import { IVaccineSchedule } from './vaccine.domain'
 
 export interface ICategoryInfo {
   label: string
@@ -27,6 +26,21 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
   )
 }
 
+export interface IChildReminder {
+  id: string
+  userId: string
+  petId: string
+  categoryName: string
+  reminderName: string
+  description: string
+  reminderDate: string
+  reminderTime: string
+  reminderStatus: string
+  statusUpdatedAt: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface IReminder {
   id: string
   userId: string
@@ -41,7 +55,7 @@ export interface IReminder {
   statusUpdatedAt: string
   createdAt: string
   updatedAt: string
-  vaccineSchedule?: IVaccineSchedule
+  children?: IChildReminder[]
 }
 
 export const reminderInitValue = (v: IReminder): IReminder => {
@@ -59,7 +73,7 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     statusUpdatedAt: v.statusUpdatedAt || '',
     createdAt: v.createdAt || '',
     updatedAt: v.updatedAt || '',
-    vaccineSchedule: v.vaccineSchedule,
+    children: v.children || [],
   }
 }
 

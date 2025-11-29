@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 import DateTimePicker, {
-  DateTimePickerEvent
+  DateTimePickerEvent,
 } from '@react-native-community/datetimepicker'
 import { CalendarDays, X } from 'lucide-react-native'
 import {
@@ -11,7 +11,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 
 interface DatePickerProps {
@@ -21,18 +21,20 @@ interface DatePickerProps {
   required?: boolean
   disabled?: boolean
   error?: string | null
+  small?: boolean
   onChange: (date: Date) => void
 }
 
 export default function DatePicker(props: DatePickerProps) {
   const [showPicker, setShowPicker] = useState(false)
+  const [tempDate, setTempDate] = useState<Date | undefined>(props.value)
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return ''
     return date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     })
   }
 
@@ -42,19 +44,29 @@ export default function DatePicker(props: DatePickerProps) {
     }
 
     if (event.type === 'set' && selectedDate) {
-      props.onChange(selectedDate)
+      setTempDate(selectedDate)
     } else if (event.type === 'dismissed') {
       setShowPicker(false)
+      setTempDate(props.value)
     }
   }
 
   const handleOpen = () => {
     if (!props.disabled) {
+      setTempDate(props.value)
       setShowPicker(true)
     }
   }
 
   const handleClose = () => {
+    setShowPicker(false)
+    setTempDate(props.value)
+  }
+
+  const handleConfirm = () => {
+    if (tempDate) {
+      props.onChange(tempDate)
+    }
     setShowPicker(false)
   }
 
@@ -71,24 +83,38 @@ export default function DatePicker(props: DatePickerProps) {
           disabled={props.disabled}
           style={[
             styles.pickerButton,
+            props.small && styles.pickerButtonSmall,
             props.disabled && styles.pickerButtonDisabled,
-            props.error && styles.pickerButtonError
+            props.error && styles.pickerButtonError,
           ]}
         >
           {props.value === undefined ? (
-            <Text style={styles.placeholderText}>{props.placeholder}</Text>
+            <Text
+              style={[
+                styles.placeholderText,
+                props.small && styles.pickerButtonTextSmall,
+              ]}
+            >
+              {props.placeholder}
+            </Text>
           ) : (
             <Text
               style={[
                 styles.pickerButtonText,
-                props.disabled && styles.pickerButtonTextDisabled
+                props.small && styles.pickerButtonTextSmall,
+                props.disabled && styles.pickerButtonTextDisabled,
               ]}
             >
               {formatDate(props.value)}
             </Text>
           )}
 
-          <Text style={styles.pickerButtonIcon}>
+          <Text
+            style={[
+              styles.pickerButtonIcon,
+              props.small && styles.pickerButtonIconSmall,
+            ]}
+          >
             <CalendarDays color={'#A6A6A6'} />
           </Text>
         </Pressable>
@@ -99,16 +125,16 @@ export default function DatePicker(props: DatePickerProps) {
       {/* Android Picker */}
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
-          value={props.value || new Date()}
-          mode="date"
-          display="default"
+          value={tempDate || new Date()}
+          mode='date'
+          display='default'
           onChange={handleChange}
         />
       )}
 
       {/* iOS Picker Modal */}
       {showPicker && Platform.OS === 'ios' && (
-        <Modal visible={true} transparent={true} animationType="slide">
+        <Modal visible={true} transparent={true} animationType='slide'>
           <Pressable style={styles.modalOverlay} onPress={handleClose}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -121,20 +147,20 @@ export default function DatePicker(props: DatePickerProps) {
               </View>
 
               <DateTimePicker
-                value={props.value || new Date()}
-                mode="date"
-                display="inline"
+                value={tempDate || new Date()}
+                mode='date'
+                display='inline'
                 onChange={handleChange}
-                textColor="#5FA7D1"
+                textColor='#5FA7D1'
                 style={styles.picker}
-                locale="th-TH"
+                locale='th-TH'
               />
 
               <View style={styles.modalFooter}>
                 <Button
-                  title="เสร็จสิ้น"
-                  onPress={handleClose}
-                  color="#5FA7D1"
+                  title='เสร็จสิ้น'
+                  onPress={handleConfirm}
+                  color='#5FA7D1'
                 />
               </View>
             </View>
@@ -148,16 +174,16 @@ export default function DatePicker(props: DatePickerProps) {
 const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 16,
-    gap: 4
+    gap: 4,
   },
   inputLabel: {
     color: '#225877',
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4
+    marginLeft: 4,
   },
   required: {
-    color: '#BF1737'
+    color: '#BF1737',
   },
   pickerButton: {
     flexDirection: 'row',
@@ -169,47 +195,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 48,
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
   },
   pickerButtonDisabled: {
     backgroundColor: '#f3f4f6',
-    borderColor: '#e5e7eb'
+    borderColor: '#e5e7eb',
   },
   pickerButtonError: {
-    borderColor: '#BF1737'
+    borderColor: '#BF1737',
   },
   placeholderText: {
     fontFamily: 'Prompt_400Regular',
-    color: '#A6A6A6'
+    color: '#A6A6A6',
   },
   pickerButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   pickerButtonTextDisabled: {
-    color: '#9ca3af'
+    color: '#9ca3af',
   },
   pickerButtonIcon: {
-    fontSize: 20
+    fontSize: 20,
+  },
+  pickerButtonSmall: {
+    minHeight: 40,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  pickerButtonTextSmall: {
+    fontSize: 13,
+  },
+  pickerButtonIconSmall: {
+    fontSize: 16,
   },
   errorText: {
     color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginLeft: 4,
-    marginTop: 4
+    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 20
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -217,26 +254,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    borderBottomColor: '#e5e7eb',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '500',
     color: '#225877',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   closeButton: {
     fontSize: 24,
     color: '#6b7280',
-    paddingHorizontal: 8
+    paddingHorizontal: 8,
   },
   picker: {
     height: 200,
     width: '100%',
-    alignSelf: 'center'
+    alignSelf: 'center',
   },
   modalFooter: {
     paddingHorizontal: 16,
-    paddingTop: 12
-  }
+    paddingTop: 12,
+  },
 })
