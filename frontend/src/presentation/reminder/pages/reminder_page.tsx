@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
+import TodayRemindersModal from '../../components/today_reminders_modal'
 import Calendar from '../components/calendar_component'
 import ReminderList from '../components/reminder_list'
 
@@ -75,6 +76,8 @@ export default function ReminderPage() {
   // ------------------
   return (
     <View style={styles.container}>
+      <TodayRemindersModal />
+
       <Header title="ปฏิทิน" />
       <Calendar
         isExpanded={isCalendarExpanded}
