@@ -30,8 +30,6 @@ export default function AddReminderPage() {
   const router = useRouter()
 
   const createReminderApi = useApi(reminderService.createReminder, {
-    showErrorAlert: true,
-    successMessage: 'เพิ่มเตือนความจำสำเร็จ',
     onSuccess: () => {
       router.back()
     }

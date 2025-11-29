@@ -129,7 +129,6 @@ class ApiClient {
         const originalRequest: any = error.config
 
         console.error('❌ Response error:', error.message)
-        await apiClient.clearTokens()
 
         if (error.response) {
           const { status, data } = error.response
