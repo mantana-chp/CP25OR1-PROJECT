@@ -1,20 +1,24 @@
 import { useAuth } from '@/src/context/AuthContext'
+import { usePets } from '@/src/context/PetContext'
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 
 export default function FinalStep() {
-  const { completeOnboarding, hasPetProfile } = useAuth()
+  const { completeOnboarding } = useAuth()
+  const { pets } = usePets()
   const router = useRouter()
 
   const handleFinish = async () => {
     await completeOnboarding()
 
-    // Check if user has pet profile
-    if (!hasPetProfile) {
-      router.replace('/(tabs)/add_pet_form')
+    // Check if user has pet profile using PetContext
+    if (!pets || pets.length === 0) {
+      // No pet profile, navigate to pet form in onboarding
+      router.replace('/onboarding/pet-profile')
     } else {
+      // Has pet profile, go directly to main app
       router.replace('/(tabs)')
     }
   }

@@ -8,6 +8,7 @@ import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
 
 import { useAuth } from '@/src/context/AuthContext'
+import { usePets } from '@/src/context/PetContext'
 import {
   IPetProfileForm,
   ISpecies,
@@ -18,12 +19,19 @@ import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 
-export default function PetProfileForm() {
+interface PetProfileFormProps {
+  isOnboarding?: boolean
+}
+
+export default function PetProfileForm({
+  isOnboarding = false
+}: PetProfileFormProps) {
   // ------------------
   // CONST
   // ------------------
   const router = useRouter()
-  const { checkPetProfile, hasPetProfile } = useAuth()
+  const { checkPetProfile } = useAuth()
+  const { refreshPets } = usePets()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>('')
@@ -69,8 +77,9 @@ export default function PetProfileForm() {
         const response = await petProfileService.createPetProfile(petDataToSend)
         console.log('✅ Pet profile created successfully:', response)
 
-        // Update pet profile status in auth context
+        // Update pet profile status in auth context and refresh PetContext
         await checkPetProfile()
+        await refreshPets()
 
         Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
           {
@@ -129,7 +138,7 @@ export default function PetProfileForm() {
   // ------------------
   return (
     <>
-      <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={hasPetProfile} />
+      <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={!isOnboarding} />
 
       <ScrollView>
         <View style={styles.formContainer}>
