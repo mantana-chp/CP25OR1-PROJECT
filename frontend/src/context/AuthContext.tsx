@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useState
 } from 'react'
 
 const ONBOARDING_KEY = '@app:hasCompletedOnboarding'
@@ -104,12 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('📝 Checking for existing token...')
       const existingToken = await apiClient.getAccessToken()
       const existingRefreshToken = await apiClient.getRefreshToken()
-      console.log('Existing token:', existingToken ? 'Found' : 'Not found')
       console.log('Existing token:', existingToken)
-      console.log(
-        'Existing refresh token:',
-        existingRefreshToken ? 'Found' : 'Not found'
-      )
+
       console.log('Existing refresh token:', existingRefreshToken)
 
       if (existingToken && existingRefreshToken) {
@@ -118,22 +114,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true)
         setError(null)
 
+        // Try to verify token is still valid by registering push notification
+        // If this fails with 401, it will trigger token refresh or re-login
         try {
           await registerPushNotification()
-        } catch (error) {
-          console.warn('⚠️ Push notification registration failed during init')
+
+          // Step 3: Check if user has pet profile (only if onboarding completed and auth successful)
+          if (hasSeenOnboarding) {
+            await checkPetProfile()
+          }
+        } catch (error: any) {
+          console.warn(
+            '⚠️ Token validation failed, clearing and re-authenticating...'
+          )
+          // Clear tokens and perform fresh device login
           await apiClient.clearTokens()
+          setIsAuthenticated(false)
+          setToken(null)
           await performDeviceLogin()
+
+          // After successful re-login, check pet profile again
+          if (hasSeenOnboarding) {
+            await checkPetProfile()
+          }
         }
       } else {
         // Step 3: Clear any partial tokens and perform device-based login
         await apiClient.clearTokens()
         await performDeviceLogin()
-      }
 
-      // Step 4: Check if user has pet profile (only if onboarding completed)
-      if (hasSeenOnboarding) {
-        await checkPetProfile()
+        // Step 4: Check if user has pet profile (only if onboarding completed)
+        if (hasSeenOnboarding) {
+          await checkPetProfile()
+        }
       }
 
       console.log('🎉 Authentication successful!')
@@ -163,21 +176,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const registerPushNotification = async () => {
-    try {
-      console.log('🔔 Registering push notifications...')
-      const pushToken = await registerForPushNotificationsAsync()
+    console.log('🔔 Registering push notifications...')
+    const pushToken = await registerForPushNotificationsAsync()
 
-      if (pushToken) {
-        console.log('📤 Sending push token to backend:', pushToken)
-        await userService.registerPushToken({
-          token: pushToken,
-          provider: 'expo',
-        })
-        console.log('✅ Push token registered successfully')
-      }
-    } catch (error) {
-      // Don't fail authentication if push notification fails
-      console.warn('⚠️ Push notification registration failed:', error)
+    if (pushToken) {
+      await userService.registerPushToken({
+        token: pushToken,
+        provider: 'expo'
+      })
     }
   }
 
@@ -203,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     hasToken: !!token,
     hasCompletedOnboarding,
-    error,
+    error
   })
 
   return (
@@ -217,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasPetProfile,
         completeOnboarding,
         refreshAuth,
-        checkPetProfile,
+        checkPetProfile
       }}
     >
       {children}

@@ -128,9 +128,11 @@ class ApiClient {
       async (error: AxiosError) => {
         const originalRequest: any = error.config
 
-        console.error('❌ Response error:', error.message)
+        console.error('❌ Response error 111:', error.message)
 
         if (error.response) {
+          console.log('ERRORRRR')
+
           const { status, data } = error.response
           console.error('Status:', status, 'Data:', data)
 
@@ -210,10 +212,15 @@ class ApiClient {
             }
           }
 
-          switch (status) {
-            case 401:
-              throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
+          // For any other 401 errors (non-retryable), also clear tokens
+          if (status === 401) {
+            console.log('🗑️ Clearing tokens due to 401 error')
+            await storage.removeItem(ACCESS_TOKEN_KEY)
+            await storage.removeItem(REFRESH_TOKEN_KEY)
+            throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
+          }
 
+          switch (status) {
             case 403:
               throw new ApiError(403, 'คุณไม่มีสิทธิ์ในการดำเนินการนี้')
 
