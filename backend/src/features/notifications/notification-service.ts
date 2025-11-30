@@ -8,31 +8,23 @@ import {
 } from '../../services/expo-push-service'
 import { logger } from '../../libs/logger'
 import { notification_status } from '../../generated/prisma/client'
+import { NotificationDto, NotificationWithRelations, mapPrismaNotificationToDto } from './notification-mapper'
 
-export const getNotifications = async (userId: string, isRead?: boolean) => {
-  const notificationsFromDb = await notificationRepository.findManyByUserId(
+
+export const getNotifications = async (userId: string, isRead?: boolean): Promise<NotificationDto[]> => {
+  const notificationsFromDb: NotificationWithRelations[] = await notificationRepository.findManyByUserId(
     userId,
     isRead
   )
 
-  // Transform the data to match the frontend INotification domain
-  // This maps the 'reminders' object from the DB to the 'reminder' field
-  const notifications = notificationsFromDb.map((noti: any) => {
-    const { reminders, ...rest } = noti
-    return {
-      ...rest,
-      reminder: reminders,
-    }
-  })
-
-  return notifications
+  return notificationsFromDb.map(mapPrismaNotificationToDto);
 }
 
 export const markAsRead = async (
   notificationId: string,
   userId: string,
   read: boolean
-) => {
+): Promise<NotificationDto> => {
   const notification = await notificationRepository.findById(notificationId)
 
   if (!notification) {
@@ -45,9 +37,18 @@ export const markAsRead = async (
     ])
   }
 
-  return await notificationRepository.update(notificationId, {
+  await notificationRepository.update(notificationId, {
     read_at: read ? new Date() : null,
   })
+
+  // Fetch the updated notification with relations for mapping
+  const updatedNotificationWithRelations = await notificationRepository.findByIdWithRelations(notificationId);
+
+  if (!updatedNotificationWithRelations) {
+    throw new Error('Failed to retrieve updated notification with relations.');
+  }
+
+  return mapPrismaNotificationToDto(updatedNotificationWithRelations);
 }
 
 /**

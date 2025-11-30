@@ -33,21 +33,21 @@ export const findNotDoneByUserId = async (userId: string): Promise<ReminderWithP
 };
 
 export const findDoneByUserId = async (userId: string): Promise<ReminderWithPetName[]> => {
-    const prismaReminders = await prisma.reminders.findMany({
-      where: {
-        user_id: userId,
-        parent_id: null, // Only fetch top-level reminders
-        reminder_status: reminder_status.done,
-      },
-      include: {
-        pets: true,
-        children: true, // Include children, but not their pets
-      },
-      orderBy: {
-        updated_at: 'asc',
-      },
-    });
-    return prismaReminders.map(mapPrismaReminderWithPetToReminder);
+  const prismaReminders = await prisma.reminders.findMany({
+    where: {
+      user_id: userId,
+      parent_id: null, // Only fetch top-level reminders
+      reminder_status: reminder_status.done,
+    },
+    include: {
+      pets: true,
+      children: true, // Include children, but not their pets
+    },
+    orderBy: {
+      updated_at: 'asc',
+    },
+  });
+  return prismaReminders.map(mapPrismaReminderWithPetToReminder);
 };
 
 
@@ -77,11 +77,11 @@ export const findByUniqueFields = async (
   });
 };
 
-export const deleteById = async (id: string): Promise<void> => {
-  await prisma.reminders.delete({
-    where: { id },
-  });
-};
+// export const deleteById = async (id: string): Promise<void> => {
+//   await prisma.reminders.delete({
+//     where: { id },
+//   });
+// };
 
 export const getReminderCount = async (): Promise<number> => {
   return prisma.reminders.count();
