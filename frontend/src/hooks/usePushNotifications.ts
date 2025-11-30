@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef } from 'react'
+import { notificationService } from '../utils/api/services/notification_service'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -31,8 +32,20 @@ export function usePushNotifications() {
     }
   }, [])
 
-  const handleNotificationNavigation = (data: any) => {
+  const handleNotificationNavigation = async (data: any) => {
     if (!data) return
+
+    // Mark notification as read if notificationId is present
+    if (data.notificationId) {
+      try {
+        await notificationService.updateNotificationStatus(
+          data.notificationId,
+          { read: true }
+        )
+      } catch (error) {
+        console.error('Failed to mark notification as read:', error)
+      }
+    }
 
     if (data.reminderId) {
       router.push({
