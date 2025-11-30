@@ -140,6 +140,14 @@ const options: swaggerJSDoc.Options = {
             gender: { type: 'string', enum: ['male', 'female', 'unknown'] },
             birth_date: { type: 'string', format: 'date-time' },
             weight: { type: 'number' },
+            species: {
+              type: 'string',
+              description: 'The Thai name of the species.'
+            },
+            breed: {
+              type: 'string',
+              description: 'The Thai name of the breed.'
+            },
             created_at: { type: 'string', format: 'date-time' },
             updated_at: { type: 'string', format: 'date-time' },
           }

@@ -45,8 +45,8 @@ export const getPetProfile = async (userId: string) => {
     id: pet.id,
     name: pet.pet_name,
     gender: pet.gender,
-    species: pet.species?.name,
-    breed: pet.breeds?.name,
+    species: pet.species?.name_th,
+    breed: pet.breeds?.name_th,
     age: age,
     weight: pet.weight,
   };
