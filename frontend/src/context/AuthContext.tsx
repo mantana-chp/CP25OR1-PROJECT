@@ -176,14 +176,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const registerPushNotification = async () => {
-    console.log('🔔 Registering push notifications...')
-    const pushToken = await registerForPushNotificationsAsync()
+    try {
+      console.log('🔔 Registering push notifications...')
+      const pushToken = await registerForPushNotificationsAsync()
 
-    if (pushToken) {
-      await userService.registerPushToken({
-        token: pushToken,
-        provider: 'expo'
-      })
+      if (pushToken) {
+        console.log('📤 Sending push token to backend:', pushToken)
+        await userService.registerPushToken({
+          token: pushToken,
+          provider: 'expo'
+        })
+        console.log('✅ Push token registered successfully')
+      }
+    } catch (error: any) {
+      // If token already exists (409 conflict), that's okay - it's already registered
+      if (error?.statusCode === 409 || error?.response?.status === 409) {
+        console.log('ℹ️ Push token already registered, skipping')
+        return
+      }
+
+      // Don't fail authentication if push notification fails
+      console.warn('⚠️ Push notification registration failed:', error)
     }
   }
 
