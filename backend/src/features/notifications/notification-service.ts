@@ -95,7 +95,7 @@ export const processAndSendNotifications = async () => {
     } else {
       // Rule 2: For reminders with no time, notification is at 10:00 AM GMT+7 on the due day.
       const datePart = reminder.reminder_date.toISOString().split('T')[0]
-      notificationSendTime = new Date(`${datePart}T10:00:00+07:00`)
+      notificationSendTime = new Date(`${datePart}T09:00:00+07:00`)
     }
 
     // Check if the calculated notification time is in the past.
