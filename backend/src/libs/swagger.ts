@@ -103,19 +103,19 @@ const options: swaggerJSDoc.Options = {
           properties: {
             id: { type: 'string', format: 'uuid' },
             status: { type: 'string', enum: ['active', 'disabled'] },
-            current_installation_id: { type: 'string' },
-            current_platform: {
+            currentInstallationId: { type: 'string' },
+            currentPlatform: {
               type: 'string',
               enum: ['ios', 'android', 'other'],
             },
-            current_platform_device_id: { type: 'string' },
-            current_platform_id_source: {
+            currentPlatformDeviceId: { type: 'string' },
+            currentPlatformIdSource: {
               type: 'string',
               enum: ['ios_keychain', 'android_ssaid', 'unknown'],
             },
-            created_at: { type: 'string', format: 'date-time' },
-            updated_at: { type: 'string', format: 'date-time' },
-            last_active_at: { type: 'string', format: 'date-time' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            lastActiveAt: { type: 'string', format: 'date-time' },
           },
         },
         PushTokenBody: {
@@ -133,12 +133,12 @@ const options: swaggerJSDoc.Options = {
           type: 'object',
           properties: {
             id: { type: 'string', format: 'uuid' },
-            user_id: { type: 'string', format: 'uuid' },
-            species_id: { type: 'string', format: 'uuid' },
-            breed_id: { type: 'string', format: 'uuid' },
-            pet_name: { type: 'string' },
+            userId: { type: 'string', format: 'uuid' },
+            speciesId: { type: 'string', format: 'uuid' },
+            breedId: { type: 'string', format: 'uuid' },
+            petName: { type: 'string' },
             gender: { type: 'string', enum: ['male', 'female', 'unknown'] },
-            birth_date: { type: 'string', format: 'date-time' },
+            birthDate: { type: 'string', format: 'date-time' },
             weight: { type: 'number' },
             species: {
               type: 'string',
@@ -148,31 +148,31 @@ const options: swaggerJSDoc.Options = {
               type: 'string',
               description: 'The Thai name of the breed.'
             },
-            created_at: { type: 'string', format: 'date-time' },
-            updated_at: { type: 'string', format: 'date-time' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
           }
         },
         CreatePetBody: {
           type: 'object',
-          required: ['pet_name', 'species_id', 'gender'],
+          required: ['petName', 'speciesId', 'gender'],
           properties: {
-            pet_name: { type: 'string', minLength: 1 },
-            species_id: { type: 'string', format: 'uuid' },
-            breed_id: { type: 'string', format: 'uuid' },
+            petName: { type: 'string', minLength: 1 },
+            speciesId: { type: 'string', format: 'uuid' },
+            breedId: { type: 'string', format: 'uuid' },
             gender: { type: 'string', enum: ['male', 'female', 'unknown'] },
             weight: { type: 'number', format: 'float' },
-            birth_date: { type: 'string', format: 'date-time' },
+            birthDate: { type: 'string', format: 'date-time' },
           }
         },
         UpdatePetBody: {
           type: 'object',
           properties: {
-            pet_name: { type: 'string', minLength: 1 },
-            species_id: { type: 'string', format: 'uuid' },
-            breed_id: { type: 'string', format: 'uuid' },
+            petName: { type: 'string', minLength: 1 },
+            speciesId: { type: 'string', format: 'uuid' },
+            breedId: { type: 'string', format: 'uuid' },
             gender: { type: 'string', enum: ['male', 'female', 'unknown'] },
             weight: { type: 'number', format: 'float' },
-            birth_date: { type: 'string', format: 'date-time' },
+            birthDate: { type: 'string', format: 'date-time' },
           }
         },
         // Reminder Schemas
@@ -180,18 +180,18 @@ const options: swaggerJSDoc.Options = {
           type: 'object',
           properties: {
             id: { type: 'string', format: 'uuid' },
-            user_id: { type: 'string', format: 'uuid' },
-            pet_id: { type: 'string', format: 'uuid' },
-            reminder_name: { type: 'string' },
+            userId: { type: 'string', format: 'uuid' },
+            petId: { type: 'string', format: 'uuid' },
+            reminderName: { type: 'string' },
             description: { type: 'string' },
-            reminder_date: { type: 'string', format: 'date' },
-            reminder_time: { type: 'string', format: 'time' },
-            reminder_status: { type: 'string', enum: ['to_do', 'done', 'overdue'] },
-            status_done_at: { type: 'string', format: 'date-time' },
-            category_name: { type: 'string', enum: ['General', 'Vaccination', 'Checkup', 'Medication', 'Deworming', 'Grooming', 'Feeding'] },
-            parent_id: { type: 'string', format: 'uuid' },
-            created_at: { type: 'string', format: 'date-time' },
-            updated_at: { type: 'string', format: 'date-time' },
+            reminderDate: { type: 'string', format: 'date' },
+            reminderTime: { type: 'string', format: 'time' },
+            reminderStatus: { type: 'string', enum: ['to_do', 'done', 'overdue'] },
+            statusDoneAt: { type: 'string', format: 'date-time' },
+            categoryName: { type: 'string', enum: ['General', 'Vaccination', 'Checkup', 'Medication', 'Deworming', 'Grooming', 'Feeding'] },
+            parentId: { type: 'string', format: 'uuid' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
           }
         },
         SimpleReminderObject: {
@@ -240,12 +240,15 @@ const options: swaggerJSDoc.Options = {
           type: 'object',
           properties: {
             id: { type: 'string', format: 'uuid' },
-            user_id: { type: 'string', format: 'uuid' },
-            reminder_id: { type: 'string', format: 'uuid' },
-            sent_at: { type: 'string', format: 'date-time' },
+            userId: { type: 'string', format: 'uuid' },
+            reminderId: { type: 'string', format: 'uuid' },
+            sentAt: { type: 'string', format: 'date-time' },
             status: { type: 'string', enum: ['sent', 'pending', 'failed'] },
-            read_at: { type: 'string', format: 'date-time' },
-            created_at: { type: 'string', format: 'date-time' },
+            readAt: { type: 'string', format: 'date-time' },
+            createdAt: { type: 'string', format: 'date-time' },
+            reminder: {
+              $ref: '#/components/schemas/Reminder'
+            }
           }
         },
         UpdateNotificationBody: {

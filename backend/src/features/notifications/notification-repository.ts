@@ -32,6 +32,19 @@ export const findById = async (id: string) => {
   })
 }
 
+export const findByIdWithRelations = async (id: string) => {
+  return await prisma.notifications.findUnique({
+    where: { id },
+    include: {
+      reminders: {
+        include: {
+          pets: true,
+        },
+      },
+    },
+  })
+}
+
 export const update = async (
   id: string,
   data: Prisma.notificationsUpdateInput
