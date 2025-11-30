@@ -4,6 +4,7 @@ import React, { useEffect } from 'react'
 import * as Notifications from 'expo-notifications'
 
 import { NotificationProvider } from '@/context/NotificationContext'
+import { PetProvider } from '@/src/context/PetContext'
 import { AuthProvider } from '../context/AuthContext'
 import { TokenRefreshProvider } from '../context/TokenRefreshContext'
 import { usePushNotifications } from '../hooks/usePushNotifications'
@@ -64,16 +65,18 @@ export default function RootLayout() {
       <TokenRefreshProvider>
         <AuthProvider>
           <NotificationProvider>
-            <StatusBar style="auto" />
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="home" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="onboarding"
-                options={{ headerShown: false }}
-              />
-            </Stack>
+            <PetProvider>
+              <StatusBar style="auto" />
+              <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="home" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ headerShown: false }}
+                />
+              </Stack>
+            </PetProvider>
           </NotificationProvider>
         </AuthProvider>
       </TokenRefreshProvider>

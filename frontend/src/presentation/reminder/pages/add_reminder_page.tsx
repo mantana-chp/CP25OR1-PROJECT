@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useEffect } from 'react'
+import React from 'react'
 
 import {
   IReminder,
@@ -10,7 +10,7 @@ import {
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
+import { usePets } from '@/src/context/PetContext'
 import {
   Platform,
   Pressable,
@@ -28,19 +28,19 @@ import CategorySelector from '../components/category_selector'
 
 export default function AddReminderPage() {
   const router = useRouter()
+  const { getFirstPetId } = usePets()
 
   const createReminderApi = useApi(reminderService.createReminder, {
     onSuccess: () => {
-      router.back()
+      router.push('/(tabs)')
     }
   })
 
-  const getPetsApi = useApi(petProfileService.getMyPets, {
-    showErrorAlert: false
-  })
-
   const formik = useFormik<IReminder>({
-    initialValues: reminderInitValue({} as IReminder),
+    initialValues: {
+      ...reminderInitValue({} as IReminder),
+      petId: getFirstPetId()
+    },
     validationSchema: reminderValidationSchema,
     validateOnBlur: false,
     validateOnChange: false,
@@ -54,19 +54,6 @@ export default function AddReminderPage() {
       formik.resetForm()
     }
   })
-
-  useEffect(() => {
-    const fetchPets = async () => {
-      const response = await getPetsApi.execute()
-      const firstPetId = response?.data?.data?.[0]?.id || ''
-
-      if (firstPetId) {
-        formik.setFieldValue('petId', firstPetId)
-      }
-    }
-
-    fetchPets()
-  }, [])
 
   const isSubmitting = createReminderApi.loading
 
