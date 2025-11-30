@@ -192,9 +192,7 @@ export default function AddReminderPage() {
         : (response as any)?.data || []
 
       setVaccineList(vaccineArray)
-      if (vaccineArray && vaccineArray.length > 0) {
-        setSelectedVaccineId(vaccineArray[0].id)
-      } else {
+      if (!vaccineArray || vaccineArray.length === 0) {
         console.log('⚠️ No vaccines found for this pet')
       }
     } catch (error) {
@@ -264,12 +262,20 @@ export default function AddReminderPage() {
   }
 
   const handleBack = () => {
-    formik.resetForm()
+    // Clear all state except pet
+    // const petId = formik.values.petId
     setDoses([])
     setSelectedVaccineId(null)
+    setShowVaccineDropdown(false)
+    setVaccineList([])
+    setLoadingVaccines(false)
+    setLoadingCalculate(false)
     setSelectedTime('')
     setUserEditedTime(false)
-    setPets([])
+    setIsSyncingDose1(false)
+    formik.resetForm()
+    // Restore petId after reset
+    // formik.setFieldValue('petId', petId)
     router.back()
   }
 
@@ -431,7 +437,14 @@ export default function AddReminderPage() {
                       ? new Date(formik.values.reminderDate)
                       : undefined
                   }
-                  onChange={(v) => formik.setFieldValue('reminderDate', v)}
+                  onChange={(v) => {
+                    const dateString = convertDateToString(v)
+                    formik.setFieldValue('reminderDate', dateString)
+                    // Sync dose 1 with reminderDate
+                    if (isVaccinationCategory) {
+                      handleDateChange(1, v)
+                    }
+                  }}
                   error={formik.errors.reminderDate}
                   required={true}
                 />
@@ -466,7 +479,7 @@ export default function AddReminderPage() {
 
                 {/* Vaccine Type Selector */}
                 <View style={styles.vaccineSubsection}>
-                  <Text style={styles.vaccineLabel}>เลือกประเภทวัคซีน</Text>
+                  <Text style={styles.vaccineLabel}>วัคซีน</Text>
 
                   <TouchableOpacity
                     style={[
@@ -602,7 +615,13 @@ export default function AddReminderPage() {
                                 <DatePicker
                                   title=''
                                   placeholder='วัน/เดือน/ปี'
-                                  value={parseStringToDate(dose.date)}
+                                  value={
+                                    dose.date
+                                      ? parseStringToDate(dose.date)
+                                      : formik.values.reminderDate
+                                      ? new Date(formik.values.reminderDate)
+                                      : undefined
+                                  }
                                   onChange={(date) =>
                                     handleDateChange(dose.doseNumber, date)
                                   }
