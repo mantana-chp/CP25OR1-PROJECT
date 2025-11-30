@@ -1,11 +1,11 @@
 import { Tabs, useFocusEffect } from 'expo-router'
-import React, { useState, useCallback } from 'react'
-import { StyleSheet, View, Text } from 'react-native'
+import React, { useCallback, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
-import { Bell, Calendar, FlaskConical, PawPrintIcon } from 'lucide-react-native'
 import { notificationService } from '@/src/utils/api/services/notification_service'
+import { Bell, Calendar, PawPrintIcon } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
   return (
@@ -63,25 +63,25 @@ export default function TabLayout() {
           height: 84,
           paddingTop: 12,
           justifyContent: 'center',
-          alignItems: 'center',
+          alignItems: 'center'
         },
         tabBarLabelStyle: {
-          fontSize: 0, // Hide labels
+          fontSize: 0 // Hide labels
         },
-        tabBarShowLabel: false,
+        tabBarShowLabel: false
       }}
     >
       <Tabs.Screen
-        name='index'
+        name="index"
         options={{
           title: 'Reminder',
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon icon={Calendar} color={color} focused={focused} />
-          ),
+          )
         }}
       />
       <Tabs.Screen
-        name='pet_profile'
+        name="pet_profile"
         options={{
           title: 'Pet Profile',
           tabBarIcon: ({ color, focused }) => (
@@ -90,11 +90,11 @@ export default function TabLayout() {
               color={color}
               focused={focused}
             />
-          ),
+          )
         }}
       />
       <Tabs.Screen
-        name='in_app_notification'
+        name="in_app_notification"
         options={{
           title: 'In App Notification',
           tabBarIcon: ({ color, focused }) => (
@@ -104,29 +104,29 @@ export default function TabLayout() {
               focused={focused}
               badge={unreadCount}
             />
-          ),
+          )
         }}
       />
       {/* === หน้าที่ซ่อนจาก Tab Bar === */}
       <Tabs.Screen
-        name='add-reminder'
+        name="add-reminder"
         options={{
           title: 'เพิ่มแจ้งเตือน',
-          href: null,
+          href: null
         }}
       />
       <Tabs.Screen
-        name='reminder-details/[id]'
+        name="reminder-details/[id]"
         options={{
           title: 'รายละเอียด',
-          href: null,
+          href: null
         }}
       />
       <Tabs.Screen
-        name='add_pet_form'
+        name="add_pet_form"
         options={{
           title: 'สร้างโปรไฟล์สัตว์เลี้ยง',
-          href: null,
+          href: null
         }}
       />
     </Tabs>
@@ -142,10 +142,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignContent: 'center',
     backgroundColor: 'transparent',
-    position: 'relative',
+    position: 'relative'
   },
   iconContainerActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)'
   },
   badge: {
     position: 'absolute',
@@ -159,12 +159,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
-    paddingHorizontal: 6,
+    paddingHorizontal: 6
   },
   badgeText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+  }
 })

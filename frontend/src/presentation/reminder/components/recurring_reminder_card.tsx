@@ -368,8 +368,11 @@ export default function RecurringReminderCard({
                     <View style={styles.infoRow}>
                       <Clock size={12} color="#225877" />
                       <Text style={styles.instanceDate}>
-                        {formatDate(instance.reminderDate)},{' '}
-                        {formatTime(instance.reminderTime)}
+                        {instance.reminderTime
+                          ? `${formatDate(instance.reminderDate)}, ${formatTime(
+                              instance.reminderTime
+                            )}`
+                          : formatDate(instance.reminderDate)}
                       </Text>
                     </View>
                   </View>
