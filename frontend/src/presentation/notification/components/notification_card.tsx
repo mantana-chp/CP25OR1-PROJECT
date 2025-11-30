@@ -26,27 +26,27 @@ export default function NotificationCard({
     return null
   }
   
-  const date = dayjs(reminder.reminder_date).locale('th')
+  const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}`)
-  const formattedTime = reminder?.reminder_time
-    ? dayjs(reminder.reminder_time).utc().format('HH:mm น.')
+  const formattedTime = reminder?.reminderTime
+    ? dayjs(reminder.reminderTime).utc().format('HH:mm น.')
     : ''
 
   const cardStyle = [styles.card, isRead && styles.readCard]
   const titleStyle = [
     styles.title,
-    reminder?.reminder_status === 'overdue' && styles.overdueTitleText,
+    reminder?.reminderStatus === 'overdue' && styles.overdueTitleText,
     isRead && styles.readText
   ]
   const infoStyle = [
     styles.infoText,
-    reminder?.reminder_status === 'overdue' && styles.overdueDateTimeText,
+    reminder?.reminderStatus === 'overdue' && styles.overdueDateTimeText,
     isRead && styles.readText
   ]
   const iconColor = isRead
     ? '#A6A6A6'
-    : reminder?.reminder_status === 'overdue'
+    : reminder?.reminderStatus === 'overdue'
     ? '#BF1737'
     : '#2E759E'
 
@@ -58,11 +58,11 @@ export default function NotificationCard({
     >
       {/* Middle section - Content */}
       <View style={styles.middleSection}>
-        <Text style={titleStyle}>{reminder?.reminder_name}</Text>
+        <Text style={titleStyle}>{reminder?.reminderName}</Text>
 
         <View style={styles.infoRow}>
           <PawPrint size={18} color={iconColor} fill={iconColor} />
-          <Text style={infoStyle}>{reminder?.pets?.pet_name || '-'}</Text>
+          <Text style={infoStyle}>{reminder?.pets?.petName || '-'}</Text>
         </View>
 
         <View style={styles.infoRow}>

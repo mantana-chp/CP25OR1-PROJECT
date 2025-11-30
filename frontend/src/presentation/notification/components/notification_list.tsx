@@ -41,7 +41,7 @@ export default function NotificationList({
 
   const handleCardPress = useCallback(
     (notification: INotification) => {
-      if (!notification.read_at && !readIds.includes(notification.id)) {
+      if (!notification.readAt && !readIds.includes(notification.id)) {
         setReadIds((prev) => [...prev, notification.id])
 
         markAsReadApi.execute(notification.id, { read: true })
@@ -49,7 +49,7 @@ export default function NotificationList({
 
       router.push({
         pathname: '/(tabs)',
-        params: { reminderId: notification.reminder_id }
+        params: { reminderId: notification.reminderId }
       })
     },
     [router, readIds, markAsReadApi]
@@ -73,7 +73,7 @@ export default function NotificationList({
           ) : (
             _.map(notifications, (notification) => {
               const isRead =
-                !!notification.read_at || readIds.includes(notification.id)
+                !!notification.readAt || readIds.includes(notification.id)
 
               return (
                 <NotificationCard

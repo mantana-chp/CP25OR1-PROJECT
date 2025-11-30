@@ -1,36 +1,36 @@
 export interface INotification {
   id: string
-  user_id: string
-  reminder_id: string
-  sent_at: string | null
+  userId: string
+  reminderId: string
+  sentAt: string | null
   status: string
-  read_at: string | null
-  created_at: string
+  readAt: string | null
+  createdAt: string
   reminder: {
     id: string
-    user_id: string
-    pet_id: string
-    pet_name: string
-    category_name: string
-    reminder_name: string
+    userId: string
+    petId: string
+    petName: string
+    categoryName: string
+    reminderName: string
     description: string
-    reminder_date: string
-    reminder_time: string
-    reminder_status: string
-    status_updated_at: string
-    created_at: string
-    updated_at: string
+    reminderDate: string
+    reminderTime: string
+    reminderStatus: string
+    statusUpdatedAt: string
+    createdAt: string
+    updatedAt: string
     pets: {
       id: string
-      user_id: string
-      pet_name: string
-      species_id: string
-      breed_id: string
+      userId: string
+      petName: string
+      speciesId: string
+      breedId: string
       gender: string
-      birth_date: string
+      birthDate: string
       weight: string
-      created_at: string
-      updated_at: string
+      createdAt: string
+      updatedAt: string
     }
   }
 }
