@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useState
+  useState,
 } from 'react'
 
 const ONBOARDING_KEY = '@app:hasCompletedOnboarding'
@@ -171,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('📤 Sending push token to backend:', pushToken)
         await userService.registerPushToken({
           token: pushToken,
-          provider: 'expo'
+          provider: 'expo',
         })
         console.log('✅ Push token registered successfully')
       }
@@ -203,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     hasToken: !!token,
     hasCompletedOnboarding,
-    error
+    error,
   })
 
   return (
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasPetProfile,
         completeOnboarding,
         refreshAuth,
-        checkPetProfile
+        checkPetProfile,
       }}
     >
       {children}

@@ -13,7 +13,7 @@ export const CATEGORY_MAP: Record<string, ICategoryInfo> = {
   Medication: { label: 'ยา/อาหารเสริม', color: '#10B981', icon: 'Pill' },
   Deworming: { label: 'พยาธิ/เห็บหมัด', color: '#F59E0B', icon: 'Pipette' },
   Grooming: { label: 'กรูมมิ่ง', color: '#8B5CF6', icon: 'Scissors' },
-  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' }
+  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' },
 }
 
 export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
@@ -21,9 +21,24 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
     CATEGORY_MAP[categoryId] || {
       label: 'ทั่วไป',
       color: '#6B7280',
-      icon: 'Tag'
+      icon: 'Tag',
     }
   )
+}
+
+export interface IChildReminder {
+  id: string
+  userId: string
+  petId: string
+  categoryName: string
+  reminderName: string
+  description: string
+  reminderDate: string
+  reminderTime: string
+  reminderStatus: string
+  statusUpdatedAt: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface IReminder {
@@ -57,7 +72,8 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     reminderStatus: v.reminderStatus || 'to_do',
     statusUpdatedAt: v.statusUpdatedAt || '',
     createdAt: v.createdAt || '',
-    updatedAt: v.updatedAt || ''
+    updatedAt: v.updatedAt || '',
+    children: v.children || [],
   }
 }
 

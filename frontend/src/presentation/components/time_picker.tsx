@@ -1,5 +1,5 @@
 import DateTimePicker, {
-  DateTimePickerEvent
+  DateTimePickerEvent,
 } from '@react-native-community/datetimepicker'
 import { Clock } from 'lucide-react-native'
 import React, { useState } from 'react'
@@ -10,7 +10,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 
 interface TimePickerProps {
@@ -20,6 +20,7 @@ interface TimePickerProps {
   required?: boolean
   disabled?: boolean
   error?: string | null
+  small?: boolean
   onChange: (time: string) => void
 }
 
@@ -99,23 +100,32 @@ export default function TimePicker(props: TimePickerProps) {
           disabled={props.disabled}
           style={[
             styles.pickerButton,
+            props.small && styles.pickerButtonSmall,
             props.disabled && styles.pickerButtonDisabled,
-            props.error && styles.pickerButtonError
+            props.error && styles.pickerButtonError,
           ]}
         >
           {!props.value ? (
-            <Text style={styles.placeholderText}>{props.placeholder}</Text>
+            <Text
+              style={[
+                styles.placeholderText,
+                props.small && styles.pickerButtonTextSmall,
+              ]}
+            >
+              {props.placeholder}
+            </Text>
           ) : (
             <Text
               style={[
                 styles.pickerButtonText,
-                props.disabled && styles.pickerButtonTextDisabled
+                props.small && styles.pickerButtonTextSmall,
+                props.disabled && styles.pickerButtonTextDisabled,
               ]}
             >
               {props.value}
             </Text>
           )}
-          <Clock color={'#A6A6A6'} size={20} />
+          <Clock color={'#A6A6A6'} size={props.small ? 16 : 20} />
         </Pressable>
 
         {props.error && <Text style={styles.errorText}>{props.error}</Text>}
@@ -125,9 +135,9 @@ export default function TimePicker(props: TimePickerProps) {
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={getDateValue()}
-          mode="time"
+          mode='time'
           is24Hour={true}
-          display="default"
+          display='default'
           onChange={handleChange}
           minuteInterval={15}
         />
@@ -135,7 +145,7 @@ export default function TimePicker(props: TimePickerProps) {
 
       {/* iOS Picker Modal */}
       {showPicker && Platform.OS === 'ios' && (
-        <Modal visible={true} transparent={true} animationType="slide">
+        <Modal visible={true} transparent={true} animationType='slide'>
           <Pressable style={styles.modalOverlay} onPress={handleClose}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -147,21 +157,21 @@ export default function TimePicker(props: TimePickerProps) {
 
               <DateTimePicker
                 value={getDateValue()}
-                mode="time"
+                mode='time'
                 is24Hour={true}
-                display="spinner"
+                display='spinner'
                 onChange={handleChange}
-                textColor="#5FA7D1"
+                textColor='#5FA7D1'
                 style={styles.picker}
                 minuteInterval={15}
-                locale="th-TH"
+                locale='th-TH'
               />
 
               <View style={styles.modalFooter}>
                 <Button
-                  title="เสร็จสิ้น"
+                  title='เสร็จสิ้น'
                   onPress={handleClose}
-                  color="#5FA7D1"
+                  color='#5FA7D1'
                 />
               </View>
             </View>
@@ -175,16 +185,16 @@ export default function TimePicker(props: TimePickerProps) {
 const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 16,
-    gap: 4
+    gap: 4,
   },
   inputLabel: {
     color: '#225877',
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4
+    marginLeft: 4,
   },
   required: {
-    color: '#BF1737'
+    color: '#BF1737',
   },
   pickerButton: {
     flexDirection: 'row',
@@ -196,47 +206,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 48,
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
   },
   pickerButtonDisabled: {
     backgroundColor: '#f3f4f6',
-    borderColor: '#e5e7eb'
+    borderColor: '#e5e7eb',
   },
   pickerButtonError: {
-    borderColor: '#BF1737'
+    borderColor: '#BF1737',
   },
   placeholderText: {
     fontFamily: 'Prompt_400Regular',
-    color: '#A6A6A6'
+    color: '#A6A6A6',
   },
   pickerButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   pickerButtonTextDisabled: {
-    color: '#9ca3af'
+    color: '#9ca3af',
   },
   pickerButtonIcon: {
-    fontSize: 20
+    fontSize: 20,
+  },
+  pickerButtonSmall: {
+    minHeight: 40,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  pickerButtonTextSmall: {
+    fontSize: 13,
   },
   errorText: {
     color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginLeft: 4,
-    marginTop: 4
+    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 20
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -244,26 +262,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    borderBottomColor: '#e5e7eb',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '500',
     color: '#225877',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   closeButton: {
     fontSize: 24,
     color: '#6b7280',
-    paddingHorizontal: 8
+    paddingHorizontal: 8,
   },
   picker: {
     height: 200,
     width: '100%',
-    alignSelf: 'center'
+    alignSelf: 'center',
   },
   modalFooter: {
     paddingHorizontal: 16,
-    paddingTop: 12
-  }
+    paddingTop: 12,
+  },
 })
