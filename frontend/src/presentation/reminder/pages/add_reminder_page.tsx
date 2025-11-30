@@ -102,7 +102,7 @@ export default function AddReminderPage() {
           }`,
           description: values.description,
           reminderDate: dose.date,
-          reminderTime: dose.time || '00:00',
+          reminderTime: dose.time || '',
           categoryName: 'Vaccination'
         }))
         submitData.children = children
