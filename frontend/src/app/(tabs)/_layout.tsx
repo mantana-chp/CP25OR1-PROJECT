@@ -67,19 +67,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="test-auth"
-        options={{
-          title: 'Test Auth',
-          tabBarIcon: ({ color, focused }) => (
-            <CustomTabBarIcon
-              icon={FlaskConical}
-              color={color}
-              focused={focused}
-            />
-          )
-        }}
-      />
-      <Tabs.Screen
         name="in_app_notification"
         options={{
           title: 'In App Notification',

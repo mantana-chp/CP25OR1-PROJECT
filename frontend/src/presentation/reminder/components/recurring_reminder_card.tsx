@@ -76,6 +76,12 @@ export default function RecurringReminderCard({
   // ------------------
   const [isExpanded, setIsExpanded] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
+  const [selectedInstance, setSelectedInstance] = useState<{
+    id: string
+    status: string
+    index: number
+  } | null>(null)
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
   const translateX = useRef(new Animated.Value(0)).current
   const categoryInfo = getCategoryInfo(reminder?.categoryName || 'General')
@@ -171,11 +177,28 @@ export default function RecurringReminderCard({
     setShowDeleteModal(false)
   }
 
-  const handleToggleInstance = async (
+  const handleToggleInstancePress = (
     instanceId: string,
-    currentStatus: string
+    currentStatus: string,
+    index: number
   ) => {
-    if (tempDoneIds.includes(instanceId)) return
+    // If already done or in temp done state, skip confirmation
+    if (currentStatus === 'done' || tempDoneIds.includes(instanceId)) {
+      return
+    }
+
+    // Show confirmation modal for marking as done
+    setSelectedInstance({ id: instanceId, status: currentStatus, index })
+    setShowCompleteModal(true)
+  }
+
+  const handleConfirmComplete = async () => {
+    if (!selectedInstance) return
+
+    const { id: instanceId, status: currentStatus } = selectedInstance
+
+    setShowCompleteModal(false)
+    setSelectedInstance(null)
 
     if (currentStatus === 'to_do' || currentStatus === 'overdue') {
       setTempDoneIds((prev) => [...prev, instanceId])
@@ -195,6 +218,11 @@ export default function RecurringReminderCard({
         setTempDoneIds((prev) => prev.filter((id) => id !== instanceId))
       }
     }
+  }
+
+  const handleCancelComplete = () => {
+    setShowCompleteModal(false)
+    setSelectedInstance(null)
   }
 
   const handleCardPress = () => {
@@ -309,7 +337,11 @@ export default function RecurringReminderCard({
               >
                 <TouchableOpacity
                   onPress={() =>
-                    handleToggleInstance(instance.id, instance.reminderStatus)
+                    handleToggleInstancePress(
+                      instance.id,
+                      instance.reminderStatus,
+                      index
+                    )
                   }
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -399,6 +431,44 @@ export default function RecurringReminderCard({
                 activeOpacity={0.8}
               >
                 <Text style={styles.deleteButtonText}>ลบทั้งหมด</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Complete Confirmation Modal */}
+      <Modal
+        visible={showCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelComplete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>ยืนยันการทำเครื่องหมาย</Text>
+            <Text style={styles.modalMessage}>
+              คุณต้องการทำเครื่องหมาย{' '}
+              <Text style={styles.modalBold}>
+                วัคซีนเข็มที่ {(selectedInstance?.index ?? 0) + 1}/{totalCount}
+              </Text>{' '}
+              ว่าเสร็จสิ้นแล้วใช่หรือไม่?
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelComplete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.completeButtonModal]}
+                onPress={handleConfirmComplete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deleteButtonText}>ยืนยัน</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -631,6 +701,9 @@ const styles = StyleSheet.create({
   },
   deleteButtonModal: {
     backgroundColor: '#ef4444'
+  },
+  completeButtonModal: {
+    backgroundColor: '#15AD90'
   },
   deleteButtonText: {
     fontSize: 16,

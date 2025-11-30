@@ -3,7 +3,7 @@ import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import dayjs from 'dayjs'
-import { Bell, ClockIcon, PawPrintIcon, X } from 'lucide-react-native'
+import { Bell, Check, ClockIcon, PawPrintIcon, X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import {
   Modal,
@@ -26,6 +26,7 @@ export default function TodayRemindersModal({
 }: TodayRemindersModalProps) {
   const [visible, setVisible] = useState(false)
   const [todayReminders, setTodayReminders] = useState<IReminder[]>([])
+  const [isChecked, setIsChecked] = useState(false)
 
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
@@ -79,9 +80,17 @@ export default function TodayRemindersModal({
     }
   }
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    if (isChecked) {
+      const today = dayjs().format('YYYY-MM-DD')
+      await AsyncStorage.setItem(LAST_SHOWN_KEY, today)
+    }
     setVisible(false)
     onClose?.()
+  }
+
+  const handleToggleCheckbox = () => {
+    setIsChecked(!isChecked)
   }
 
   const handleMarkAsShown = async () => {
@@ -144,16 +153,32 @@ export default function TodayRemindersModal({
                       </Text>
                       {reminder.pet_name && (
                         <View style={styles.infoRow}>
-                          <PawPrintIcon size={14} color="#2E759E" />
+                          <PawPrintIcon size={14} color="#225877" />
                           <Text style={styles.petName}>
                             {reminder.pet_name}
                           </Text>
                         </View>
                       )}
                       <View style={styles.infoRow}>
-                        <ClockIcon size={14} color="#FF9531" />
-                        <Text style={styles.reminderTime}>
+                        <ClockIcon
+                          size={14}
+                          color={
+                            reminder?.reminderStatus.includes('overdue')
+                              ? '#ef4444'
+                              : '#FF9531'
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.reminderTime,
+                            reminder?.reminderStatus.includes('overdue') && {
+                              color: '#ef4444'
+                            }
+                          ]}
+                        >
                           {formatTime(reminder.reminderTime)}
+                          {reminder?.reminderStatus.includes('overdue') &&
+                            ' (เกินกำหนดเวลา)'}
                         </Text>
                       </View>
                       {reminder.description && reminder.description !== '-' && (
@@ -171,13 +196,27 @@ export default function TodayRemindersModal({
           {/* Footer */}
           <View style={styles.footer}>
             <Pressable
-              style={styles.acknowledgeButton}
-              onPress={handleMarkAsShown}
+              style={styles.checkboxContainer}
+              onPress={handleToggleCheckbox}
             >
-              <Text style={styles.acknowledgeButtonText}>รับทราบ</Text>
-            </Pressable>
-            <Pressable style={styles.dismissButton} onPress={handleClose}>
-              <Text style={styles.dismissButtonText}>ปิด</Text>
+              <View
+                style={[
+                  styles.checkbox,
+                  !isChecked && styles.checkboxUnchecked
+                ]}
+              >
+                {isChecked && (
+                  <View style={styles.checkboxInner}>
+                    <Check
+                      size={14}
+                      strokeWidth={3}
+                      color="#fff"
+                      style={{ alignSelf: 'center' }}
+                    />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.checkboxText}>ไม่แสดงอีกในวันนี้</Text>
             </Pressable>
           </View>
         </View>
@@ -271,7 +310,7 @@ const styles = StyleSheet.create({
   petName: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#2E759E'
+    color: '#225877'
   },
   reminderTime: {
     fontSize: 14,
@@ -319,5 +358,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#5FA7D1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#5FA7D1'
+  },
+  checkboxUnchecked: {
+    backgroundColor: '#fff'
+  },
+  checkboxInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+    backgroundColor: '#5FA7D1'
+  },
+  checkboxText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877'
   }
 })
