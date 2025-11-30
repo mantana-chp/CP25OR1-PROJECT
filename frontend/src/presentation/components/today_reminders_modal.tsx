@@ -93,13 +93,6 @@ export default function TodayRemindersModal({
     setIsChecked(!isChecked)
   }
 
-  const handleMarkAsShown = async () => {
-    const today = dayjs().format('YYYY-MM-DD')
-    await AsyncStorage.setItem(LAST_SHOWN_KEY, today)
-    setVisible(false)
-    onClose?.()
-  }
-
   const formatTime = (timeString: string) => {
     if (!timeString) return ''
     return timeString.substring(0, 5) + ' น.'
