@@ -1,6 +1,6 @@
 import {
-  IPetProfileForm,
   IPetProfile,
+  IPetProfileForm,
   ISpeciesAndBreeds
 } from '@/src/domain/pet.domain'
 import { apiClient } from '../api_client'
@@ -11,7 +11,6 @@ export const petProfileService = {
    */
   getMyPets: async () => {
     return apiClient.get<{
-      status: { code: string; description: string }
       data: IPetProfile[]
     }>('/v1/pets/me')
   },

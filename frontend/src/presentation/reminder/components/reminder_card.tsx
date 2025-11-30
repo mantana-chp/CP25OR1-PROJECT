@@ -7,7 +7,6 @@ import 'dayjs/locale/th'
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   Modal,
   PanResponder,
   StyleSheet,
@@ -28,9 +27,6 @@ import {
   Tag,
   Trash2
 } from 'lucide-react-native'
-
-const SCREEN_WIDTH = Dimensions.get('window').width
-const SWIPE_THRESHOLD = -100
 
 interface ReminderCardProps {
   reminder: IReminder
@@ -65,7 +61,7 @@ export default function ReminderCard(props: ReminderCardProps) {
     reminder,
     onDelete,
     isDeleting = false,
-    canDelete = true,
+    canDelete ,
     onPress,
     onToggleStatus,
     isTempDone = false

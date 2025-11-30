@@ -4,16 +4,17 @@ import React, { useEffect } from 'react'
 import * as Notifications from 'expo-notifications'
 
 import { NotificationProvider } from '@/context/NotificationContext'
+import { PetProvider } from '@/src/context/PetContext'
 import { AuthProvider } from '../context/AuthContext'
 import { TokenRefreshProvider } from '../context/TokenRefreshContext'
-import { ErrorProvider } from '../presentation/components/error_context'
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import { ErrorProvider } from '../presentation/components/error_context'
 
 import {
   Prompt_400Regular,
   Prompt_500Medium,
   Prompt_700Bold,
-  useFonts,
+  useFonts
 } from '@expo-google-fonts/prompt'
 import { StatusBar } from 'expo-status-bar'
 import { Platform } from 'react-native'
@@ -32,8 +33,8 @@ Notifications.setNotificationHandler({
     shouldPlaySound: false,
     shouldSetBadge: false,
     shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+    shouldShowList: true
+  })
 })
 
 export default function RootLayout() {
@@ -45,7 +46,7 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Prompt_400Regular,
     Prompt_500Medium,
-    Prompt_700Bold,
+    Prompt_700Bold
   })
 
   useEffect(() => {
@@ -66,16 +67,21 @@ export default function RootLayout() {
         <AuthProvider>
           <ErrorProvider>
             <NotificationProvider>
-              <StatusBar style='auto' />
-              <Stack>
-                <Stack.Screen name='index' options={{ headerShown: false }} />
-                <Stack.Screen name='home' options={{ headerShown: false }} />
-                <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-                <Stack.Screen
-                  name='onboarding'
-                  options={{ headerShown: false }}
-                />
-              </Stack>
+              <PetProvider>
+                <StatusBar style="auto" />
+                <Stack>
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen name="home" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="onboarding"
+                    options={{ headerShown: false }}
+                  />
+                </Stack>
+              </PetProvider>
             </NotificationProvider>
           </ErrorProvider>
         </AuthProvider>

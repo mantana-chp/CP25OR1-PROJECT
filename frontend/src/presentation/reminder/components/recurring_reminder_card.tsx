@@ -59,6 +59,7 @@ interface RecurringInstance {
 interface RecurringReminderCardProps {
   reminder: IReminder
   instances: IReminder[]
+  canDelete?: boolean
   onPress?: (id: string) => void
   onDelete?: (reminderId: string) => void
   onRefresh?: () => void
@@ -69,7 +70,8 @@ export default function RecurringReminderCard({
   instances,
   onPress,
   onDelete,
-  onRefresh
+  onRefresh,
+  canDelete
 }: RecurringReminderCardProps) {
   // ------------------
   // CONST
@@ -243,21 +245,23 @@ export default function RecurringReminderCard({
   return (
     <View style={styles.container}>
       {/* Delete Button (Behind) */}
-      <View style={styles.deleteContainer}>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={handleDeletePress}
-          activeOpacity={0.8}
-        >
-          <Trash2 size={24} color="#fff" />
-          <Text style={styles.deleteText}>ลบ</Text>
-        </TouchableOpacity>
-      </View>
+      {canDelete && (
+        <View style={styles.deleteContainer}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeletePress}
+            activeOpacity={0.8}
+          >
+            <Trash2 size={24} color="#fff" />
+            <Text style={styles.deleteText}>ลบ</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Main Card (Swipeable) */}
       <Animated.View
         style={[styles.swipeableCard, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
+        {...(canDelete ? panResponder.panHandlers : {})}
       >
         <TouchableOpacity
           style={[styles.card, { borderLeftColor: '#EC4899' }]}

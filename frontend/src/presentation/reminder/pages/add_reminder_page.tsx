@@ -1,32 +1,34 @@
 import { useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import {
   IReminder,
   reminderInitValue,
-  reminderValidationSchema,
+  reminderValidationSchema
 } from '@/src/domain/reminder.domain'
-import { ICalculatedDose, IVaccine, IDose } from '@/src/domain/vaccine.domain'
+import { ICalculatedDose, IDose, IVaccine } from '@/src/domain/vaccine.domain'
+import { useError } from '@/src/presentation/components/error_context'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { vaccineService } from '@/src/utils/api/services/vaccine_service'
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { useError } from '@/src/presentation/components/error_context'
+
+import { usePets } from '@/src/context/PetContext'
+import { useLocalSearchParams } from 'expo-router'
+import { Check, ChevronDown, X } from 'lucide-react-native'
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
-  View,
-  ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
+  View
 } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
-import { ChevronDown, Check, X } from 'lucide-react-native'
 import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
@@ -53,18 +55,23 @@ export default function AddReminderPage() {
   const [userEditedTime, setUserEditedTime] = useState(false)
   const [isSyncingDose1, setIsSyncingDose1] = useState(false)
 
-  const createReminderApi = useApi(reminderService.createReminder, {
-    onSuccess: () => {
-      router.back()
-    },
+  const getPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false
   })
 
-  const getPetsApi = useApi(petProfileService.getMyPets, {
-    showErrorAlert: false,
+  const { getFirstPetId } = usePets()
+
+  const createReminderApi = useApi(reminderService.createReminder, {
+    onSuccess: () => {
+      router.push('/(tabs)')
+    }
   })
 
   const formik = useFormik<IReminder>({
-    initialValues: reminderInitValue({} as IReminder),
+    initialValues: {
+      ...reminderInitValue({} as IReminder),
+      petId: getFirstPetId()
+    },
     validationSchema: reminderValidationSchema,
     validateOnBlur: false,
     validateOnChange: false,
@@ -82,7 +89,7 @@ export default function AddReminderPage() {
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: values.petId,
+        petId: values.petId
       }
 
       if (values.categoryName === 'Vaccination' && doses.length > 0) {
@@ -96,28 +103,15 @@ export default function AddReminderPage() {
           description: values.description,
           reminderDate: dose.date,
           reminderTime: dose.time || '00:00',
-          categoryName: 'Vaccination',
+          categoryName: 'Vaccination'
         }))
         submitData.children = children
       }
 
       await createReminderApi.execute(submitData)
       formik.resetForm()
-    },
-  })
-
-  useEffect(() => {
-    const fetchPets = async () => {
-      const response = await getPetsApi.execute()
-      const firstPetId = response?.data?.data?.[0]?.id || ''
-
-      if (firstPetId) {
-        formik.setFieldValue('petId', firstPetId)
-      }
     }
-
-    fetchPets()
-  }, [])
+  })
 
   const isSubmitting = createReminderApi.loading
 
@@ -232,7 +226,7 @@ export default function AddReminderPage() {
       const response = await vaccineService.calculateVaccineSchedule({
         petId: formik.values.petId,
         vaccineId: selectedVaccineId,
-        startDate: startDate,
+        startDate: startDate
       })
 
       const doseArray = Array.isArray(response)
@@ -260,7 +254,7 @@ export default function AddReminderPage() {
             type: calculatedDose.type,
             ageInDays: calculatedDose.ageInDays,
             isAutoCalculated: index > 0,
-            isEdited: wasEdited,
+            isEdited: wasEdited
           }
         }
       )
@@ -331,7 +325,7 @@ export default function AddReminderPage() {
       setDoses((prev) =>
         prev.map((dose) => ({
           ...dose,
-          time: time,
+          time: time
         }))
       )
       setUserEditedTime(true)
@@ -364,7 +358,7 @@ export default function AddReminderPage() {
       return date.toLocaleDateString('th-TH', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric',
+        year: 'numeric'
       })
     } catch (e) {
       return 'Invalid Date'
@@ -397,7 +391,7 @@ export default function AddReminderPage() {
     const formattedDate = date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
+      year: 'numeric'
     })
     return `คำนวนอัตโนมัติ: ${formattedDate}`
   }
@@ -406,7 +400,7 @@ export default function AddReminderPage() {
     <View style={styles.screen}>
       <View style={styles.safeArea}>
         <Header
-          title='เพิ่มเตือนความจำ'
+          title="เพิ่มเตือนความจำ"
           goBack={!isSubmitting}
           onBackPress={handleBack}
         />
@@ -424,7 +418,7 @@ export default function AddReminderPage() {
                 <Text
                   style={[
                     styles.addText,
-                    (!canSubmit || isSubmitting) && styles.submittingText,
+                    (!canSubmit || isSubmitting) && styles.submittingText
                   ]}
                 >
                   {isSubmitting ? 'กำลังเพิ่ม...' : 'เพิ่ม'}
@@ -435,8 +429,8 @@ export default function AddReminderPage() {
             <InputText
               value={formik.values.reminderName}
               onChangeText={(v) => formik.setFieldValue('reminderName', v)}
-              placeholder='หัวข้อเตือนความจำ'
-              title='หัวข้อ'
+              placeholder="หัวข้อเตือนความจำ"
+              title="หัวข้อ"
               required={true}
               error={formik.errors.reminderName}
             />
@@ -444,8 +438,8 @@ export default function AddReminderPage() {
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <DatePicker
-                  title='วันที่เตือนความจำ'
-                  placeholder='วัน/เดือน/ปี'
+                  title="วันที่เตือนความจำ"
+                  placeholder="วัน/เดือน/ปี"
                   value={
                     formik.values.reminderDate
                       ? new Date(formik.values.reminderDate)
@@ -465,8 +459,8 @@ export default function AddReminderPage() {
               </View>
               <View style={{ flex: 1 }}>
                 <TimePicker
-                  title='เวลาที่เตือนความจำ'
-                  placeholder='เลือกเวลา'
+                  title="เวลาที่เตือนความจำ"
+                  placeholder="เลือกเวลา"
                   value={formik.values.reminderTime}
                   onChange={(v) => formik.setFieldValue('reminderTime', v)}
                 />
@@ -499,7 +493,7 @@ export default function AddReminderPage() {
                     style={[
                       styles.vaccineDropdown,
                       isVaccineDropdownDisabled &&
-                        styles.vaccineDropdownDisabled,
+                        styles.vaccineDropdownDisabled
                     ]}
                     onPress={() => {
                       if (!isVaccineDropdownDisabled) {
@@ -511,13 +505,13 @@ export default function AddReminderPage() {
                     disabled={isVaccineDropdownDisabled}
                   >
                     {loadingVaccines ? (
-                      <ActivityIndicator size='small' color='#5FA7D1' />
+                      <ActivityIndicator size="small" color="#5FA7D1" />
                     ) : (
                       <>
                         <Text style={styles.vaccineDropdownValue}>
                           {selectedVaccine?.vaccine_name || 'เลือกวัคซีน'}
                         </Text>
-                        <ChevronDown size={20} color='#6b7280' />
+                        <ChevronDown size={20} color="#6b7280" />
                       </>
                     )}
                   </TouchableOpacity>
@@ -540,7 +534,7 @@ export default function AddReminderPage() {
                             style={[
                               styles.vaccineDropdownItem,
                               selectedVaccineId === vaccine.id &&
-                                styles.vaccineDropdownItemSelected,
+                                styles.vaccineDropdownItemSelected
                             ]}
                             onPress={() => handleVaccineSelect(vaccine.id)}
                           >
@@ -548,7 +542,7 @@ export default function AddReminderPage() {
                               style={[
                                 styles.vaccineDropdownItemText,
                                 selectedVaccineId === vaccine.id &&
-                                  styles.vaccineDropdownItemTextSelected,
+                                  styles.vaccineDropdownItemTextSelected
                               ]}
                             >
                               {vaccine.vaccine_name}
@@ -562,7 +556,7 @@ export default function AddReminderPage() {
                 {/* Loading Calculate */}
                 {loadingCalculate && (
                   <View style={styles.vaccineSubsection}>
-                    <ActivityIndicator size='large' color='#5FA7D1' />
+                    <ActivityIndicator size="large" color="#5FA7D1" />
                   </View>
                 )}
 
@@ -578,11 +572,11 @@ export default function AddReminderPage() {
                               style={[
                                 styles.doseCircle,
                                 dose.doseNumber === 1 &&
-                                  styles.doseCircleCompleted,
+                                  styles.doseCircleCompleted
                               ]}
                             >
                               {dose.doseNumber === 1 && (
-                                <Check size={20} color='#fff' strokeWidth={3} />
+                                <Check size={20} color="#fff" strokeWidth={3} />
                               )}
                             </View>
 
@@ -611,7 +605,7 @@ export default function AddReminderPage() {
                                   handleDeleteDose(dose.doseNumber)
                                 }
                               >
-                                <X size={18} color='#ef4444' />
+                                <X size={18} color="#ef4444" />
                               </Pressable>
                             )}
                           </View>
@@ -627,8 +621,8 @@ export default function AddReminderPage() {
                                   )}
                                 </Text>
                                 <DatePicker
-                                  title=''
-                                  placeholder='วัน/เดือน/ปี'
+                                  title=""
+                                  placeholder="วัน/เดือน/ปี"
                                   value={
                                     dose.date
                                       ? parseStringToDate(dose.date)
@@ -650,8 +644,8 @@ export default function AddReminderPage() {
                                   เวลาที่เตือนความจำ
                                 </Text>
                                 <TimePicker
-                                  title=''
-                                  placeholder='เลือกเวลา'
+                                  title=""
+                                  placeholder="เลือกเวลา"
                                   value={dose.time}
                                   onChange={(time) =>
                                     handleTimeChange(dose.doseNumber, time)
@@ -677,7 +671,7 @@ export default function AddReminderPage() {
             <View>
               <TextInput
                 style={[styles.input, styles.textarea]}
-                placeholder='รายละเอียดอื่นๆ'
+                placeholder="รายละเอียดอื่นๆ"
                 multiline
                 numberOfLines={4}
                 value={formik.values.description}
@@ -701,14 +695,14 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e5e7eb'
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
   scrollView: {
-    flex: 1,
+    flex: 1
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -719,26 +713,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1,
+    elevation: 1
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 18
   },
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   submittingText: {
-    color: '#6b7280',
+    color: '#6b7280'
   },
   input: {
     borderWidth: 1,
@@ -748,23 +742,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48,
+    minHeight: 48
   },
   errorText: {
     color: '#ef4444',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4,
+    marginLeft: 4
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12,
+    paddingVertical: 12
   },
   row: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 8
   },
   vaccineSection: {
     borderWidth: 1,
@@ -772,7 +766,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginVertical: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   warningBox: {
     backgroundColor: '#fef3c7',
@@ -780,21 +774,21 @@ const styles = StyleSheet.create({
     borderColor: '#fde68a',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 16
   },
   warningText: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#92400e',
+    color: '#92400e'
   },
   vaccineSubsection: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   vaccineLabel: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 10,
+    marginBottom: 10
   },
   vaccineDropdown: {
     flexDirection: 'row',
@@ -805,17 +799,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
   vaccineDropdownDisabled: {
     backgroundColor: '#f3f4f6',
     borderColor: '#e5e7eb',
-    opacity: 0.6,
+    opacity: 0.6
   },
   vaccineDropdownValue: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   vaccineDropdownMenu: {
     borderWidth: 1,
@@ -826,34 +820,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginTop: -1,
     overflow: 'hidden',
-    zIndex: 10,
+    zIndex: 10
   },
   vaccineDropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f0f0f0'
   },
   vaccineDropdownItemSelected: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e3f2fd'
   },
   vaccineDropdownItemText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   vaccineDropdownItemTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_500Medium'
   },
   doseCard: {
-    marginBottom: 12,
+    marginBottom: 12
   },
   doseHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 12
   },
   doseCircle: {
     width: 40,
@@ -864,63 +858,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
-    marginTop: 2,
+    marginTop: 2
   },
   doseCircleCompleted: {
     backgroundColor: '#5FA7D1',
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   doseTextBlock: {
-    flex: 1,
+    flex: 1
   },
   doseNumber: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 4,
+    marginBottom: 4
   },
   autocalculatedText: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
-    fontStyle: 'italic',
+    fontStyle: 'italic'
   },
   completedDate: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   doseInputsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 8
   },
   doseInputContainer: {
-    gap: 4,
+    gap: 4
   },
   doseInputLabel: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    marginLeft: 4,
+    marginLeft: 4
   },
   doseDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginVertical: 16,
+    marginVertical: 16
   },
   deleteButton: {
     padding: 8,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   label: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 10,
+    marginBottom: 10
   },
   required: {
-    color: '#dc2626',
+    color: '#dc2626'
   },
   petSelector: {
     borderWidth: 1,
@@ -929,12 +923,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#fff',
-    marginBottom: 12,
+    marginBottom: 12
   },
   petSelectorText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   petDisplay: {
     borderWidth: 1,
@@ -943,12 +937,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#f9fafb',
-    marginBottom: 12,
+    marginBottom: 12
   },
   petDisplayText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   petDropdownMenu: {
     borderWidth: 1,
@@ -956,24 +950,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fff',
     marginBottom: 12,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
   petDropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f0f0f0'
   },
   petDropdownItemSelected: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e3f2fd'
   },
   petDropdownItemText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium',
-  },
+    fontFamily: 'Prompt_500Medium'
+  }
 })
