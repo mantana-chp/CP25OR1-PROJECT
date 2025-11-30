@@ -176,6 +176,7 @@ export default function ReminderList({
                     onPress={() => handleReminderDetail(reminder.id)}
                     onDelete={(id) => handleDeleteReminder(id)}
                     onRefresh={onRefresh}
+                    canDelete={reminder.reminderStatus !== 'done'}
                   />
                 ) : (
                   <ReminderCard
