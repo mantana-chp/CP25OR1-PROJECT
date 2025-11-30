@@ -127,6 +127,7 @@ class ApiClient {
       },
       async (error: AxiosError) => {
         const originalRequest: any = error.config
+
         console.error('❌ Response error:', error.message)
 
         if (error.response) {

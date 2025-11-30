@@ -7,6 +7,7 @@ import Dropdown from '../../components/dropdown'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
 
+import { useAuth } from '@/src/context/AuthContext'
 import {
   IPetProfileForm,
   ISpecies,
@@ -16,7 +17,6 @@ import {
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
-import { useAuth } from '@/src/context/AuthContext'
 
 export default function PetProfileForm() {
   // ------------------
@@ -121,7 +121,6 @@ export default function PetProfileForm() {
   const handleSpeciesChange = (speciesId: string) => {
     setSelectedSpeciesId(speciesId)
     formik.setFieldValue('species_id', speciesId)
-    // Reset breed when species changes
     formik.setFieldValue('breed_id', '')
   }
 
@@ -130,10 +129,7 @@ export default function PetProfileForm() {
   // ------------------
   return (
     <>
-      <Header
-        title="สร้างโปรไฟล์สัตว์เลี้ยง"
-        goBack={hasPetProfile} // Only show back button if user already has pets
-      />
+      <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={hasPetProfile} />
 
       <ScrollView>
         <View style={styles.formContainer}>

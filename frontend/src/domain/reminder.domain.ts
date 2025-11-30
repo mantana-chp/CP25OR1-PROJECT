@@ -55,7 +55,7 @@ export interface IReminder {
   statusUpdatedAt: string
   createdAt: string
   updatedAt: string
-  children?: IChildReminder[]
+  children?: IReminder[]
 }
 
 export const reminderInitValue = (v: IReminder): IReminder => {
@@ -84,5 +84,5 @@ export const reminderValidationSchema = yup.object().shape({
     .max(100, 'หัวข้อต้องไม่เกิน 100 ตัวอักษร'),
   description: yup.string().max(500, 'รายละเอียดต้องไม่เกิน 500 ตัวอักษร'),
   reminderDate: yup.string().required('กรุณาเลือกวันที่'),
-  reminderTime: yup.string(),
+  reminderTime: yup.string()
 })

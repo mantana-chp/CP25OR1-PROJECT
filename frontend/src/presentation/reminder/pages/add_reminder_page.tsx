@@ -13,7 +13,6 @@ import { vaccineService } from '@/src/utils/api/services/vaccine_service'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useError } from '@/src/presentation/components/error_context'
-
 import {
   Platform,
   Pressable,
@@ -55,11 +54,13 @@ export default function AddReminderPage() {
   const [isSyncingDose1, setIsSyncingDose1] = useState(false)
 
   const createReminderApi = useApi(reminderService.createReminder, {
-    showErrorAlert: true,
-    successMessage: 'เพิ่มเตือนความจำสำเร็จ',
     onSuccess: () => {
       router.back()
     },
+  })
+
+  const getPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false,
   })
 
   const formik = useFormik<IReminder>({
@@ -104,6 +105,19 @@ export default function AddReminderPage() {
       formik.resetForm()
     },
   })
+
+  useEffect(() => {
+    const fetchPets = async () => {
+      const response = await getPetsApi.execute()
+      const firstPetId = response?.data?.data?.[0]?.id || ''
+
+      if (firstPetId) {
+        formik.setFieldValue('petId', firstPetId)
+      }
+    }
+
+    fetchPets()
+  }, [])
 
   const isSubmitting = createReminderApi.loading
 

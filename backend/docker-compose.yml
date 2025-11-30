@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+    container_name: backend
+    env_file:
+      - .env
+    expose:
+      - "3000"
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # can be deleted later
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    external: true

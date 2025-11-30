@@ -53,7 +53,9 @@ export default function DatePicker(props: DatePickerProps) {
 
   const handleOpen = () => {
     if (!props.disabled) {
-      setTempDate(props.value)
+      if (!props.value) {
+        props.onChange(new Date())
+      }
       setShowPicker(true)
     }
   }

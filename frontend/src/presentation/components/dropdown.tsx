@@ -1,5 +1,5 @@
 import { DropdownOption } from '@/src/domain/common.domain'
-import { ChevronsUpDown } from 'lucide-react-native'
+import { ChevronsUpDown, X } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   FlatList,
@@ -95,7 +95,7 @@ export default function Dropdown(props: DropdownProps) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{props.title}</Text>
               <TouchableOpacity onPress={() => handleClose()}>
-                <Text style={styles.closeButton}>✕</Text>
+                <Text style={styles.closeButton}><X color={'#A6A6A6'}/></Text>
               </TouchableOpacity>
             </View>
 
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   optionTextSelected: {
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_500Medium',
     color: '#5FA7D1'
   },
   checkmark: {
