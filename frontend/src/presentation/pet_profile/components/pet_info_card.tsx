@@ -8,6 +8,45 @@ interface PetInfoCardProps {
 }
 
 export default function PetInfoCard(props: PetInfoCardProps) {
+  const convertDaysToThaiAge = (days: number): string => {
+    if (days < 7) {
+      return `${days} วัน`
+    }
+
+    if (days < 30) {
+      const weeks = Math.floor(days / 7)
+      return `${weeks} สัปดาห์`
+    }
+
+    if (days < 365) {
+      const months = Math.floor(days / 30)
+      const remainingDays = days % 30
+
+      if (remainingDays === 0) {
+        return `${months} เดือน`
+      }
+      return `${months} เดือน ${remainingDays} วัน`
+    }
+
+    const years = Math.floor(days / 365)
+    const remainingDays = days % 365
+    const months = Math.floor(remainingDays / 30)
+
+    if (months === 0) {
+      return `${years} ปี`
+    }
+    return `${years} ปี ${months} เดือน`
+  }
+  
+  const getThaiGender = (gender: string): string => {
+    const genderMap: { [key: string]: string } = {
+      male: 'ผู้',
+      female: 'เมีย'
+    }
+
+    return genderMap[gender.toLowerCase()] || gender
+  }
+  //
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -25,13 +64,15 @@ export default function PetInfoCard(props: PetInfoCardProps) {
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>{props.data.age}</Text>
+              <Text style={styles.infoText}>
+                {convertDaysToThaiAge(props.data.age)}
+              </Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Ionicons name="male" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>เพศ {props.data.gender}</Text>
+              <Text style={styles.infoText}>เพศ {getThaiGender(props.data.gender)}</Text>
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="fitness-outline" size={14} color="#5BA3D0" />

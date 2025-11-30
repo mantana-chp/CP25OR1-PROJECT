@@ -4,7 +4,10 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/th'
+import utc from 'dayjs/plugin/utc'
 import { Clock, PawPrint } from 'lucide-react-native'
+
+dayjs.extend(utc)
 
 interface NotificationCardProps {
   notification: INotification
@@ -15,7 +18,7 @@ interface NotificationCardProps {
 export default function NotificationCard({
   notification,
   onPress,
-  isRead,
+  isRead
 }: NotificationCardProps) {
   const { reminder } = notification
 
@@ -27,19 +30,19 @@ export default function NotificationCard({
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}`)
   const formattedTime = reminder?.reminderTime
-    ? reminder.reminderTime.substring(0, 5) + ' น.'
+    ? `${reminder.reminderTime.substring(0, 5)} น.`
     : ''
 
   const cardStyle = [styles.card, isRead && styles.readCard]
   const titleStyle = [
     styles.title,
     reminder?.reminderStatus === 'overdue' && styles.overdueTitleText,
-    isRead && styles.readText,
+    isRead && styles.readText
   ]
   const infoStyle = [
     styles.infoText,
     reminder?.reminderStatus === 'overdue' && styles.overdueDateTimeText,
-    isRead && styles.readText,
+    isRead && styles.readText
   ]
   const iconColor = isRead
     ? '#A6A6A6'
@@ -59,14 +62,14 @@ export default function NotificationCard({
 
         <View style={styles.infoRow}>
           <PawPrint size={18} color={iconColor} fill={iconColor} />
-          <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
+          <Text style={infoStyle}>{reminder?.pets?.petName || '-'}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Clock size={18} color={iconColor} />
           <Text style={infoStyle}>
             {formattedTime
-              ? `${formattedDate}, ${formattedTime} น.`
+              ? `${formattedDate}, ${formattedTime}`
               : formattedDate}
           </Text>
         </View>
@@ -77,7 +80,7 @@ export default function NotificationCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#E0F2FE',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -86,44 +89,44 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 3
   },
   title: {
     fontSize: 18,
     fontFamily: 'Prompt_700Bold',
     color: '#225877',
-    marginBottom: 4,
+    marginBottom: 4
   },
   reminderTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   overdueTitleText: {
-    color: '#BF1737',
+    color: '#BF1737'
   },
   overdueDateTimeText: {
-    color: '#BF1737',
+    color: '#BF1737'
   },
   middleSection: {
     flex: 1,
-    gap: 2,
+    gap: 2
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   infoText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   readCard: {
-    backgroundColor: '#D9D9D9',
+    backgroundColor: '#ffffff'
   },
   readText: {
-    color: '#A6A6A6',
-  },
+    color: '#6b7280'
+  }
 })

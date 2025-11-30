@@ -52,11 +52,13 @@ const parseDate = (dateValue: any): Date => {
 export interface IBreed {
   id: string
   name: string
+  name_th: string
 }
 
 export interface ISpecies {
   id: string
   name: string
+  name_th: string
   breeds: IBreed[]
 }
 

@@ -1,12 +1,36 @@
-import { IReminder } from '@/src/domain/reminder.domain'
-
 export interface INotification {
   id: string
-  user_id: string
-  reminder_id: string
-  sent_at: string | null
+  userId: string
+  reminderId: string
+  sentAt: string | null
   status: string
-  read_at: string | null
-  created_at: string
-  reminder: IReminder
+  readAt: string | null
+  createdAt: string
+  reminder: {
+    id: string
+    userId: string
+    petId: string
+    petName: string
+    categoryName: string
+    reminderName: string
+    description: string
+    reminderDate: string
+    reminderTime: string
+    reminderStatus: string
+    statusUpdatedAt: string
+    createdAt: string
+    updatedAt: string
+    pets: {
+      id: string
+      userId: string
+      petName: string
+      speciesId: string
+      breedId: string
+      gender: string
+      birthDate: string
+      weight: string
+      createdAt: string
+      updatedAt: string
+    }
+  }
 }

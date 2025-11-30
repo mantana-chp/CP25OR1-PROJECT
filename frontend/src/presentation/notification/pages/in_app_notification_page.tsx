@@ -2,12 +2,12 @@ import { notificationService } from '@/src/utils/api/services/notification_servi
 import { useApi } from '@/src/utils/api/use_api'
 import React, { useCallback, useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
-import NotificationList from '../components/notification_list'
 import Header from '../../components/header_component'
+import NotificationList from '../components/notification_list'
 
 export default function InAppNotificationPage() {
   const getNotificationsApi = useApi(notificationService.getNotifications, {
-    showErrorAlert: true,
+    showErrorAlert: true
   })
 
   const loadNotifications = useCallback(() => {
@@ -23,7 +23,7 @@ export default function InAppNotificationPage() {
 
   return (
     <View style={styles.container}>
-      <Header title='กล่องแจ้งเตือน' />
+      <Header title="กล่องแจ้งเตือน" />
 
       <NotificationList
         notifications={notifications}
@@ -37,6 +37,6 @@ export default function InAppNotificationPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F1',
-  },
+    backgroundColor: '#FFF9F1'
+  }
 })
