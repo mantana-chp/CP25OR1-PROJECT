@@ -25,7 +25,9 @@ const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
 };
 
 export const getAllReminders = async (userId: string): Promise<ReminderWithPetName[]> => {
-  return await reminderRepository.findAllByUserId(userId);
+  const notDoneReminders = await reminderRepository.findNotDoneByUserId(userId);
+  const doneReminders = await reminderRepository.findDoneByUserId(userId);
+  return [...notDoneReminders, ...doneReminders];
 };
 
 export const getReminderById = async (id: string, userId: string): Promise<ReminderWithPetName> => {

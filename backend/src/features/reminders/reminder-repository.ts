@@ -11,19 +11,45 @@ export type ReminderWithPetPayload = Prisma.remindersGetPayload<{
   };
 }>;
 
-export const findAllByUserId = async (userId: string): Promise<ReminderWithPetName[]> => {
+export const findNotDoneByUserId = async (userId: string): Promise<ReminderWithPetName[]> => {
   const prismaReminders = await prisma.reminders.findMany({
     where: {
       user_id: userId,
       parent_id: null, // Only fetch top-level reminders
+      reminder_status: {
+        in: [reminder_status.to_do, reminder_status.overdue],
+      },
     },
     include: {
       pets: true,
       children: true, // Include children, but not their pets
     },
+    orderBy: [
+      { reminder_date: 'asc' },
+      { reminder_time: 'asc' },
+    ],
   });
   return prismaReminders.map(mapPrismaReminderWithPetToReminder);
 };
+
+export const findDoneByUserId = async (userId: string): Promise<ReminderWithPetName[]> => {
+    const prismaReminders = await prisma.reminders.findMany({
+      where: {
+        user_id: userId,
+        parent_id: null, // Only fetch top-level reminders
+        reminder_status: reminder_status.done,
+      },
+      include: {
+        pets: true,
+        children: true, // Include children, but not their pets
+      },
+      orderBy: {
+        updated_at: 'asc',
+      },
+    });
+    return prismaReminders.map(mapPrismaReminderWithPetToReminder);
+};
+
 
 export const findById = async (id: string): Promise<ReminderWithPetPayload | null> => {
   return await prisma.reminders.findUnique({
