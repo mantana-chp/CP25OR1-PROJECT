@@ -25,12 +25,12 @@ export default function NotificationCard({
   if (!reminder) {
     return null
   }
-  
+
   const date = dayjs(reminder.reminderDate).locale('th')
   const buddhistYear = date.year() + 543
   const formattedDate = date.format(`DD/MM/${buddhistYear}`)
   const formattedTime = reminder?.reminderTime
-    ? dayjs(reminder.reminderTime).utc().format('HH:mm น.')
+    ? `${reminder.reminderTime.substring(0, 5)} น.`
     : ''
 
   const cardStyle = [styles.card, isRead && styles.readCard]
