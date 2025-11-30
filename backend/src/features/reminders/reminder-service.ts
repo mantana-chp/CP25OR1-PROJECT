@@ -59,7 +59,17 @@ export const deleteReminder = async (id: string, userId: string): Promise<void> 
     throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
   }
 
-  await reminderRepository.deleteById(id);
+  await prisma.$transaction(async (tx) => {
+    // Delete all associated notifications first
+    await tx.notifications.deleteMany({
+      where: { reminder_id: id },
+    });
+
+    // Then delete the reminder itself
+    await tx.reminders.delete({
+      where: { id: id },
+    });
+  });
 };
 
 export const createNewReminder = async (newReminderData: CreateReminderPayload, userId: string): Promise<reminders> => {
