@@ -30,7 +30,7 @@ export default function PetProfileForm({
   // CONST
   // ------------------
   const router = useRouter()
-  const { checkPetProfile } = useAuth()
+  const { checkPetProfile, completeOnboarding } = useAuth()
   const { refreshPets } = usePets()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
@@ -67,12 +67,23 @@ export default function PetProfileForm({
         setIsSubmitting(true)
         console.log('📝 Creating pet profile:', values)
 
-        const { id, ...petData } = values
+        const { id, breed_id, weight, ...petData } = values
 
-        const petDataToSend = {
-          ...petData,
-          weight: petData.weight ? Number(petData.weight) : 0
-        } as any
+        const petDataToSend: any = {
+          ...petData
+        }
+
+        // Only add breed_id if it has a value
+        if (breed_id) {
+          petDataToSend.breed_id = breed_id
+        }
+
+        // Only add weight if it has a value
+        if (weight) {
+          petDataToSend.weight = Number(weight)
+        }
+
+        console.log(petDataToSend)
 
         const response = await petProfileService.createPetProfile(petDataToSend)
         console.log('✅ Pet profile created successfully:', response)
@@ -80,6 +91,11 @@ export default function PetProfileForm({
         // Update pet profile status in auth context and refresh PetContext
         await checkPetProfile()
         await refreshPets()
+
+        // If in onboarding mode, complete onboarding now
+        if (isOnboarding) {
+          await completeOnboarding()
+        }
 
         Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
           {
@@ -193,14 +209,6 @@ export default function PetProfileForm({
             </View>
           </View>
 
-          <InputText
-            title="น้ำหนักสัตว์เลี้ยง (กก.)"
-            value={formik.values?.weight}
-            placeholder="น้ำหนักสัตว์เลี้ยง"
-            keyboardType="numeric"
-            onChangeText={(v) => formik.setFieldValue('weight', v)}
-            error={formik?.errors?.weight}
-          />
           <DatePicker
             title="วันเกิด"
             placeholder="วัน/เดือน/ปีเกิด"
@@ -210,7 +218,19 @@ export default function PetProfileForm({
                 : undefined
             }
             onChange={(v) => formik.setFieldValue('birth_date', v)}
+            error={formik?.errors?.birth_date}
+            required={true}
           />
+
+          <InputText
+            title="น้ำหนักสัตว์เลี้ยง (กก.)"
+            value={formik.values?.weight}
+            placeholder="น้ำหนักสัตว์เลี้ยง"
+            keyboardType="numeric"
+            onChangeText={(v) => formik.setFieldValue('weight', v)}
+            error={formik?.errors?.weight}
+          />
+
           <PrimaryButton
             onPress={() => formik.handleSubmit()}
             title="บันทึกโปรไฟล์"
@@ -229,7 +249,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 16,
-    gap: 16,
     borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

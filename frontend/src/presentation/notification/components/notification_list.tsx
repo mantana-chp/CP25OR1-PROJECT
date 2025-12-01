@@ -35,8 +35,6 @@ export default function NotificationList({
       console.error('Failed to mark as read:', error)
     },
     onSuccess: (updatedNotification) => {
-      console.log('Success to mark as read!!!!')
-
       if (onRefresh) {
         onRefresh()
       }

@@ -3,6 +3,7 @@ import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import dayjs from 'dayjs'
+import _ from 'lodash'
 import { Bell, Check, ClockIcon, PawPrintIcon, X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import {
@@ -136,7 +137,7 @@ export default function TodayRemindersModal({
                 คุณมี {todayReminders.length} รายการที่ต้องทำวันนี้
               </Text>
 
-              {todayReminders.map((reminder, index) => (
+              {_.map(todayReminders, (reminder, index) => (
                 <View key={reminder.id} style={styles.reminderCard}>
                   <View style={styles.reminderHeader}>
                     <View style={styles.reminderContent}>

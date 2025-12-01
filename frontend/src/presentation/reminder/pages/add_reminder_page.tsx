@@ -498,8 +498,6 @@ export default function AddReminderPage() {
                     onPress={() => {
                       if (!isVaccineDropdownDisabled) {
                         setShowVaccineDropdown(!showVaccineDropdown)
-                      } else {
-                        console.log('⛔ [Dropdown] Dropdown is disabled')
                       }
                     }}
                     disabled={isVaccineDropdownDisabled}

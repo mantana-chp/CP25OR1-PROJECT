@@ -4,7 +4,7 @@ import React from 'react'
 import { IReminder } from '@/src/domain/reminder.domain'
 
 import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
-import { ChevronDown } from 'lucide-react-native'
+import { ChevronDown, ChevronUp } from 'lucide-react-native'
 import {
   Animated,
   LayoutAnimation,
@@ -103,7 +103,7 @@ export default function Calendar({
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronDown size={24} color="#225877" />
+          <ChevronUp size={24} color="#225877" />
         </Animated.View>
       </TouchableOpacity>
     </View>

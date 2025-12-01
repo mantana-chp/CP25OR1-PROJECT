@@ -8,6 +8,7 @@ interface PrimaryButtonProps {
   isLoading?: boolean
   loadingText?: string
   style?: ViewStyle
+  icon?: React.ReactNode
 }
 
 export default function PrimaryButton(props: PrimaryButtonProps) {
@@ -35,6 +36,7 @@ export default function PrimaryButton(props: PrimaryButtonProps) {
         style
       ]}
     >
+      {props.icon}
       <Text style={styles.buttonText}>{isLoading ? loadingText : title}</Text>
     </Pressable>
   )

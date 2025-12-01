@@ -4,8 +4,8 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
-import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
-import { Bell, Calendar, PawPrintIcon } from 'lucide-react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { Bell } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
   return (
@@ -14,6 +14,7 @@ const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
         size={28}
         color={focused ? '#fff' : color}
         strokeWidth={focused ? 2.5 : 2}
+        fill={focused ? '#fff' : 'none'}
       />
       {badge > 0 && (
         <View style={styles.badge}>
@@ -25,7 +26,6 @@ const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme()
   const { unreadCount } = useUnreadNotifications()
 
   return (
@@ -46,7 +46,7 @@ export default function TabLayout() {
           alignItems: 'center'
         },
         tabBarLabelStyle: {
-          fontSize: 0 // Hide labels
+          // Hide labels
         },
         tabBarShowLabel: false
       }}
@@ -56,7 +56,18 @@ export default function TabLayout() {
         options={{
           title: 'Reminder',
           tabBarIcon: ({ color, focused }) => (
-            <CustomTabBarIcon icon={Calendar} color={color} focused={focused} />
+            <View
+              style={[
+                styles.iconContainer,
+                focused && styles.iconContainerActive
+              ]}
+            >
+              <Ionicons
+                name={focused ? 'calendar' : 'calendar-outline'}
+                size={28}
+                color={focused ? '#fff' : color}
+              />
+            </View>
           )
         }}
       />
@@ -79,11 +90,18 @@ export default function TabLayout() {
         options={{
           title: 'Pet Profile',
           tabBarIcon: ({ color, focused }) => (
-            <CustomTabBarIcon
-              icon={PawPrintIcon}
-              color={color}
-              focused={focused}
-            />
+            <View
+              style={[
+                styles.iconContainer,
+                focused && styles.iconContainerActive
+              ]}
+            >
+              <Ionicons
+                name={focused ? 'paw' : 'paw-outline'}
+                size={28}
+                color={focused ? '#fff' : color}
+              />
+            </View>
           )
         }}
       />
@@ -93,7 +111,8 @@ export default function TabLayout() {
         name="add-reminder"
         options={{
           title: 'เพิ่มแจ้งเตือน',
-          href: null
+          href: null,
+          tabBarStyle: { display: 'none' }
         }}
       />
       <Tabs.Screen

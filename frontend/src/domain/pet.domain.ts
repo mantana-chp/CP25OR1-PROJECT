@@ -35,7 +35,7 @@ export const petProfileValidateSchema = yup.object().shape({
     .number()
     .typeError('กรุณากรอกน้ำหนักเป็นตัวเลข')
     .min(0, 'กรุณากรอกน้ำหนักสัตว์เลี้ยงให้ถูกต้อง'),
-  birth_date: yup.date().nullable()
+  birth_date: yup.date().required('กรุณากรอกวันเกิดสัตว์เลี้ยง')
 })
 
 const parseDate = (dateValue: any): Date => {

@@ -350,8 +350,6 @@ export default function RecurringReminderCard({
                       ? dayjs(nextInstance.reminderDate).diff(dayjs(), 'day')
                       : 0
 
-                    console.log(diffDays)
-
                     return diffDays < 0
                       ? `เลยกำหนดมาแล้ว ${Math.abs(diffDays)} วัน`
                       : `ครั้งถัดไปอีก ${diffDays} วัน`
