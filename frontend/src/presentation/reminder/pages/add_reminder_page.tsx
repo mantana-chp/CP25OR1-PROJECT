@@ -76,7 +76,8 @@ export default function AddReminderPage() {
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      if (values.categoryName === 'Vaccination') {
+      // Only require vaccine data if pet can use vaccine scheduling
+      if (values.categoryName === 'Vaccination' && canUseVaccineSchedule) {
         if (!selectedVaccineId || doses.length === 0 || !doses[0].date) {
           showError('กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน')
           return
@@ -92,7 +93,11 @@ export default function AddReminderPage() {
         petId: values.petId
       }
 
-      if (values.categoryName === 'Vaccination' && doses.length > 0) {
+      if (
+        values.categoryName === 'Vaccination' &&
+        canUseVaccineSchedule &&
+        doses.length > 0
+      ) {
         const syncedDoses = doses.map((dose) =>
           dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
         )
@@ -145,21 +150,38 @@ export default function AddReminderPage() {
     vaccineList && Array.isArray(vaccineList)
       ? vaccineList.find((v) => v.id === selectedVaccineId)
       : undefined
-  const isVaccinationCategory =
-    (formik.values.categoryName === 'Vaccination' &&
-      pets[0].species.includes('สุนัข')) ||
-    (formik.values.categoryName === 'Vaccination' &&
-      pets[0].species.includes('แมว'))
+
+  // Check if current pet can use vaccine scheduling
+  const currentPet = pets.find((p) => p.id === formik.values.petId)
+  const canUseVaccineSchedule =
+    currentPet &&
+    (currentPet.species?.includes('สุนัข') ||
+      currentPet.species?.includes('แมว')) &&
+    !!currentPet.birth_date
+
+  const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
 
   const hasReminderDate = !!formik.values.reminderDate
   const isVaccineDropdownDisabled = isVaccinationCategory && !hasReminderDate
   const canSubmit = formik.values.reminderName && formik.values.reminderDate
 
   useEffect(() => {
-    if (formik.values.categoryName === 'Vaccination' && formik.values.petId) {
+    if (
+      formik.values.categoryName === 'Vaccination' &&
+      formik.values.petId &&
+      canUseVaccineSchedule
+    ) {
       fetchVaccineList()
+    } else if (
+      formik.values.categoryName === 'Vaccination' &&
+      !canUseVaccineSchedule
+    ) {
+      // Clear vaccine data if pet doesn't qualify
+      setVaccineList([])
+      setSelectedVaccineId(null)
+      setDoses([])
     }
-  }, [formik.values.categoryName, formik.values.petId])
+  }, [formik.values.categoryName, formik.values.petId, canUseVaccineSchedule])
 
   useEffect(() => {
     if (
@@ -267,7 +289,7 @@ export default function AddReminderPage() {
       setDoses(calculatedDoses)
       setIsSyncingDose1(false)
     } catch (error) {
-      showError('ไม่สามารถคำนวณตารางวัคซีน')
+      showError('ไม่สามารถคำนวณตารางวัคซีนได้ เนื่องจากมีข้อผิดพลาด')
       setDoses([])
     } finally {
       setLoadingCalculate(false)
@@ -476,9 +498,9 @@ export default function AddReminderPage() {
             />
 
             {/* Vaccine Schedule Section */}
-            {isVaccinationCategory && (
+            {isVaccinationCategory && canUseVaccineSchedule && (
               <View style={styles.vaccineSection}>
-                {!hasReminderDate && (
+                {!hasReminderDate && canUseVaccineSchedule && (
                   <View style={styles.warningBox}>
                     <Text style={styles.warningText}>
                       กรุณาเลือกวันที่เตือนความจำก่อนเลือกวัคซีน
@@ -486,184 +508,193 @@ export default function AddReminderPage() {
                   </View>
                 )}
 
-                {/* Vaccine Type Selector */}
-                <View style={styles.vaccineSubsection}>
-                  <Text style={styles.vaccineLabel}>วัคซีน</Text>
+                {/* Vaccine Type Selector - Only show if pet can use vaccine scheduling */}
+                {canUseVaccineSchedule && (
+                  <View style={styles.vaccineSubsection}>
+                    <Text style={styles.vaccineLabel}>วัคซีน</Text>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.vaccineDropdown,
-                      isVaccineDropdownDisabled &&
-                        styles.vaccineDropdownDisabled
-                    ]}
-                    onPress={() => {
-                      if (!isVaccineDropdownDisabled) {
-                        setShowVaccineDropdown(!showVaccineDropdown)
-                      }
-                    }}
-                    disabled={isVaccineDropdownDisabled}
-                  >
-                    {loadingVaccines ? (
-                      <ActivityIndicator size="small" color="#5FA7D1" />
-                    ) : (
-                      <>
-                        <Text style={styles.vaccineDropdownValue}>
-                          {selectedVaccine?.vaccine_name_th || 'เลือกวัคซีน'}
-                        </Text>
-                        <ChevronDown size={20} color="#6b7280" />
-                      </>
-                    )}
-                  </TouchableOpacity>
-
-                  {showVaccineDropdown && !isVaccineDropdownDisabled && (
-                    <View style={styles.vaccineDropdownMenu}>
-                      {(() => {
-                        return null
-                      })()}
-                      {Array.isArray(vaccineList) &&
-                        vaccineList.length === 0 && (
-                          <Text style={styles.vaccineDropdownItemText}>
-                            ไม่พบวัคซีน
+                    <TouchableOpacity
+                      style={[
+                        styles.vaccineDropdown,
+                        isVaccineDropdownDisabled &&
+                          styles.vaccineDropdownDisabled
+                      ]}
+                      onPress={() => {
+                        if (!isVaccineDropdownDisabled) {
+                          setShowVaccineDropdown(!showVaccineDropdown)
+                        }
+                      }}
+                      disabled={isVaccineDropdownDisabled}
+                    >
+                      {loadingVaccines ? (
+                        <ActivityIndicator size="small" color="#5FA7D1" />
+                      ) : (
+                        <>
+                          <Text style={styles.vaccineDropdownValue}>
+                            {selectedVaccine?.vaccine_name_th || 'เลือกวัคซีน'}
                           </Text>
-                        )}
-                      {Array.isArray(vaccineList) &&
-                        vaccineList.map((vaccine) => (
-                          <Pressable
-                            key={vaccine.id}
-                            style={[
-                              styles.vaccineDropdownItem,
-                              selectedVaccineId === vaccine.id &&
-                                styles.vaccineDropdownItemSelected
-                            ]}
-                            onPress={() => handleVaccineSelect(vaccine.id)}
-                          >
-                            <Text
-                              style={[
-                                styles.vaccineDropdownItemText,
-                                selectedVaccineId === vaccine.id &&
-                                  styles.vaccineDropdownItemTextSelected
-                              ]}
-                            >
-                              {vaccine.vaccine_name_th || vaccine.vaccine_name}
+                          <ChevronDown size={20} color="#6b7280" />
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {showVaccineDropdown && !isVaccineDropdownDisabled && (
+                      <View style={styles.vaccineDropdownMenu}>
+                        {(() => {
+                          return null
+                        })()}
+                        {Array.isArray(vaccineList) &&
+                          vaccineList.length === 0 && (
+                            <Text style={styles.vaccineDropdownItemText}>
+                              ไม่พบวัคซีน
                             </Text>
-                          </Pressable>
-                        ))}
-                    </View>
-                  )}
-                </View>
+                          )}
+                        {Array.isArray(vaccineList) &&
+                          vaccineList.map((vaccine) => (
+                            <Pressable
+                              key={vaccine.id}
+                              style={[
+                                styles.vaccineDropdownItem,
+                                selectedVaccineId === vaccine.id &&
+                                  styles.vaccineDropdownItemSelected
+                              ]}
+                              onPress={() => handleVaccineSelect(vaccine.id)}
+                            >
+                              <Text
+                                style={[
+                                  styles.vaccineDropdownItemText,
+                                  selectedVaccineId === vaccine.id &&
+                                    styles.vaccineDropdownItemTextSelected
+                                ]}
+                              >
+                                {vaccine.vaccine_name_th ||
+                                  vaccine.vaccine_name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {/* Loading Calculate */}
-                {loadingCalculate && (
+                {canUseVaccineSchedule && loadingCalculate && (
                   <View style={styles.vaccineSubsection}>
                     <ActivityIndicator size="large" color="#5FA7D1" />
                   </View>
                 )}
 
                 {/* Doses */}
-                {!loadingCalculate && doses.length > 0 && (
-                  <View style={styles.vaccineSubsection}>
-                    {doses.map((dose, index) => (
-                      <View key={dose.doseNumber}>
-                        <View style={styles.doseCard}>
-                          {/* Dose Header */}
-                          <View style={styles.doseHeader}>
-                            <View
-                              style={[
-                                styles.doseCircle,
-                                dose.doseNumber === 1 &&
-                                  styles.doseCircleCompleted
-                              ]}
-                            >
-                              {dose.doseNumber === 1 && (
-                                <Check size={20} color="#fff" strokeWidth={3} />
-                              )}
-                            </View>
-
-                            <View style={styles.doseTextBlock}>
-                              <Text style={styles.doseNumber}>
-                                {selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
-                                เข็มที่ {dose.doseNumber}
-                              </Text>
-                              {dose.isAutoCalculated && (
-                                <Text style={styles.autocalculatedText}>
-                                  {getAutocalculatedText(dose.date)}
-                                </Text>
-                              )}
-                              {dose.doseNumber === 1 && (
-                                <Text style={styles.completedDate}>
-                                  {formatDateForDisplay(dose.date)}
-                                </Text>
-                              )}
-                            </View>
-
-                            {/* Delete Button */}
-                            {dose.doseNumber > 1 && (
-                              <Pressable
-                                style={styles.deleteButton}
-                                onPress={() =>
-                                  handleDeleteDose(dose.doseNumber)
-                                }
+                {canUseVaccineSchedule &&
+                  !loadingCalculate &&
+                  doses.length > 0 && (
+                    <View style={styles.vaccineSubsection}>
+                      {doses.map((dose, index) => (
+                        <View key={dose.doseNumber}>
+                          <View style={styles.doseCard}>
+                            {/* Dose Header */}
+                            <View style={styles.doseHeader}>
+                              <View
+                                style={[
+                                  styles.doseCircle,
+                                  dose.doseNumber === 1 &&
+                                    styles.doseCircleCompleted
+                                ]}
                               >
-                                <X size={18} color="#ef4444" />
-                              </Pressable>
-                            )}
+                                {dose.doseNumber === 1 && (
+                                  <Check
+                                    size={20}
+                                    color="#fff"
+                                    strokeWidth={3}
+                                  />
+                                )}
+                              </View>
+
+                              <View style={styles.doseTextBlock}>
+                                <Text style={styles.doseNumber}>
+                                  {selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
+                                  เข็มที่ {dose.doseNumber}
+                                </Text>
+                                {dose.isAutoCalculated && (
+                                  <Text style={styles.autocalculatedText}>
+                                    {getAutocalculatedText(dose.date)}
+                                  </Text>
+                                )}
+                                {dose.doseNumber === 1 && (
+                                  <Text style={styles.completedDate}>
+                                    {formatDateForDisplay(dose.date)}
+                                  </Text>
+                                )}
+                              </View>
+
+                              {/* Delete Button */}
+                              {dose.doseNumber > 1 && (
+                                <Pressable
+                                  style={styles.deleteButton}
+                                  onPress={() =>
+                                    handleDeleteDose(dose.doseNumber)
+                                  }
+                                >
+                                  <X size={18} color="#ef4444" />
+                                </Pressable>
+                              )}
+                            </View>
+
+                            {/* Editable Inputs */}
+                            <View style={styles.doseInputsRow}>
+                              <View style={{ flex: 1 }}>
+                                <View style={styles.doseInputContainer}>
+                                  <Text style={styles.doseInputLabel}>
+                                    วันที่เตือนความจำ{' '}
+                                    {dose.doseNumber === 1 && (
+                                      <Text style={styles.required}>*</Text>
+                                    )}
+                                  </Text>
+                                  <DatePicker
+                                    title=""
+                                    placeholder="วัน/เดือน/ปี"
+                                    value={
+                                      dose.date
+                                        ? parseStringToDate(dose.date)
+                                        : formik.values.reminderDate
+                                        ? new Date(formik.values.reminderDate)
+                                        : undefined
+                                    }
+                                    onChange={(date) =>
+                                      handleDateChange(dose.doseNumber, date)
+                                    }
+                                    required={false}
+                                    small={true}
+                                  />
+                                </View>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <View style={styles.doseInputContainer}>
+                                  <Text style={styles.doseInputLabel}>
+                                    เวลาที่เตือนความจำ
+                                  </Text>
+                                  <TimePicker
+                                    title=""
+                                    placeholder="เลือกเวลา"
+                                    value={dose.time}
+                                    onChange={(time) =>
+                                      handleTimeChange(dose.doseNumber, time)
+                                    }
+                                    small={true}
+                                  />
+                                </View>
+                              </View>
+                            </View>
                           </View>
 
-                          {/* Editable Inputs */}
-                          <View style={styles.doseInputsRow}>
-                            <View style={{ flex: 1 }}>
-                              <View style={styles.doseInputContainer}>
-                                <Text style={styles.doseInputLabel}>
-                                  วันที่เตือนความจำ{' '}
-                                  {dose.doseNumber === 1 && (
-                                    <Text style={styles.required}>*</Text>
-                                  )}
-                                </Text>
-                                <DatePicker
-                                  title=""
-                                  placeholder="วัน/เดือน/ปี"
-                                  value={
-                                    dose.date
-                                      ? parseStringToDate(dose.date)
-                                      : formik.values.reminderDate
-                                      ? new Date(formik.values.reminderDate)
-                                      : undefined
-                                  }
-                                  onChange={(date) =>
-                                    handleDateChange(dose.doseNumber, date)
-                                  }
-                                  required={false}
-                                  small={true}
-                                />
-                              </View>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <View style={styles.doseInputContainer}>
-                                <Text style={styles.doseInputLabel}>
-                                  เวลาที่เตือนความจำ
-                                </Text>
-                                <TimePicker
-                                  title=""
-                                  placeholder="เลือกเวลา"
-                                  value={dose.time}
-                                  onChange={(time) =>
-                                    handleTimeChange(dose.doseNumber, time)
-                                  }
-                                  small={true}
-                                />
-                              </View>
-                            </View>
-                          </View>
+                          {/* Divider */}
+                          {index < doses.length - 1 && (
+                            <View style={styles.doseDivider} />
+                          )}
                         </View>
-
-                        {/* Divider */}
-                        {index < doses.length - 1 && (
-                          <View style={styles.doseDivider} />
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                )}
+                      ))}
+                    </View>
+                  )}
               </View>
             )}
 

@@ -10,9 +10,9 @@ interface PetInfoCardProps {
 
 export default function PetInfoCard(props: PetInfoCardProps) {
   const convertDaysToThaiAge = (days: number): string => {
-    if (days < 7) {
-      return `${days} วัน`
-    }
+    if (!days) return '-'
+
+    if (days < 7) return `${days} วัน`
 
     if (days < 30) {
       const weeks = Math.floor(days / 7)

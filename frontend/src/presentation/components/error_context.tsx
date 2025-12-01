@@ -1,5 +1,5 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 // Define the shape of the context
 interface ErrorContextType {
@@ -16,12 +16,11 @@ interface ErrorProviderProps {
 export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null)
 
-  // Function to show an error for 5 seconds
   const showError = (message: string) => {
     setError(message)
     setTimeout(() => {
       setError(null)
-    }, 5000)
+    }, 6000)
   }
 
   return (
@@ -51,7 +50,7 @@ interface GlobalErrorToastProps {
 
 const GlobalErrorToast: React.FC<GlobalErrorToastProps> = ({
   message,
-  onClose,
+  onClose
 }) => {
   return (
     <View style={styles.container}>
@@ -66,8 +65,7 @@ const GlobalErrorToast: React.FC<GlobalErrorToastProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    top: '12%',
     backgroundColor: '#FF4136',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -81,21 +79,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3,
     elevation: 5,
-    zIndex: 9999,
+    zIndex: 9999
   },
   message: {
     color: 'white',
     fontSize: 14,
     flex: 1,
     marginRight: 12,
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   closeButton: {
-    padding: 4,
+    padding: 4
   },
   closeText: {
     color: 'white',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+  }
 })
