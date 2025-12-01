@@ -59,64 +59,100 @@ export const processAndSendNotifications = async () => {
   logger.info('--- RUNNING NOTIFICATION JOB ---');
   const now = new Date();
 
+  // Convert current UTC time to GMT+7 (Bangkok timezone)
+  const gmtPlus7Now = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+
   // Use UTC for all date comparisons to avoid timezone issues
   const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const tomorrowUTC = new Date(todayUTC);
-  tomorrowUTC.setUTCDate(todayUTC.getUTCDate() + 1);
+  const dayAfterTomorrowUTC = new Date(todayUTC);
+  dayAfterTomorrowUTC.setUTCDate(todayUTC.getUTCDate() + 2);
 
-  // Find all unnotified reminders scheduled for today (in UTC) that have not been notified yet.
+  // Find reminders for today or tomorrow that have not been notified yet.
   const candidateReminders = await prisma.reminders.findMany({
     where: {
       reminder_status: { in: ['to_do', 'overdue'] },
       notifications: { none: {} },
       reminder_date: {
         gte: todayUTC,
-        lt: tomorrowUTC,
+        lt: dayAfterTomorrowUTC,
       },
     },
     include: {
       user: { include: { push_tokens: true } },
       pets: true,
+      children: true, // Include to check if it's a parent
     },
   });
 
   if (candidateReminders.length === 0) {
-    logger.info('[NotificationJob] No unnotified candidate reminders found for today (UTC).');
+    logger.info('[NotificationJob] No unnotified candidate reminders found for today/tomorrow.');
     logger.info('--- FINISHED NOTIFICATION JOB ---');
     return;
   }
 
   const candidateIds = candidateReminders.map(r => r.id);
-  logger.info(`[NotificationJob] Found ${candidateReminders.length} candidate reminders for today (UTC): [${candidateIds.join(', ')}]`);
-
+  logger.info(`[NotificationJob] Found ${candidateReminders.length} candidate reminders for today/tomorrow: [${candidateIds.join(', ')}]`);
 
   // Filter in-memory to find only the reminders that are actually due to be processed now
   const dueReminders = candidateReminders.filter(reminder => {
+    // Skip parent reminders (reminders that have children)
+    if (reminder.children && reminder.children.length > 0) {
+      logger.info(`[NotificationJob] Skipping parent reminder ${reminder.id} (has ${reminder.children.length} children).`);
+      return false;
+    }
+
     let notificationSendTime: Date;
-    const reminderDateUTC = reminder.reminder_date;
+    let reminderActualTime: Date;
 
     if (reminder.reminder_time) {
-      const reminderTimeUTC = reminder.reminder_time;
-      // Combine date and time parts in UTC
-      const combinedDateTime = new Date(Date.UTC(
-        reminderDateUTC.getUTCFullYear(),
-        reminderDateUTC.getUTCMonth(),
-        reminderDateUTC.getUTCDate(),
-        reminderTimeUTC.getUTCHours(),
-        reminderTimeUTC.getUTCMinutes(),
-        reminderTimeUTC.getUTCSeconds()
-      ));
-      notificationSendTime = new Date(combinedDateTime.getTime() - 30 * 60 * 1000);
+      // Get the time part in milliseconds from the 1970-01-01 date
+      const timeMillis = reminder.reminder_time.getTime() - new Date('1970-01-01T00:00:00Z').getTime();
+      // Add time to the actual date
+      reminderActualTime = new Date(reminder.reminder_date.getTime() + timeMillis);
+      // Subtract 30 minutes for notification send time
+      notificationSendTime = new Date(reminderActualTime.getTime() - 30 * 60 * 1000);
     } else {
-      // 9 AM GMT+7 is 2 AM UTC
-      notificationSendTime = new Date(Date.UTC(
+      // For reminders without specific time: notify at 9 AM GMT+7
+      const reminderDateUTC = reminder.reminder_date;
+
+      // Create times in UTC first, then convert to GMT+7
+      const notificationTimeUTC = new Date(Date.UTC(
         reminderDateUTC.getUTCFullYear(),
         reminderDateUTC.getUTCMonth(),
         reminderDateUTC.getUTCDate(),
-        2, 0, 0
+        2, 0, 0  // 2 AM UTC = 9 AM GMT+7
       ));
+      const reminderActualTimeUTC = new Date(Date.UTC(
+        reminderDateUTC.getUTCFullYear(),
+        reminderDateUTC.getUTCMonth(),
+        reminderDateUTC.getUTCDate(),
+        16, 59, 59  // 16:59:59 UTC = 23:59:59 GMT+7 (same day)
+      ));
+
+      // Convert UTC to GMT+7 for comparison
+      notificationSendTime = new Date(notificationTimeUTC.getTime() + (7 * 60 * 60 * 1000));
+      reminderActualTime = new Date(reminderActualTimeUTC.getTime() + (7 * 60 * 60 * 1000));
     }
-    return notificationSendTime <= now;
+
+    // Create notification if:
+    // 1. Current time has reached or passed the notification send time AND
+    // 2. Current time has NOT yet passed the actual reminder time (with buffer)
+    // 
+    // Special case: If notification send time has passed and we're checking now,
+    // we should still create it if it hasn't been too long past the reminder time
+    const notificationTimeReached = notificationSendTime <= gmtPlus7Now;
+    const reminderNotYetOccurred = gmtPlus7Now < reminderActualTime;
+
+    // Allow creation if notification time has passed AND we're within grace period after reminder
+    // (e.g., if reminder was at 19:30 and it's now 20:00, still create within 60 minutes after)
+    const gracePeriodMs = 60 * 60 * 1000; // 60 minutes grace period
+    const withinGracePeriod = gmtPlus7Now <= new Date(reminderActualTime.getTime() + gracePeriodMs);
+
+    const shouldCreateNotification = notificationTimeReached && (reminderNotYetOccurred || withinGracePeriod);
+
+    // logger.debug(`[NotificationJob] Reminder ${reminder.id}: notificationTime=${notificationSendTime.toISOString()}, reminderTime=${reminderActualTime.toISOString()}, now(GMT+7)=${gmtPlus7Now.toISOString()}, notificationReached=${notificationTimeReached}, reminderNotYet=${reminderNotYetOccurred}, withinGrace=${withinGracePeriod}`);
+
+    return shouldCreateNotification;
   });
 
   if (dueReminders.length === 0) {
@@ -125,7 +161,7 @@ export const processAndSendNotifications = async () => {
     return;
   }
 
-  logger.info(`[NotificationJob] Found ${dueReminders.length} reminders that are actually due for notification.`);
+  logger.info(`[NotificationJob] Found ${dueReminders.length} reminders that are actually due for notification: [${dueReminders.map(r => r.id).join(', ')}]`);
 
   for (const reminder of dueReminders) {
     logger.info(`[NotificationJob] Processing reminder ${reminder.id}...`);
