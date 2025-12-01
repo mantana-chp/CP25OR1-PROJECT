@@ -61,7 +61,7 @@ export default function NotificationCard({
         <Text style={titleStyle}>{reminder?.reminderName}</Text>
 
         <View style={styles.infoRow}>
-          <PawPrint size={18} color={iconColor} fill={iconColor} />
+          <PawPrint size={18} color={iconColor} />
           <Text style={infoStyle}>{reminder?.pets?.petName || '-'}</Text>
         </View>
 
@@ -92,10 +92,10 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Prompt_700Bold',
     color: '#225877',
-    marginBottom: 4
+    marginBottom: 2
   },
   reminderTitle: {
     fontSize: 16,
