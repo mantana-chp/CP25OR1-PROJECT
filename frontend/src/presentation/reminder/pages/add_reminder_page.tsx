@@ -145,7 +145,12 @@ export default function AddReminderPage() {
     vaccineList && Array.isArray(vaccineList)
       ? vaccineList.find((v) => v.id === selectedVaccineId)
       : undefined
-  const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
+  const isVaccinationCategory =
+    (formik.values.categoryName === 'Vaccination' &&
+      pets[0].species.includes('สุนัข')) ||
+    (formik.values.categoryName === 'Vaccination' &&
+      pets[0].species.includes('แมว'))
+
   const hasReminderDate = !!formik.values.reminderDate
   const isVaccineDropdownDisabled = isVaccinationCategory && !hasReminderDate
   const canSubmit = formik.values.reminderName && formik.values.reminderDate
@@ -342,10 +347,6 @@ export default function AddReminderPage() {
   }
 
   const handleDeleteDose = (doseNumber: number) => {
-    if (doseNumber === 1) {
-      showError('ไม่สามารถลบเข็มที่ 1 ได้')
-      return
-    }
     setDoses((prev) => prev.filter((dose) => dose.doseNumber !== doseNumber))
   }
 
