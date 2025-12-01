@@ -11,7 +11,7 @@ export default function FirstStep() {
           style={styles.image}
           resizeMode="contain"
         />
-        <Text style={styles.title}>ยินดีต้อนรับสู่ [AppName]!</Text>
+        <Text style={styles.title}>ยินดีต้อนรับ!</Text>
         <Text style={styles.subTitle}>
           ดูแลสุขภาพและความสุขของสัตว์เลี้ยงคุณได้ในที่เดียว
         </Text>
