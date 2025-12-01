@@ -3,7 +3,7 @@ import { logger } from '../libs/logger';
 import { processAndSendNotifications } from '../features/notifications/notification-service';
 
 
-const notificationJob = cron.schedule('*/15 * * * *', async () => {
+const notificationJob = cron.schedule('*/3 * * * *', async () => { // 3 mins for demo **normally its 15mins
   logger.info('Running job: Processing and sending notifications...');
   try {
     await processAndSendNotifications();
