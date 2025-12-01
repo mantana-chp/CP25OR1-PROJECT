@@ -1,26 +1,26 @@
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import _ from 'lodash'
 
+import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Dimensions,
   FlatList,
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native'
 
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import ReminderCard from '../../reminder/components/reminder_card'
-import PetInfoCard from '../components/pet_info_card'
 import HealthRecordCard from '../components/health_record_card'
+import PetInfoCard from '../components/pet_info_card'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
@@ -40,22 +40,35 @@ export default function PetProfilePage() {
   // FETCH
   // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
 
   const getPetsApi = useApi(petProfileService.getMyPets, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
 
   const getHealthRecordsApi = useApi(healthRecordService.getHealthRecords, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
 
   useEffect(() => {
-    getRemindersApi.execute({})
     getPetsApi.execute()
+  }, [])
+
+  const loadReminders = useCallback(() => {
+    getRemindersApi.execute({})
+  }, [])
+
+  const loadHealthRecords = useCallback(() => {
     getHealthRecordsApi.execute({})
   }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadReminders()
+      loadHealthRecords()
+    }, [loadReminders, loadHealthRecords])
+  )
 
   const reminders = getRemindersApi.data?.data || []
   const pets = getPetsApi.data?.data || []
@@ -108,7 +121,7 @@ export default function PetProfilePage() {
   }).current
 
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
+    itemVisiblePercentThreshold: 50
   }).current
 
   const renderReminderCard = ({ item }: { item: any }) => {
@@ -143,7 +156,7 @@ export default function PetProfilePage() {
   // ------------------
   return (
     <View style={styles.container}>
-      <Header title='โปรไฟล์สัตว์เลี้ยง' />
+      <Header title="โปรไฟล์สัตว์เลี้ยง" />
 
       <ScrollView>
         <View style={styles.section}>
@@ -207,8 +220,8 @@ export default function PetProfilePage() {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={CARD_WIDTH + CARD_SPACING}
-                snapToAlignment='center'
-                decelerationRate='fast'
+                snapToAlignment="center"
+                decelerationRate="fast"
                 contentContainerStyle={styles.flatListContent}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
@@ -225,63 +238,63 @@ export default function PetProfilePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F1',
+    backgroundColor: '#FFF9F1'
   },
   section: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: '#225877',
     marginBottom: 16,
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_500Medium'
   },
   healthSectionContainer: {
     backgroundColor: '#FDF0DD',
     borderRadius: 16,
     padding: 16,
-    paddingBottom: 4,
+    paddingBottom: 4
   },
   healthListContainer: {
-    maxHeight: 300, // Approx 3 items
+    maxHeight: 300 // Approx 3 items
   },
   cardWrapper: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_SPACING / 2,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   flatListContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   emptyText: {
     fontSize: 15,
     color: '#999',
     fontFamily: 'Prompt_400Regular',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   dotContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,
-    gap: 8,
+    gap: 8
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: '#D9D9D9'
   },
   activeDot: {
     backgroundColor: '#5FA7D1',
-    width: 24,
-  },
+    width: 24
+  }
 })
