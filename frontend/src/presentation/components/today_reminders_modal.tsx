@@ -139,11 +139,13 @@ export default function TodayRemindersModal({
               {todayReminders.map((reminder, index) => (
                 <View key={reminder.id} style={styles.reminderCard}>
                   <View style={styles.reminderHeader}>
-                    <Text style={styles.reminderNumber}>{index + 1}.</Text>
                     <View style={styles.reminderContent}>
-                      <Text style={styles.reminderName}>
-                        {reminder.reminderName}
-                      </Text>
+                      <View style={styles.infoRow}>
+                        <Text style={styles.reminderNumber}>{index + 1}.</Text>
+                        <Text style={styles.reminderName}>
+                          {reminder.reminderName}
+                        </Text>
+                      </View>
                       {reminder.pet_name && (
                         <View style={styles.infoRow}>
                           <PawPrintIcon size={14} color="#225877" />
@@ -169,7 +171,7 @@ export default function TodayRemindersModal({
                             }
                           ]}
                         >
-                          {formatTime(reminder.reminderTime)}
+                          {formatTime(reminder.reminderTime) || '-'}
                           {reminder?.reminderStatus.includes('overdue') &&
                             ' (เกินกำหนดเวลา)'}
                         </Text>
@@ -277,8 +279,9 @@ const styles = StyleSheet.create({
   reminderCard: {
     backgroundColor: '#f9fafb',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 8,
     borderLeftWidth: 4,
     borderLeftColor: '#5FA7D1'
   },
@@ -330,11 +333,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center'
   },
-  dismissButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#6b7280'
-  },
   acknowledgeButton: {
     flex: 1,
     backgroundColor: '#5FA7D1',
@@ -342,15 +340,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center'
   },
-  acknowledgeButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#fff'
-  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 6
   },
   checkboxContainer: {
     flexDirection: 'row',

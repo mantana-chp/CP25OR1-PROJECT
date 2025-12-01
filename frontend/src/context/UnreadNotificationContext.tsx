@@ -1,0 +1,72 @@
+import { notificationService } from '@/src/utils/api/services/notification_service'
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState
+} from 'react'
+
+interface UnreadNotificationContextType {
+  unreadCount: number
+  refreshUnreadCount: () => Promise<void>
+  decrementUnreadCount: () => void
+}
+
+const UnreadNotificationContext = createContext<
+  UnreadNotificationContextType | undefined
+>(undefined)
+
+export const useUnreadNotifications = () => {
+  const context = useContext(UnreadNotificationContext)
+  if (context === undefined) {
+    throw new Error(
+      'useUnreadNotifications must be used within an UnreadNotificationProvider'
+    )
+  }
+  return context
+}
+
+interface UnreadNotificationProviderProps {
+  children: ReactNode
+}
+
+export const UnreadNotificationProvider: React.FC<
+  UnreadNotificationProviderProps
+> = ({ children }) => {
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const refreshUnreadCount = useCallback(async () => {
+    try {
+      const response = await notificationService.getNotifications()
+      const notifications = response?.data || []
+      const unread = notifications.filter((n: any) => !n.readAt).length
+      console.log(
+        '📊 Unread count refreshed:',
+        unread,
+        'total:',
+        notifications.length
+      )
+      setUnreadCount(unread)
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error)
+    }
+  }, [])
+
+  const decrementUnreadCount = useCallback(() => {
+    setUnreadCount((prev) => Math.max(0, prev - 1))
+  }, [])
+
+  useEffect(() => {
+    refreshUnreadCount()
+  }, [refreshUnreadCount])
+
+  return (
+    <UnreadNotificationContext.Provider
+      value={{ unreadCount, refreshUnreadCount, decrementUnreadCount }}
+    >
+      {children}
+    </UnreadNotificationContext.Provider>
+  )
+}

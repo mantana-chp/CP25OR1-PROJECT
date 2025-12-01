@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef } from 'react'
+import { useUnreadNotifications } from '../context/UnreadNotificationContext'
 import { notificationService } from '../utils/api/services/notification_service'
 
 Notifications.setNotificationHandler({
@@ -15,10 +16,18 @@ Notifications.setNotificationHandler({
 
 export function usePushNotifications() {
   const router = useRouter()
+  const { refreshUnreadCount } = useUnreadNotifications()
   const responseListener = useRef<Notifications.Subscription | null>(null)
+  const notificationListener = useRef<Notifications.Subscription | null>(null)
 
   useEffect(() => {
-    // Listen for user tapping on notifications
+    // Listen for notifications received while app is in foreground
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener(() => {
+        // Refresh unread count when new notification is received
+        refreshUnreadCount()
+      })
+
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data
@@ -28,20 +37,22 @@ export function usePushNotifications() {
 
     return () => {
       // Cleanup listeners
+      notificationListener.current?.remove()
       responseListener.current?.remove()
     }
-  }, [])
+  }, [refreshUnreadCount])
 
   const handleNotificationNavigation = async (data: any) => {
     if (!data) return
 
-    // Mark notification as read if notificationId is present
     if (data.notificationId) {
       try {
         await notificationService.updateNotificationStatus(
           data.notificationId,
           { read: true }
         )
+
+        refreshUnreadCount()
       } catch (error) {
         console.error('Failed to mark notification as read:', error)
       }

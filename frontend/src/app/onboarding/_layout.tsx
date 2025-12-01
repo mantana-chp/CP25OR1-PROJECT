@@ -6,6 +6,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="second" options={{ headerShown: false }} />
       <Stack.Screen name="final" options={{ headerShown: false }} />
+      <Stack.Screen name="pet-profile" options={{ headerShown: false }} />
     </Stack>
   )
 }

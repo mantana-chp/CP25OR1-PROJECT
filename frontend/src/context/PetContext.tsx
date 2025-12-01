@@ -7,6 +7,7 @@ import React, {
   useState
 } from 'react'
 import { IPetProfile } from '../domain/pet.domain'
+import { useAuth } from './AuthContext'
 
 interface PetContextType {
   pets: IPetProfile[]
@@ -20,6 +21,7 @@ const PetContext = createContext<PetContextType | undefined>(undefined)
 export function PetProvider({ children }: { children: React.ReactNode }) {
   const [pets, setPets] = useState<IPetProfile[]>([])
   const [loading, setLoading] = useState(false)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
 
   const refreshPets = useCallback(async () => {
     try {
@@ -40,8 +42,11 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   }, [pets])
 
   useEffect(() => {
-    refreshPets()
-  }, [refreshPets])
+    // Only fetch pets when authentication is complete and user is authenticated
+    if (!authLoading && isAuthenticated) {
+      refreshPets()
+    }
+  }, [authLoading, isAuthenticated, refreshPets])
 
   return (
     <PetContext.Provider value={{ pets, loading, refreshPets, getFirstPetId }}>

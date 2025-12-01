@@ -1,10 +1,10 @@
-import { Tabs, useFocusEffect } from 'expo-router'
-import React, { useCallback, useState } from 'react'
+import { Tabs } from 'expo-router'
+import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
+import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { useColorScheme } from '@/src/hooks/use-color-scheme.web'
-import { notificationService } from '@/src/utils/api/services/notification_service'
 import { Bell, Calendar, PawPrintIcon } from 'lucide-react-native'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
@@ -26,27 +26,7 @@ const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme()
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  // Reload unread count when notification tab comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      const fetchUnreadCount = async () => {
-        try {
-          const response = await notificationService.getNotifications()
-          const notifications = response?.data || []
-          const unreadNotifications = notifications.filter(
-            (n: any) => !n.read_at
-          )
-          setUnreadCount(unreadNotifications.length)
-        } catch (error) {
-          console.error('Failed to fetch unread count:', error)
-        }
-      }
-
-      fetchUnreadCount()
-    }, [])
-  )
+  const { unreadCount } = useUnreadNotifications()
 
   return (
     <Tabs
@@ -81,19 +61,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="pet_profile"
-        options={{
-          title: 'Pet Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <CustomTabBarIcon
-              icon={PawPrintIcon}
-              color={color}
-              focused={focused}
-            />
-          )
-        }}
-      />
-      <Tabs.Screen
         name="in_app_notification"
         options={{
           title: 'In App Notification',
@@ -107,6 +74,20 @@ export default function TabLayout() {
           )
         }}
       />
+      <Tabs.Screen
+        name="pet_profile"
+        options={{
+          title: 'Pet Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={PawPrintIcon}
+              color={color}
+              focused={focused}
+            />
+          )
+        }}
+      />
+
       {/* === หน้าที่ซ่อนจาก Tab Bar === */}
       <Tabs.Screen
         name="add-reminder"

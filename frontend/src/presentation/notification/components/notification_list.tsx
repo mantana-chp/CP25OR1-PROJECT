@@ -1,3 +1,4 @@
+import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { INotification } from '@/src/domain/notification.domain'
 import { notificationService } from '@/src/utils/api/services/notification_service'
 import { useApi } from '@/src/utils/api/use_api'
@@ -21,6 +22,7 @@ export default function NotificationList({
   onRefresh
 }: NotificationListProps) {
   const router = useRouter()
+  const { refreshUnreadCount } = useUnreadNotifications()
   const [readIds, setReadIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -33,9 +35,13 @@ export default function NotificationList({
       console.error('Failed to mark as read:', error)
     },
     onSuccess: (updatedNotification) => {
+      console.log('Success to mark as read!!!!')
+
       if (onRefresh) {
         onRefresh()
       }
+      // Refresh unread count after marking as read
+      refreshUnreadCount()
     }
   })
 

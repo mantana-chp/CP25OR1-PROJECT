@@ -1,11 +1,14 @@
+import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { notificationService } from '@/src/utils/api/services/notification_service'
 import { useApi } from '@/src/utils/api/use_api'
-import React, { useCallback, useEffect } from 'react'
+import { useFocusEffect } from 'expo-router'
+import React, { useCallback } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import NotificationList from '../components/notification_list'
 
 export default function InAppNotificationPage() {
+  const { refreshUnreadCount } = useUnreadNotifications()
   const getNotificationsApi = useApi(notificationService.getNotifications, {
     showErrorAlert: true
   })
@@ -14,9 +17,18 @@ export default function InAppNotificationPage() {
     getNotificationsApi.execute()
   }, [])
 
-  useEffect(() => {
-    loadNotifications()
-  }, [loadNotifications])
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications()
+    }, [loadNotifications])
+  )
+
+  // Refresh unread count when page comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshUnreadCount()
+    }, [refreshUnreadCount])
+  )
 
   const notifications = getNotificationsApi.data?.data || []
   const isLoading = getNotificationsApi.loading

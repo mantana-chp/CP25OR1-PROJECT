@@ -97,9 +97,9 @@ export default function AddReminderPage() {
           dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
         )
         const children: any[] = syncedDoses.map((dose, index) => ({
-          reminderName: `${selectedVaccine?.vaccine_name || 'วัคซีน'} เข็มที่ ${
-            dose.doseNumber
-          }`,
+          reminderName: `${
+            selectedVaccine?.vaccine_name_th || 'วัคซีน'
+          } เข็มที่ ${dose.doseNumber}`,
           description: values.description,
           reminderDate: dose.date,
           reminderTime: dose.time || '',
@@ -509,7 +509,7 @@ export default function AddReminderPage() {
                     ) : (
                       <>
                         <Text style={styles.vaccineDropdownValue}>
-                          {selectedVaccine?.vaccine_name || 'เลือกวัคซีน'}
+                          {selectedVaccine?.vaccine_name_th || 'เลือกวัคซีน'}
                         </Text>
                         <ChevronDown size={20} color="#6b7280" />
                       </>
@@ -545,7 +545,7 @@ export default function AddReminderPage() {
                                   styles.vaccineDropdownItemTextSelected
                               ]}
                             >
-                              {vaccine.vaccine_name}
+                              {vaccine.vaccine_name_th || vaccine.vaccine_name}
                             </Text>
                           </Pressable>
                         ))}
@@ -582,7 +582,7 @@ export default function AddReminderPage() {
 
                             <View style={styles.doseTextBlock}>
                               <Text style={styles.doseNumber}>
-                                {selectedVaccine?.vaccine_name || 'วัคซีน'}{' '}
+                                {selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
                                 เข็มที่ {dose.doseNumber}
                               </Text>
                               {dose.isAutoCalculated && (

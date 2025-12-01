@@ -166,6 +166,7 @@ export default function RecurringReminderCard({
       onDelete?.(reminder.id)
     })
   }
+
   const closeDeleteButton = () => {
     Animated.spring(translateX, {
       toValue: 0,
@@ -302,28 +303,59 @@ export default function RecurringReminderCard({
           <View style={styles.infoRow}>
             <BriefcaseMedical size={14} color="#2E759E" />
             <Text style={styles.countText}>
-              วัคซีนรวมป้องกันโรคหัด ({totalCount} เข็ม)
+              {`${reminder?.children[0].reminderName.slice(
+                0,
+                -10
+              )} (${totalCount} เข็ม)`}
             </Text>
           </View>
 
           <View style={styles.infoRow}>
             <Calendar
               size={14}
-              color={completedCount === totalCount ? '#15AD90' : '#FF9531'}
+              color={
+                completedCount === totalCount
+                  ? '#15AD90'
+                  : (() => {
+                      const diffDays = nextInstance
+                        ? dayjs(nextInstance.reminderDate).diff(dayjs(), 'day')
+                        : 0
+                      return diffDays < 0 ? '#BF1737' : '#FF9531'
+                    })()
+              }
             />
             <Text
               style={[
                 styles.nextDueText,
-                { color: completedCount === totalCount ? '#15AD90' : '#FF9531' }
+                {
+                  color:
+                    completedCount === totalCount
+                      ? '#15AD90'
+                      : (() => {
+                          const diffDays = nextInstance
+                            ? dayjs(nextInstance.reminderDate).diff(
+                                dayjs(),
+                                'day'
+                              )
+                            : 0
+                          return diffDays < 0 ? '#BF1737' : '#FF9531'
+                        })()
+                }
               ]}
             >
               {completedCount === totalCount
                 ? 'ฉีดวัคซีนครบตามกำหนด'
-                : `ครั้งถัดไป${nextInstance ? 'อีก' : ''} ${
-                    nextInstance
+                : (() => {
+                    const diffDays = nextInstance
                       ? dayjs(nextInstance.reminderDate).diff(dayjs(), 'day')
                       : 0
-                  } วัน`}
+
+                    console.log(diffDays)
+
+                    return diffDays < 0
+                      ? `เลยกำหนดมาแล้ว ${Math.abs(diffDays)} วัน`
+                      : `ครั้งถัดไปอีก ${diffDays} วัน`
+                  })()}
             </Text>
           </View>
         </TouchableOpacity>
@@ -366,12 +398,33 @@ export default function RecurringReminderCard({
 
                 <View style={styles.instanceLeft}>
                   <View style={styles.instanceInfo}>
-                    <Text style={styles.instanceLabel}>
-                      วัคซีนเข็มที่ {index + 1}/{totalCount}
+                    <Text
+                      style={[
+                        styles.instanceLabel,
+                        instance.reminderStatus === 'overdue' && {
+                          color: '#BF1737'
+                        }
+                      ]}
+                    >
+                      {instance.reminderName}/{totalCount}
                     </Text>
                     <View style={styles.infoRow}>
-                      <Clock size={12} color="#225877" />
-                      <Text style={styles.instanceDate}>
+                      <Clock
+                        size={12}
+                        color={
+                          instance.reminderStatus === 'overdue'
+                            ? '#BF1737'
+                            : '#225877'
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.instanceDate,
+                          instance.reminderStatus === 'overdue' && {
+                            color: '#BF1737'
+                          }
+                        ]}
+                      >
                         {instance.reminderTime
                           ? `${formatDate(instance.reminderDate)}, ${formatTime(
                               instance.reminderTime
