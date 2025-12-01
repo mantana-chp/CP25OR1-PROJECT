@@ -57,7 +57,8 @@ export default function Dropdown(props: DropdownProps) {
           style={[
             styles.input,
             isFocused && styles.inputFocused,
-            props.disable && styles.inputDisabled
+            props.disable && styles.inputDisabled,
+            props.error && styles.inputError
           ]}
           onPress={handleOpen}
           disabled={props.disable}
@@ -95,7 +96,9 @@ export default function Dropdown(props: DropdownProps) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{props.title}</Text>
               <TouchableOpacity onPress={() => handleClose()}>
-                <Text style={styles.closeButton}><X color={'#A6A6A6'}/></Text>
+                <Text style={styles.closeButton}>
+                  <X color={'#A6A6A6'} />
+                </Text>
               </TouchableOpacity>
             </View>
 
