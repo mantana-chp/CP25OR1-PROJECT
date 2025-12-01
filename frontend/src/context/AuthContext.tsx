@@ -171,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasPetProfile(hasPets)
     } catch (error) {
       console.warn('⚠️ Error checking pet profiles:', error)
+      setHasCompletedOnboarding(false)
       setHasPetProfile(false)
     }
   }

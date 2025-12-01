@@ -11,14 +11,10 @@ export default function FinalStep() {
   const router = useRouter()
 
   const handleFinish = async () => {
-    await completeOnboarding()
-
-    // Check if user has pet profile using PetContext
     if (!pets || pets.length === 0) {
-      // No pet profile, navigate to pet form in onboarding
       router.replace('/onboarding/pet-profile')
     } else {
-      // Has pet profile, go directly to main app
+      await completeOnboarding()
       router.replace('/(tabs)')
     }
   }
