@@ -22,6 +22,11 @@ export const findManyByUserId = async (userId: string, isRead?: boolean) => {
           pets: true,
         },
       },
+      user: {
+        include: {
+          push_tokens: true,
+        },
+      },
     },
   })
 }
@@ -39,6 +44,11 @@ export const findByIdWithRelations = async (id: string) => {
       reminders: {
         include: {
           pets: true,
+        },
+      },
+      user: {
+        include: {
+          push_tokens: true,
         },
       },
     },

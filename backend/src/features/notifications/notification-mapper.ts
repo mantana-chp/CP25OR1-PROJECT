@@ -52,6 +52,11 @@ export type NotificationWithRelations = Prisma.notificationsGetPayload<{
             include: {
                 pets: true;
             }
+        },
+        user: {
+            include: {
+                push_tokens: true;
+            }
         }
     }
 }>;
@@ -91,7 +96,7 @@ export const mapPrismaReminderToDto = (prismaReminder: reminders & { pets?: pets
 
 export const mapPrismaNotificationToDto = (prismaNotification: NotificationWithRelations): NotificationDto => ({
   id: prismaNotification.id,
-  userId: prismaNotification.user_id,
+  userId: prismaNotification.user.id, // Access user.id from the included user relation
   reminderId: prismaNotification.reminder_id,
   sentAt: prismaNotification.sent_at,
   status: prismaNotification.status,

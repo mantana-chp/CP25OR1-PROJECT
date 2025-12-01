@@ -52,149 +52,137 @@ export const markAsRead = async (
 }
 
 /**
- * This is the core function called by the cron job. It finds reminders that need notifications,
- * including any that were missed, and sends them.
+ * This is the core function called by the cron job.
+ * It finds reminders that are nearly due and processes them just-in-time.
  */
 export const processAndSendNotifications = async () => {
-  const now = new Date()
-  const messagesToSend: PushMessage[] = []
-  const notificationIdsToUpdate: { [key: string]: string } = {} // Map push token to notification ID
+  logger.info('--- RUNNING NOTIFICATION JOB ---');
+  const now = new Date();
 
-  // Find all reminders that are 'to_do' or 'overdue' and do not have a notification record yet.
-  const unnotifiedReminders = await prisma.reminders.findMany({
+  // Use UTC for all date comparisons to avoid timezone issues
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const tomorrowUTC = new Date(todayUTC);
+  tomorrowUTC.setUTCDate(todayUTC.getUTCDate() + 1);
+
+  // Find all unnotified reminders scheduled for today (in UTC) that have not been notified yet.
+  const candidateReminders = await prisma.reminders.findMany({
     where: {
-      reminder_status: { in: ['to_do', 'overdue'] }, // Include overdue reminders
-      notifications: {
-        none: {}, // find reminders with no notification
+      reminder_status: { in: ['to_do', 'overdue'] },
+      notifications: { none: {} },
+      reminder_date: {
+        gte: todayUTC,
+        lt: tomorrowUTC,
       },
     },
     include: {
       user: { include: { push_tokens: true } },
       pets: true,
     },
-  })
+  });
 
-  if (unnotifiedReminders.length > 0) {
-    logger.info(
-      `[NotificationJob] Found ${unnotifiedReminders.length} reminders to process.`
-    )
+  if (candidateReminders.length === 0) {
+    logger.info('[NotificationJob] No unnotified candidate reminders found for today (UTC).');
+    logger.info('--- FINISHED NOTIFICATION JOB ---');
+    return;
   }
 
-  for (const reminder of unnotifiedReminders) {
-    let notificationSendTime: Date
+  const candidateIds = candidateReminders.map(r => r.id);
+  logger.info(`[NotificationJob] Found ${candidateReminders.length} candidate reminders for today (UTC): [${candidateIds.join(', ')}]`);
+
+
+  // Filter in-memory to find only the reminders that are actually due to be processed now
+  const dueReminders = candidateReminders.filter(reminder => {
+    let notificationSendTime: Date;
+    const reminderDateUTC = reminder.reminder_date;
 
     if (reminder.reminder_time) {
-      // Rule 1: For reminders with a specific time, notification is 30 mins before.
-      const datePart = reminder.reminder_date.toISOString().split('T')[0]
-      const timePart = reminder.reminder_time.toISOString().split('T')[1]
-      const reminderDateTime = new Date(
-        `${datePart}T${timePart.replace('Z', '+07:00')}`
-      )
-      notificationSendTime = new Date(
-        reminderDateTime.getTime() - 30 * 60 * 1000
-      )
+      const reminderTimeUTC = reminder.reminder_time;
+      // Combine date and time parts in UTC
+      const combinedDateTime = new Date(Date.UTC(
+        reminderDateUTC.getUTCFullYear(),
+        reminderDateUTC.getUTCMonth(),
+        reminderDateUTC.getUTCDate(),
+        reminderTimeUTC.getUTCHours(),
+        reminderTimeUTC.getUTCMinutes(),
+        reminderTimeUTC.getUTCSeconds()
+      ));
+      notificationSendTime = new Date(combinedDateTime.getTime() - 30 * 60 * 1000);
     } else {
-      // Rule 2: For reminders with no time, notification is at 10:00 AM GMT+7 on the due day.
-      const datePart = reminder.reminder_date.toISOString().split('T')[0]
-      notificationSendTime = new Date(`${datePart}T09:00:00+07:00`)
+      // 9 AM GMT+7 is 2 AM UTC
+      notificationSendTime = new Date(Date.UTC(
+        reminderDateUTC.getUTCFullYear(),
+        reminderDateUTC.getUTCMonth(),
+        reminderDateUTC.getUTCDate(),
+        2, 0, 0
+      ));
     }
+    return notificationSendTime <= now;
+  });
 
-    // Check if the calculated notification time is in the past.
-    if (notificationSendTime <= now) {
-      const newNotification = await createNotificationAndPreparePush(
-        reminder,
-        messagesToSend
-      )
-      if (newNotification && reminder.user.push_tokens.length > 0) {
-        // Map ALL push tokens to this one notification ID
-        for (const token of reminder.user.push_tokens) {
-          notificationIdsToUpdate[token.token] = newNotification.id
-        }
-      }
-    }
+  if (dueReminders.length === 0) {
+    logger.info('[NotificationJob] No reminders are currently due for processing after time-based filtering.');
+    logger.info('--- FINISHED NOTIFICATION JOB ---');
+    return;
   }
 
-  // Send all collected push notifications in one batch
-  if (messagesToSend.length > 0) {
-    logger.info(
-      `[NotificationJob] Sending ${messagesToSend.length} push notifications via Expo service.`
-    )
-    const tickets = await expoPushService.send(messagesToSend)
+  logger.info(`[NotificationJob] Found ${dueReminders.length} reminders that are actually due for notification.`);
 
-    // Process tickets and update notification status
-    for (const [index, ticket] of tickets.entries()) {
-      const originalMessage = messagesToSend[index]
-      const pushToken = originalMessage.to
-      const notificationId = notificationIdsToUpdate[pushToken]
+  for (const reminder of dueReminders) {
+    logger.info(`[NotificationJob] Processing reminder ${reminder.id}...`);
 
-      if (notificationId) {
-        if (ticket.status === 'ok') {
-          await notificationRepository.update(notificationId, {
-            status: notification_status.sent,
-            sent_at: new Date(),
-          })
-          logger.info(
-            `[NotificationJob] Notification ${notificationId} status updated to 'sent'.`
-          )
+    const hasPushTokens = reminder.user.push_tokens && reminder.user.push_tokens.length > 0;
+    const petName = reminder.pets?.pet_name;
+    const reminderName = reminder.reminder_name;
+
+    // Create the notification record first
+    const newNotification = await notificationRepository.create({
+      id: uuidv4(),
+      status: notification_status.pending, // Start as pending
+      user: { connect: { id: reminder.user_id } },
+      reminders: { connect: { id: reminder.id } },
+    });
+
+    let finalStatus: notification_status = notification_status.sent;
+    let sentAt: Date | null = new Date();
+    const messagesToSend: PushMessage[] = [];
+
+    // If user has tokens and data is valid, prepare push messages
+    if (hasPushTokens && petName && reminderName) {
+      for (const token of reminder.user.push_tokens) {
+        messagesToSend.push({
+          to: token.token,
+          sound: 'default',
+          title: `แจ้งเตือนน: ${reminderName}`,
+          body: `ถึงเวลาของน้อง ${petName} แล้วว`,
+          data: { reminderId: reminder.id, notificationId: newNotification.id },
+        });
+      }
+    } else {
+      logger.info(`[NotificationJob] Notification ${newNotification.id} will be processed for in-app only (no push tokens or missing data).`);
+    }
+
+    // Send push notifications if any were prepared
+    if (messagesToSend.length > 0) {
+      try {
+        logger.info(`[NotificationJob] Sending ${messagesToSend.length} push notifications for notification ID: ${newNotification.id}`);
+        await expoPushService.send(messagesToSend);
+      } catch (error: unknown) {
+        if (error instanceof Error) { // Type guard
+          logger.error(`[NotificationJob] Failed to send push for notification ${newNotification.id}:`, error);
         } else {
-          await notificationRepository.update(notificationId, {
-            status: notification_status.failed,
-          })
-          logger.error(
-            `[NotificationJob] Notification ${notificationId} status updated to 'failed': ${ticket.message}`
-          )
+          logger.error(`[NotificationJob] Failed to send push for notification ${newNotification.id}:`, new Error(String(error)));
         }
-      } else {
-        logger.warn(
-          `[NotificationJob] Could not find notificationId for token ${pushToken} in notificationIdsToUpdate map.`
-        )
+        finalStatus = notification_status.failed;
+        sentAt = null;
       }
     }
+
+    // Update the notification to its final state
+    await notificationRepository.update(newNotification.id, {
+      status: finalStatus,
+      sent_at: sentAt,
+    });
+    logger.info(`[NotificationJob] Marked notification ${newNotification.id} as ${finalStatus}.`);
   }
-}
-
-/**
- * Helper function to create a notification record and add a push message to the queue.
- * @returns The newly created notification object.
- */
-async function createNotificationAndPreparePush(
-  reminder: any,
-  messagesToSend: PushMessage[]
-) {
-  // The main query already filters for reminders with no notifications,
-  // but this check provides an extra layer of safety against race conditions.
-  const existingNotification = await prisma.notifications.findFirst({
-    where: { reminder_id: reminder.id },
-  })
-
-  if (existingNotification) {
-    return existingNotification // Return existing if found
-  }
-
-  const newNotification = await notificationRepository.create({
-    id: uuidv4(),
-    status: notification_status.pending, // Status is 'pending' until we confirm it's sent
-    user: { connect: { id: reminder.user_id } },
-    reminders: { connect: { id: reminder.id } },
-  })
-
-  logger.info(
-    `[NotificationJob] Created in-app notification for reminder: ${reminder.reminder_name}`
-  )
-
-  if (reminder.user.push_tokens.length > 0) {
-    for (const token of reminder.user.push_tokens) {
-      logger.info(
-        `[NotificationJob] Preparing push notification for token: ${token.token}`
-      )
-      messagesToSend.push({
-        to: token.token,
-        sound: 'default' as const,
-        title: `แจ้งเตือนน: ${reminder.reminder_name}`,
-        body: `ถึงเวลาของน้อง ${reminder.pets.pet_name} แล้วว`,
-        data: { reminderId: reminder.id, notificationId: newNotification.id }, // Pass notificationId
-      })
-    }
-  }
-  return newNotification
-}
+  logger.info('--- FINISHED NOTIFICATION JOB ---');
+};
