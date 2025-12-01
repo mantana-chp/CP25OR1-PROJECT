@@ -3,7 +3,7 @@ import React, { useEffect } from 'react'
 
 import * as Notifications from 'expo-notifications'
 
-import { NotificationProvider } from '@/context/NotificationContext'
+import { NotificationProvider } from '@/src/context/NotificationContext'
 import { PetProvider } from '@/src/context/PetContext'
 import { UnreadNotificationProvider } from '@/src/context/UnreadNotificationContext'
 import { AuthProvider } from '../context/AuthContext'
