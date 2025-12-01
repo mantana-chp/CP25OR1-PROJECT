@@ -24,7 +24,7 @@ export async function registerForPushNotificationsAsync() {
     if (finalStatus !== "granted") {
       throw new Error("Failed to get push token for push notification!");
     }
-    token = (await Notifications.getExpoPushTokenAsync()).data;
+    token = (await Notifications.getDevicePushTokenAsync()).data;
     console.log("📱 Expo Push Token:", token);
   } else {
     throw new Error("Must use physical device for Push Notifications");
