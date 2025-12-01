@@ -70,7 +70,6 @@ export default function ReminderList({
 
   const handleDeleteReminder = useCallback(
     async (id: string) => {
-      console.log('🗑️ Deleting reminder:', id)
       await deleteReminderApi.execute(id)
     },
     [deleteReminderApi]
@@ -199,7 +198,7 @@ export default function ReminderList({
       {/* Floating Add Button */}
       <Link href="/(tabs)/add-reminder" push asChild>
         <TouchableOpacity style={styles.addReminderButton}>
-          <Plus size={32} color="#fff" strokeWidth={3} /> 
+          <Plus size={32} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       </Link>
 
