@@ -26,9 +26,15 @@ export default function NotificationCard({
     return null
   }
 
-  const date = dayjs(reminder.reminderDate).locale('th')
-  const buddhistYear = date.year() + 543
-  const formattedDate = date.format(`DD/MM/${buddhistYear}`)
+  const formattedDate = new Date(reminder.reminderDate).toLocaleDateString(
+    'th-TH',
+    {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }
+  )
   const formattedTime = reminder?.reminderTime
     ? `${reminder.reminderTime.substring(0, 5)} น.`
     : ''
@@ -61,12 +67,12 @@ export default function NotificationCard({
         <Text style={titleStyle}>{reminder?.reminderName}</Text>
 
         <View style={styles.infoRow}>
-          <PawPrint size={18} color={iconColor} />
+          <PawPrint size={14} color={iconColor} />
           <Text style={infoStyle}>{reminder?.pets?.petName || '-'}</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Clock size={18} color={iconColor} />
+          <Clock size={14} color={iconColor} />
           <Text style={infoStyle}>
             {formattedTime
               ? `${formattedDate}, ${formattedTime}`

@@ -55,10 +55,6 @@ export default function AddReminderPage() {
   const [userEditedTime, setUserEditedTime] = useState(false)
   const [isSyncingDose1, setIsSyncingDose1] = useState(false)
 
-  const getPetsApi = useApi(petProfileService.getMyPets, {
-    showErrorAlert: false
-  })
-
   const { getFirstPetId } = usePets()
 
   const createReminderApi = useApi(reminderService.createReminder, {
@@ -153,11 +149,12 @@ export default function AddReminderPage() {
 
   // Check if current pet can use vaccine scheduling
   const currentPet = pets.find((p) => p.id === formik.values.petId)
+
   const canUseVaccineSchedule =
     currentPet &&
     (currentPet.species?.includes('สุนัข') ||
       currentPet.species?.includes('แมว')) &&
-    !!currentPet.birth_date
+    !!currentPet.age
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
 

@@ -156,7 +156,7 @@ export default function ReminderDetailModal({
             </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={20} color={'#2E759E'} fill={'#2E759E'} />
+              <PawPrint size={20} color={'#2E759E'} />
               <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
