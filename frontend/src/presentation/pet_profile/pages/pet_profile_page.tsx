@@ -111,7 +111,7 @@ export default function PetProfilePage() {
   // HANDLERS
   // ------------------
   const handleReminderPress = (id: string) => {
-    router.push(`/(tabs)/reminder-details/${id}`)
+    router.push({ pathname: '/(tabs)', params: { reminderId: id } })
   }
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
@@ -131,6 +131,7 @@ export default function PetProfilePage() {
           reminder={item}
           onPress={handleReminderPress}
           canDelete={false}
+          hideToggle={true}
         />
       </View>
     )

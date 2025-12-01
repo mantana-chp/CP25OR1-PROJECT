@@ -171,7 +171,7 @@ export default function TodayRemindersModal({
                             }
                           ]}
                         >
-                          {formatTime(reminder.reminderTime)}
+                          {formatTime(reminder.reminderTime) || '-'}
                           {reminder?.reminderStatus.includes('overdue') &&
                             ' (เกินกำหนดเวลา)'}
                         </Text>

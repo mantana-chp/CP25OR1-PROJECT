@@ -36,6 +36,7 @@ interface ReminderCardProps {
   onPress?: (id: string) => void
   onToggleStatus?: (id: string, currentStatus: string) => void
   isTempDone?: boolean
+  hideToggle?: boolean
 }
 
 const ICON_MAP: Record<string, any> = {
@@ -61,10 +62,11 @@ export default function ReminderCard(props: ReminderCardProps) {
     reminder,
     onDelete,
     isDeleting = false,
-    canDelete ,
+    canDelete,
     onPress,
     onToggleStatus,
-    isTempDone = false
+    isTempDone = false,
+    hideToggle = false
   } = props
   const date = dayjs(reminder.reminderDate).locale('th')
   const formattedDate = `${date.format('วันdddd DD MMM')} ${date.year() + 543}`
@@ -206,15 +208,19 @@ export default function ReminderCard(props: ReminderCardProps) {
           style={styles.cardTouchable}
         >
           {/* Left side - Checkbox circle */}
-          <TouchableOpacity
-            style={styles.leftSection}
-            onPress={handleToggleStatus}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <View style={[styles.checkbox, isDone && styles.checkboxCompleted]}>
-              {isDone && <View style={styles.checkboxInner} />}
-            </View>
-          </TouchableOpacity>
+          {!hideToggle && (
+            <TouchableOpacity
+              style={styles.leftSection}
+              onPress={handleToggleStatus}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View
+                style={[styles.checkbox, isDone && styles.checkboxCompleted]}
+              >
+                {isDone && <View style={styles.checkboxInner} />}
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>

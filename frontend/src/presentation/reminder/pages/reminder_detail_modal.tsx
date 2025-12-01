@@ -20,7 +20,7 @@ import {
   X
 } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import OverdueAlert from '../components/overdue_alert'
 
@@ -32,10 +32,6 @@ const ICON_MAP: Record<string, any> = {
   Pipette,
   Scissors,
   Bone
-}
-
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('th-TH')
 }
 
 const formatTime = (time: Date) => {
@@ -153,7 +149,7 @@ export default function ReminderDetailModal({
           <LoadingComponent />
         ) : (
           <View style={styles.formCard}>
-            {isOverdue && <OverdueAlert />}
+            {isOverdue && !reminder?.children && <OverdueAlert />}
 
             <Text style={styles.reminderTitle}>
               {reminder?.reminderName || ''}
@@ -164,31 +160,37 @@ export default function ReminderDetailModal({
               <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
-            <View style={styles.infoRow}>
-              <CalendarDays
-                size={20}
-                color={isOverdue ? '#DC2626' : '#225877'}
-              />
-              <Text style={[styles.infoText, isOverdue && styles.overdueText]}>
-                {reminder?.reminderDate
-                  ? new Date(reminder.reminderDate).toLocaleDateString(
-                      'th-TH',
-                      {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      }
-                    )
-                  : '-'}
-              </Text>
-              <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
-              <Text style={[styles.infoText, isOverdue && styles.overdueText]}>
-                {reminder?.reminderTime
-                  ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
-                  : '-'}
-              </Text>
-            </View>
+            {!reminder?.children && (
+              <View style={styles.infoRow}>
+                <CalendarDays
+                  size={20}
+                  color={isOverdue ? '#DC2626' : '#225877'}
+                />
+                <Text
+                  style={[styles.infoText, isOverdue && styles.overdueText]}
+                >
+                  {reminder?.reminderDate
+                    ? new Date(reminder.reminderDate).toLocaleDateString(
+                        'th-TH',
+                        {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        }
+                      )
+                    : '-'}
+                </Text>
+                <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
+                <Text
+                  style={[styles.infoText, isOverdue && styles.overdueText]}
+                >
+                  {reminder?.reminderTime
+                    ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
+                    : '-'}
+                </Text>
+              </View>
+            )}
 
             {/* {reminder?.description && reminder.description !== '-' && ( */}
             <View style={styles.descriptionSection}>
@@ -201,7 +203,7 @@ export default function ReminderDetailModal({
 
             {/* Child Reminders Section */}
             {reminder?.children && reminder.children.length > 0 && (
-              <View style={styles.childReminderSection}>
+              <ScrollView style={styles.childReminderSection}>
                 <Pressable
                   style={styles.childReminderHeader}
                   onPress={() => setIsChildrenExpanded(!isChildrenExpanded)}
@@ -294,7 +296,7 @@ export default function ReminderDetailModal({
                       })}
                   </View>
                 )}
-              </View>
+              </ScrollView>
             )}
 
             {categoryInfo && (
@@ -494,7 +496,8 @@ const styles = StyleSheet.create({
   childReminderSection: {
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    paddingTop: 16
+    paddingTop: 16,
+    maxHeight: 200
   },
   childReminderHeader: {
     flexDirection: 'row',
