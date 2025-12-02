@@ -100,8 +100,8 @@ export const getDynamicAppConfig = (
   if (environment === 'preview') {
     return {
       name: `${APP_NAME} Preview`,
-      bundleIdentifier: `${BUNDLE_IDENTIFIER}.preview`,
-      packageName: `${PACKAGE_NAME}.preview`,
+      bundleIdentifier: BUNDLE_IDENTIFIER,
+      packageName: PACKAGE_NAME,
       icon: './assets/images/icons/iOS-Prev.png',
       adaptiveIcon: './assets/images/icons/Android-Prev.png',
       scheme: `${SCHEME}-prev`
