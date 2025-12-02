@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name: name,
-    version, // Automatically bump your project version with `npm version patch`, `npm version minor` or `npm version major`.
+    version: "1.0.1",
     slug: PROJECT_SLUG, // Must be consistent across all environments.
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
@@ -42,6 +42,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         foregroundImage: adaptiveIcon,
         backgroundColor: '#ffffff'
       },
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON || './google-services.json',
       package: packageName
     },
     updates: {
