@@ -42,6 +42,7 @@ app-example
 # generated native folders
 /ios
 /android
+google-services.json
 
 android/gradle.properties
 android/app/my-upload-key.keystore.expo/ 
