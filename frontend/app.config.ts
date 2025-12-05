@@ -13,7 +13,7 @@ const BUNDLE_IDENTIFIER = 'dev.expo.mantana.cp25or1frontend'
 const PACKAGE_NAME = 'dev.expo.mantana.cp25or1frontend'
 const ICON = './assets/images/icons/iOS-Prod.png'
 const ADAPTIVE_ICON = './assets/images/icons/Android-Prod.png'
-const SCHEME = 'app-scheme'
+const SCHEME = 'cp25or1-frontend'
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   console.log('⚙️ Building app for environment:', process.env.APP_ENV)
