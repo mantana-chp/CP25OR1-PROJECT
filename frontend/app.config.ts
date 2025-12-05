@@ -54,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: '#ffffff'
       },
       googleServicesFile:
-        process.env.GOOGLE_SERVICES_JSON || AndroidGoogleServicesFile,
+        process.env.GOOGLE_SERVICES_JSON ?? AndroidGoogleServicesFile,
       package: packageName
     },
     updates: {
@@ -83,7 +83,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           resizeMode: 'contain',
           backgroundColor: '#ffffff'
         }
-      ]
+      ],
+      'expo-secure-store',
+      'expo-web-browser'
     ],
     experiments: {
       typedRoutes: true

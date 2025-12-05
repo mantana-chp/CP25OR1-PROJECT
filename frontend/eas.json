@@ -8,19 +8,22 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     }
   },
