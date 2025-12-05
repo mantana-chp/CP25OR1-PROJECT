@@ -17,6 +17,10 @@
       "env": {
         "APP_ENV": "preview",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
+      },
+      "android": {
+        "buildType": "apk"
+        // "credentialsSource": "remote"
       }
     },
     "production": {
