@@ -1,8 +1,6 @@
 import { ConfigContext, ExpoConfig } from 'expo/config'
 import { version } from './package.json'
 
-// Replace these with your EAS project ID and project slug.
-// You can find them at https://expo.dev/accounts/[account]/projects/[project].
 const EAS_PROJECT_ID = '81f2885b-b8e8-47ec-8226-fddc71c8d3e2'
 const PROJECT_SLUG = 'cp25or1frontend'
 const OWNER = 'delusional-dev'
@@ -14,17 +12,6 @@ const PACKAGE_NAME = 'dev.expo.mantana.cp25or1frontend'
 const ICON = './assets/images/icons/iOS-Prod.png'
 const ADAPTIVE_ICON = './assets/images/icons/Android-Prod.png'
 const SCHEME = 'cp25or1-frontend'
-// const APP_RELEASE_ENV = process.env.APP_ENV // Or another environment variable
-
-let AndroidGoogleServicesFile = './google-services.json' // Default
-
-// if (APP_RELEASE_ENV === 'development') {
-//   AndroidGoogleServicesFile = './google-services.json'
-// } else if (APP_RELEASE_ENV === 'preview') {
-//   AndroidGoogleServicesFile = './google-services.json'
-// } else if (APP_RELEASE_ENV === 'production') {
-//   AndroidGoogleServicesFile = './google-services.json'
-// }
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   console.log('⚙️ Building app for environment:', process.env.APP_ENV)
@@ -54,7 +41,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: '#ffffff'
       },
       googleServicesFile:
-        process.env.GOOGLE_SERVICES_JSON ?? AndroidGoogleServicesFile,
+        process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
       package: packageName
     },
     updates: {
