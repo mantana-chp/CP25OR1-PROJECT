@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name: name,
-    version: "1.0.1",
+    version: version,
     slug: PROJECT_SLUG, // Must be consistent across all environments.
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
@@ -100,8 +100,8 @@ export const getDynamicAppConfig = (
   if (environment === 'preview') {
     return {
       name: `${APP_NAME} Preview`,
-      bundleIdentifier: BUNDLE_IDENTIFIER,
-      packageName: PACKAGE_NAME,
+      bundleIdentifier: `${BUNDLE_IDENTIFIER}.preview`,
+      packageName: `${PACKAGE_NAME}.preview`,
       icon: './assets/images/icons/iOS-Prev.png',
       adaptiveIcon: './assets/images/icons/Android-Prev.png',
       scheme: `${SCHEME}-prev`
