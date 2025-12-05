@@ -71,6 +71,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           backgroundColor: '#ffffff'
         }
       ],
+      [
+        'expo-notifications',
+        {
+          icon: './assets/images/icon.png',
+          color: '#ffffff',
+          sounds: [],
+          defaultChannel: 'default'
+        }
+      ],
       'expo-secure-store',
       'expo-web-browser'
     ],
