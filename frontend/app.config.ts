@@ -42,7 +42,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       googleServicesFile:
         process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
-      package: packageName
+      package: packageName,
+      permissions: ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'VIBRATE']
     },
     updates: {
       url: `https://u.expo.dev/${EAS_PROJECT_ID}`
