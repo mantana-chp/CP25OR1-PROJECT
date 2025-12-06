@@ -35,7 +35,7 @@ export default function NotificationList({
     onError: (error) => {
       console.error('Failed to mark as read:', error)
     },
-    onSuccess: (updatedNotification) => {
+    onSuccess: () => {
       if (onRefresh) {
         onRefresh()
       }
@@ -70,7 +70,7 @@ export default function NotificationList({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {_.size(notifications) === 0 ? (
+          {_.size(notifications) < 1 ? (
             <View style={styles.emptyContainer}>
               <BellOff size={56} color="#C4C4C4" strokeWidth={1.5} />
               <Text style={styles.emptyText}>ไม่มีการแจ้งเตือน</Text>
