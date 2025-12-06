@@ -111,6 +111,15 @@ export default function AddReminderPage() {
 
       await createReminderApi.execute(submitData)
       formik.resetForm()
+      setDoses([])
+      setSelectedVaccineId(null)
+      setShowVaccineDropdown(false)
+      setVaccineList([])
+      setLoadingVaccines(false)
+      setLoadingCalculate(false)
+      setSelectedTime('')
+      setUserEditedTime(false)
+      setIsSyncingDose1(false)
     }
   })
 
