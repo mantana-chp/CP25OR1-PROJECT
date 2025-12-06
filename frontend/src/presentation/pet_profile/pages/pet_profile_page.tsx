@@ -1,5 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import _ from 'lodash'
+import { version } from '../../../../package.json'
 
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
@@ -231,6 +232,7 @@ export default function PetProfilePage() {
             </>
           )}
         </View>
+        <Text style={styles.versionText}>v.{version}</Text>
       </ScrollView>
     </View>
   )
@@ -297,5 +299,12 @@ const styles = StyleSheet.create({
   activeDot: {
     backgroundColor: '#5FA7D1',
     width: 24
+  },
+  versionText: {
+    color: '#C4C4C4',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center',
+    marginBottom: 4
   }
 })
