@@ -104,7 +104,7 @@ export default function ReminderDetailModal({
             <Text style={styles.notFoundMessage}>
               {!id
                 ? 'ไม่พบรหัสการแจ้งเตือน'
-                : 'เตือนความจำนี้อาจถูกลบไปแล้ว \nหรือไม่มีอยู่ในระบบ'}
+                : 'เตือนความจำนี้อาจถูกลบไปแล้ว หรือไม่มีอยู่ในระบบ'}
             </Text>
           </View>
         </View>
@@ -477,8 +477,9 @@ const styles = StyleSheet.create({
   },
   notFoundTitle: {
     fontSize: 22,
-    color: '#225877',
+    color: '#374151',
     fontFamily: 'Prompt_700Bold',
+    marginBottom: 4,
     textAlign: 'center'
   },
   notFoundMessage: {
