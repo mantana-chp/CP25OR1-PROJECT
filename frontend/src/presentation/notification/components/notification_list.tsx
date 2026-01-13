@@ -1,12 +1,13 @@
+import { useRouter } from 'expo-router'
+import _ from 'lodash'
+import React, { useCallback, useEffect, useState } from 'react'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
+
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { INotification } from '@/src/domain/notification.domain'
 import { notificationService } from '@/src/utils/api/services/notification_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { useRouter } from 'expo-router'
-import _ from 'lodash'
 import { BellOff } from 'lucide-react-native'
-import React, { useCallback, useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import NotificationCard from './notification_card'
 

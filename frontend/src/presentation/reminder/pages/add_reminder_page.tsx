@@ -19,6 +19,7 @@ import { useLocalSearchParams } from 'expo-router'
 import { Check, ChevronDown, X } from 'lucide-react-native'
 import {
   ActivityIndicator,
+  BackHandler,
   Platform,
   Pressable,
   ScrollView,
@@ -111,6 +112,15 @@ export default function AddReminderPage() {
 
       await createReminderApi.execute(submitData)
       formik.resetForm()
+      setDoses([])
+      setSelectedVaccineId(null)
+      setShowVaccineDropdown(false)
+      setVaccineList([])
+      setLoadingVaccines(false)
+      setLoadingCalculate(false)
+      setSelectedTime('')
+      setUserEditedTime(false)
+      setIsSyncingDose1(false)
     }
   })
 
@@ -310,6 +320,18 @@ export default function AddReminderPage() {
     // formik.setFieldValue('petId', petId)
     router.back()
   }
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        handleBack()
+        return true
+      }
+    )
+
+    return () => backHandler.remove()
+  }, [])
 
   const handleDateChange = (doseNumber: number, date: Date) => {
     const dateString = convertDateToString(date)

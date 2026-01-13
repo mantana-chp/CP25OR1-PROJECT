@@ -1,11 +1,12 @@
 import { Tabs } from 'expo-router'
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Platform, StyleSheet, Text, View } from 'react-native'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { Ionicons } from '@expo/vector-icons'
 import { Bell } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
   return (
@@ -27,6 +28,7 @@ const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
 
 export default function TabLayout() {
   const { unreadCount } = useUnreadNotifications()
+  const insets = useSafeAreaInsets()
 
   return (
     <Tabs
@@ -40,8 +42,9 @@ export default function TabLayout() {
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
-          height: 84,
+          height: Platform.OS === 'android' ? 56 + insets.bottom : 84,
           paddingTop: 12,
+          paddingBottom: Platform.OS === 'android' ? insets.bottom : 12,
           justifyContent: 'center',
           alignItems: 'center'
         },

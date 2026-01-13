@@ -3,9 +3,7 @@ import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
 import { tokenRefreshEmitter } from './token_refresh_emitter'
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  'https://bscit.sit.kmutt.ac.th/capstone25/cp25or1'
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL
 const ACCESS_TOKEN_KEY = 'accessToken'
 const REFRESH_TOKEN_KEY = 'refreshToken'
 const INSTALLATION_ID_KEY = 'installationId'

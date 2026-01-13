@@ -136,8 +136,8 @@ export default function PetProfileForm({
       })) || []
 
   const genderOptions = [
-    { name: 'ผู้', id: 'male' },
-    { name: 'เมีย', id: 'female' }
+    { name: 'เพศผู้', id: 'male' },
+    { name: 'เพศเมีย', id: 'female' }
   ]
 
   // ------------------
