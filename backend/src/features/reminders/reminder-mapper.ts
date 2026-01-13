@@ -1,28 +1,20 @@
-import { Reminder } from './reminder-types';
-import { reminder_status } from '../../generated/prisma/enums'; // Import from generated enums
+import { Reminder, ReminderWithPetName } from './reminder-types';
+import { Prisma, reminders as PrismaReminder } from '../../generated/prisma/client';
 
-// Define the type that Prisma returns for the 'reminders' model
-interface PrismaReminder {
-  id: string;
-  user_id: string;
-  pet_id: string;
-  category_id: string;
-  reminder_name: string | null;
-  description: string | null;
-  reminder_date: Date;
-  reminder_time: Date | null;
-  reminder_status: reminder_status;
-  status_done_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
-}
+// This payload type now includes children, but the children are base 'reminders'
+type PrismaReminderWithPet = Prisma.remindersGetPayload<{
+  include: {
+    pets: true;
+    children: true;
+  };
+}>;
 
 export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Reminder => {
   return {
     id: prismaReminder.id,
     userId: prismaReminder.user_id,
     petId: prismaReminder.pet_id,
-    categoryId: prismaReminder.category_id,
+    categoryName: prismaReminder.category_name,
     reminderName: prismaReminder.reminder_name ?? undefined,
     description: prismaReminder.description ?? undefined,
     reminderDate: prismaReminder.reminder_date,
@@ -32,4 +24,23 @@ export const mapPrismaReminderToReminder = (prismaReminder: PrismaReminder): Rem
     createdAt: prismaReminder.created_at,
     updatedAt: prismaReminder.updated_at,
   };
+};
+
+export const mapPrismaReminderWithPetToReminder = (prismaReminder: PrismaReminderWithPet): ReminderWithPetName => {
+  if (!prismaReminder.pets) {
+    // just for safety
+    throw new Error(`Data integrity error: Reminder ${prismaReminder.id} is missing its associated pet.`);
+  }
+
+  const mappedParent = {
+    ...mapPrismaReminderToReminder(prismaReminder),
+    pet_name: prismaReminder.pets.pet_name,
+  };
+
+  if (prismaReminder.children && prismaReminder.children.length > 0) {
+    // Map children using the simpler mapper, as they don't have pet data
+    mappedParent.children = prismaReminder.children.map(mapPrismaReminderToReminder);
+  }
+
+  return mappedParent;
 };

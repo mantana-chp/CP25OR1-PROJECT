@@ -13,7 +13,28 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 
   if (err instanceof ApiError) {
     logger.warn(`API Error for ${req.method} ${req.originalUrl}:`, err);
-    return sendError(res, err.statusCode, err.message, err.errors);
+
+    let genericDescription: string;
+    switch (err.statusCode) {
+      case 400:
+        genericDescription = 'Bad Request';
+        break;
+      case 401:
+        genericDescription = 'Unauthorized';
+        break;
+      case 404:
+        genericDescription = 'Not Found';
+        break;
+      case 409:
+        genericDescription = 'Conflict';
+        break;
+      default:
+        genericDescription = 'API Error';
+    }
+
+    const errorDetails = err.errors || [{ message: err.message, code: err.statusCode }];
+
+    return sendError(res, err.statusCode, genericDescription, errorDetails);
   }
 
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

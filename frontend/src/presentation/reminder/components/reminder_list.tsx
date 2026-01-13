@@ -1,13 +1,14 @@
+import { Link } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import ReminderCard from '@/src/presentation/reminder/components/reminder_card'
+import { IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { useRouter } from 'expo-router'
+
 import { Plus } from 'lucide-react-native'
 import {
-  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,106 +16,102 @@ import {
   View
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
+import ReminderDetailModal from '../pages/reminder_detail_modal'
+import RecurringReminderCard from './recurring_reminder_card'
+import ReminderCard from './reminder_card'
 
 type TabType = 'to_do' | 'done'
 
-export default function ReminderList() {
-  // ------------------
-  // STATE
-  // ------------------
-  const router = useRouter()
+interface ReminderListProps {
+  reminders: IReminder[]
+  isLoading?: boolean
+  onRefresh?: () => void
+  initialReminderId?: string | null
+}
 
-  // ------------------
-  // STATE
-  // ------------------
+export default function ReminderList({
+  reminders,
+  isLoading,
+  onRefresh,
+  initialReminderId
+}: ReminderListProps) {
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
 
-  // ------------------
-  // API
-  // ------------------
-  const getRemindersApi = useApi(reminderService.getReminders, {
+  const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
+  const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
+    initialReminderId || null
+  )
+
+  const deleteReminderApi = useApi(reminderService.deleteReminder, {
+    onSuccess: () => {
+      if (onRefresh) {
+        onRefresh()
+      }
+    }
+  })
+
+  const updateStatusApi = useApi(reminderService.updateReminderStatus, {
     showErrorAlert: true
   })
 
-  const deleteReminderApi = useApi(reminderService.deleteReminder, {
-    showErrorAlert: true,
-    successMessage: 'ลบนัดหมายสำเร็จ',
-    onSuccess: () => {
-      loadReminders()
-    }
-  })
-
-  // ------------------
-  // LOAD DATA
-  // ------------------
-  const loadReminders = useCallback(() => {
-    getRemindersApi.execute({})
-  }, [activeTab])
-
-  // Fetch on mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadReminders()
-    }, 100)
-
-    return () => clearTimeout(timer)
-  }, [])
+    setTempDoneIds([])
+  }, [reminders])
 
   useEffect(() => {
-    if (activeTab) {
-      loadReminders()
+    if (initialReminderId) {
+      setSelectedReminderId(initialReminderId)
     }
-  }, [activeTab, loadReminders])
+  }, [initialReminderId])
 
-  // ------------------
-  // HANDLER
-  // ------------------
+  const handleReminderDetail = (reminderId: string) => {
+    setSelectedReminderId(reminderId)
+  }
+
   const handleDeleteReminder = useCallback(
-    (id: string) => {
-      Alert.alert(
-        'ยืนยันการลบนัดหมาย',
-        'คุณแน่ใจหรือไม่ว่าต้องการลบนัดหมายนี้?',
-        [
-          {
-            text: 'ยกเลิก',
-            style: 'cancel'
-          },
-          {
-            text: 'ลบ',
-            style: 'destructive',
-            onPress: () => {
-              console.log('🗑️ Deleting reminder:', id)
-              deleteReminderApi.execute(id)
-            }
-          }
-        ]
-      )
+    async (id: string) => {
+      await deleteReminderApi.execute(id)
     },
     [deleteReminderApi]
   )
 
-  const handleAddReminder = () => {
-    router.push('/add-reminder')
-  }
+  const handleToggleStatus = useCallback(
+    async (id: string, currentStatus: string) => {
+      if (tempDoneIds.includes(id)) return
 
-  const handleReminderDetail = (reminderId: string) => {
-    router.push({
-      pathname: '/reminder-detail/[id]',
-      params: { id: reminderId }
-    })
-  }
+      if (currentStatus === 'to_do' || currentStatus === 'overdue') {
+        setTempDoneIds((prev) => [...prev, id])
+      }
 
-  // ------------------
-  // DATA
-  // ------------------
-  const reminders = getRemindersApi.data?.data || []
-  const filteredReminders = reminders.filter(
-    (reminder) => reminder.reminderStatus === activeTab
+      try {
+        await updateStatusApi.execute(id)
+
+        setTimeout(() => {
+          if (onRefresh) {
+            onRefresh()
+          }
+        }, 200)
+      } catch (error) {
+        console.error('Failed to update status', error)
+        if (currentStatus === 'to_do' || currentStatus === 'overdue') {
+          setTempDoneIds((prev) => prev.filter((doneId) => doneId !== id))
+        }
+      }
+    },
+    [tempDoneIds, updateStatusApi, onRefresh]
   )
 
-  // ------------------
-  // RENDER
-  // ------------------
+  const filteredReminders = reminders.filter((reminder) => {
+    if (activeTab === 'to_do') {
+      return (
+        reminder.reminderStatus === 'to_do' ||
+        reminder.reminderStatus === 'overdue'
+      )
+    } else {
+      return reminder.reminderStatus === activeTab
+    }
+  })
+
   return (
     <View style={styles.container}>
       {/* Tab Header */}
@@ -129,7 +126,7 @@ export default function ReminderList() {
               activeTab === 'to_do' && styles.activeTabText
             ]}
           >
-            นัดหมาย
+            เตือนความจำ
           </Text>
           {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
@@ -151,7 +148,7 @@ export default function ReminderList() {
       </View>
 
       {/* Reminder Content */}
-      {getRemindersApi.loading && !getRemindersApi.data ? (
+      {isLoading ? (
         <LoadingComponent />
       ) : (
         <ScrollView
@@ -163,32 +160,60 @@ export default function ReminderList() {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
                 {activeTab === 'to_do'
-                  ? 'ไม่มีนัดหมาย'
+                  ? 'ไม่มีเตือนความจำ'
                   : 'ไม่มีรายการที่เสร็จสิ้น'}
               </Text>
             </View>
           ) : (
-            _.map(filteredReminders, (reminder) => (
-              <ReminderCard
-                key={reminder.id}
-                reminder={reminder}
-                onDelete={handleDeleteReminder}
-                isDeleting={deleteReminderApi.loading}
-                canDelete={reminder.reminderStatus !== 'done'}
-                onPress={() => handleReminderDetail(reminder.id)}
-              />
-            ))
+            <>
+              {_.map(filteredReminders, (reminder) =>
+                reminder.children && reminder.children.length > 0 ? (
+                  <RecurringReminderCard
+                    key={reminder.id}
+                    reminder={reminder}
+                    instances={reminder.children || []}
+                    onPress={() => handleReminderDetail(reminder.id)}
+                    onDelete={(id) => handleDeleteReminder(id)}
+                    onRefresh={onRefresh}
+                    canDelete={reminder.reminderStatus !== 'done'}
+                  />
+                ) : (
+                  <ReminderCard
+                    key={reminder.id}
+                    reminder={reminder}
+                    onDelete={handleDeleteReminder}
+                    onPress={handleReminderDetail}
+                    isDeleting={deleteReminderApi.loading}
+                    canDelete={reminder.reminderStatus !== 'done'}
+                    onToggleStatus={handleToggleStatus}
+                    isTempDone={tempDoneIds.includes(reminder.id)}
+                  />
+                )
+              )}
+            </>
           )}
         </ScrollView>
       )}
 
       {/* Floating Add Button */}
-      <TouchableOpacity
-        style={styles.addReminderButton}
-        onPress={handleAddReminder}
+      <Link href="/(tabs)/add-reminder" push asChild>
+        <TouchableOpacity style={styles.addReminderButton}>
+          <Plus size={32} color="#fff" strokeWidth={3} />
+        </TouchableOpacity>
+      </Link>
+
+      {/* Reminder Detail Modal */}
+      <Modal
+        visible={!!selectedReminderId}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedReminderId(null)}
       >
-        <Plus size={32} color="#fff" strokeWidth={3} />
-      </TouchableOpacity>
+        <ReminderDetailModal
+          id={selectedReminderId || ''}
+          onClose={() => setSelectedReminderId(null)}
+        />
+      </Modal>
     </View>
   )
 }
@@ -199,6 +224,29 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#fff9f1',
     borderRadius: 24
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff9f1'
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#225877',
+    fontFamily: 'Prompt_400Regular'
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff9f1'
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#BF1737',
+    fontFamily: 'Prompt_400Regular'
   },
   tabContainer: {
     flexDirection: 'row',
@@ -249,9 +297,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 24,
     bottom: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#5FA7D1',
     justifyContent: 'center',
     alignItems: 'center',

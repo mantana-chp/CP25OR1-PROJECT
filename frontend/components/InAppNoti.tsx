@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react'
-import {
-  Animated,
-  Dimensions,
-  SafeAreaView,
-  StyleSheet,
-  Text
-} from 'react-native'
+import { Animated, Dimensions, StyleSheet, Text } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const { width } = Dimensions.get('window')
 
-export default function InAppNotification({ message, onHide }: { message: string; onHide: () => void }) {
+export default function InAppNotification({
+  message,
+  onHide
+}: {
+  message: string
+  onHide: () => void
+}) {
   const position = useRef(new Animated.Value(-100)).current
 
   useEffect(() => {

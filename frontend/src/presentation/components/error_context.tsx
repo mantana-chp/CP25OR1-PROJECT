@@ -1,4 +1,5 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 // Define the shape of the context
 interface ErrorContextType {
@@ -15,18 +16,16 @@ interface ErrorProviderProps {
 export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null)
 
-  // Function to show an error for 5 seconds
   const showError = (message: string) => {
     setError(message)
     setTimeout(() => {
       setError(null)
-    }, 5000)
+    }, 6000)
   }
 
   return (
     <ErrorContext.Provider value={{ showError }}>
       {children}
-      {/* This is your "core component" for displaying the error */}
       {error && (
         <GlobalErrorToast message={error} onClose={() => setError(null)} />
       )}
@@ -54,39 +53,47 @@ const GlobalErrorToast: React.FC<GlobalErrorToastProps> = ({
   onClose
 }) => {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        backgroundColor: '#FF4136', // Red
-        color: 'white',
-        padding: '16px 24px',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 1000,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontFamily: 'sans-serif',
-        maxWidth: '350px'
-      }}
-    >
-      <span>{message}</span>
-      <button
-        onClick={onClose}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'white',
-          fontSize: '20px',
-          marginLeft: '16px',
-          cursor: 'pointer',
-          lineHeight: '1'
-        }}
-      >
-        &times;
-      </button>
-    </div>
+    <View style={styles.container}>
+      <Text style={styles.message}>{message}</Text>
+      <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <Text style={styles.closeText}>✕</Text>
+      </TouchableOpacity>
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: '12%',
+    backgroundColor: '#FF4136',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 48,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 5,
+    zIndex: 9999
+  },
+  message: {
+    color: 'white',
+    fontSize: 14,
+    flex: 1,
+    marginRight: 12,
+    fontFamily: 'Prompt_400Regular'
+  },
+  closeButton: {
+    padding: 4
+  },
+  closeText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold'
+  }
+})

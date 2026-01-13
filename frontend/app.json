@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "dev.expo.mantana.CP25OR1-frontend",
+      "bundleIdentifier": "dev.expo.mantana.cp25or1frontend",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -47,7 +47,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -56,9 +57,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "cb2605bf-e104-4d13-8087-7bb0c3dafa06"
+        "projectId": "81f2885b-b8e8-47ec-8226-fddc71c8d3e2"
       }
     },
-    "owner": "mantana-chp"
+    "owner": "delusional-dev"
   }
 }

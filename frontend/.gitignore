@@ -44,5 +44,8 @@ app-example
 /android
 google-services.json
 
+android/gradle.properties
+android/app/my-upload-key.keystore.expo/ 
+
 deploy_key
 deploy_key.pub

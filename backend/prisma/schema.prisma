@@ -9,12 +9,14 @@ datasource db {
 }
 
 model breeds {
-  id          String  @id @db.Uuid
-  species_id  String  @db.Uuid
-  name        String  @db.VarChar
-  description String?
-  species     species @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  pets        pets[]
+  id             String  @id @db.Uuid
+  species_id     String  @db.Uuid
+  name           String  @db.VarChar
+  description    String?
+  name_th        String  @db.VarChar
+  description_th String?
+  species        species @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pets           pets[]
 }
 
 model notifications {
@@ -23,86 +25,110 @@ model notifications {
   reminder_id String?             @db.Uuid
   sent_at     DateTime?           @db.Timestamptz(6)
   status      notification_status
-  read_at     DateTime            @db.Timestamptz(6)
+  read_at     DateTime?           @db.Timestamptz(6)
   created_at  DateTime?           @default(now()) @db.Timestamptz(6)
   reminders   reminders?          @relation(fields: [reminder_id], references: [id], onUpdate: NoAction)
-  users       users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model pets {
-  id         String      @id @db.Uuid
+  id         String      @id @default(uuid()) @db.Uuid
   user_id    String      @db.Uuid
   species_id String      @db.Uuid
   breed_id   String?     @db.Uuid
   pet_name   String      @db.VarChar
   gender     pet_gender  @default(unknown)
-  birth_date DateTime    @db.Date
-  weight     Decimal     @db.Decimal
-  created_at DateTime    @db.Timestamptz(6)
-  updated_at DateTime    @db.Timestamptz(6)
+  birth_date DateTime?   @db.Date
+  weight     Decimal?    @db.Decimal
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
   breeds     breeds?     @relation(fields: [breed_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   species    species     @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users      users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reminders  reminders[]
 }
 
 model push_tokens {
   id           String    @id @db.Uuid
   user_id      String    @db.Uuid
-  provider     String
-  token        String
+  token        String    @unique
   last_seen_at DateTime? @db.Timestamptz(6)
-  revoked_at   DateTime? @db.Timestamptz(6)
   created_at   DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime? @db.Timestamptz(6)
-  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model reminder_categories {
-  id          String      @id @db.Uuid
-  name        String      @unique @db.VarChar
-  description String?
-  reminders   reminders[]
+  user         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model reminders {
-  id                  String              @id @db.Uuid
-  user_id             String              @db.Uuid
-  pet_id              String              @db.Uuid
-  category_id         String              @db.Uuid
-  reminder_name       String              @db.VarChar
-  description         String?
-  reminder_date       DateTime            @db.Date
-  reminder_time       DateTime?           @db.Time(6)
-  reminder_status     reminder_status     @default(to_do)
-  status_done_at      DateTime?           @db.Timestamptz(6)
-  created_at          DateTime            @db.Timestamptz(6)
-  updated_at          DateTime            @db.Timestamptz(6)
-  notifications       notifications[]
-  reminder_categories reminder_categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  pets                pets                @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users               users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                 String           @id @default(uuid()) @db.Uuid
+  user_id            String           @db.Uuid
+  pet_id             String           @db.Uuid
+  reminder_name      String           @db.VarChar
+  description        String?
+  reminder_date      DateTime         @db.Date
+  reminder_time      DateTime?        @db.Time(6)
+  reminder_status    reminder_status  @default(to_do)
+  status_done_at     DateTime?        @db.Timestamptz(6)
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime         @updatedAt @db.Timestamptz(6)
+  status_before_done reminder_status?
+  category_name      category_name    @default(General)
+  is_health          Boolean          @default(false)
+
+  // Relations
+  notifications      notifications[]
+  pets               pets             @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user               users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  // Self-referencing relationship for parent-child reminders
+  parent_id          String?          @db.Uuid
+  parent             reminders?       @relation("ReminderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children           reminders[]      @relation("ReminderHierarchy")
 }
 
 model sessions {
   id                     String     @id @db.Uuid
   user_id                String     @db.Uuid
+  jti                    String     @unique
   device_installation_id String?
-  refresh_token_hash     String
   created_at             DateTime   @default(now()) @db.Timestamptz(6)
   expires_at             DateTime   @db.Timestamptz(6)
   replaced_by            String?    @db.Uuid
   sessions               sessions?  @relation("sessionsTosessions", fields: [replaced_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_sessions         sessions[] @relation("sessionsTosessions")
-  users                  users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                   users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model species {
-  id          String   @id @db.Uuid
-  name        String   @unique @db.VarChar
-  description String?
-  breeds      breeds[]
-  pets        pets[]
+  id             String   @id @db.Uuid
+  name           String   @unique @db.VarChar
+  description    String?
+  name_th        String   @unique @db.VarChar
+  description_th String?
+  breeds         breeds[]
+  pets           pets[]
+  vaccine        vaccine[]
+}
+
+model vaccine {
+  id                           Int                @id @default(autoincrement())
+  species_id                   String             @db.Uuid
+  vaccine_name                 String
+  vaccine_name_th              String?
+  vaccine_type                 VaccineCategory
+  min_age_days                 Int                @default(0)
+  primary_series_logic         VaccineLogicType
+  primary_interval_days        Int                @default(0)
+  primary_target_value         Int
+  adult_primary_dose_count     Int                @default(1)
+  booster_1_interval_days      Int
+  booster_repeat_interval_days Int
+  reference_source             String?
+  created_at                   DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime           @default(now()) @db.Timestamptz(6)
+
+  species species @relation(fields: [species_id], references: [id], onDelete: Cascade)
+
+  @@unique([species_id, vaccine_name])
+  @@map("vaccine")
 }
 
 model users {
@@ -161,4 +187,24 @@ enum reminder_status {
 enum user_status {
   active
   disabled
+}
+
+enum category_name {
+  General     @map("ทั่วไป")
+  Vaccination @map("วัคซีน")
+  Checkup     @map("ตรวจสุขภาพ")
+  Medication  @map("ยา/อาหารเสริม")
+  Deworming   @map("พยาธิ/เห็บหมัด")
+  Grooming    @map("ความสะอาดและกรูมมิ่ง")
+  Feeding     @map("ให้อาหาร")
+}
+
+enum VaccineLogicType {
+  UNTIL_AGE
+  FIXED_COUNT
+}
+
+enum VaccineCategory {
+  core
+  non_core
 }

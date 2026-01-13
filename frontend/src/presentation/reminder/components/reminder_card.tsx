@@ -1,4 +1,4 @@
-import { IReminder } from '@/src/domain/reminder.domain'
+import { IReminder, getCategoryInfo } from '@/src/domain/reminder.domain'
 import React, { useRef } from 'react'
 
 import dayjs from 'dayjs'
@@ -7,7 +7,7 @@ import 'dayjs/locale/th'
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
+  Modal,
   PanResponder,
   StyleSheet,
   Text,
@@ -15,10 +15,18 @@ import {
   View
 } from 'react-native'
 
-import { Clock, Info, PawPrint, Trash2 } from 'lucide-react-native'
-
-const SCREEN_WIDTH = Dimensions.get('window').width
-const SWIPE_THRESHOLD = -100
+import {
+  Bone,
+  Clock,
+  PawPrint,
+  Pill,
+  Pipette,
+  Scissors,
+  Stethoscope,
+  Syringe,
+  Tag,
+  Trash2
+} from 'lucide-react-native'
 
 interface ReminderCardProps {
   reminder: IReminder
@@ -26,9 +34,27 @@ interface ReminderCardProps {
   isDeleting?: boolean
   canDelete?: boolean
   onPress?: (id: string) => void
+  onToggleStatus?: (id: string, currentStatus: string) => void
+  isTempDone?: boolean
+  hideToggle?: boolean
+}
+
+const ICON_MAP: Record<string, any> = {
+  Tag,
+  Syringe,
+  Stethoscope,
+  Pill,
+  Pipette,
+  Scissors,
+  Bone
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
+  // ------------------
+  // STATE
+  // ------------------
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+
   // ------------------
   // CONST
   // ------------------
@@ -36,12 +62,21 @@ export default function ReminderCard(props: ReminderCardProps) {
     reminder,
     onDelete,
     isDeleting = false,
-    canDelete = true,
-    onPress
+    canDelete,
+    onPress,
+    onToggleStatus,
+    isTempDone = false,
+    hideToggle = false
   } = props
   const date = dayjs(reminder.reminderDate).locale('th')
-  const buddhistYear = date.year() + 543
-  const formattedDate = date.format(`DD/MM/${buddhistYear}, HH:mm น.`)
+  const formattedDate = `${date.format('วันdddd DD MMM')} ${date.year() + 543}`
+  const formattedTime = reminder?.reminderTime
+    ? reminder.reminderTime.substring(0, 5)
+    : ''
+
+  const isDone = reminder?.reminderStatus === 'done' || isTempDone
+  const categoryInfo = getCategoryInfo(reminder?.categoryName || 'General')
+  const CategoryIcon = ICON_MAP[categoryInfo.icon] || Tag
 
   // ------------------
   // ANIMATION
@@ -55,40 +90,26 @@ export default function ReminderCard(props: ReminderCardProps) {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (!canDelete) return false
-        return Math.abs(gestureState.dx) > 10
+        return Math.abs(gestureState.dx) > 5
       },
       onPanResponderMove: (_, gestureState) => {
-        if (!canDelete) return
-
-        const currentValue = swipePosition.current
-
         if (gestureState.dx < 0) {
-          translateX.setValue(gestureState.dx)
-        } else if (gestureState.dx > 0 && currentValue < 0) {
-          const newValue = currentValue + gestureState.dx
-          translateX.setValue(Math.min(0, newValue))
+          translateX.setValue(Math.max(gestureState.dx, -80))
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (!canDelete) return
-
-        const currentValue = swipePosition.current
-
-        if (currentValue < 0) {
-          if (gestureState.dx > 30 || currentValue > -50) {
-            closeDeleteButton()
-          } else {
-            openDeleteButton()
-          }
+        if (gestureState.dx < -40) {
+          Animated.spring(translateX, {
+            toValue: -80,
+            useNativeDriver: true
+          }).start()
         } else {
-          if (gestureState.dx < SWIPE_THRESHOLD) {
-            openDeleteButton()
-          } else {
-            closeDeleteButton()
-          }
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true
+          }).start()
         }
       }
     })
@@ -97,14 +118,6 @@ export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   // HANDLERS
   // ------------------
-  const openDeleteButton = () => {
-    Animated.spring(translateX, {
-      toValue: -100,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7
-    }).start()
-  }
 
   const closeDeleteButton = () => {
     Animated.spring(translateX, {
@@ -115,14 +128,23 @@ export default function ReminderCard(props: ReminderCardProps) {
     }).start()
   }
 
-  const handleDelete = () => {
+  const handleDeletePress = () => {
+    setShowDeleteModal(true)
+  }
+
+  const handleConfirmDelete = () => {
     if (isDeleting) return
 
+    setShowDeleteModal(false)
     closeDeleteButton()
 
     if (onDelete) {
       onDelete(reminder.id)
     }
+  }
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false)
   }
 
   const handleCardPress = () => {
@@ -135,12 +157,11 @@ export default function ReminderCard(props: ReminderCardProps) {
     }
   }
 
-  const handleInfoPress = () => {
-    closeDeleteButton()
-    if (onPress) {
-      onPress(reminder.id)
-    }
+  const handleToggleStatus = () => {
+    if (!onToggleStatus) return
+    onToggleStatus(reminder.id, reminder.reminderStatus)
   }
+
   // ------------------
   // RENDER
   // ------------------
@@ -151,7 +172,7 @@ export default function ReminderCard(props: ReminderCardProps) {
         <View style={styles.deleteButtonContainer}>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={handleDelete}
+            onPress={handleDeletePress}
             activeOpacity={0.8}
             disabled={isDeleting}
           >
@@ -172,7 +193,11 @@ export default function ReminderCard(props: ReminderCardProps) {
         style={[
           styles.reminderCard,
           {
-            transform: [{ translateX }]
+            transform: [{ translateX }],
+            borderLeftColor:
+              reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#88BEDD',
+            backgroundColor:
+              reminder?.reminderStatus === 'overdue' ? '#FEF2F2' : '#fff'
           }
         ]}
         {...(canDelete ? panResponder.panHandlers : {})}
@@ -183,50 +208,132 @@ export default function ReminderCard(props: ReminderCardProps) {
           style={styles.cardTouchable}
         >
           {/* Left side - Checkbox circle */}
-          <View style={styles.leftSection}>
-            <View
-              style={[
-                styles.checkbox,
-                reminder?.reminderStatus === 'done' && styles.checkboxCompleted
-              ]}
+          {!hideToggle && (
+            <TouchableOpacity
+              style={styles.leftSection}
+              onPress={handleToggleStatus}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              {reminder?.reminderStatus === 'done' && (
-                <View style={styles.checkboxInner} />
-              )}
-            </View>
-          </View>
+              <View
+                style={[styles.checkbox, isDone && styles.checkboxCompleted]}
+              >
+                {isDone && <View style={styles.checkboxInner} />}
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <Text style={styles.reminderTitle}>{reminder?.reminderName}</Text>
+            <Text
+              style={[
+                styles.reminderTitle,
+                reminder?.reminderStatus === 'overdue' &&
+                  styles.overdueTitleText
+              ]}
+            >
+              {reminder?.reminderName}
+            </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={16} color="#2E759E" fill="#2E759E" />
-              <Text style={styles.petNameText}>{reminder?.petName || '-'}</Text>
+              <PawPrint
+                size={14}
+                color={
+                  reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
+                }
+              />
+              <Text
+                style={[
+                  styles.petNameText,
+                  reminder?.reminderStatus === 'overdue' && styles.overdueText
+                ]}
+              >
+                {reminder?.pet_name || '-'}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>
-              <Clock size={16} color="#2E759E" />
-              <Text style={styles.dateTimeText}>{formattedDate}</Text>
+              <Clock
+                size={14}
+                color={
+                  reminder?.reminderStatus === 'overdue' ? '#BF1737' : '#2E759E'
+                }
+              />
+              <Text
+                style={[
+                  styles.dateTimeText,
+                  reminder?.reminderStatus === 'overdue' && styles.overdueText
+                ]}
+              >
+                {formattedTime
+                  ? `${formattedDate}, ${formattedTime} น.`
+                  : formattedDate}
+              </Text>
             </View>
           </View>
 
-          {/* Right side - Info button */}
-          <TouchableOpacity
-            style={styles.infoButton}
-            onPress={() => handleInfoPress()}
+          {/* Right side - Category tag */}
+          <View
+            style={[
+              styles.categoryTag,
+              {
+                backgroundColor: categoryInfo.color + '20',
+                borderColor: categoryInfo.color
+              }
+            ]}
           >
-            <Info size={24} color="#88BEDD" />
-          </TouchableOpacity>
+            <CategoryIcon size={12} color={categoryInfo.color} />
+            <Text style={[styles.categoryText, { color: categoryInfo.color }]}>
+              {categoryInfo.label}
+            </Text>
+          </View>
         </TouchableOpacity>
       </Animated.View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>ยืนยันการลบ</Text>
+            <Text style={styles.modalMessage}>
+              คุณต้องการลบเตือนความจำ{' '}
+              <Text style={styles.modalBold}>{reminder.reminderName}</Text>{' '}
+              หรือไม่?
+            </Text>
+            <Text style={styles.modalSubMessage}>
+              การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelDelete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButtonModal]}
+                onPress={handleConfirmDelete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deleteButtonText}>ลบ</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 12,
     position: 'relative'
   },
   deleteButtonContainer: {
@@ -251,12 +358,11 @@ const styles = StyleSheet.create({
   deleteText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Prompt_600SemiBold'
+    fontFamily: 'Prompt_500Medium'
   },
   reminderCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -264,46 +370,59 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    borderLeftWidth: 6,
-    borderLeftColor: '#88BEDD'
+    borderLeftWidth: 6
   },
   cardTouchable: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16
+    padding: 12
   },
   leftSection: {
-    marginRight: 12
+    marginRight: 14
   },
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#5FA7D1',
-    backgroundColor: '#fff',
+    width: 20,
+    height: 20,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#A6A6A6',
     justifyContent: 'center',
     alignItems: 'center'
   },
   checkboxCompleted: {
-    borderColor: '#5FA7D1',
-    backgroundColor: '#5FA7D1'
+    borderColor: '#5FA7D1'
   },
   checkboxInner: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#fff'
+    width: 12,
+    height: 12,
+    borderRadius: 12,
+    backgroundColor: '#5FA7D1'
   },
   middleSection: {
     flex: 1,
     gap: 2
   },
+  categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 0.5
+  },
+  categoryText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_400Regular'
+  },
   reminderTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
     color: '#225877',
+    fontFamily: 'Prompt_700Bold'
+  },
+  overdueTitleText: {
+    color: '#BF1737',
     fontFamily: 'Prompt_700Bold'
   },
   infoRow: {
@@ -312,16 +431,84 @@ const styles = StyleSheet.create({
     gap: 8
   },
   petNameText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
   dateTimeText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
-  infoButton: {
-    padding: 4
+  overdueText: {
+    color: '#BF1737',
+    fontFamily: 'Prompt_700Bold'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    gap: 16
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Prompt_700Bold',
+    color: '#225877',
+    textAlign: 'center'
+  },
+  modalMessage: {
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877',
+    textAlign: 'center',
+    lineHeight: 24
+  },
+  modalBold: {
+    fontFamily: 'Prompt_700Bold',
+    color: '#ef4444'
+  },
+  modalSubMessage: {
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium',
+    color: '#6b7280',
+    textAlign: 'center'
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db'
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+    color: '#4b5563'
+  },
+  deleteButtonModal: {
+    backgroundColor: '#ef4444'
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_700Bold',
+    color: '#fff'
   }
 })

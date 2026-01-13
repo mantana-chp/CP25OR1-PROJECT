@@ -1,18 +1,23 @@
 import _ from 'lodash'
-import React, { useRef, useState } from 'react'
+import React from 'react'
 
-import { thaiMonths, weekDays } from '@/src/domain/calendar.domain'
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { IReminder } from '@/src/domain/reminder.domain'
+
+import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
+import { ChevronDown, ChevronUp } from 'lucide-react-native'
 import {
   Animated,
   LayoutAnimation,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   UIManager,
   View
 } from 'react-native'
+import { useCalendar } from '../../../hooks/useCalendar'
+import CalendarDay from './calendar/CalendarDay'
+import CalendarHeader from './calendar/CalendarHeader'
+import WeekDaysRow from './calendar/WeekDaysRow'
 
 if (
   Platform.OS === 'android' &&
@@ -24,188 +29,81 @@ if (
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
+  reminders?: IReminder[]
 }
 
-export default function Calendar({ isExpanded, onToggle }: CalendarProps) {
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const today = new Date()
-  const rotateAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current
+export default function Calendar({
+  isExpanded,
+  onToggle,
+  reminders = []
+}: CalendarProps) {
+  // ------------------
+  // CONST
+  // ------------------
+  const {
+    currentDate,
+    isCurrentMonth,
+    renderCalendar,
+    getCurrentWeekDays,
+    previousMonth,
+    nextMonth,
+    goToToday
+  } = useCalendar(reminders)
 
-  // Animate chevron rotation
-  React.useEffect(() => {
-    Animated.timing(rotateAnim, {
-      toValue: isExpanded ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true
-    }).start()
-  }, [isExpanded])
+  const chevronRotation = useChevronAnimation(isExpanded)
 
-  const chevronRotation = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['180deg', '0deg']
-  })
-
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    return new Date(year, month + 1, 0).getDate()
-  }
-
-  const getFirstDayOfMonth = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    return new Date(year, month, 1).getDay()
-  }
-
-  const previousMonth = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
-    )
-  }
-
-  const nextMonth = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-    )
-  }
-
-  const goToToday = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-    setCurrentDate(new Date())
-  }
-
+  // ------------------
+  // HANDLER
+  // ------------------
   const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     onToggle()
   }
 
-  const isCurrentMonth =
-    currentDate.getMonth() === today.getMonth() &&
-    currentDate.getFullYear() === today.getFullYear()
-
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentDate)
-    const firstDay = getFirstDayOfMonth(currentDate)
-    const days = []
-
-    // Previous month's days
-    const prevMonthDays = getDaysInMonth(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
-    )
-    for (let i = firstDay - 1; i >= 0; i--) {
-      days.push({
-        day: prevMonthDays - i,
-        isCurrentMonth: false,
-        isToday: false,
-        date: new Date(
-          currentDate.getFullYear(),
-          currentDate.getMonth() - 1,
-          prevMonthDays - i
-        )
-      })
-    }
-
-    // Current month's days
-    for (let day = 1; day <= daysInMonth; day++) {
-      const isToday =
-        day === today.getDate() &&
-        currentDate.getMonth() === today.getMonth() &&
-        currentDate.getFullYear() === today.getFullYear()
-
-      days.push({
-        day,
-        isCurrentMonth: true,
-        isToday,
-        // hasEvents: day === 8 || day === 30,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-      })
-    }
-
-    return days
-  }
-
-  const getCurrentWeekDays = () => {
-    const allDays = renderCalendar()
-    const todayIndex = allDays.findIndex((d) => d.isToday)
-
-    if (todayIndex === -1) {
-      return allDays.slice(0, 7)
-    }
-
-    const rowIndex = Math.floor(todayIndex / 7)
-    const startIndex = rowIndex * 7
-
-    return allDays.slice(startIndex, startIndex + 7)
+  const handleDatePress = (date: Date) => {
+    console.log('Selected date:', date)
   }
 
   const days = isExpanded ? renderCalendar() : getCurrentWeekDays()
 
+  // ------------------
+  // RENDER
+  // ------------------
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>
-          {thaiMonths[currentDate.getMonth()].name_th}{' '}
-          {currentDate.getFullYear() + 543}
-        </Text>
-        <View style={styles.navigation}>
-          {/* Today Button */}
-          {!isCurrentMonth && (
-            <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
-              <Text style={styles.todayButtonText}>วันนี้</Text>
-            </TouchableOpacity>
-          )}
+      <CalendarHeader
+        currentDate={currentDate}
+        isCurrentMonth={isCurrentMonth}
+        onPreviousMonth={previousMonth}
+        onNextMonth={nextMonth}
+        onGoToToday={goToToday}
+      />
 
-          <TouchableOpacity onPress={previousMonth} style={styles.navButton}>
-            <ChevronLeft size={20} color="#225877" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={nextMonth} style={styles.navButton}>
-            <ChevronRight size={20} color="#225877" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <WeekDaysRow />
 
-      {/* Week days */}
-      <View style={styles.weekDaysRow}>
-        {_.map(weekDays, (day, index) => (
-          <View key={index} style={styles.weekDayCell}>
-            <Text style={styles.weekDayText}>{day}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Calendar grid */}
       <View style={styles.calendarGrid}>
         {_.map(days, (item, index) => (
-          <TouchableOpacity
+          <CalendarDay
             key={`${item.date.getTime()}-${index}`}
-            style={[styles.dayCell, item.isToday && styles.todayCell]}
-            onPress={() => console.log('Selected date:', item.date)}
-          >
-            <Text
-              style={[
-                styles.dayText,
-                !item.isCurrentMonth && styles.inactiveDayText,
-                item.isToday && styles.todayText
-              ]}
-            >
-              {item.day}
-            </Text>
-            {/* {item.hasEvents && <View style={styles.eventDot} />} */}
-          </TouchableOpacity>
+            day={item.day}
+            isCurrentMonth={item.isCurrentMonth}
+            isToday={item.isToday}
+            hasEvents={item.hasEvents}
+            reminderCount={item.reminderCount}
+            reminders={item.reminders}
+            date={item.date}
+            onPress={handleDatePress}
+          />
         ))}
       </View>
 
-      {/* Toggle Button */}
       <TouchableOpacity
-        style={styles.toggleButton}
+        style={[styles.toggleButton, isExpanded && styles.toggleButtonExpanded]}
         onPress={handleToggle}
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronDown size={24} color="#225877" />
+          <ChevronUp size={24} color="#225877" />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -218,105 +116,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12
-  },
-  headerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Prompt_700Bold'
-  },
-  navigation: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center'
-  },
-  todayButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#5FA7D1',
-    marginRight: 4
-  },
-  todayButtonText: {
-    fontSize: 13,
-    color: '#fff',
-    fontWeight: '600',
-    fontFamily: 'Prompt_600SemiBold'
-  },
-  navButton: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: '#f0f9ff'
-  },
-  weekDaysRow: {
-    flexDirection: 'row',
-    marginBottom: 4
-  },
-  weekDayCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 4
-  },
-  weekDayText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
-    fontFamily: 'Prompt_600SemiBold'
-  },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap'
   },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1.1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 2,
-    position: 'relative'
-  },
-  todayCell: {
-    backgroundColor: '#5FA7D1',
-    borderRadius: 50
-  },
-  dayText: {
-    fontSize: 15,
-    color: '#225877',
-    fontWeight: '500',
-    fontFamily: 'Prompt_500Medium'
-  },
-  inactiveDayText: {
-    color: '#cbd5e1'
-  },
-  todayText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontFamily: 'Prompt_700Bold'
-  },
-  eventDot: {
-    position: 'absolute',
-    bottom: 4,
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#5FA7D1'
-  },
   toggleButton: {
     alignSelf: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
     paddingHorizontal: 24,
-    marginTop: 4
+    marginTop: 0
+  },
+  toggleButtonExpanded: {
+    marginTop: -64
   }
 })

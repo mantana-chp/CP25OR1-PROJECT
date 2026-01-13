@@ -8,9 +8,3 @@ export const API_RESPONSE_STATUS = {
         DESCRIPTION: "Failure",
     },
 } as const;
-
-export const REMINDER_STATUS = {
-    TO_DO: "To Do",
-    DONE: "Done",
-    OVERDUE: "Overdue",
-} as const;

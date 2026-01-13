@@ -1,10 +1,10 @@
-import { reminder_status } from '../../generated/prisma/enums';
+import { reminder_status, category_name } from '../../generated/prisma/client';
 
 export interface Reminder {
   id: string;
   userId: string;
   petId: string;
-  categoryId: string;
+  categoryName: category_name;
   reminderName?: string;
   description?: string;
   reminderDate: Date;
@@ -13,18 +13,10 @@ export interface Reminder {
   statusDoneAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  children?: Reminder[];
 }
 
-export type CreateReminderInput = {
-  reminderName: string;
-  description?: string;
-  reminderDate: string;
-  reminderTime?: string; // converted date,time value to Date in repository
-};
-
-// Internal type for creating a reminder in the repository
-export type ReminderCreationData = CreateReminderInput & {
-  user: { connect: { id: string } };
-  pet: { connect: { id: string } };
-  reminder_categories: { connect: { id: string } };
-};
+export interface ReminderWithPetName extends Reminder {
+  pet_name: string;
+  children?: Reminder[]; // Children should be of the base Reminder type
+}
