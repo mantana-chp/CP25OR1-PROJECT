@@ -1,17 +1,41 @@
+import _ from 'lodash'
 import React, { useEffect, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View
+} from 'react-native'
 
 import { usePets } from '@/src/context/PetContext'
 import { IPetProfile } from '@/src/domain/pet.domain'
 
 import Header from '../../components/header_component'
-import PetDropdown from '../components/PetDropdown'
+import ChatBubble from '../components/chat_bubble'
+import ChatInput from '../components/chat_input'
+import PetDropdown from '../components/pet_dropdown'
+
+interface Message {
+  id: string
+  text: string
+  isUser: boolean
+}
 
 export default function ChatbotPage() {
   const { pets, loading } = usePets()
   const [selectedPet, setSelectedPet] = useState<IPetProfile | null>(
     pets.length > 0 ? pets[0] : null
   )
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      text: 'สวัสดีครับ! ผมพร้อมที่จะช่วยตอบคำถามเกี่ยวกับสัตว์เลี้ยงของคุณครับ',
+      isUser: false
+    }
+  ])
+  const [isTyping, setIsTyping] = useState(false)
+  const scrollViewRef = React.useRef<ScrollView>(null)
 
   useEffect(() => {
     if (pets.length > 0 && !selectedPet) {
@@ -21,6 +45,41 @@ export default function ChatbotPage() {
 
   const handleSelectPet = (pet: IPetProfile) => {
     setSelectedPet(pet)
+  }
+
+  const handleSendMessage = async (text: string) => {
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text,
+      isUser: true
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+
+    // Simulate AI typing
+    setIsTyping(true)
+
+    // Simulate AI response (replace with actual API call)
+    setTimeout(() => {
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'ขอบคุณสำหรับคำถามของคุณ กำลังประมวลผล...',
+        isUser: false
+      }
+      setMessages((prev) => [...prev, aiMessage])
+      setIsTyping(false)
+
+      // Scroll to bottom
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    }, 1000)
+
+    // Scroll to bottom after user message
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true })
+    }, 100)
   }
 
   return (
@@ -36,8 +95,31 @@ export default function ChatbotPage() {
         }
       />
 
-      {/* Content Area */}
-      <View style={styles.content}>{/* Chat content will go here */}</View>
+      <KeyboardAvoidingView
+        style={styles.chatContainer}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        {/* Chat Messages */}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+          keyboardShouldPersistTaps="never"
+          showsVerticalScrollIndicator={false}
+        >
+          {_.map(messages, (message) => (
+            <ChatBubble
+              key={message.id}
+              message={message.text}
+              isUser={message.isUser}
+            />
+          ))}
+          {isTyping && <ChatBubble message="กำลังพิมพ์..." isUser={false} />}
+        </ScrollView>
+
+        {/* Chat Input */}
+        <ChatInput onSend={handleSendMessage} disabled={isTyping} />
+      </KeyboardAvoidingView>
     </View>
   )
 }
@@ -47,15 +129,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF9F1'
   },
-  infoButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  content: {
+  chatContainer: {
     flex: 1
+  },
+  messagesContainer: {
+    flex: 1,
+    backgroundColor: '#FFF9F1'
+  },
+  messagesContent: {
+    paddingVertical: 16,
+    flexGrow: 1
   }
 })
