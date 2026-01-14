@@ -12,4 +12,11 @@ export const config = {
     secret: process.env.REFRESH_TOKEN_SECRET || 'super-duper-secret',
     expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d',
   },
+  google: {
+    apiKey: process.env.GOOGLE_API_KEY || '',
+  },
+  pinecone: {
+    apiKey: process.env.PINECONE_API_KEY || '',
+    indexName: process.env.PINECONE_INDEX_NAME || '',
+  },
 };
