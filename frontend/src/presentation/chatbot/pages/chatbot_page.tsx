@@ -1,7 +1,9 @@
-import { usePets } from '@/src/context/PetContext'
-import { IPetProfile } from '@/src/domain/pet.domain'
 import React, { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+
+import { usePets } from '@/src/context/PetContext'
+import { IPetProfile } from '@/src/domain/pet.domain'
+
 import Header from '../../components/header_component'
 import PetDropdown from '../components/PetDropdown'
 
