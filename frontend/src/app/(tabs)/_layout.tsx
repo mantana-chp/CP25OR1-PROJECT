@@ -5,7 +5,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { HapticTab } from '@/components/haptic-tab'
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { Ionicons } from '@expo/vector-icons'
-import { Bell } from 'lucide-react-native'
+import { Bell, BotMessageSquare } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
@@ -81,6 +81,20 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <CustomTabBarIcon
               icon={Bell}
+              color={color}
+              focused={focused}
+              badge={unreadCount}
+            />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name="chatbot"
+        options={{
+          title: 'Chatbot',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={BotMessageSquare}
               color={color}
               focused={focused}
               badge={unreadCount}
