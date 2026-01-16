@@ -1,5 +1,5 @@
 import _ from 'lodash'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Alert,
   KeyboardAvoidingView,
@@ -37,7 +37,7 @@ export default function ChatbotPage() {
     }
   ])
   const [isTyping, setIsTyping] = useState(false)
-  const scrollViewRef = React.useRef<ScrollView>(null)
+  const scrollViewRef = useRef<ScrollView>(null)
 
   useEffect(() => {
     if (pets.length > 0 && !selectedPet) {
@@ -105,7 +105,7 @@ export default function ChatbotPage() {
   return (
     <View style={styles.container}>
       <Header
-        title="แชท"
+        title="แชทบอท"
         rightChildren={
           <PetDropdown
             pets={pets}
@@ -134,7 +134,8 @@ export default function ChatbotPage() {
               isUser={message.isUser}
             />
           ))}
-          {isTyping && <ChatBubble message="กำลังพิมพ์..." isUser={false} />}
+
+          {isTyping && <ChatBubble message="" isUser={false} isTyping={true} />}
         </ScrollView>
 
         {/* Chat Input */}

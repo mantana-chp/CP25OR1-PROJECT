@@ -2,14 +2,19 @@ import { formatMessage } from '@/src/utils/libs/message_formatter'
 import { Bot } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
+import TypingIndicator from './typing_indicator'
 
 interface ChatBubbleProps {
   message: string
   isUser: boolean
-  timestamp?: string
+  isTyping?: boolean
 }
 
-export default function ChatBubble({ message, isUser }: ChatBubbleProps) {
+export default function ChatBubble({
+  message,
+  isUser,
+  isTyping
+}: ChatBubbleProps) {
   return (
     <View
       style={[
@@ -22,19 +27,23 @@ export default function ChatBubble({ message, isUser }: ChatBubbleProps) {
           <Bot size={24} color="#FFFFFF" />
         </View>
       )}
-      <View
-        style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
-      >
-        {formatMessage(
-          message,
-          {
-            messageText: styles.messageText,
-            userText: styles.userText,
-            aiText: styles.aiText
-          },
-          isUser
-        )}
-      </View>
+      {isTyping && !isUser ? (
+        <TypingIndicator />
+      ) : (
+        <View
+          style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
+        >
+          {formatMessage(
+            message,
+            {
+              messageText: styles.messageText,
+              userText: styles.userText,
+              aiText: styles.aiText
+            },
+            isUser
+          )}
+        </View>
+      )}
     </View>
   )
 }
