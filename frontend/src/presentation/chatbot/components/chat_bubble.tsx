@@ -1,6 +1,7 @@
+import { formatMessage } from '@/src/utils/message_formatter'
 import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 interface ChatBubbleProps {
   message: string
@@ -8,10 +9,7 @@ interface ChatBubbleProps {
   timestamp?: string
 }
 
-export default function ChatBubble({
-  message,
-  isUser
-}: ChatBubbleProps) {
+export default function ChatBubble({ message, isUser }: ChatBubbleProps) {
   return (
     <View
       style={[
@@ -27,11 +25,15 @@ export default function ChatBubble({
       <View
         style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
       >
-        <Text
-          style={[styles.messageText, isUser ? styles.userText : styles.aiText]}
-        >
-          {message}
-        </Text>
+        {formatMessage(
+          message,
+          {
+            messageText: styles.messageText,
+            userText: styles.userText,
+            aiText: styles.aiText
+          },
+          isUser
+        )}
       </View>
     </View>
   )

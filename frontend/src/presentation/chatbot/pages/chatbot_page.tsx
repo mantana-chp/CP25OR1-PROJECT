@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import React, { useEffect, useState } from 'react'
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,6 +11,7 @@ import {
 
 import { usePets } from '@/src/context/PetContext'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import { chatbotService } from '@/src/utils/api/services/chatbot_service'
 
 import Header from '../../components/header_component'
 import ChatBubble from '../components/chat_bubble'
@@ -56,30 +58,48 @@ export default function ChatbotPage() {
     }
 
     setMessages((prev) => [...prev, userMessage])
-
-    // Simulate AI typing
     setIsTyping(true)
-
-    // Simulate AI response (replace with actual API call)
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'ขอบคุณสำหรับคำถามของคุณ กำลังประมวลผล...',
-        isUser: false
-      }
-      setMessages((prev) => [...prev, aiMessage])
-      setIsTyping(false)
-
-      // Scroll to bottom
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true })
-      }, 100)
-    }, 1000)
 
     // Scroll to bottom after user message
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true })
     }, 100)
+
+    try {
+      // Call the API with query and optional petId
+      const response = await chatbotService.sendMessage(text, selectedPet?.id)
+
+      // Add AI response
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: response.data.answer,
+        isUser: false
+      }
+      setMessages((prev) => [...prev, aiMessage])
+
+      // Scroll to bottom
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    } catch (error: any) {
+      console.error('Chat error:', error)
+
+      // Add error message
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'ขออภัยครับ เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง',
+        isUser: false
+      }
+      setMessages((prev) => [...prev, errorMessage])
+
+      // Show alert for user
+      Alert.alert(
+        'เกิดข้อผิดพลาด',
+        error.message || 'ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง'
+      )
+    } finally {
+      setIsTyping(false)
+    }
   }
 
   return (
