@@ -1,4 +1,4 @@
-import { formatMessage } from '@/src/utils/message_formatter'
+import { formatMessage } from '@/src/utils/libs/message_formatter'
 import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
