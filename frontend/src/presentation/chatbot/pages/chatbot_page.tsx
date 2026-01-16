@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,12 +10,14 @@ import {
 
 import { usePets } from '@/src/context/PetContext'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import { useError } from '@/src/presentation/components/error_context'
 import { chatbotService } from '@/src/utils/api/services/chatbot_service'
 
 import Header from '../../components/header_component'
 import ChatBubble from '../components/chat_bubble'
 import ChatInput from '../components/chat_input'
 import PetDropdown from '../components/pet_dropdown'
+import TryAgainHandler from '../components/try_again_handler'
 
 interface Message {
   id: string
@@ -26,6 +27,7 @@ interface Message {
 
 export default function ChatbotPage() {
   const { pets, loading } = usePets()
+  const { showError } = useError()
   const [selectedPet, setSelectedPet] = useState<IPetProfile | null>(
     pets.length > 0 ? pets[0] : null
   )
@@ -37,6 +39,8 @@ export default function ChatbotPage() {
     }
   ])
   const [isTyping, setIsTyping] = useState(false)
+  const [isError, setIsError] = useState(false)
+  const [lastFailedMessage, setLastFailedMessage] = useState<string>('')
   const scrollViewRef = useRef<ScrollView>(null)
 
   useEffect(() => {
@@ -59,6 +63,7 @@ export default function ChatbotPage() {
 
     setMessages((prev) => [...prev, userMessage])
     setIsTyping(true)
+    setIsError(false)
 
     // Scroll to bottom after user message
     setTimeout(() => {
@@ -83,22 +88,18 @@ export default function ChatbotPage() {
       }, 100)
     } catch (error: any) {
       console.error('Chat error:', error)
-
-      // Add error message
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'ขออภัยครับ เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง',
-        isUser: false
-      }
-      setMessages((prev) => [...prev, errorMessage])
-
-      // Show alert for user
-      Alert.alert(
-        'เกิดข้อผิดพลาด',
-        error.message || 'ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง'
+      setLastFailedMessage(text)
+      setIsError(true)
+      showError(
+        error.message || 'เกิดข้อผิดพลาดในการส่งข้อความ กรุณาลองใหม่อีกครั้ง'
       )
     } finally {
       setIsTyping(false)
+    }
+  }
+  const handleRetry = () => {
+    if (lastFailedMessage) {
+      handleSendMessage(lastFailedMessage)
     }
   }
 
@@ -137,6 +138,13 @@ export default function ChatbotPage() {
 
           {isTyping && <ChatBubble message="" isUser={false} isTyping={true} />}
         </ScrollView>
+
+        {isError && (
+          <TryAgainHandler
+            onRetry={handleRetry}
+            message="เกิดข้อผิดพลาดในการส่งข้อความ กรุณาลองใหม่อีกครั้ง"
+          />
+        )}
 
         {/* Chat Input */}
         <ChatInput onSend={handleSendMessage} disabled={isTyping} />
