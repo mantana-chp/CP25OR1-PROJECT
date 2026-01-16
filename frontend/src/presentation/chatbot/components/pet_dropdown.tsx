@@ -72,30 +72,38 @@ export default function PetDropdown({
         onRequestClose={toggleDropdown}
       >
         <Pressable style={styles.modalOverlay} onPress={toggleDropdown}>
-          {_.map(pets, (pet, index) => (
-            <TouchableOpacity
-              key={pet.id}
-              style={[
-                styles.dropdownItem,
-                selectedPet?.id === pet.id && styles.selectedItem,
-                index === pets.length - 1 && styles.lastItem
-              ]}
-              onPress={() => handleSelectPet(pet)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.itemIconContainer}>
-                <Ionicons name="paw" size={16} color="#fff" />
+          <View style={styles.dropdownContainer}>
+            {pets.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>ไม่พบข้อมูลสัตว์เลี้ยง</Text>
               </View>
-              <Text
-                style={[
-                  styles.itemText,
-                  selectedPet?.id === pet.id && styles.selectedItemText
-                ]}
-              >
-                {pet.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+            ) : (
+              _.map(pets, (pet, index) => (
+                <TouchableOpacity
+                  key={pet.id}
+                  style={[
+                    styles.dropdownItem,
+                    selectedPet?.id === pet.id && styles.selectedItem,
+                    index === pets.length - 1 && styles.lastItem
+                  ]}
+                  onPress={() => handleSelectPet(pet)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.itemIconContainer}>
+                    <Ionicons name="paw" size={16} color="#fff" />
+                  </View>
+                  <Text
+                    style={[
+                      styles.itemText,
+                      selectedPet?.id === pet.id && styles.selectedItemText
+                    ]}
+                  >
+                    {pet.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
         </Pressable>
       </Modal>
     </View>
@@ -176,5 +184,16 @@ const styles = StyleSheet.create({
   },
   selectedItemText: {
     fontFamily: 'Prompt_500Medium'
+  },
+  emptyContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center'
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#718096',
+    textAlign: 'center',
+    fontFamily: 'Prompt_400Regular'
   }
 })
