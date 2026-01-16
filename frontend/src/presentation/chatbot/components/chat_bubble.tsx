@@ -1,5 +1,5 @@
 import { formatMessage } from '@/src/utils/libs/message_formatter'
-import { Ionicons } from '@expo/vector-icons'
+import { Bot } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -19,7 +19,7 @@ export default function ChatBubble({ message, isUser }: ChatBubbleProps) {
     >
       {!isUser && (
         <View style={styles.aiIconContainer}>
-          <Ionicons name="paw" size={20} color="#FFFFFF" />
+          <Bot size={24} color="#FFFFFF" />
         </View>
       )}
       <View

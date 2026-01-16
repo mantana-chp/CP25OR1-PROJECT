@@ -124,8 +124,8 @@ export default function ChatbotPage() {
           ref={scrollViewRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
-          keyboardShouldPersistTaps="never"
-          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
         >
           {_.map(messages, (message) => (
             <ChatBubble
