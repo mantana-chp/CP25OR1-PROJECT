@@ -1,11 +1,10 @@
 import { Tabs } from 'expo-router'
 import React from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
-
 import { HapticTab } from '@/components/haptic-tab'
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { Ionicons } from '@expo/vector-icons'
-import { Bell, MessageCircle } from 'lucide-react-native'
+import { Bell, BotMessageSquare } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
@@ -89,6 +88,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name='chatbot'
+        options={{
+          title: 'Chatbot',
+          tabBarIcon: ({ color, focused }) => (
+            <CustomTabBarIcon
+              icon={BotMessageSquare}
+              color={color}
+              focused={focused}
+              badge={unreadCount}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name='pet_profile'
         options={{
           title: 'Pet Profile',
@@ -105,20 +118,6 @@ export default function TabLayout() {
                 color={focused ? '#fff' : color}
               />
             </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name='ai-chat'
-        options={{
-          title: 'AI Chat',
-          tabBarIcon: ({ color, focused }) => (
-            <CustomTabBarIcon
-              icon={MessageCircle}
-              color={color}
-              focused={focused}
-              badge={0}
-            />
           ),
         }}
       />

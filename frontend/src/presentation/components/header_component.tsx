@@ -9,6 +9,8 @@ interface HeaderProps {
   title: string
   goBack?: boolean
   onBackPress?: () => void
+  leftChildren?: React.ReactNode
+  rightChildren?: React.ReactNode
 }
 
 export default function Header(props: HeaderProps) {
@@ -39,21 +41,28 @@ export default function Header(props: HeaderProps) {
         }
       ]}
     >
-      {props.goBack && (
-        <Pressable onPress={handleBackPress}>
-          <Text style={styles.headerBackIcon}>
-            <ChevronLeft color="white" />
-          </Text>
-        </Pressable>
-      )}
-      <Text
-        style={[
-          styles.headerTitle,
-          !props.goBack && { flex: 1, textAlign: 'center' }
-        ]}
-      >
-        {props.title}
-      </Text>
+      {/* Left Section */}
+      <View style={styles.leftSection}>
+        {props.goBack ? (
+          <Pressable onPress={handleBackPress}>
+            <Text style={styles.headerBackIcon}>
+              <ChevronLeft color="white" />
+            </Text>
+          </Pressable>
+        ) : props.leftChildren ? (
+          props.leftChildren
+        ) : null}
+      </View>
+
+      {/* Center Title - Absolutely positioned */}
+      <View style={styles.centerSection}>
+        <Text style={styles.headerTitle}>{props.title}</Text>
+      </View>
+
+      {/* Right Section */}
+      <View style={styles.rightSection}>
+        {props.rightChildren ? props.rightChildren : null}
+      </View>
     </View>
   )
 }
@@ -65,7 +74,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 24,
     alignItems: 'center',
-    gap: 16
+    position: 'relative'
+  },
+  leftSection: {
+    zIndex: 2
+  },
+  centerSection: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1
+  },
+  rightSection: {
+    marginLeft: 'auto',
+    zIndex: 2
   },
   headerBackIcon: {
     color: 'white',
