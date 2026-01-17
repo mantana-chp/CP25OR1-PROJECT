@@ -1,0 +1,101 @@
+import { formatMessage } from '@/src/utils/libs/message_formatter'
+import { Bot } from 'lucide-react-native'
+import React from 'react'
+import { StyleSheet, View } from 'react-native'
+import TypingIndicator from './typing_indicator'
+
+interface ChatBubbleProps {
+  message: string
+  isUser: boolean
+  isTyping?: boolean
+}
+
+export default function ChatBubble({
+  message,
+  isUser,
+  isTyping
+}: ChatBubbleProps) {
+  return (
+    <View
+      style={[
+        styles.container,
+        isUser ? styles.userContainer : styles.aiContainer
+      ]}
+    >
+      {!isUser && (
+        <View style={styles.aiIconContainer}>
+          <Bot size={24} color="#FFFFFF" />
+        </View>
+      )}
+      {isTyping && !isUser ? (
+        <TypingIndicator />
+      ) : (
+        <View
+          style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
+        >
+          {formatMessage(
+            message,
+            {
+              messageText: styles.messageText,
+              userText: styles.userText,
+              aiText: styles.aiText
+            },
+            isUser
+          )}
+        </View>
+      )}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    marginVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'flex-start'
+  },
+  userContainer: {
+    justifyContent: 'flex-end'
+  },
+  aiContainer: {
+    justifyContent: 'flex-start'
+  },
+  aiIconContainer: {
+    backgroundColor: '#5FA7D1',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8
+  },
+  bubble: {
+    maxWidth: '70%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16
+  },
+  aiBubble: {
+    backgroundColor: '#D7E9F4',
+    borderTopLeftRadius: 4
+  },
+  userBubble: {
+    backgroundColor: '#FFFFFF',
+    borderTopRightRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22
+  },
+  aiText: {
+    color: '#225877',
+    fontFamily: 'Prompt_400Regular'
+  },
+  userText: {
+    color: '#2D3748',
+    fontFamily: 'Prompt_400Regular'
+  }
+})
