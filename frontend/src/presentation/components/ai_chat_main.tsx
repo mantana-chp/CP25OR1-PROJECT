@@ -1,39 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   View,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   Pressable,
   StyleSheet,
   Text,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ChatMessage } from '@/src/domain/ai_chatbot.domain'
-import { DisclaimerModal } from './ai_chatbot_disclaimer_modal'
-import { InfoButton } from './components/info_button'
-import { mockChatMessages } from '@/src/utils/mockData/ai-chat-mock'
+import { Info } from 'lucide-react-native'
+import { DisclaimerModal } from '../ai_chatbot/ai_chatbot_disclaimer_modal'
 
 interface ChatMainProps {
   headerComponent?: React.ReactNode
-  inputComponent?: React.ReactNode
-  onSendMessage?: (message: string) => void
 }
 
-export const ChatMain: React.FC<ChatMainProps> = ({
-  inputComponent,
-}) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatMessages)
+export const ChatMain: React.FC<ChatMainProps> = ({}) => {
   const [disclaimerVisible, setDisclaimerVisible] = useState(false)
-  const flatListRef = useRef<FlatList>(null)
   const insets = useSafeAreaInsets()
-
-  useEffect(() => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true })
-    }, 100)
-  }, [messages])
 
   return (
     <View style={styles.container}>
@@ -51,14 +35,17 @@ export const ChatMain: React.FC<ChatMainProps> = ({
             },
           ]}
         >
-          <InfoButton onPress={() => setDisclaimerVisible(true)} />
+          <Pressable
+            onPress={() => setDisclaimerVisible(true)}
+            style={styles.infoButton}
+          >
+            <View style={styles.infoBadge}>
+              <Info size={24} color='#FFFFFF' strokeWidth={3} />
+            </View>
+          </Pressable>
 
           <Text style={styles.headerTitle}>แชท</Text>
         </View>
-
-        <View style={styles.blankContent} />
-
-        <View style={styles.inputContainer}>{inputComponent}</View>
       </KeyboardAvoidingView>
 
       <DisclaimerModal
@@ -86,6 +73,20 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 8,
   },
+  infoButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -94,18 +95,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Prompt_700Bold',
     marginHorizontal: 8,
-  },
-  messageList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    flexGrow: 1,
-  },
-  blankContent: {
-    flex: 1,
-  },
-  inputContainer: {
-    backgroundColor: '#FFF9F2',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
 })
