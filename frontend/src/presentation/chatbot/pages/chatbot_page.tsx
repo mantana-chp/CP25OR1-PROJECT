@@ -5,7 +5,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  View
+  View,
 } from 'react-native'
 
 import { usePets } from '@/src/context/PetContext'
@@ -18,6 +18,8 @@ import ChatBubble from '../components/chat_bubble'
 import ChatInput from '../components/chat_input'
 import PetDropdown from '../components/pet_dropdown'
 import TryAgainHandler from '../components/try_again_handler'
+import { InfoButton } from '../components/info_button'
+import { DisclaimerModal } from '../components/ai_chatbot_disclaimer_modal'
 
 interface Message {
   id: string
@@ -28,16 +30,12 @@ interface Message {
 export default function ChatbotPage() {
   const { pets, loading } = usePets()
   const { showError } = useError()
+  const [disclaimerVisible, setDisclaimerVisible] = useState(true)
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
   const [selectedPet, setSelectedPet] = useState<IPetProfile | null>(
     pets.length > 0 ? pets[0] : null
   )
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'สวัสดีครับ! ผมพร้อมที่จะช่วยตอบคำถามเกี่ยวกับสัตว์เลี้ยงของคุณครับ',
-      isUser: false
-    }
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const [isError, setIsError] = useState(false)
   const [lastFailedMessage, setLastFailedMessage] = useState<string>('')
@@ -49,6 +47,23 @@ export default function ChatbotPage() {
     }
   }, [pets])
 
+  // Show welcome message after disclaimer is accepted
+  useEffect(() => {
+    if (disclaimerAccepted && messages.length === 0) {
+      const welcomeMessage: Message = {
+        id: '1',
+        text: 'สวัสดีครับ! ผมพร้อมที่จะช่วยตอบคำถามเกี่ยวกับสัตว์เลี้ยงของคุณครับ',
+        isUser: false,
+      }
+      setMessages([welcomeMessage])
+    }
+  }, [disclaimerAccepted])
+
+  const handleDisclaimerClose = () => {
+    setDisclaimerVisible(false)
+    setDisclaimerAccepted(true)
+  }
+
   const handleSelectPet = (pet: IPetProfile) => {
     setSelectedPet(pet)
   }
@@ -58,7 +73,7 @@ export default function ChatbotPage() {
     const userMessage: Message = {
       id: Date.now().toString(),
       text,
-      isUser: true
+      isUser: true,
     }
 
     setMessages((prev) => [...prev, userMessage])
@@ -78,7 +93,7 @@ export default function ChatbotPage() {
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response.data.answer,
-        isUser: false
+        isUser: false,
       }
       setMessages((prev) => [...prev, aiMessage])
 
@@ -106,7 +121,8 @@ export default function ChatbotPage() {
   return (
     <View style={styles.container}>
       <Header
-        title="แชทบอท"
+        title='แชทบอท'
+        leftChildren={<InfoButton onPress={() => setDisclaimerVisible(true)} />}
         rightChildren={
           <PetDropdown
             pets={pets}
@@ -125,7 +141,7 @@ export default function ChatbotPage() {
           ref={scrollViewRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps='handled'
           showsVerticalScrollIndicator={true}
         >
           {_.map(messages, (message) => (
@@ -136,19 +152,28 @@ export default function ChatbotPage() {
             />
           ))}
 
-          {isTyping && <ChatBubble message="" isUser={false} isTyping={true} />}
+          {isTyping && <ChatBubble message='' isUser={false} isTyping={true} />}
         </ScrollView>
 
         {isError && (
           <TryAgainHandler
             onRetry={handleRetry}
-            message="เกิดข้อผิดพลาดในการส่งข้อความ กรุณาลองใหม่อีกครั้ง"
+            message='เกิดข้อผิดพลาดในการส่งข้อความ กรุณาลองใหม่อีกครั้ง'
           />
         )}
 
         {/* Chat Input */}
-        <ChatInput onSend={handleSendMessage} disabled={isTyping} />
+        <ChatInput
+          onSend={handleSendMessage}
+          disabled={isTyping || !disclaimerAccepted}
+        />
       </KeyboardAvoidingView>
+
+      {/* Disclaimer Modal */}
+      <DisclaimerModal
+        visible={disclaimerVisible}
+        onClose={handleDisclaimerClose}
+      />
     </View>
   )
 }
@@ -156,17 +181,17 @@ export default function ChatbotPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F1'
+    backgroundColor: '#FFF9F1',
   },
   chatContainer: {
-    flex: 1
+    flex: 1,
   },
   messagesContainer: {
     flex: 1,
-    backgroundColor: '#FFF9F1'
+    backgroundColor: '#FFF9F1',
   },
   messagesContent: {
     paddingVertical: 16,
-    flexGrow: 1
-  }
+    flexGrow: 1,
+  },
 })
