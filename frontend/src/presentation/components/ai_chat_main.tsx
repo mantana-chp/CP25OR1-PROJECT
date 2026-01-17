@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Info } from 'lucide-react-native'
-import { DisclaimerModal } from '../ai_chatbot/ai_chatbot_disclaimer_modal'
+import { DisclaimerModal } from '../ai_chatbot/components/ai_chatbot_disclaimer_modal'
 
 interface ChatMainProps {
   headerComponent?: React.ReactNode

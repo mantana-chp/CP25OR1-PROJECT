@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text } from 'react-native'
-import { ChatMain } from '@/src/presentation/ai_chatbot/ai_chatbot_main'
+import { ChatMain } from '@/src/presentation/ai_chatbot/pages/ai_chatbot_main'
 
 export default function AIChatScreen() {
   // const handleSendMessage = (message: string) => {

@@ -1,39 +1,22 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   View,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
-  Pressable,
   StyleSheet,
   Text,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ChatMessage } from '@/src/domain/ai_chatbot.domain'
-import { DisclaimerModal } from './ai_chatbot_disclaimer_modal'
-import { InfoButton } from './components/info_button'
-import { mockChatMessages } from '@/src/utils/mockData/ai-chat-mock'
+import { DisclaimerModal } from '../components/ai_chatbot_disclaimer_modal'
+import { InfoButton } from '../components/info_button'
 
 interface ChatMainProps {
   headerComponent?: React.ReactNode
-  inputComponent?: React.ReactNode
-  onSendMessage?: (message: string) => void
 }
 
-export const ChatMain: React.FC<ChatMainProps> = ({
-  inputComponent,
-}) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatMessages)
+export const ChatMain: React.FC<ChatMainProps> = () => {
   const [disclaimerVisible, setDisclaimerVisible] = useState(false)
-  const flatListRef = useRef<FlatList>(null)
   const insets = useSafeAreaInsets()
-
-  useEffect(() => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true })
-    }, 100)
-  }, [messages])
 
   return (
     <View style={styles.container}>
@@ -55,10 +38,6 @@ export const ChatMain: React.FC<ChatMainProps> = ({
 
           <Text style={styles.headerTitle}>แชท</Text>
         </View>
-
-        <View style={styles.blankContent} />
-
-        <View style={styles.inputContainer}>{inputComponent}</View>
       </KeyboardAvoidingView>
 
       <DisclaimerModal
@@ -94,18 +73,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Prompt_700Bold',
     marginHorizontal: 8,
-  },
-  messageList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    flexGrow: 1,
-  },
-  blankContent: {
-    flex: 1,
-  },
-  inputContainer: {
-    backgroundColor: '#FFF9F2',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
 })
