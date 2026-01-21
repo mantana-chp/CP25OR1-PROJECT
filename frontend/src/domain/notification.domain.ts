@@ -33,4 +33,8 @@ export interface INotification {
       updatedAt: string
     }
   }
+  petTips: {
+    title: string
+    desc: string
+  }
 }
