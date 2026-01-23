@@ -222,3 +222,88 @@ export const processAndSendNotifications = async () => {
   }
   logger.info('--- FINISHED NOTIFICATION JOB ---');
 };
+
+/**
+ * Creates and sends a personalized AI-generated tip notification.
+ * This function is called by the AI tip cron job.
+ * @param userId The ID of the user to send the notification to.
+ * @param petId The ID of the pet the tip is about.
+ * @param title The title of the AI-generated tip.
+ * @param description The description/body of the AI-generated tip.
+ */
+export const sendTipNotification = async (
+  userId: string,
+  petId: string,
+  title: string,
+  description: string,
+): Promise<void> => {
+  logger.info(`[TipNotification] Preparing AI tip notification for user ${userId}, pet ${petId}.`);
+  let finalStatus: notification_status = notification_status.sent;
+  let sentAt: Date | null = new Date();
+  let newNotificationId: string = uuidv4(); // Generate UUID for the new notification
+
+  try {
+    // 1. Create the notification record in the database
+    const newNotification = await notificationRepository.create({
+      id: newNotificationId,
+      status: notification_status.pending, // Start as pending
+      user: { connect: { id: userId } },
+      pet: { connect: { id: petId } }, // Connect to the pet
+      tips_title: title,
+      tips_desc: description,
+    });
+    newNotificationId = newNotification.id; // Ensure we use the ID returned by create
+
+    // 2. Fetch user's push tokens
+    const userWithTokens = await prisma.users.findUnique({
+      where: { id: userId },
+      include: { push_tokens: true },
+    });
+
+    const hasPushTokens = userWithTokens && userWithTokens.push_tokens && userWithTokens.push_tokens.length > 0;
+    const messagesToSend: PushMessage[] = [];
+
+    if (hasPushTokens) {
+      for (const token of userWithTokens.push_tokens) {
+        messagesToSend.push({
+          to: token.token,
+          sound: 'default',
+          title: title,
+          body: description,
+          data: { notificationId: newNotificationId, petId: petId },
+        });
+      }
+    } else {
+      logger.info(`[TipNotification] Notification ${newNotificationId} will be processed for in-app only (no push tokens).`);
+    }
+
+    // 3. Send push notifications if any were prepared
+    if (messagesToSend.length > 0) {
+      try {
+        logger.info(`[TipNotification] Sending ${messagesToSend.length} push notifications for notification ID: ${newNotificationId}`);
+        await expoPushService.send(messagesToSend);
+        logger.info(`[TipNotification] Push notifications sent successfully for ${newNotificationId}.`);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          logger.error(`[TipNotification] Failed to send push for notification ${newNotificationId}:`, error);
+        } else {
+          logger.error(`[TipNotification] Failed to send push for notification ${newNotificationId}:`, new Error(String(error)));
+        }
+        finalStatus = notification_status.failed;
+        sentAt = null;
+      }
+    }
+
+  } catch (error) {
+    logger.error(`[TipNotification] Error processing AI tip notification for user ${userId}, pet ${petId}:`, error as Error);
+    finalStatus = notification_status.failed;
+    sentAt = null;
+  } finally {
+    // 4. Update the notification to its final state
+    await notificationRepository.update(newNotificationId, {
+      status: finalStatus,
+      sent_at: sentAt,
+    });
+    logger.info(`[TipNotification] Marked notification ${newNotificationId} as ${finalStatus}.`);
+  }
+};

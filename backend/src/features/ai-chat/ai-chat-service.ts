@@ -5,7 +5,7 @@ import { config } from '../../config';
 import { logger } from '../../libs/logger';
 import { Document } from '@langchain/core/documents';
 import prisma from '../../libs/db';
-import { formatAgeFromBirthDate } from '../../shared/utils';
+import { formatBirthDateToYearsMonths } from '../../shared/utils';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
@@ -30,7 +30,7 @@ const pinecone = new Pinecone({
  */
 const initializeVectorStore = async () => {
   if (vectorStore) return vectorStore;
-  
+
   try {
     const pineconeIndex = pinecone.Index(config.pinecone.indexName);
     vectorStore = await PineconeStore.fromExistingIndex(embeddings, { pineconeIndex });
@@ -70,8 +70,8 @@ export const chatWithAI = async (query: string, petId?: string): Promise<string>
       });
 
       if (pet) {
-        const age = formatAgeFromBirthDate(pet.birth_date);
-        const healthHistory = pet.reminders.map(r => 
+        const formattedAge = formatBirthDateToYearsMonths(pet.birth_date);
+        const healthHistory = pet.reminders.map(r =>
           `- ${r.reminder_name} (Date: ${r.status_done_at?.toISOString().split('T')[0]})`
         ).join('\n');
 
@@ -82,7 +82,7 @@ Name: ${pet.pet_name}
 Species: ${pet.species.name}
 Breed: ${pet.breeds?.name || 'Unknown'}
 Gender: ${pet.gender}
-Age: ${age}
+Age: ${formattedAge}
 Weight: ${pet.weight || 'Unknown'} kg
 
 Recent Health History (Vaccines/Checkups):
@@ -96,14 +96,14 @@ ${healthHistory || 'No recent health records.'}
     // 2. Retrieve relevant documents (Knowledge Base)
     // Use similaritySearchWithScore to filter out irrelevant results
     const resultsWithScore = await store.similaritySearchWithScore(query, 3);
-    
+
     // DEBUG: Log retrieval scores to help tune the threshold
     resultsWithScore.forEach(([doc, score]) => {
-        logger.debug(`Retrieval Score: ${score.toFixed(4)} | Content: ${(doc.metadata.text as string)?.substring(0, 50)}...`);
+      logger.debug(`Retrieval Score: ${score.toFixed(4)} | Content: ${(doc.metadata.text as string)?.substring(0, 50)}...`);
     });
 
     const threshold = 0.5; // Raised to 0.5 for stricter filtering
-    
+
     const relevantDocs = resultsWithScore
       .filter(([_, score]) => score >= threshold)
       .map(([doc]) => doc);
@@ -157,6 +157,6 @@ Answer:
  * Helper to test retrieval logic
  */
 export const getRelevantDocs = async (query: string, k: number = 3) => {
-    const store = await initializeVectorStore();
-    return await store.similaritySearch(query, k);
+  const store = await initializeVectorStore();
+  return await store.similaritySearch(query, k);
 };
