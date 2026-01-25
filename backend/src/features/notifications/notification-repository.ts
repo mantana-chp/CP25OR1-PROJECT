@@ -27,6 +27,7 @@ export const findManyByUserId = async (userId: string, isRead?: boolean) => {
           push_tokens: true,
         },
       },
+      pet: true,
     },
   })
 }
@@ -51,6 +52,7 @@ export const findByIdWithRelations = async (id: string) => {
           push_tokens: true,
         },
       },
+      pet: true,
     },
   })
 }

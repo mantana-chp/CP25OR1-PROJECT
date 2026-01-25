@@ -34,6 +34,16 @@ export interface ReminderDto {
   children?: ReminderDto[];
 }
 
+export interface PetInfoDto {
+  id: string;
+  name: string;
+}
+
+export interface PetTipsDto {
+  title: string;
+  desc: string;
+}
+
 export interface NotificationDto {
   id: string;
   userId: string;
@@ -43,22 +53,25 @@ export interface NotificationDto {
   readAt?: Date | null;
   createdAt: Date | null;
   reminder?: ReminderDto;
+  petInfo?: PetInfoDto;
+  petTips?: PetTipsDto;
 }
 
 // Define a type that matches the payload from repository's findMany with includes
 export type NotificationWithRelations = Prisma.notificationsGetPayload<{
-    include: {
-        reminders: {
-            include: {
-                pets: true;
-            }
-        },
-        user: {
-            include: {
-                push_tokens: true;
-            }
-        }
-    }
+  include: {
+    reminders: {
+      include: {
+        pets: true;
+      }
+    },
+    user: {
+      include: {
+        push_tokens: true;
+      }
+    },
+    pet: true,
+  }
 }>;
 
 export const mapPrismaPetToDto = (prismaPet: pets): PetDto => ({
@@ -94,13 +107,32 @@ export const mapPrismaReminderToDto = (prismaReminder: reminders & { pets?: pets
 });
 
 
-export const mapPrismaNotificationToDto = (prismaNotification: NotificationWithRelations): NotificationDto => ({
-  id: prismaNotification.id,
-  userId: prismaNotification.user.id, // Access user.id from the included user relation
-  reminderId: prismaNotification.reminder_id,
-  sentAt: prismaNotification.sent_at,
-  status: prismaNotification.status,
-  readAt: prismaNotification.read_at,
-  createdAt: prismaNotification.created_at,
-  reminder: prismaNotification.reminders ? mapPrismaReminderToDto(prismaNotification.reminders) : undefined,
-});
+export const mapPrismaNotificationToDto = (prismaNotification: NotificationWithRelations): NotificationDto => {
+  const notificationDto: NotificationDto = {
+    id: prismaNotification.id,
+    userId: prismaNotification.user.id,
+    reminderId: prismaNotification.reminder_id,
+    sentAt: prismaNotification.sent_at,
+    status: prismaNotification.status,
+    readAt: prismaNotification.read_at,
+    createdAt: prismaNotification.created_at,
+    reminder: prismaNotification.reminders ? mapPrismaReminderToDto(prismaNotification.reminders) : undefined,
+  };
+
+  // If the notification is a pet tip, add the petTips and petInfo fields
+  if (prismaNotification.tips_title && prismaNotification.tips_desc) {
+    notificationDto.petTips = {
+      title: prismaNotification.tips_title,
+      desc: prismaNotification.tips_desc,
+    };
+  }
+
+  if (prismaNotification.pet) {
+    notificationDto.petInfo = {
+      id: prismaNotification.pet.id,
+      name: prismaNotification.pet.pet_name,
+    };
+  }
+
+  return notificationDto;
+};
