@@ -5,7 +5,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import dayjs from 'dayjs'
 import 'dayjs/locale/th'
 import utc from 'dayjs/plugin/utc'
-import { Clock, PawPrint } from 'lucide-react-native'
+import { Clock, Lightbulb, PawPrint } from 'lucide-react-native'
 
 dayjs.extend(utc)
 
@@ -20,8 +20,45 @@ export default function NotificationCard({
   onPress,
   isRead
 }: NotificationCardProps) {
-  const { reminder } = notification
+  const { reminder, petTips, petInfo } = notification
 
+  // Check if this is a tips notification
+  const isTipsNotification = !!petTips && !reminder
+
+  if (isTipsNotification) {
+    const cardStyle = [styles.card, styles.tipsCard, isRead && styles.readCard]
+    const iconColor = isRead ? '#A6A6A6' : '#F59E0B'
+
+    return (
+      <TouchableOpacity
+        style={cardStyle}
+        activeOpacity={0.7}
+        onPress={() => onPress(notification)}
+      >
+        <View style={styles.tipsHeader}>
+          <Lightbulb size={20} color={iconColor} fill={iconColor} />
+          <Text style={[styles.tipsTitle, isRead && styles.readText]}>
+            {petTips.title}
+          </Text>
+        </View>
+
+        <Text style={[styles.tipsDescription, isRead && styles.readText]}>
+          {petTips.desc}
+        </Text>
+
+        {petInfo && (
+          <View style={styles.infoRow}>
+            <PawPrint size={14} color={iconColor} />
+            <Text style={[styles.tipPetName, isRead && styles.readText]}>
+              {petInfo.name}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    )
+  }
+
+  // Original reminder notification logic
   if (!reminder) {
     return null
   }
@@ -53,8 +90,8 @@ export default function NotificationCard({
   const iconColor = isRead
     ? '#A6A6A6'
     : reminder?.reminderStatus === 'overdue'
-    ? '#BF1737'
-    : '#2E759E'
+      ? '#BF1737'
+      : '#2E759E'
 
   return (
     <TouchableOpacity
@@ -134,5 +171,34 @@ const styles = StyleSheet.create({
   },
   readText: {
     color: '#6b7280'
+  },
+  tipsCard: {
+    backgroundColor: '#FEF3C7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B'
+  },
+  tipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8
+  },
+  tipsTitle: {
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+    color: '#92400E',
+    flex: 1
+  },
+  tipsDescription: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#78350F',
+    lineHeight: 20,
+    marginBottom: 8
+  },
+  tipPetName: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#78350F'
   }
 })
