@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { logger } from '../libs/logger';
 import { processAndSendNotifications } from '../features/notifications/notification-service';
-import { generateAndSendAITips } from '../services/ai-tip-generation-service';
+import { generateAndSendAITips } from '../features/ai-tips-generation/ai-tips-generation-service';
 
 // Main job for processing and sending scheduled notifications (e.g., reminders)
 const notificationJob = cron.schedule('*/15 * * * *', async () => {
