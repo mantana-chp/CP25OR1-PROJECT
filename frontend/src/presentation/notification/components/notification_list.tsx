@@ -52,10 +52,14 @@ export default function NotificationList({
         markAsReadApi.execute(notification.id, { read: true })
       }
 
-      router.push({
-        pathname: '/(tabs)',
-        params: { reminderId: notification.reminderId }
-      })
+      // Only navigate to reminders if it's a reminder notification
+      if (notification.reminderId) {
+        router.push({
+          pathname: '/(tabs)',
+          params: { reminderId: notification.reminderId }
+        })
+      }
+      // Tips notifications don't navigate anywhere, just mark as read
     },
     [router, readIds, markAsReadApi]
   )
