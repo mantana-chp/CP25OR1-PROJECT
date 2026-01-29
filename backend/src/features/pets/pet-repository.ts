@@ -1,7 +1,6 @@
 import prisma from '../../libs/db';
 import { Prisma } from '../../generated/prisma/client';
 
-// Shared select object for consistent pet profile data
 const petProfileSelect = {
   id: true,
   pet_name: true,
@@ -49,5 +48,15 @@ export const findPetProfileByPetId = async (petId: string, userId: string) => {
       user_id: userId,
     },
     select: petProfileSelect,
+  });
+};
+
+export const update = async (petId: string, userId: string, data: Prisma.petsUpdateInput) => {
+  return await prisma.pets.update({
+    where: {
+      id: petId,
+      user_id: userId,
+    },
+    data,
   });
 };

@@ -1,7 +1,8 @@
 import * as petRepository from './pet-repository';
-import { NotFoundError, ConflictError } from '../../shared/errors';
+import { NotFoundError, ConflictError, BadRequestError } from '../../shared/errors';
 import { Prisma } from '../../generated/prisma/client';
 import { formatAgeFromBirthDate } from '../../shared/utils';
+import { type PetUpdatePayload } from './pet-schema';
 
 export type PetCreationData = {
   pet_name: string;
@@ -44,6 +45,42 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
   };
 
   return await petRepository.create(data);
+};
+
+export const updatePet = async (petId: string, userId: string, petData: PetUpdatePayload) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.');
+  }
+
+  const updateData: Prisma.petsUpdateInput = {};
+
+  if (petData.pet_name != null) {
+    updateData.pet_name = petData.pet_name;
+  }
+  if (petData.gender != null) {
+    updateData.gender = petData.gender;
+  }
+  if (petData.weight != null) {
+    updateData.weight = petData.weight;
+  }
+  if (petData.birth_date != null) {
+    updateData.birth_date = petData.birth_date ? new Date(petData.birth_date) : null;
+  }
+  if (petData.species_id != null) {
+    updateData.species = { connect: { id: petData.species_id } };
+  }
+  if (petData.breed_id != null) {
+    updateData.breeds = { connect: { id: petData.breed_id } };
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw new BadRequestError('Request body must contain at least one valid field to update.');
+  }
+
+  return await petRepository.update(petId, userId, updateData);
+
+  // return await getPetProfileById(petId, userId);
 };
 
 export const getAllPetProfilesForUser = async (userId: string) => {
