@@ -1,7 +1,8 @@
 import * as petRepository from './pet-repository';
-import { ApiError, NotFoundError, ConflictError } from '../../shared/errors';
+import { NotFoundError, ConflictError, BadRequestError } from '../../shared/errors';
 import { Prisma } from '../../generated/prisma/client';
 import { formatAgeFromBirthDate } from '../../shared/utils';
+import { type PetUpdatePayload } from './pet-schema';
 
 export type PetCreationData = {
   pet_name: string;
@@ -12,10 +13,25 @@ export type PetCreationData = {
   birth_date?: string | null;
 };
 
+// Helper function to format a single pet profile into the desired structure
+const formatPetProfile = (pet: any) => {
+  if (!pet) return null;
+
+  return {
+    id: pet.id,
+    name: pet.pet_name,
+    gender: pet.gender,
+    species: pet.species?.name_th || null,
+    breed: pet.breeds?.name_th || null,
+    age: formatAgeFromBirthDate(pet.birth_date),
+    weight: pet.weight ? String(pet.weight) : null,
+  };
+};
+
 export const createPet = async (userId: string, petData: PetCreationData) => {
-  const existingPet = await petRepository.findFirstByUserId(userId);
-  if (existingPet) {
-    throw new ConflictError('A pet profile for this user already exists.');
+  const petCount = await petRepository.countByUserId(userId);
+  if (petCount >= 10) {
+    throw new ConflictError('You have reached the maximum limit of 10 pets.');
   }
 
   const data: Prisma.petsCreateInput = {
@@ -23,7 +39,6 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
     gender: petData.gender,
     weight: petData.weight,
     birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
-
     user: { connect: { id: userId } },
     species: { connect: { id: petData.species_id } },
     ...(petData.breed_id && { breeds: { connect: { id: petData.breed_id } } }),
@@ -32,22 +47,58 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
   return await petRepository.create(data);
 };
 
-export const getPetProfile = async (userId: string) => {
-  const pet = await petRepository.findPetProfileByUserId(userId);
-
-  if (!pet) {
-    throw new NotFoundError('Pet not found for this user.');
+export const updatePet = async (petId: string, userId: string, petData: PetUpdatePayload) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.');
   }
 
-  const age = formatAgeFromBirthDate(pet.birth_date);
+  const updateData: Prisma.petsUpdateInput = {};
 
-  return {
-    id: pet.id,
-    name: pet.pet_name,
-    gender: pet.gender,
-    species: pet.species?.name_th,
-    breed: pet.breeds?.name_th,
-    age: age,
-    weight: pet.weight,
-  };
+  if (petData.pet_name != null) {
+    updateData.pet_name = petData.pet_name;
+  }
+  if (petData.gender != null) {
+    updateData.gender = petData.gender;
+  }
+  if (petData.weight != null) {
+    updateData.weight = petData.weight;
+  }
+  if (petData.birth_date != null) {
+    updateData.birth_date = petData.birth_date ? new Date(petData.birth_date) : null;
+  }
+  if (petData.species_id != null) {
+    updateData.species = { connect: { id: petData.species_id } };
+  }
+  if (petData.breed_id != null) {
+    updateData.breeds = { connect: { id: petData.breed_id } };
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw new BadRequestError('Request body must contain at least one valid field to update.');
+  }
+
+  return await petRepository.update(petId, userId, updateData);
+
+  // return await getPetProfileById(petId, userId);
+};
+
+export const getAllPetProfilesForUser = async (userId: string) => {
+  const pets = await petRepository.findAllPetProfilesByUserId(userId);
+
+  if (!pets || pets.length === 0) {
+    return [];
+  }
+
+  return pets.map(formatPetProfile);
+};
+
+export const getPetProfileById = async (petId: string, userId: string) => {
+  const pet = await petRepository.findPetProfileByPetId(petId, userId);
+
+  if (!pet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.');
+  }
+
+  return formatPetProfile(pet);
 };

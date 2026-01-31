@@ -1,8 +1,13 @@
 import { Router } from 'express';
-import { createPet, getPetProfileController } from './pet-controller';
+import {
+  createPet,
+  getAllPetProfilesController,
+  getPetProfileByIdController,
+  updatePetController,
+} from './pet-controller';
 import { authGuard } from '../../middlewares/authGuard';
 import { validate } from '../../middlewares/validate';
-import { createPetSchema } from './pet-schema';
+import { createPetSchema, getPetByIdSchema, updatePetSchema } from './pet-schema';
 
 const petRoutes = Router();
 
@@ -11,7 +16,7 @@ const petRoutes = Router();
  * /pets:
  *   post:
  *     tags: [Pets]
- *     summary: Create a new pet for the authenticated user
+ *     summary: Create a new pet for the authenticated user (limit 10)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -25,22 +30,12 @@ const petRoutes = Router();
  *     responses:
  *       201:
  *         description: Pet created successfully.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Pet'
  *       400:
  *         description: Bad Request - Validation error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: Unauthorized.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Conflict - User has reached the pet limit.
  */
 petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
 
@@ -56,20 +51,86 @@ petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
  *       - $ref: '#/components/parameters/InstallationIdHeader'
  *     responses:
  *       200:
- *         description: An array of pets.
+ *         description: An array of the user's pets.
  *         content:
  *           application/json:
  *             schema:
  *                type: array
  *                items:
- *                  $ref: '#/components/schemas/Pet'
+ *                  $ref: '#/components/schemas/PetProfile'
  *       401:
  *         description: Unauthorized.
+ */
+petRoutes.get('/me', authGuard, getAllPetProfilesController);
+
+/**
+ * @openapi
+ * /pets/me/{id}:
+ *   get:
+ *     tags: [Pets]
+ *     summary: Get a specific pet by its ID
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet to retrieve.
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: The requested pet's profile.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/PetProfile'
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
  */
-petRoutes.get('/me', authGuard, getPetProfileController); // get pet profile
+petRoutes.get('/me/:id', authGuard, validate(getPetByIdSchema), getPetProfileByIdController);
+
+/**
+ * @openapi
+ * /pets/me/{id}:
+ *   patch:
+ *     tags: [Pets]
+ *     summary: Update a specific pet's profile
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet to update.
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdatePetBody'
+ *     responses:
+ *       200:
+ *         description: The updated pet's profile.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PetProfile'
+ *       400:
+ *         description: Bad Request - Validation error.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+petRoutes.patch('/me/:id', authGuard, validate(updatePetSchema), updatePetController);
 
 export default petRoutes;
