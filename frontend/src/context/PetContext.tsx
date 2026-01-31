@@ -14,6 +14,9 @@ interface PetContextType {
   loading: boolean
   refreshPets: () => Promise<void>
   getFirstPetId: () => string
+  selectedPetId: string | null
+  setSelectedPetId: (petId: string | null) => void
+  getSelectedPet: () => IPetProfile | null
 }
 
 const PetContext = createContext<PetContextType | undefined>(undefined)
@@ -21,6 +24,7 @@ const PetContext = createContext<PetContextType | undefined>(undefined)
 export function PetProvider({ children }: { children: React.ReactNode }) {
   const [pets, setPets] = useState<IPetProfile[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
 
   const refreshPets = useCallback(async () => {
@@ -29,17 +33,31 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
       const response = await petProfileService.getMyPets()
       const petsData = response?.data || []
       setPets(petsData)
+
+      // Auto-select first pet if none selected
+      if (petsData.length > 0 && !selectedPetId) {
+        setSelectedPetId(petsData[0].id)
+      }
+
+      // Clear selection if selected pet no longer exists
+      if (selectedPetId && !petsData.find((p) => p.id === selectedPetId)) {
+        setSelectedPetId(petsData.length > 0 ? petsData[0].id : null)
+      }
     } catch (error) {
       console.error('Error fetching pets:', error)
       setPets([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedPetId])
 
   const getFirstPetId = useCallback(() => {
     return pets[0]?.id || ''
   }, [pets])
+
+  const getSelectedPet = useCallback(() => {
+    return pets.find((p) => p.id === selectedPetId) || null
+  }, [pets, selectedPetId])
 
   useEffect(() => {
     // Only fetch pets when authentication is complete and user is authenticated
@@ -49,7 +67,17 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   }, [authLoading, isAuthenticated, refreshPets])
 
   return (
-    <PetContext.Provider value={{ pets, loading, refreshPets, getFirstPetId }}>
+    <PetContext.Provider
+      value={{
+        pets,
+        loading,
+        refreshPets,
+        getFirstPetId,
+        selectedPetId,
+        setSelectedPetId,
+        getSelectedPet
+      }}
+    >
       {children}
     </PetContext.Provider>
   )

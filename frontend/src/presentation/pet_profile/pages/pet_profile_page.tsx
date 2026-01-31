@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import _ from 'lodash'
 import { version } from '../../../../package.json'
 
+import { usePets } from '@/src/context/PetContext'
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
@@ -39,7 +40,12 @@ export default function PetProfilePage() {
   const router = useRouter()
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [selectedPetIndex, setSelectedPetIndex] = useState(0)
+
+  const { pets: contextPets, selectedPetId, setSelectedPetId } = usePets()
+
+  // Find the selected pet index
+  const selectedPetIndex = contextPets.findIndex((p) => p.id === selectedPetId)
+  const currentPetIndex = selectedPetIndex >= 0 ? selectedPetIndex : 0
 
   // ------------------
   // FETCH
@@ -78,56 +84,9 @@ export default function PetProfilePage() {
   const reminders = getRemindersApi.data?.data || []
   const pets = getPetsApi.data?.data || []
 
-  // Mock data for development
-  // const pets = [
-  //   {
-  //     id: '1',
-  //     name: 'Max',
-  //     species: 'Dog',
-  //     breed: 'Golden Retriever',
-  //     gender: 'Male',
-  //     birthDate: '2020-03-15',
-  //     weight: 30,
-  //     color: 'Golden',
-  //     imageUrl:
-  //       'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=400',
-  //     microchipId: 'MC123456789',
-  //     ownerId: 'user1'
-  //   },
-  //   {
-  //     id: '2',
-  //     name: 'Luna',
-  //     species: 'Cat',
-  //     breed: 'Persian',
-  //     gender: 'Female',
-  //     birthDate: '2021-07-22',
-  //     weight: 4.5,
-  //     color: 'White',
-  //     imageUrl:
-  //       'https://images.unsplash.com/photo-1573865526739-10c1de0ac5b4?w=400',
-  //     microchipId: 'MC987654321',
-  //     ownerId: 'user1'
-  //   },
-  //   {
-  //     id: '3',
-  //     name: 'Buddy',
-  //     species: 'Dog',
-  //     breed: 'Labrador',
-  //     gender: 'Male',
-  //     birthDate: '2019-11-08',
-  //     weight: 28,
-  //     color: 'Brown',
-  //     imageUrl:
-  //       'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400',
-  //     microchipId: 'MC456789123',
-  //     ownerId: 'user1'
-  //   }
-  // ]
-
-  // Use mock data if API hasn't returned data yet (for development)
-  // const pets = getPetsApi.data?.data || mockPets
-
-  const currentPet = pets.length > 0 ? pets[selectedPetIndex] : null
+  const displayPets = pets.length > 0 ? pets : contextPets
+  const currentPet =
+    displayPets.length > 0 ? displayPets[currentPetIndex] : null
   const healthRecords = getHealthRecordsApi.data?.data || []
 
   // Filter reminders for the current pet
@@ -186,7 +145,10 @@ export default function PetProfilePage() {
   }).current
 
   const handlePetSelect = (index: number) => {
-    setSelectedPetIndex(index)
+    const pet = displayPets[index]
+    if (pet) {
+      setSelectedPetId(pet.id)
+    }
   }
 
   const renderReminderCard = ({ item }: { item: any }) => {
@@ -229,7 +191,7 @@ export default function PetProfilePage() {
           <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
           {getPetsApi.loading ? (
             <LoadingComponent />
-          ) : pets.length === 0 ? (
+          ) : displayPets.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
             </View>
@@ -241,7 +203,7 @@ export default function PetProfilePage() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.petSelectorContainer}
               >
-                {_.map(pets, (pet, index) => (
+                {displayPets.map((pet, index) => (
                   <TouchableOpacity
                     key={pet.id}
                     onPress={() => handlePetSelect(index)}
@@ -250,7 +212,7 @@ export default function PetProfilePage() {
                     <View
                       style={[
                         styles.petImageWrapper,
-                        selectedPetIndex === index &&
+                        currentPetIndex === index &&
                           styles.selectedPetImageWrapper
                       ]}
                     >
@@ -277,25 +239,28 @@ export default function PetProfilePage() {
                     <Text
                       style={[
                         styles.petSelectorName,
-                        selectedPetIndex === index && styles.selectedPetName
+                        currentPetIndex === index && styles.selectedPetName
                       ]}
                     >
                       {pet.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
+                
                 {/* Add Pet Button */}
-                <TouchableOpacity
-                  style={styles.petSelectorItem}
-                  onPress={() => {
-                    router.push('/(tabs)/add_pet_form')
-                  }}
-                >
-                  <View style={styles.addPetWrapper}>
-                    <Text style={styles.addPetIcon}>+</Text>
-                  </View>
-                  <Text style={styles.petSelectorName}>เพิ่มสัตว์เลี้ยง</Text>
-                </TouchableOpacity>
+                {_.size(pets) < 11 && (
+                  <TouchableOpacity
+                    style={styles.petSelectorItem}
+                    onPress={() => {
+                      router.push('/(tabs)/add_pet_form')
+                    }}
+                  >
+                    <View style={styles.addPetWrapper}>
+                      <Text style={styles.addPetIcon}>+</Text>
+                    </View>
+                    <Text style={styles.petSelectorName}>เพิ่มสัตว์เลี้ยง</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
 
               {/* Selected Pet Info */}
