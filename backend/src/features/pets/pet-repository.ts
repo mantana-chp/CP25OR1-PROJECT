@@ -7,16 +7,8 @@ const petProfileSelect = {
   gender: true,
   birth_date: true,
   weight: true,
-  species: {
-    select: {
-      name_th: true,
-    },
-  },
-  breeds: {
-    select: {
-      name_th: true,
-    },
-  },
+  species_id: true,
+  breed_id: true,
 };
 
 export const create = async (data: Prisma.petsCreateInput) => {
