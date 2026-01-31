@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_400Regular',
     color: '#225877',
     marginBottom: 8
   },
