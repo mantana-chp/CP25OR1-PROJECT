@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Save tokens and installation ID
       await apiClient.setToken(
         response.accessToken,
-        response.refreshToken || ''
+        response.refreshToken || '',
       )
       await apiClient.setInstallationId(response.installationId)
       console.log('✅ Tokens and installation ID saved to storage')
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasCompletedOnboarding(hasSeenOnboarding)
 
       // 401 Problem
-      // await apiClient.clearTokens()
+      await apiClient.clearTokens()
 
       // Step 2: Check for existing token
       console.log('📝 Checking for existing token...')
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error: any) {
           console.warn(
-            '⚠️ Token validation failed, clearing and re-authenticating...'
+            '⚠️ Token validation failed, clearing and re-authenticating...',
           )
           // Clear tokens and perform fresh device login
           await apiClient.clearTokens()
