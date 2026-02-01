@@ -1,6 +1,6 @@
 import { IPetProfile } from '@/src/domain/pet.domain'
-import { Ionicons } from '@expo/vector-icons'
-import { VenusAndMars, Weight } from 'lucide-react-native'
+import { FontAwesome6, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import { Cake, VenusAndMars, Weight } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
@@ -52,7 +52,8 @@ export default function PetInfoCard(props: PetInfoCardProps) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.petAvatar}>
-          <Ionicons name="paw" size={42} color="white" />
+          {/* <Ionicons name="paw" size={42} color="white" /> */}
+          <MaterialCommunityIcons name="dog" size={42} color="white"/>
         </View>
         <View style={styles.cardHeaderText}>
           <Text style={styles.petName}>{props.data.name}</Text>
@@ -64,7 +65,8 @@ export default function PetInfoCard(props: PetInfoCardProps) {
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
+              {/* <Ionicons name="calendar-outline" size={14} color="#5BA3D0" /> */}
+              <Cake size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>
                 {convertDaysToThaiAge(props.data.age)}
               </Text>
@@ -78,7 +80,8 @@ export default function PetInfoCard(props: PetInfoCardProps) {
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Weight size={14} color="#5BA3D0" />
+              {/* <Weight size={14} color="#5BA3D0" /> */}
+              <FontAwesome6 name="weight-scale" size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>
                 {props.data.weight ? `${props.data.weight} กิโลกรัม` : '-'}
               </Text>

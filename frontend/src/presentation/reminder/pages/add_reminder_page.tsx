@@ -9,7 +9,6 @@ import {
 } from '@/src/domain/reminder.domain'
 import { IDose } from '@/src/domain/vaccine.domain'
 import { useError } from '@/src/presentation/components/error_context'
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
@@ -28,6 +27,7 @@ import {
 } from 'react-native'
 import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
+import PetSelector from '../../components/pet_selector'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
@@ -39,11 +39,11 @@ export default function AddReminderPage() {
   const { showError } = useError()
   const petIdFromParams = (params?.petId || '') as string
   const [doses, setDoses] = useState<IDose[]>([])
-  const [pets, setPets] = useState<any[]>([])
+  // const [pets, setPets] = useState<any[]>([])
   const [customVaccineName, setCustomVaccineName] = useState<string>('')
   const [vaccineResetKey, setVaccineResetKey] = useState<number>(0)
 
-  const { getFirstPetId } = usePets()
+  const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
   const createReminderApi = useApi(reminderService.createReminder, {
     onSuccess: () => {
@@ -123,24 +123,15 @@ export default function AddReminderPage() {
   }, [petIdFromParams])
 
   useEffect(() => {
-    const loadPets = async () => {
-      try {
-        const response = await petProfileService.getMyPets()
-        const petsList = Array.isArray(response)
-          ? response
-          : response?.data || response
-        setPets(petsList)
-
-        if (!petIdFromParams && petsList && petsList.length > 0) {
-          const firstPetId = petsList[0].id
-          formik.setFieldValue('petId', firstPetId)
-        }
-      } catch (error) {
-        showError('ไม่สามารถโหลดรายชื่อสัตว์ของคุณ')
-      }
+    // Set pet ID from params or selected pet
+    if (petIdFromParams) {
+      formik.setFieldValue('petId', petIdFromParams)
+    } else if (selectedPetId) {
+      formik.setFieldValue('petId', selectedPetId)
+    } else if (pets.length > 0) {
+      formik.setFieldValue('petId', pets[0].id)
     }
-    loadPets()
-  }, [])
+  }, [petIdFromParams, selectedPetId, pets])
 
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
@@ -227,6 +218,18 @@ export default function AddReminderPage() {
               error={formik.errors.reminderName}
             />
 
+            <PetSelector
+              pets={pets}
+              selectedPetId={formik.values.petId}
+              onSelectPet={(petId: string) => {
+                formik.setFieldValue('petId', petId)
+                setSelectedPetId(petId)
+              }}
+              label="สัตว์เลี้ยง"
+              required={true}
+              disabled={isSubmitting}
+            />
+
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <DatePicker
@@ -266,7 +269,7 @@ export default function AddReminderPage() {
             <VaccineScheduleSection
               key={vaccineResetKey}
               isVaccinationCategory={isVaccinationCategory}
-              canUseVaccineSchedule={canUseVaccineSchedule}
+              canUseVaccineSchedule={canUseVaccineSchedule || false}
               petId={formik.values.petId}
               reminderDate={formik.values.reminderDate}
               doses={doses}

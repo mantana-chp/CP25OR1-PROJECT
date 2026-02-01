@@ -74,4 +74,5 @@ export interface IPetProfile {
   breed: string
   age: number
   weight: string
+  imageUrl?: string
 }
