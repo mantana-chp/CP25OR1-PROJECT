@@ -54,7 +54,6 @@ export default function PetInfoCard(props: PetInfoCardProps) {
     return genderMap[gender.toLowerCase()] || gender
   }
 
-  //
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
