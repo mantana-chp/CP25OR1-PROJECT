@@ -68,7 +68,7 @@ export interface ISpeciesAndBreeds {
 
 export interface IPetProfile {
   id: string
-  name: string
+  pet_name: string
   gender: string
   species: string
   breed: string

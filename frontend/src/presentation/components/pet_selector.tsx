@@ -63,7 +63,7 @@ export default function PetSelector({
             disabled && styles.disabledText
           ]}
         >
-          {selectedPet ? selectedPet.name : 'เลือกสัตว์เลี้ยง'}
+          {selectedPet ? selectedPet.pet_name : 'เลือกสัตว์เลี้ยง'}
         </Text>
       </TouchableOpacity>
 
@@ -105,7 +105,7 @@ export default function PetSelector({
                         selectedPetId === pet.id && styles.petNameSelected
                       ]}
                     >
-                      {pet.name}
+                      {pet.pet_name}
                     </Text>
                     <Text style={styles.petInfo}>
                       {pet.species} • {pet.breed}

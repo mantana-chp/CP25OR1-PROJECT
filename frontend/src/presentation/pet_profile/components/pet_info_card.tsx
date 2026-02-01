@@ -62,7 +62,7 @@ export default function PetInfoCard(props: PetInfoCardProps) {
           <MaterialCommunityIcons name="dog" size={42} color="white" />
         </View>
         <View style={styles.cardHeaderText}>
-          <Text style={styles.petName}>{props.data.name}</Text>
+          <Text style={styles.petName}>{props.data.pet_name}</Text>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Ionicons name="paw-outline" size={14} color="#5BA3D0" />

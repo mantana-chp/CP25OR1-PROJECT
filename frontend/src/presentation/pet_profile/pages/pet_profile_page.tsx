@@ -242,11 +242,11 @@ export default function PetProfilePage() {
                         currentPetIndex === index && styles.selectedPetName
                       ]}
                     >
-                      {pet.name}
+                      {pet.pet_name}
                     </Text>
                   </TouchableOpacity>
                 ))}
-                
+
                 {/* Add Pet Button */}
                 {_.size(pets) < 11 && (
                   <TouchableOpacity
