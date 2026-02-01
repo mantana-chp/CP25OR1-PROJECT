@@ -2,6 +2,7 @@ import * as petRepository from './pet-repository';
 import { NotFoundError, ConflictError, BadRequestError } from '../../shared/errors';
 import { Prisma } from '../../generated/prisma/client';
 import { type PetUpdatePayload } from './pet-schema';
+import { formatAgeFromBirthDate } from '../../shared/utils';
 
 export type PetCreationData = {
   pet_name: string;
@@ -23,8 +24,7 @@ const formatPetProfile = (pet: any) => {
     weight: pet.weight,
     species_id: pet.species_id,
     breed_id: pet.breed_id,
-  };
-  //age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null
+    age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null};
 };
 
 export const createPet = async (userId: string, petData: PetCreationData) => {
