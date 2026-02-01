@@ -1,25 +1,20 @@
+import { Link } from 'expo-router'
+import React from 'react'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+
 import { IPetProfile } from '@/src/domain/pet.domain'
 import {
   FontAwesome6,
   Ionicons,
   MaterialCommunityIcons
 } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
 import { Cake, Edit2, VenusAndMars } from 'lucide-react-native'
-import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface PetInfoCardProps {
   data: IPetProfile
 }
 
 export default function PetInfoCard(props: PetInfoCardProps) {
-  const router = useRouter()
-
-  const handleEdit = () => {
-    router.push(`/(tabs)/add_pet_form?petId=${props.data.id}`)
-  }
-
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
 
@@ -98,9 +93,12 @@ export default function PetInfoCard(props: PetInfoCardProps) {
             </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-          <Edit2 size={18} color="#5FA7D1" />
-        </TouchableOpacity>
+
+        <Link href={`/(tabs)/add_pet_form?petId=${props.data.id}`} push asChild>
+          <TouchableOpacity style={styles.editButton}>
+            <Edit2 size={18} color="#5FA7D1" />
+          </TouchableOpacity>
+        </Link>
       </View>
     </View>
   )

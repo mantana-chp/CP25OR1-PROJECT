@@ -17,7 +17,16 @@ import {
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useLocalSearchParams } from 'expo-router'
-import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 
 interface PetProfileFormProps {
@@ -44,6 +53,7 @@ export default function PetProfileForm({
   const [initialPetData, setInitialPetData] = useState<IPetProfileForm | null>(
     null
   )
+  const [showBackModal, setShowBackModal] = useState(false)
 
   // ------------------
   // FETCH
@@ -65,7 +75,10 @@ export default function PetProfileForm({
   // Load existing pet data in edit mode
   useEffect(() => {
     const loadPetData = async () => {
-      if (!petId) return
+      if (!petId) {
+        setInitialPetData(null)
+        return
+      }
 
       try {
         setIsLoading(true)
@@ -74,7 +87,6 @@ export default function PetProfileForm({
 
         if (response) {
           setInitialPetData(response.data)
-          formik.setValues(petProfileInitValue(response.data))
           // Set the species ID to populate breed dropdown
           if (response.data.species_id) {
             setSelectedSpeciesId(response.data.species_id)
@@ -88,7 +100,7 @@ export default function PetProfileForm({
       }
     }
 
-    if (speciesData.length > 0) {
+    if (speciesData.length > 0 || !petId) {
       loadPetData()
     }
   }, [petId, speciesData])
@@ -100,6 +112,7 @@ export default function PetProfileForm({
     initialValues: petProfileInitValue(
       initialPetData || ({} as IPetProfileForm)
     ),
+    enableReinitialize: true,
     validationSchema: petProfileValidateSchema,
     validateOnChange: false,
     validateOnBlur: false,
@@ -107,10 +120,6 @@ export default function PetProfileForm({
     onSubmit: async (values) => {
       try {
         setIsSubmitting(true)
-        console.log(
-          isEditMode ? '📝 Updating pet profile:' : '📝 Creating pet profile:',
-          values
-        )
 
         const { id, breed_id, weight, ...petData } = values
 
@@ -118,31 +127,23 @@ export default function PetProfileForm({
           ...petData
         }
 
-        // Only add breed_id if it has a value
         if (breed_id) {
           petDataToSend.breed_id = breed_id
         }
 
-        // Only add weight if it has a value
         if (weight) {
           petDataToSend.weight = Number(weight)
         }
 
         if (isEditMode) {
-          // Update existing pet
           await petProfileService.updatePetProfile(petId, petDataToSend)
-          console.log('✅ Pet profile updated successfully')
         } else {
-          // Create new pet
           await petProfileService.createPetProfile(petDataToSend)
-          console.log('✅ Pet profile created successfully')
         }
 
-        // Update pet profile status in auth context and refresh PetContext
         await checkPetProfile()
         await refreshPets()
 
-        // If in onboarding mode, complete onboarding now
         if (isOnboarding) {
           await completeOnboarding()
         }
@@ -205,6 +206,20 @@ export default function PetProfileForm({
     formik.setFieldValue('breed_id', '')
   }
 
+  const handleBackPress = () => {
+    if (formik.dirty) {
+      setShowBackModal(true)
+    } else {
+      router.back()
+    }
+  }
+
+  const handleConfirmBack = () => {
+    formik.resetForm()
+    setShowBackModal(false)
+    router.back()
+  }
+
   // ------------------
   // RENDER
   // ------------------
@@ -215,6 +230,7 @@ export default function PetProfileForm({
           isEditMode ? 'แก้ไขโปรไฟล์สัตว์เลี้ยง' : 'สร้างโปรไฟล์สัตว์เลี้ยง'
         }
         goBack={!isOnboarding}
+        onBackPress={handleBackPress}
       />
 
       <ScrollView>
@@ -244,6 +260,7 @@ export default function PetProfileForm({
             onSelect={(v) => formik.setFieldValue('gender', v)}
             value={formik.values?.gender}
             error={formik?.errors?.gender}
+            disable={isEditMode}
           />
 
           <View style={{ flexDirection: 'row', gap: 16 }}>
@@ -256,6 +273,7 @@ export default function PetProfileForm({
                 onSelect={handleSpeciesChange}
                 value={formik.values?.species_id}
                 error={formik?.errors?.species_id}
+                disable={isEditMode}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -265,7 +283,9 @@ export default function PetProfileForm({
                 placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
                 onSelect={(v) => formik.setFieldValue('breed_id', v)}
                 value={formik.values?.breed_id}
-                disable={!selectedSpeciesId || breedOptions.length === 0}
+                disable={
+                  !selectedSpeciesId || breedOptions.length === 0 || isEditMode
+                }
               />
             </View>
           </View>
@@ -305,6 +325,48 @@ export default function PetProfileForm({
           />
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showBackModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBackModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowBackModal(false)}
+        >
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก
+              </Text>
+            </View>
+            <View style={styles.modalBody}>
+              <Text style={styles.modalMessage}>
+                คุณต้องการยกเลิกการเปลี่ยนแปลงและย้อนกลับหรือไม่?
+              </Text>
+            </View>
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowBackModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>อยู่ต่อ</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleConfirmBack}
+              >
+                <Text style={styles.confirmButtonText}>ย้อนกลับ</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   )
 }
@@ -326,5 +388,80 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Prompt_700Bold'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8
+  },
+  modalHeader: {
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB'
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877',
+    textAlign: 'center'
+  },
+  modalBody: {
+    padding: 24,
+    paddingTop: 20,
+    paddingBottom: 20
+  },
+  modalMessage: {
+    fontSize: 15,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB'
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB'
+  },
+  confirmButton: {
+    backgroundColor: '#EF4444'
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontFamily: 'Prompt_500Medium',
+    color: '#374151'
+  },
+  confirmButtonText: {
+    fontSize: 15,
+    fontFamily: 'Prompt_500Medium',
+    color: '#fff'
   }
 })
