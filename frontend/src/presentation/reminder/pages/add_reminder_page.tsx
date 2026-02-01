@@ -48,7 +48,12 @@ export default function AddReminderPage() {
   const createReminderApi = useApi(reminderService.createReminder, {
     onSuccess: () => {
       router.push('/(tabs)')
+      formik.resetForm()
+      setDoses([])
+      setCustomVaccineName('')
+      setVaccineResetKey((prev) => prev + 1)
     },
+    showErrorAlert: true,
   })
 
   const formik = useFormik<IReminder>({
@@ -107,10 +112,6 @@ export default function AddReminderPage() {
       }
 
       await createReminderApi.execute(submitData)
-      formik.resetForm()
-      setDoses([])
-      setCustomVaccineName('')
-      setVaccineResetKey((prev) => prev + 1)
     },
   })
 
@@ -123,7 +124,6 @@ export default function AddReminderPage() {
   }, [petIdFromParams])
 
   useEffect(() => {
-    // Set pet ID from params or selected pet
     if (petIdFromParams) {
       formik.setFieldValue('petId', petIdFromParams)
     } else if (selectedPetId) {
@@ -136,10 +136,7 @@ export default function AddReminderPage() {
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
   const canUseVaccineSchedule =
-    currentPet &&
-    (currentPet.species?.includes('สุนัข') ||
-      currentPet.species?.includes('แมว')) &&
-    !!currentPet.age
+    currentPet && currentPet.species_id && !!currentPet.birth_date
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
   const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
@@ -225,7 +222,7 @@ export default function AddReminderPage() {
                 formik.setFieldValue('petId', petId)
                 setSelectedPetId(petId)
               }}
-              label="สัตว์เลี้ยง"
+              label='สัตว์เลี้ยง'
               required={true}
               disabled={isSubmitting}
             />

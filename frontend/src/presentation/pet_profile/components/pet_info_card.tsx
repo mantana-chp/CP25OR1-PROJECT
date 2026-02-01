@@ -6,7 +6,7 @@ import { IPetProfile } from '@/src/domain/pet.domain'
 import {
   FontAwesome6,
   Ionicons,
-  MaterialCommunityIcons
+  MaterialCommunityIcons,
 } from '@expo/vector-icons'
 import { Cake, Edit2, VenusAndMars } from 'lucide-react-native'
 
@@ -15,6 +15,19 @@ interface PetInfoCardProps {
 }
 
 export default function PetInfoCard(props: PetInfoCardProps) {
+  const calculateAgeInDays = (birthDate: string | null | undefined): number => {
+    if (!birthDate) return 0
+    try {
+      const birth = new Date(birthDate)
+      const today = new Date()
+      const diffTime = Math.abs(today.getTime() - birth.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays
+    } catch (e) {
+      return 0
+    }
+  }
+
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
 
@@ -48,7 +61,7 @@ export default function PetInfoCard(props: PetInfoCardProps) {
   const getThaiGender = (gender: string): string => {
     const genderMap: { [key: string]: string } = {
       male: 'ผู้',
-      female: 'เมีย'
+      female: 'เมีย',
     }
 
     return genderMap[gender.toLowerCase()] || gender
@@ -59,34 +72,36 @@ export default function PetInfoCard(props: PetInfoCardProps) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.petAvatar}>
-          <MaterialCommunityIcons name="dog" size={42} color="white" />
+          <MaterialCommunityIcons name='dog' size={42} color='white' />
         </View>
         <View style={styles.cardHeaderText}>
           <Text style={styles.petName}>{props.data.pet_name}</Text>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
+              <Ionicons name='paw-outline' size={14} color='#5BA3D0' />
               <Text style={styles.infoText}>
                 {props.data.species} {props.data.breed}
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Cake size={14} color="#5BA3D0" />
+              <Cake size={14} color='#5BA3D0' />
               <Text style={styles.infoText}>
-                {convertDaysToThaiAge(props.data.age)}
+                {convertDaysToThaiAge(
+                  calculateAgeInDays(props.data.birth_date),
+                )}
               </Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <VenusAndMars size={14} color="#5BA3D0" />
+              <VenusAndMars size={14} color='#5BA3D0' />
               <Text style={styles.infoText}>
                 เพศ {getThaiGender(props.data.gender)}
               </Text>
             </View>
             <View style={styles.infoItem}>
               {/* <Weight size={14} color="#5BA3D0" /> */}
-              <FontAwesome6 name="weight-scale" size={14} color="#5BA3D0" />
+              <FontAwesome6 name='weight-scale' size={14} color='#5BA3D0' />
               <Text style={styles.infoText}>
                 {props.data.weight ? `${props.data.weight} กิโลกรัม` : '-'}
               </Text>
@@ -96,7 +111,7 @@ export default function PetInfoCard(props: PetInfoCardProps) {
 
         <Link href={`/(tabs)/add_pet_form?petId=${props.data.id}`} push asChild>
           <TouchableOpacity style={styles.editButton}>
-            <Edit2 size={18} color="#5FA7D1" />
+            <Edit2 size={18} color='#5FA7D1' />
           </TouchableOpacity>
         </Link>
       </View>
@@ -110,11 +125,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#5FA7D1'
+    borderColor: '#5FA7D1',
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start'
+    alignItems: 'flex-start',
   },
   petAvatar: {
     width: 70,
@@ -123,37 +138,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#5BA3D0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16
+    marginRight: 16,
   },
   cardHeaderText: {
-    flex: 1
+    flex: 1,
   },
   petName: {
     fontSize: 17,
     color: '#225877',
     marginBottom: 4,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 4
+    marginBottom: 4,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 16,
-    flex: 1
+    flex: 1,
   },
   infoText: {
     fontSize: 14,
     color: '#225877',
     marginLeft: 4,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   editButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#E8F4F8',
-    alignSelf: 'flex-start'
-  }
+    alignSelf: 'flex-start',
+  },
 })

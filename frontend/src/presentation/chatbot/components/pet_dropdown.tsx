@@ -98,7 +98,7 @@ export default function PetDropdown({
                       selectedPet?.id === pet.id && styles.selectedItemText
                     ]}
                   >
-                    {pet.name}
+                    {pet.pet_name}
                   </Text>
                 </TouchableOpacity>
               ))
