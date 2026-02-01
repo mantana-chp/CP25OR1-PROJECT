@@ -16,6 +16,7 @@ import {
   petProfileValidateSchema
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
+import { useLocalSearchParams } from 'expo-router'
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 
@@ -30,11 +31,19 @@ export default function PetProfileForm({
   // CONST
   // ------------------
   const router = useRouter()
+  const params = useLocalSearchParams()
+  const petId = (params?.petId || '') as string
+  const isEditMode = !!petId
+
   const { checkPetProfile, completeOnboarding } = useAuth()
   const { refreshPets } = usePets()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>('')
+  const [initialPetData, setInitialPetData] = useState<IPetProfileForm | null>(
+    null
+  )
 
   // ------------------
   // FETCH
@@ -53,11 +62,44 @@ export default function PetProfileForm({
     fetchSpeciesAndBreeds()
   }, [])
 
+  // Load existing pet data in edit mode
+  useEffect(() => {
+    const loadPetData = async () => {
+      if (!petId) return
+
+      try {
+        setIsLoading(true)
+        const response = await petProfileService.getPetProfileById(petId)
+        console.log(response.data)
+
+        if (response) {
+          setInitialPetData(response.data)
+          formik.setValues(petProfileInitValue(response.data))
+          // Set the species ID to populate breed dropdown
+          if (response.data.species_id) {
+            setSelectedSpeciesId(response.data.species_id)
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading pet data:', error)
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลสัตว์เลี้ยงได้')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (speciesData.length > 0) {
+      loadPetData()
+    }
+  }, [petId, speciesData])
+
   // ------------------
   // FORMIK
   // ------------------
   const formik = useFormik<IPetProfileForm>({
-    initialValues: petProfileInitValue({} as IPetProfileForm),
+    initialValues: petProfileInitValue(
+      initialPetData || ({} as IPetProfileForm)
+    ),
     validationSchema: petProfileValidateSchema,
     validateOnChange: false,
     validateOnBlur: false,
@@ -65,7 +107,10 @@ export default function PetProfileForm({
     onSubmit: async (values) => {
       try {
         setIsSubmitting(true)
-        console.log('📝 Creating pet profile:', values)
+        console.log(
+          isEditMode ? '📝 Updating pet profile:' : '📝 Creating pet profile:',
+          values
+        )
 
         const { id, breed_id, weight, ...petData } = values
 
@@ -83,10 +128,15 @@ export default function PetProfileForm({
           petDataToSend.weight = Number(weight)
         }
 
-        console.log(petDataToSend)
-
-        const response = await petProfileService.createPetProfile(petDataToSend)
-        console.log('✅ Pet profile created successfully:', response)
+        if (isEditMode) {
+          // Update existing pet
+          await petProfileService.updatePetProfile(petId, petDataToSend)
+          console.log('✅ Pet profile updated successfully')
+        } else {
+          // Create new pet
+          await petProfileService.createPetProfile(petDataToSend)
+          console.log('✅ Pet profile created successfully')
+        }
 
         // Update pet profile status in auth context and refresh PetContext
         await checkPetProfile()
@@ -97,15 +147,21 @@ export default function PetProfileForm({
           await completeOnboarding()
         }
 
-        Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
-          {
-            text: 'ตกลง',
-            onPress: () => {
-              formik.resetForm()
-              router.replace('/(tabs)')
+        Alert.alert(
+          'สำเร็จ!',
+          isEditMode
+            ? 'แก้ไขโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว'
+            : 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว',
+          [
+            {
+              text: 'ตกลง',
+              onPress: () => {
+                formik.resetForm()
+                router.back()
+              }
             }
-          }
-        ])
+          ]
+        )
       } catch (error: any) {
         console.error('❌ Error creating pet profile:', error)
         Alert.alert(
@@ -154,7 +210,12 @@ export default function PetProfileForm({
   // ------------------
   return (
     <>
-      <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={!isOnboarding} />
+      <Header
+        title={
+          isEditMode ? 'แก้ไขโปรไฟล์สัตว์เลี้ยง' : 'สร้างโปรไฟล์สัตว์เลี้ยง'
+        }
+        goBack={!isOnboarding}
+      />
 
       <ScrollView>
         <View style={styles.formContainer}>
@@ -233,10 +294,14 @@ export default function PetProfileForm({
 
           <PrimaryButton
             onPress={() => formik.handleSubmit()}
-            title="บันทึกโปรไฟล์"
-            disabled={isSubmitting}
+            title={isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกโปรไฟล์สัตว์เลี้ยง'}
+            disabled={
+              isSubmitting || isLoading || (isEditMode && !formik.dirty)
+            }
             isLoading={isSubmitting}
-            loadingText="กำลังบันทึก..."
+            loadingText={
+              isEditMode ? 'กำลังบันทึกการแก้ไข...' : 'กำลังบันทึก...'
+            }
           />
         </View>
       </ScrollView>

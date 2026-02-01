@@ -76,7 +76,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     minHeight: 48,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    color: '#225877'
   },
   inputFocused: {
     borderColor: '#5FA7D1',
