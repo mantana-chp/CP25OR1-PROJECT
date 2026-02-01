@@ -1,14 +1,25 @@
 import { IPetProfile } from '@/src/domain/pet.domain'
-import { FontAwesome6, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
-import { Cake, VenusAndMars, Weight } from 'lucide-react-native'
+import {
+  FontAwesome6,
+  Ionicons,
+  MaterialCommunityIcons
+} from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
+import { Cake, Edit2, VenusAndMars } from 'lucide-react-native'
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface PetInfoCardProps {
   data: IPetProfile
 }
 
 export default function PetInfoCard(props: PetInfoCardProps) {
+  const router = useRouter()
+
+  const handleEdit = () => {
+    router.push(`/(tabs)/add_pet_form?petId=${props.data.id}`)
+  }
+
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
 
@@ -47,13 +58,13 @@ export default function PetInfoCard(props: PetInfoCardProps) {
 
     return genderMap[gender.toLowerCase()] || gender
   }
+
   //
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.petAvatar}>
-          {/* <Ionicons name="paw" size={42} color="white" /> */}
-          <MaterialCommunityIcons name="dog" size={42} color="white"/>
+          <MaterialCommunityIcons name="dog" size={42} color="white" />
         </View>
         <View style={styles.cardHeaderText}>
           <Text style={styles.petName}>{props.data.name}</Text>
@@ -65,7 +76,6 @@ export default function PetInfoCard(props: PetInfoCardProps) {
               </Text>
             </View>
             <View style={styles.infoItem}>
-              {/* <Ionicons name="calendar-outline" size={14} color="#5BA3D0" /> */}
               <Cake size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>
                 {convertDaysToThaiAge(props.data.age)}
@@ -88,6 +98,9 @@ export default function PetInfoCard(props: PetInfoCardProps) {
             </View>
           </View>
         </View>
+        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+          <Edit2 size={18} color="#5FA7D1" />
+        </TouchableOpacity>
       </View>
     </View>
   )
@@ -138,5 +151,11 @@ const styles = StyleSheet.create({
     color: '#225877',
     marginLeft: 4,
     fontFamily: 'Prompt_400Regular'
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#E8F4F8',
+    alignSelf: 'flex-start'
   }
 })
