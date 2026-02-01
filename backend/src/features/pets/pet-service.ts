@@ -1,7 +1,6 @@
 import * as petRepository from './pet-repository';
 import { NotFoundError, ConflictError, BadRequestError } from '../../shared/errors';
 import { Prisma } from '../../generated/prisma/client';
-import { formatAgeFromBirthDate } from '../../shared/utils';
 import { type PetUpdatePayload } from './pet-schema';
 
 export type PetCreationData = {
@@ -13,19 +12,19 @@ export type PetCreationData = {
   birth_date?: string | null;
 };
 
-// Helper function to format a single pet profile into the desired structure
 const formatPetProfile = (pet: any) => {
   if (!pet) return null;
 
   return {
     id: pet.id,
-    name: pet.pet_name,
+    pet_name: pet.pet_name,
     gender: pet.gender,
-    species: pet.species?.name_th || null,
-    breed: pet.breeds?.name_th || null,
-    age: formatAgeFromBirthDate(pet.birth_date),
-    weight: pet.weight ? String(pet.weight) : null,
+    birth_date: pet.birth_date,
+    weight: pet.weight,
+    species_id: pet.species_id,
+    breed_id: pet.breed_id,
   };
+  //age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null
 };
 
 export const createPet = async (userId: string, petData: PetCreationData) => {
