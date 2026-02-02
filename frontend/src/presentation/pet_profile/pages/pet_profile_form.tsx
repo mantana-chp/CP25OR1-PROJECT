@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import DatePicker from '../../components/date_picker'
 import Dropdown from '../../components/dropdown'
@@ -73,36 +73,41 @@ export default function PetProfileForm({
   }, [])
 
   // Load existing pet data in edit mode
-  useEffect(() => {
-    const loadPetData = async () => {
-      if (!petId) {
-        setInitialPetData(null)
-        return
-      }
-
-      try {
-        setIsLoading(true)
-        const response = await petProfileService.getPetProfileById(petId)
-
-        if (response) {
-          setInitialPetData(response.data)
-          // Set the species ID to populate breed dropdown
-          if (response.data.species_id) {
-            setSelectedSpeciesId(response.data.species_id)
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error loading pet data:', error)
-        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลสัตว์เลี้ยงได้')
-      } finally {
-        setIsLoading(false)
-      }
+  const loadPetData = useCallback(async () => {
+    if (!petId) {
+      setInitialPetData(null)
+      return
     }
 
-    if (speciesData.length > 0 || !petId) {
-      loadPetData()
+    if (speciesData.length === 0) return
+
+    try {
+      setIsLoading(true)
+      const response = await petProfileService.getPetProfileById(petId)
+
+      if (response) {
+        setInitialPetData(response.data)
+        // Set the species ID to populate breed dropdown
+        if (response.data.species_id) {
+          setSelectedSpeciesId(response.data.species_id)
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading pet data:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลสัตว์เลี้ยงได้')
+    } finally {
+      setIsLoading(false)
     }
   }, [petId, speciesData])
+
+  // Refetch pet data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (petId && speciesData.length > 0) {
+        loadPetData()
+      }
+    }, [loadPetData, petId, speciesData])
+  )
 
   // ------------------
   // FORMIK

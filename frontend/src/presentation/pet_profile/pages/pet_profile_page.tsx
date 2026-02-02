@@ -41,7 +41,12 @@ export default function PetProfilePage() {
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  const { pets: contextPets, selectedPetId, setSelectedPetId } = usePets()
+  const {
+    pets: contextPets,
+    selectedPetId,
+    setSelectedPetId,
+    refreshPets
+  } = usePets()
 
   // Find the selected pet index
   const selectedPetIndex = contextPets.findIndex((p) => p.id === selectedPetId)
@@ -74,17 +79,24 @@ export default function PetProfilePage() {
     getHealthRecordsApi.execute({})
   }, [])
 
+  const loadPets = useCallback(async () => {
+    await getPetsApi.execute()
+    await refreshPets()
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       loadReminders()
       loadHealthRecords()
-    }, [loadReminders, loadHealthRecords])
+      loadPets()
+    }, [loadReminders, loadHealthRecords, loadPets])
   )
 
   const reminders = getRemindersApi.data?.data || []
   const pets = getPetsApi.data?.data || []
 
-  const displayPets = pets.length > 0 ? pets : contextPets
+  // Use context pets as primary source since it's always up to date
+  const displayPets = contextPets.length > 0 ? contextPets : pets
   const currentPet =
     displayPets.length > 0 ? displayPets[currentPetIndex] : null
   const healthRecords = getHealthRecordsApi.data?.data || []
