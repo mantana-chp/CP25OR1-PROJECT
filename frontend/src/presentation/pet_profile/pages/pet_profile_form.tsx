@@ -83,7 +83,6 @@ export default function PetProfileForm({
       try {
         setIsLoading(true)
         const response = await petProfileService.getPetProfileById(petId)
-        console.log(response.data)
 
         if (response) {
           setInitialPetData(response.data)
