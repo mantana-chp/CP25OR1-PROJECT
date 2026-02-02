@@ -54,6 +54,11 @@ export default function PetInfoCard(props: PetInfoCardProps) {
     return genderMap[gender.toLowerCase()] || gender
   }
 
+  const formatWeight = (weight: number | null | undefined): string => {
+    if (!weight) return '-'
+    return parseFloat(weight.toString()).toFixed(2)
+  }
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -84,10 +89,11 @@ export default function PetInfoCard(props: PetInfoCardProps) {
               </Text>
             </View>
             <View style={styles.infoItem}>
-              {/* <Weight size={14} color="#5BA3D0" /> */}
               <FontAwesome6 name="weight-scale" size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>
-                {props.data.weight ? `${props.data.weight} กิโลกรัม` : '-'}
+                {props.data.weight
+                  ? `${formatWeight(parseFloat(props.data.weight))} กิโลกรัม`
+                  : '-'}
               </Text>
             </View>
           </View>
