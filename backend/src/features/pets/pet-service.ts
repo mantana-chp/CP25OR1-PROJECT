@@ -22,7 +22,9 @@ const formatPetProfile = (pet: any) => {
     birth_date: pet.birth_date,
     weight: pet.weight,
     species_id: pet.species_id,
+    species: pet.species?.name_th || null,
     breed_id: pet.breed_id,
+    breed: pet.breeds?.name_th || null,
   };
   //age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null
 };
