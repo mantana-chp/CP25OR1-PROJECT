@@ -72,7 +72,6 @@ export default function PetProfileForm({
     fetchSpeciesAndBreeds()
   }, [])
 
-  // Load existing pet data in edit mode
   const loadPetData = useCallback(async () => {
     if (!petId) {
       setInitialPetData(null)
@@ -100,11 +99,13 @@ export default function PetProfileForm({
     }
   }, [petId, speciesData])
 
-  // Refetch pet data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (petId && speciesData.length > 0) {
         loadPetData()
+      } else if (!petId) {
+        setInitialPetData(null)
+        setSelectedSpeciesId('')
       }
     }, [loadPetData, petId, speciesData])
   )
@@ -212,27 +213,24 @@ export default function PetProfileForm({
     if (formik.dirty) {
       setShowBackModal(true)
     } else {
-      router.back()
+      router.push('/(tabs)/pet_profile')
     }
   }
 
   const handleConfirmBack = () => {
     formik.resetForm()
     setShowBackModal(false)
-    router.back()
+    router.push('/(tabs)/pet_profile')
   }
 
   const handleWeightChange = (value: string) => {
-    // Remove any non-numeric characters except decimal point
     let cleaned = value.replace(/[^\d.]/g, '')
 
-    // Allow only one decimal point
     const parts = cleaned.split('.')
     if (parts.length > 2) {
       cleaned = parts[0] + '.' + parts.slice(1).join('')
     }
 
-    // Limit to 2 decimal places
     if (parts[1] && parts[1].length > 2) {
       cleaned = parts[0] + '.' + parts[1].substring(0, 2)
     }
