@@ -68,10 +68,13 @@ export interface ISpeciesAndBreeds {
 
 export interface IPetProfile {
   id: string
-  name: string
+  pet_name: string
   gender: string
   species: string
+  species_id: string
   breed: string
+  breed_id: string
   age: number
   weight: string
+  imageUrl?: string
 }

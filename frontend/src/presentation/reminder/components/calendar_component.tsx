@@ -4,7 +4,7 @@ import React from 'react'
 import { IReminder } from '@/src/domain/reminder.domain'
 
 import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
-import { ChevronDown, ChevronUp } from 'lucide-react-native'
+import { ChevronDown } from 'lucide-react-native'
 import {
   Animated,
   LayoutAnimation,
@@ -30,12 +30,20 @@ interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
   reminders?: IReminder[]
+  onDateSelect: (date: Date) => void
+  selectedDate: Date | null
+  onReset: () => void
+  hasUserSelectedDate: boolean
 }
 
 export default function Calendar({
   isExpanded,
   onToggle,
-  reminders = []
+  reminders = [],
+  onDateSelect,
+  selectedDate,
+  onReset,
+  hasUserSelectedDate
 }: CalendarProps) {
   // ------------------
   // CONST
@@ -61,10 +69,16 @@ export default function Calendar({
   }
 
   const handleDatePress = (date: Date) => {
-    console.log('Selected date:', date)
+    onDateSelect(date)
+  }
+
+  const handleHeaderReset = () => {
+    goToToday()
+    onReset()
   }
 
   const days = isExpanded ? renderCalendar() : getCurrentWeekDays()
+  const showReset = hasUserSelectedDate || !isCurrentMonth
 
   // ------------------
   // RENDER
@@ -73,10 +87,10 @@ export default function Calendar({
     <View style={styles.container}>
       <CalendarHeader
         currentDate={currentDate}
-        isCurrentMonth={isCurrentMonth}
         onPreviousMonth={previousMonth}
         onNextMonth={nextMonth}
-        onGoToToday={goToToday}
+        onReset={handleHeaderReset}
+        showReset={showReset}
       />
 
       <WeekDaysRow />
@@ -93,6 +107,7 @@ export default function Calendar({
             reminders={item.reminders}
             date={item.date}
             onPress={handleDatePress}
+            selectedDate={selectedDate}
           />
         ))}
       </View>
@@ -103,7 +118,7 @@ export default function Calendar({
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronUp size={24} color="#225877" />
+          <ChevronDown size={24} color="#225877" />
         </Animated.View>
       </TouchableOpacity>
     </View>

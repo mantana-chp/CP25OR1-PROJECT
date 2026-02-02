@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import _ from 'lodash'
 import { version } from '../../../../package.json'
 
+import { usePets } from '@/src/context/PetContext'
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
@@ -11,12 +12,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Dimensions,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View
 } from 'react-native'
 
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import ReminderCard from '../../reminder/components/reminder_card'
@@ -36,6 +40,17 @@ export default function PetProfilePage() {
   const router = useRouter()
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+
+  const {
+    pets: contextPets,
+    selectedPetId,
+    setSelectedPetId,
+    refreshPets
+  } = usePets()
+
+  // Find the selected pet index
+  const selectedPetIndex = contextPets.findIndex((p) => p.id === selectedPetId)
+  const currentPetIndex = selectedPetIndex >= 0 ? selectedPetIndex : 0
 
   // ------------------
   // FETCH
@@ -64,19 +79,34 @@ export default function PetProfilePage() {
     getHealthRecordsApi.execute({})
   }, [])
 
+  const loadPets = useCallback(async () => {
+    await getPetsApi.execute()
+    await refreshPets()
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       loadReminders()
       loadHealthRecords()
-    }, [loadReminders, loadHealthRecords])
+      loadPets()
+    }, [loadReminders, loadHealthRecords, loadPets])
   )
 
   const reminders = getRemindersApi.data?.data || []
   const pets = getPetsApi.data?.data || []
-  const firstPet = pets.length > 0 ? pets[0] : null
+
+  // Use context pets as primary source since it's always up to date
+  const displayPets = contextPets.length > 0 ? contextPets : pets
+  const currentPet =
+    displayPets.length > 0 ? displayPets[currentPetIndex] : null
   const healthRecords = getHealthRecordsApi.data?.data || []
 
-  const upcomingReminders = _.filter(reminders, (reminder) => {
+  // Filter reminders for the current pet
+  const petReminders = currentPet
+    ? _.filter(reminders, (reminder) => reminder.petId === currentPet.id)
+    : reminders
+
+  const upcomingReminders = _.filter(petReminders, (reminder) => {
     return reminder.reminderStatus === 'to_do'
   })
     .sort((a, b) => {
@@ -90,7 +120,8 @@ export default function PetProfilePage() {
   const healthHistoryList = _.filter(healthRecords, (record) => {
     const isCategoryMatch = HEALTH_CATEGORIES.includes(record.categoryName)
     const isDone = record.reminderStatus === 'done'
-    return isCategoryMatch && isDone
+    const isPetMatch = currentPet ? record.petId === currentPet.id : true
+    return isCategoryMatch && isDone && isPetMatch
   }).sort((a, b) => {
     // combine date and time string to milliseconds
     const getTimestamp = (dateStr: string, timeStr: string) => {
@@ -124,6 +155,13 @@ export default function PetProfilePage() {
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50
   }).current
+
+  const handlePetSelect = (index: number) => {
+    const pet = displayPets[index]
+    if (pet) {
+      setSelectedPetId(pet.id)
+    }
+  }
 
   const renderReminderCard = ({ item }: { item: any }) => {
     return (
@@ -165,39 +203,82 @@ export default function PetProfilePage() {
           <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
           {getPetsApi.loading ? (
             <LoadingComponent />
-          ) : firstPet ? (
-            <PetInfoCard data={firstPet} />
-          ) : (
+          ) : displayPets.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
             </View>
+          ) : (
+            <>
+              {/* Pet Selector */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.petSelectorContainer}
+              >
+                {_.map(displayPets, (pet, index) => (
+                  <TouchableOpacity
+                    key={pet.id}
+                    onPress={() => handlePetSelect(index)}
+                    style={styles.petSelectorItem}
+                  >
+                    <View
+                      style={[
+                        styles.petImageWrapper,
+                        currentPetIndex === index &&
+                          styles.selectedPetImageWrapper
+                      ]}
+                    >
+                      {pet.imageUrl ? (
+                        <Image
+                          source={{ uri: pet.imageUrl }}
+                          style={styles.petSelectorImage}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.petSelectorImage,
+                            { justifyContent: 'center', alignItems: 'center' }
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name="dog"
+                            size={36}
+                            color="white"
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.petSelectorName,
+                        currentPetIndex === index && styles.selectedPetName
+                      ]}
+                    >
+                      {pet.pet_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+
+                {/* Add Pet Button */}
+                {_.size(pets) < 11 && (
+                  <TouchableOpacity
+                    style={styles.petSelectorItem}
+                    onPress={() => {
+                      router.push('/(tabs)/add_pet_form')
+                    }}
+                  >
+                    <View style={styles.addPetWrapper}>
+                      <Text style={styles.addPetIcon}>+</Text>
+                    </View>
+                    <Text style={styles.petSelectorName}>เพิ่มสัตว์เลี้ยง</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+
+              {/* Selected Pet Info */}
+              {currentPet && <PetInfoCard data={currentPet} />}
+            </>
           )}
-        </View>
-
-        {/* Health History Section*/}
-        <View style={styles.section}>
-          <View style={styles.healthSectionContainer}>
-            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
-
-            {getHealthRecordsApi.loading ? (
-              <LoadingComponent />
-            ) : healthHistoryList.length > 0 ? (
-              <View style={styles.healthListContainer}>
-                <ScrollView
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={true}
-                >
-                  {healthHistoryList.map((item) => (
-                    <HealthRecordCard key={item.id} reminder={item} />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>ไม่มีประวัติสุขภาพ</Text>
-              </View>
-            )}
-          </View>
         </View>
 
         {/* Appointments Section */}
@@ -209,7 +290,7 @@ export default function PetProfilePage() {
             <LoadingComponent />
           ) : upcomingReminders.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>ไม่มีกิจกรรมที่กำลังจะมาถึง</Text>
+              <Text style={styles.emptyText}>ไม่มีกิจกรรมที่ใกล้เข้ามา</Text>
             </View>
           ) : (
             <>
@@ -232,6 +313,33 @@ export default function PetProfilePage() {
             </>
           )}
         </View>
+
+        {/* Health History Section*/}
+        <View style={styles.section}>
+          <View style={styles.healthSectionContainer}>
+            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
+
+            {getHealthRecordsApi.loading ? (
+              <LoadingComponent />
+            ) : healthHistoryList.length > 0 ? (
+              <View style={styles.healthListContainer}>
+                <ScrollView
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={true}
+                >
+                  {_.map(healthHistoryList, (item) => (
+                    <HealthRecordCard key={item.id} reminder={item} />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>ไม่มีประวัติสุขภาพ</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
         <Text style={styles.versionText}>v.{version}</Text>
       </ScrollView>
     </View>
@@ -251,14 +359,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#225877',
-    marginBottom: 16,
+    marginBottom: 8,
     fontFamily: 'Prompt_500Medium'
   },
   healthSectionContainer: {
     backgroundColor: '#FDF0DD',
     borderRadius: 16,
     padding: 16,
-    paddingBottom: 4
+    paddingBottom: 8
   },
   healthListContainer: {
     maxHeight: 300 // Approx 3 items
@@ -306,5 +414,60 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
     marginBottom: 4
+  },
+  petSelectorContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    paddingBottom: 16,
+    gap: 12
+  },
+  petSelectorItem: {
+    alignItems: 'center',
+    width: 80
+  },
+  petImageWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    padding: 2,
+    marginBottom: 8
+  },
+  selectedPetImageWrapper: {
+    borderColor: '#5FA7D1'
+  },
+  petSelectorImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 33,
+    backgroundColor: '#5FA7D1'
+  },
+  petSelectorName: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#666',
+    textAlign: 'center'
+  },
+  selectedPetName: {
+    color: '#225877',
+    fontFamily: 'Prompt_500Medium'
+  },
+  addPetWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: '#5FA7D1',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    marginBottom: 8
+  },
+  addPetIcon: {
+    fontSize: 32,
+    color: '#5FA7D1',
+    fontWeight: '300'
   }
 })

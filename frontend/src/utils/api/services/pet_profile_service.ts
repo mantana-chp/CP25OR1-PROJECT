@@ -16,11 +16,15 @@ export const petProfileService = {
   },
 
   getPetProfileById: async (id: string) => {
-    return apiClient.get<IPetProfileForm>(`/v1/pets/${id}`)
+    return apiClient.get<{data: IPetProfileForm}>(`/v1/pets/me/${id}`)
   },
 
   createPetProfile: async (data: Omit<IPetProfileForm, 'id'>) => {
     return apiClient.post<IPetProfileForm>('/v1/pets', data)
+  },
+
+  updatePetProfile: async (id: string, data: Partial<IPetProfileForm>) => {
+    return apiClient.patch<IPetProfileForm>(`/v1/pets/me/${id}`, data)
   },
 
   getSpeciesAndBreeds: async () => {

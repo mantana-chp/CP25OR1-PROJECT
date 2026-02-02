@@ -5,11 +5,10 @@ import React, { useEffect, useState } from 'react'
 import {
   IReminder,
   reminderInitValue,
-  reminderValidationSchema
+  reminderValidationSchema,
 } from '@/src/domain/reminder.domain'
 import { IDose } from '@/src/domain/vaccine.domain'
 import { useError } from '@/src/presentation/components/error_context'
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
@@ -24,10 +23,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native'
 import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
+import PetSelector from '../../components/pet_selector'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
@@ -38,29 +38,38 @@ export default function AddReminderPage() {
   const params = useLocalSearchParams()
   const { showError } = useError()
   const petIdFromParams = (params?.petId || '') as string
-
-  // Form states
   const [doses, setDoses] = useState<IDose[]>([])
-  const [pets, setPets] = useState<any[]>([])
+  // const [pets, setPets] = useState<any[]>([])
+  const [customVaccineName, setCustomVaccineName] = useState<string>('')
+  const [vaccineResetKey, setVaccineResetKey] = useState<number>(0)
 
-  const { getFirstPetId } = usePets()
+  const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
   const createReminderApi = useApi(reminderService.createReminder, {
     onSuccess: () => {
       router.push('/(tabs)')
-    }
+    },
   })
 
   const formik = useFormik<IReminder>({
     initialValues: {
       ...reminderInitValue({} as IReminder),
-      petId: getFirstPetId()
+      petId: getFirstPetId(),
     },
     validationSchema: reminderValidationSchema,
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      // Only require vaccine data if pet can use vaccine scheduling
+      const errors = await formik.validateForm()
+
+      if (Object.keys(errors).length > 0) {
+        const errorMessages = Object.entries(errors)
+          .map(([field, error]) => error)
+          .join('\n')
+        showError(errorMessages || 'กรุณากรอกข้อมูลให้ครบถ้วน')
+        return
+      }
+
       if (values.categoryName === 'Vaccination' && canUseVaccineSchedule) {
         if (doses.length === 0 || !doses[0].date) {
           showError('กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน')
@@ -74,7 +83,7 @@ export default function AddReminderPage() {
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: values.petId
+        petId: values.petId,
       }
 
       if (
@@ -83,14 +92,16 @@ export default function AddReminderPage() {
         doses.length > 0
       ) {
         const syncedDoses = doses.map((dose) =>
-          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
+          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose,
         )
         const children: any[] = syncedDoses.map((dose, index) => ({
-          reminderName: `วัคซีน เข็มที่ ${dose.doseNumber}`,
+          reminderName: customVaccineName
+            ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
+            : `วัคซีน เข็มที่ ${dose.doseNumber}`,
           description: values.description,
           reminderDate: dose.date,
           reminderTime: dose.time || '',
-          categoryName: 'Vaccination'
+          categoryName: 'Vaccination',
         }))
         submitData.children = children
       }
@@ -98,7 +109,9 @@ export default function AddReminderPage() {
       await createReminderApi.execute(submitData)
       formik.resetForm()
       setDoses([])
-    }
+      setCustomVaccineName('')
+      setVaccineResetKey((prev) => prev + 1)
+    },
   })
 
   const isSubmitting = createReminderApi.loading
@@ -110,26 +123,16 @@ export default function AddReminderPage() {
   }, [petIdFromParams])
 
   useEffect(() => {
-    const loadPets = async () => {
-      try {
-        const response = await petProfileService.getMyPets()
-        const petsList = Array.isArray(response)
-          ? response
-          : response?.data || response
-        setPets(petsList)
-
-        if (!petIdFromParams && petsList && petsList.length > 0) {
-          const firstPetId = petsList[0].id
-          formik.setFieldValue('petId', firstPetId)
-        }
-      } catch (error) {
-        showError('ไม่สามารถโหลดรายชื่อสัตว์ของคุณ')
-      }
+    // Set pet ID from params or selected pet
+    if (petIdFromParams) {
+      formik.setFieldValue('petId', petIdFromParams)
+    } else if (selectedPetId) {
+      formik.setFieldValue('petId', selectedPetId)
+    } else if (pets.length > 0) {
+      formik.setFieldValue('petId', pets[0].id)
     }
-    loadPets()
-  }, [])
+  }, [petIdFromParams, selectedPetId, pets])
 
-  // Check if current pet can use vaccine scheduling
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
   const canUseVaccineSchedule =
@@ -139,10 +142,16 @@ export default function AddReminderPage() {
     !!currentPet.age
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
-  const canSubmit = formik.values.reminderName && formik.values.reminderDate
+  const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
+  const canSubmit =
+    formik.values.reminderName &&
+    formik.values.reminderDate &&
+    (isVaccinationCategory && canUseVaccineSchedule ? allDosesHaveDates : true)
 
   const handleBack = () => {
     setDoses([])
+    setCustomVaccineName('')
+    setVaccineResetKey((prev) => prev + 1)
     formik.resetForm()
     router.back()
   }
@@ -153,7 +162,7 @@ export default function AddReminderPage() {
       () => {
         handleBack()
         return true
-      }
+      },
     )
 
     return () => backHandler.remove()
@@ -174,7 +183,7 @@ export default function AddReminderPage() {
     <View style={styles.screen}>
       <View style={styles.safeArea}>
         <Header
-          title="เพิ่มเตือนความจำ"
+          title='เพิ่มเตือนความจำ'
           goBack={!isSubmitting}
           onBackPress={handleBack}
         />
@@ -192,7 +201,7 @@ export default function AddReminderPage() {
                 <Text
                   style={[
                     styles.addText,
-                    (!canSubmit || isSubmitting) && styles.submittingText
+                    (!canSubmit || isSubmitting) && styles.submittingText,
                   ]}
                 >
                   {isSubmitting ? 'กำลังเพิ่ม...' : 'เพิ่ม'}
@@ -203,17 +212,29 @@ export default function AddReminderPage() {
             <InputText
               value={formik.values.reminderName}
               onChangeText={(v) => formik.setFieldValue('reminderName', v)}
-              placeholder="หัวข้อเตือนความจำ"
-              title="หัวข้อ"
+              placeholder='หัวข้อเตือนความจำ'
+              title='หัวข้อ'
               required={true}
               error={formik.errors.reminderName}
+            />
+
+            <PetSelector
+              pets={pets}
+              selectedPetId={formik.values.petId}
+              onSelectPet={(petId: string) => {
+                formik.setFieldValue('petId', petId)
+                setSelectedPetId(petId)
+              }}
+              label="สัตว์เลี้ยง"
+              required={true}
+              disabled={isSubmitting}
             />
 
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <DatePicker
-                  title="วันที่เตือนความจำ"
-                  placeholder="วัน/เดือน/ปี"
+                  title='วันที่เตือนความจำ'
+                  placeholder='วัน/เดือน/ปี'
                   value={
                     formik.values.reminderDate
                       ? new Date(formik.values.reminderDate)
@@ -229,8 +250,8 @@ export default function AddReminderPage() {
               </View>
               <View style={{ flex: 1 }}>
                 <TimePicker
-                  title="เวลาที่เตือนความจำ"
-                  placeholder="เลือกเวลา"
+                  title='เวลาที่เตือนความจำ'
+                  placeholder='เลือกเวลา'
                   value={formik.values.reminderTime}
                   onChange={(v) => formik.setFieldValue('reminderTime', v)}
                 />
@@ -246,8 +267,9 @@ export default function AddReminderPage() {
 
             {/* Vaccine Schedule Section */}
             <VaccineScheduleSection
+              key={vaccineResetKey}
               isVaccinationCategory={isVaccinationCategory}
-              canUseVaccineSchedule={canUseVaccineSchedule}
+              canUseVaccineSchedule={canUseVaccineSchedule || false}
               petId={formik.values.petId}
               reminderDate={formik.values.reminderDate}
               doses={doses}
@@ -258,12 +280,13 @@ export default function AddReminderPage() {
               onDose1TimeChange={(time) => {
                 formik.setFieldValue('reminderTime', time)
               }}
+              onCustomVaccineNameChange={setCustomVaccineName}
             />
 
             <View>
               <TextInput
                 style={[styles.input, styles.textarea]}
-                placeholder="รายละเอียดอื่นๆ"
+                placeholder='รายละเอียดอื่นๆ'
                 multiline
                 numberOfLines={4}
                 value={formik.values.description}
@@ -287,14 +310,14 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb'
+    backgroundColor: '#e5e7eb',
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -305,26 +328,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18
+    marginBottom: 18,
   },
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   submittingText: {
-    color: '#6b7280'
+    color: '#6b7280',
   },
   input: {
     borderWidth: 1,
@@ -334,32 +357,32 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48
+    minHeight: 48,
   },
   errorText: {
     color: '#ef4444',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4
+    marginLeft: 4,
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12
+    paddingVertical: 12,
   },
   row: {
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
   },
   label: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 10
+    marginBottom: 10,
   },
   required: {
-    color: '#dc2626'
+    color: '#dc2626',
   },
   petSelector: {
     borderWidth: 1,
@@ -368,12 +391,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#fff',
-    marginBottom: 12
+    marginBottom: 12,
   },
   petSelectorText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDisplay: {
     borderWidth: 1,
@@ -382,12 +405,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#f9fafb',
-    marginBottom: 12
+    marginBottom: 12,
   },
   petDisplayText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDropdownMenu: {
     borderWidth: 1,
@@ -395,24 +418,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fff',
     marginBottom: 12,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   petDropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
+    borderBottomColor: '#f0f0f0',
   },
   petDropdownItemSelected: {
-    backgroundColor: '#e3f2fd'
+    backgroundColor: '#e3f2fd',
   },
   petDropdownItemText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium'
-  }
+    fontFamily: 'Prompt_500Medium',
+  },
 })

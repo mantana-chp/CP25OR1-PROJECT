@@ -1,5 +1,6 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import dayjs from 'dayjs'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
@@ -14,6 +15,8 @@ export default function ReminderPage() {
   // ------------------
   const params = useLocalSearchParams<{ reminderId?: string }>()
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
+  const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
   const swipeStartY = useRef(0)
 
   // ------------------
@@ -71,6 +74,25 @@ export default function ReminderPage() {
     setIsCalendarExpanded(!isCalendarExpanded)
   }
 
+  const handleDateSelect = (date: Date) => {
+    if (!hasUserSelectedDate) {
+      setHasUserSelectedDate(true)
+    }
+    setSelectedDate(date)
+  }
+
+  const handleReset = () => {
+    setHasUserSelectedDate(false)
+    setSelectedDate(new Date())
+  }
+
+  const filteredReminders =
+    hasUserSelectedDate && selectedDate
+      ? reminders.filter((reminder) =>
+          dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
+        )
+      : reminders
+
   // ------------------
   // RENDER
   // ------------------
@@ -83,11 +105,15 @@ export default function ReminderPage() {
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
         reminders={reminders}
+        onDateSelect={handleDateSelect}
+        selectedDate={selectedDate}
+        onReset={handleReset}
+        hasUserSelectedDate={hasUserSelectedDate}
       />
 
       <View style={styles.reminderContainer} {...panResponder.panHandlers}>
         <ReminderList
-          reminders={reminders}
+          reminders={filteredReminders}
           isLoading={getRemindersApi.loading}
           onRefresh={loadReminders}
           initialReminderId={params.reminderId}

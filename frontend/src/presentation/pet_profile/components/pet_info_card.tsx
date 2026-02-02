@@ -1,8 +1,14 @@
-import { IPetProfile } from '@/src/domain/pet.domain'
-import { Ionicons } from '@expo/vector-icons'
-import { VenusAndMars, Weight } from 'lucide-react-native'
+import { Link } from 'expo-router'
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+
+import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  FontAwesome6,
+  Ionicons,
+  MaterialCommunityIcons
+} from '@expo/vector-icons'
+import { Cake, Edit2, VenusAndMars } from 'lucide-react-native'
 
 interface PetInfoCardProps {
   data: IPetProfile
@@ -47,15 +53,20 @@ export default function PetInfoCard(props: PetInfoCardProps) {
 
     return genderMap[gender.toLowerCase()] || gender
   }
-  //
+
+  const formatWeight = (weight: number | null | undefined): string => {
+    if (!weight) return '-'
+    return parseFloat(weight.toString()).toFixed(2)
+  }
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.petAvatar}>
-          <Ionicons name="paw" size={42} color="white" />
+          <MaterialCommunityIcons name="dog" size={42} color="white" />
         </View>
         <View style={styles.cardHeaderText}>
-          <Text style={styles.petName}>{props.data.name}</Text>
+          <Text style={styles.petName}>{props.data.pet_name}</Text>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
@@ -64,7 +75,7 @@ export default function PetInfoCard(props: PetInfoCardProps) {
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Ionicons name="calendar-outline" size={14} color="#5BA3D0" />
+              <Cake size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>
                 {convertDaysToThaiAge(props.data.age)}
               </Text>
@@ -78,13 +89,21 @@ export default function PetInfoCard(props: PetInfoCardProps) {
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Weight size={14} color="#5BA3D0" />
+              <FontAwesome6 name="weight-scale" size={14} color="#5BA3D0" />
               <Text style={styles.infoText}>
-                {props.data.weight ? `${props.data.weight} กิโลกรัม` : '-'}
+                {props.data.weight
+                  ? `${formatWeight(parseFloat(props.data.weight))} กิโลกรัม`
+                  : '-'}
               </Text>
             </View>
           </View>
         </View>
+
+        <Link href={`/(tabs)/add_pet_form?petId=${props.data.id}`} push asChild>
+          <TouchableOpacity style={styles.editButton}>
+            <Edit2 size={18} color="#5FA7D1" />
+          </TouchableOpacity>
+        </Link>
       </View>
     </View>
   )
@@ -135,5 +154,11 @@ const styles = StyleSheet.create({
     color: '#225877',
     marginLeft: 4,
     fontFamily: 'Prompt_400Regular'
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#E8F4F8',
+    alignSelf: 'flex-start'
   }
 })

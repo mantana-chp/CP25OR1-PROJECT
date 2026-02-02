@@ -1,22 +1,22 @@
 import { thaiMonths } from '@/src/domain/calendar.domain'
-import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface CalendarHeaderProps {
   currentDate: Date
-  isCurrentMonth: boolean
   onPreviousMonth: () => void
   onNextMonth: () => void
-  onGoToToday: () => void
+  onReset: () => void
+  showReset: boolean
 }
 
 export default function CalendarHeader({
   currentDate,
-  isCurrentMonth,
   onPreviousMonth,
   onNextMonth,
-  onGoToToday
+  onReset,
+  showReset
 }: CalendarHeaderProps) {
   return (
     <View style={styles.header}>
@@ -25,10 +25,9 @@ export default function CalendarHeader({
         {currentDate.getFullYear() + 543}
       </Text>
       <View style={styles.navigation}>
-        {/* Today Button */}
-        {!isCurrentMonth && (
-          <TouchableOpacity onPress={onGoToToday} style={styles.todayButton}>
-            <Text style={styles.todayButtonText}>วันนี้</Text>
+        {showReset && (
+          <TouchableOpacity onPress={onReset} style={styles.resetButton}>
+            <RotateCcw size={16} color="#225877" />
           </TouchableOpacity>
         )}
 
@@ -60,18 +59,11 @@ const styles = StyleSheet.create({
     gap: 6,
     alignItems: 'center'
   },
-  todayButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  resetButton: {
+    padding: 8,
     borderRadius: 6,
-    backgroundColor: '#5FA7D1',
+    backgroundColor: '#f0f9ff',
     marginRight: 4
-  },
-  todayButtonText: {
-    fontSize: 13,
-    color: '#fff',
-    fontWeight: '600',
-    fontFamily: 'Prompt_400Regular'
   },
   navButton: {
     padding: 6,

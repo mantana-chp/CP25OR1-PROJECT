@@ -4,6 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 // Define the shape of the context
 interface ErrorContextType {
   showError: (message: string) => void
+  showSuccess: (message: string) => void
 }
 
 const ErrorContext = createContext<ErrorContextType | undefined>(undefined)
@@ -15,6 +16,7 @@ interface ErrorProviderProps {
 
 export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const showError = (message: string) => {
     setError(message)
@@ -23,11 +25,24 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
     }, 6000)
   }
 
+  const showSuccess = (message: string) => {
+    setSuccess(message)
+    setTimeout(() => {
+      setSuccess(null)
+    }, 3000)
+  }
+
   return (
-    <ErrorContext.Provider value={{ showError }}>
+    <ErrorContext.Provider value={{ showError, showSuccess }}>
       {children}
       {error && (
         <GlobalErrorToast message={error} onClose={() => setError(null)} />
+      )}
+      {success && (
+        <GlobalSuccessToast
+          message={success}
+          onClose={() => setSuccess(null)}
+        />
       )}
     </ErrorContext.Provider>
   )
@@ -50,10 +65,29 @@ interface GlobalErrorToastProps {
 
 const GlobalErrorToast: React.FC<GlobalErrorToastProps> = ({
   message,
-  onClose
+  onClose,
 }) => {
   return (
     <View style={styles.container}>
+      <Text style={styles.message}>{message}</Text>
+      <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <Text style={styles.closeText}>✕</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+interface GlobalSuccessToastProps {
+  message: string
+  onClose: () => void
+}
+
+const GlobalSuccessToast: React.FC<GlobalSuccessToastProps> = ({
+  message,
+  onClose,
+}) => {
+  return (
+    <View style={[styles.container, styles.successContainer]}>
       <Text style={styles.message}>{message}</Text>
       <TouchableOpacity onPress={onClose} style={styles.closeButton}>
         <Text style={styles.closeText}>✕</Text>
@@ -79,21 +113,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3,
     elevation: 5,
-    zIndex: 9999
+    zIndex: 9999,
+  },
+  successContainer: {
+    backgroundColor: '#28A745',
   },
   message: {
     color: 'white',
     fontSize: 14,
     flex: 1,
     marginRight: 12,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   closeButton: {
-    padding: 4
+    padding: 4,
   },
   closeText: {
     color: 'white',
     fontSize: 18,
-    fontWeight: 'bold'
-  }
+    fontWeight: 'bold',
+  },
 })
