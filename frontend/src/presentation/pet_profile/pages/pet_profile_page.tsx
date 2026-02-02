@@ -203,7 +203,7 @@ export default function PetProfilePage() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.petSelectorContainer}
               >
-                {displayPets.map((pet, index) => (
+                {_.map(displayPets, (pet, index) => (
                   <TouchableOpacity
                     key={pet.id}
                     onPress={() => handlePetSelect(index)}

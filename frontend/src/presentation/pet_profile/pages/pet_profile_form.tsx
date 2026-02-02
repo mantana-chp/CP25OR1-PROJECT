@@ -126,13 +126,9 @@ export default function PetProfileForm({
           ...petData
         }
 
-        if (breed_id) {
-          petDataToSend.breed_id = breed_id
-        }
+        if (breed_id) petDataToSend.breed_id = breed_id
 
-        if (weight) {
-          petDataToSend.weight = Number(weight)
-        }
+        if (weight) petDataToSend.weight = Number(weight)
 
         if (isEditMode) {
           await petProfileService.updatePetProfile(petId, petDataToSend)
@@ -147,6 +143,9 @@ export default function PetProfileForm({
           await completeOnboarding()
         }
 
+        formik.resetForm()
+        setSelectedSpeciesId('')
+
         Alert.alert(
           'สำเร็จ!',
           isEditMode
@@ -156,8 +155,7 @@ export default function PetProfileForm({
             {
               text: 'ตกลง',
               onPress: () => {
-                formik.resetForm()
-                router.back()
+                router.push('/(tabs)/pet_profile')
               }
             }
           ]
@@ -282,9 +280,7 @@ export default function PetProfileForm({
                 placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
                 onSelect={(v) => formik.setFieldValue('breed_id', v)}
                 value={formik.values?.breed_id}
-                disable={
-                  !selectedSpeciesId || breedOptions.length === 0 || isEditMode
-                }
+                disable={!selectedSpeciesId || breedOptions.length === 0}
               />
             </View>
           </View>
