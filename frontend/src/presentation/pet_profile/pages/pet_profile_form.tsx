@@ -217,6 +217,24 @@ export default function PetProfileForm({
     router.back()
   }
 
+  const handleWeightChange = (value: string) => {
+    // Remove any non-numeric characters except decimal point
+    let cleaned = value.replace(/[^\d.]/g, '')
+
+    // Allow only one decimal point
+    const parts = cleaned.split('.')
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.slice(1).join('')
+    }
+
+    // Limit to 2 decimal places
+    if (parts[1] && parts[1].length > 2) {
+      cleaned = parts[0] + '.' + parts[1].substring(0, 2)
+    }
+
+    formik.setFieldValue('weight', cleaned)
+  }
+
   // ------------------
   // RENDER
   // ------------------
@@ -303,7 +321,7 @@ export default function PetProfileForm({
             value={formik.values?.weight}
             placeholder="น้ำหนักสัตว์เลี้ยง"
             keyboardType="numeric"
-            onChangeText={(v) => formik.setFieldValue('weight', v)}
+            onChangeText={handleWeightChange}
             error={formik?.errors?.weight}
           />
 
