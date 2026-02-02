@@ -1,4 +1,5 @@
 import { IReminder, getCategoryInfo } from '@/src/domain/reminder.domain'
+import dayjs from 'dayjs'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
@@ -11,6 +12,7 @@ interface CalendarDayProps {
   reminders?: IReminder[]
   date: Date
   onPress: (date: Date) => void
+  selectedDate: Date | null
 }
 
 export default function CalendarDay({
@@ -21,22 +23,31 @@ export default function CalendarDay({
   reminderCount,
   reminders = [],
   date,
-  onPress
+  onPress,
+  selectedDate
 }: CalendarDayProps) {
   // Get category colors for this day's reminders
   const reminderColors = reminders
     .slice(0, 3) // Only show up to 3 dots
     .map((reminder) => getCategoryInfo(reminder.categoryName).color)
 
+  const isSelected = selectedDate && dayjs(date).isSame(selectedDate, 'day')
+
   return (
     <TouchableOpacity style={styles.dayCell} onPress={() => onPress(date)}>
       <View style={styles.dayContent}>
-        <View style={[styles.dayNumberContainer, isToday && styles.todayCell]}>
+        <View
+          style={[
+            styles.dayNumberContainer,
+            isSelected && styles.selectedCell,
+            isToday && !isSelected && styles.todayCell
+          ]}
+        >
           <Text
             style={[
               styles.dayText,
               !isCurrentMonth && styles.inactiveDayText,
-              isToday && styles.todayText
+              isSelected ? styles.selectedText : isToday ? styles.todayText : null
             ]}
           >
             {day}
@@ -79,15 +90,16 @@ const styles = StyleSheet.create({
   },
   dayNumberContainer: {
     justifyContent: 'center',
-    alignItems: 'center'
-  },
-  todayCell: {
-    backgroundColor: '#5FA7D1',
-    borderRadius: 100,
+    alignItems: 'center',
     width: 32,
     height: 32,
-    justifyContent: 'center',
-    alignItems: 'center'
+    borderRadius: 100
+  },
+  todayCell: {
+    // No background color, only for text style
+  },
+  selectedCell: {
+    backgroundColor: '#5FA7D1'
   },
   dayText: {
     fontSize: 15,
@@ -99,6 +111,11 @@ const styles = StyleSheet.create({
     color: '#cbd5e1'
   },
   todayText: {
+    color: '#FF9F43',
+    fontWeight: '700',
+    fontFamily: 'Prompt_700Bold'
+  },
+  selectedText: {
     color: '#fff',
     fontWeight: '700',
     fontFamily: 'Prompt_700Bold'
