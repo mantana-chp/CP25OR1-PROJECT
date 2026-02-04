@@ -2,9 +2,9 @@ import * as reminderRepository from './reminder-repository';
 import { ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderWithPetToReminder } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
-import { reminder_status, category_name, reminders } from '../../generated/prisma/client';
+import { reminder_status, category_name, reminders, Prisma } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
-import { CreateReminderPayload } from './reminder-schema';
+import { CreateReminderPayload, UpdateReminderPayload } from './reminder-schema';
 
 const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
   if (!reminder.reminder_time) {
@@ -268,6 +268,110 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
   }
 
   return mapPrismaReminderWithPetToReminder(updatedReminder);
+};
+
+export const updateReminder = async (
+  reminderId: string,
+  userId: string,
+  updateData: UpdateReminderPayload
+): Promise<ReminderWithPetName> => {
+  const existingReminder = await reminderRepository.findById(reminderId);
+
+  if (!existingReminder) {
+    throw new NotFoundError('Reminder not found');
+  }
+
+  if (existingReminder.user_id !== userId) {
+    throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
+  }
+
+  if (existingReminder.reminder_status === reminder_status.done) {
+    throw new BadRequestError('Cannot edit a reminder that is marked as "done".');
+  }
+
+  const newPetId = updateData.petId ?? existingReminder.pet_id; // check for petId
+  if (updateData.petId && updateData.petId !== existingReminder.pet_id) {
+    const pet = await prisma.pets.findFirst({
+      where: { id: updateData.petId, user_id: userId },
+    });
+    if (!pet) {
+      throw new NotFoundError('The pet was not found for this user.');
+    }
+  }
+
+  const newReminderName = updateData.reminderName ?? existingReminder.reminder_name;
+  const newReminderDate = updateData.reminderDate ? new Date(updateData.reminderDate) : existingReminder.reminder_date;
+
+  if (updateData.reminderName || updateData.reminderDate) {
+    const conflictingReminder = await prisma.reminders.findFirst({
+      where: {
+        id: { not: reminderId },
+        pet_id: newPetId,
+        reminder_name: newReminderName,
+        reminder_date: newReminderDate,
+      },
+    });
+
+    if (conflictingReminder) {
+      throw new ConflictError('A reminder with this name and date already exists for the selected pet.');
+    }
+  }
+
+  // Prepare the data for update
+  const reminderTime =
+    updateData.reminderTime === null
+      ? null
+      : updateData.reminderTime
+        ? new Date(`1970-01-01T${updateData.reminderTime}Z`)
+        : existingReminder.reminder_time;
+
+  const tempReminder = { reminder_date: newReminderDate, reminder_time: reminderTime } as reminders;
+  const newStatus = isReminderOverdue(tempReminder, new Date()) ? reminder_status.overdue : reminder_status.to_do;
+
+  const dataToUpdate: Prisma.remindersUpdateInput = {
+    reminder_status: newStatus,
+  };
+
+  // Process each field from updateData
+  if (updateData.petId) {
+    dataToUpdate.pets = { connect: { id: updateData.petId } };
+  }
+  if (updateData.reminderName) {
+    dataToUpdate.reminder_name = updateData.reminderName;
+  }
+  if (updateData.description !== undefined) {
+    dataToUpdate.description = updateData.description;
+  }
+  if (updateData.reminderDate) {
+    dataToUpdate.reminder_date = new Date(updateData.reminderDate);
+  }
+  if (updateData.reminderTime !== undefined) {
+    dataToUpdate.reminder_time = updateData.reminderTime ? new Date(`1970-01-01T${updateData.reminderTime}Z`) : null;
+  }
+  if (updateData.categoryName !== undefined) {
+    if (existingReminder.parent_id != null && existingReminder.category_name === category_name.Vaccination) { // child reminder (vaccine) cant change category
+      throw new ConflictError('Cannot change the category of a vaccination reminder.');
+    }
+    dataToUpdate.category_name = updateData.categoryName;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw new BadRequestError('Request body must contain at least one valid field to update.');
+  }
+
+  // Update the reminder in the database
+  await prisma.reminders.update({
+    where: { id: reminderId },
+    data: dataToUpdate,
+  });
+
+  // Re-fetch with relations to return the correct shape
+  const updatedReminderWithPet = await reminderRepository.findById(reminderId);
+  if (!updatedReminderWithPet) {
+    throw new Error('Failed to retrieve reminder after update.');
+  }
+
+  return mapPrismaReminderWithPetToReminder(updatedReminderWithPet);
 };
 
 export const updateOverdueReminders = async (): Promise<void> => {
