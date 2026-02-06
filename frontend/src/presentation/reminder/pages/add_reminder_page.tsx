@@ -277,21 +277,25 @@ export default function AddReminderPage() {
               required={true}
             />
 
-            <RecurrencePicker
-              value={
-                recurrenceRule || {
-                  type: 'none',
-                  interval: 1,
-                  endType: 'never'
-                }
-              }
-              onChange={setRecurrenceRule}
-              reminderDate={
-                formik.values.reminderDate
-                  ? new Date(formik.values.reminderDate)
-                  : undefined
-              }
-            />
+            {/* Hide recurrence picker if no date selected or if category is Vaccination */}
+            {formik.values.reminderDate &&
+              formik.values.categoryName !== 'Vaccination' && (
+                <RecurrencePicker
+                  value={
+                    recurrenceRule || {
+                      type: 'none',
+                      interval: 1,
+                      endType: 'never'
+                    }
+                  }
+                  onChange={setRecurrenceRule}
+                  reminderDate={
+                    formik.values.reminderDate
+                      ? new Date(formik.values.reminderDate)
+                      : undefined
+                  }
+                />
+              )}
 
             {/* Vaccine Schedule Section */}
             <VaccineScheduleSection
