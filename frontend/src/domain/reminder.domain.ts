@@ -1,5 +1,35 @@
 import * as yup from 'yup'
 
+// Recurrence Types
+export type RecurrenceType =
+  | 'none'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'yearly'
+  | 'custom'
+export type RecurrenceEndType = 'never' | 'after' | 'on_date'
+export type MonthlyRecurrenceType = 'day_of_month' | 'last_day'
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday'
+
+export interface IRecurrenceRule {
+  type: RecurrenceType
+  interval: number // Every X days/weeks/months/years
+  weekdays?: Weekday[] // For weekly recurrence
+  monthlyType?: MonthlyRecurrenceType // For monthly recurrence
+  dayOfMonth?: number // For monthly recurrence (1-31)
+  endType: RecurrenceEndType
+  endAfterOccurrences?: number // For 'after' end type
+  endDate?: string // For 'on_date' end type
+}
+
 export interface ICategoryInfo {
   label: string
   color: string
@@ -13,7 +43,7 @@ export const CATEGORY_MAP: Record<string, ICategoryInfo> = {
   Medication: { label: 'ยา/อาหารเสริม', color: '#10B981', icon: 'Pill' },
   Deworming: { label: 'พยาธิ/เห็บหมัด', color: '#F59E0B', icon: 'Pipette' },
   Grooming: { label: 'กรูมมิ่ง', color: '#8B5CF6', icon: 'Scissors' },
-  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' },
+  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' }
 }
 
 export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
@@ -21,7 +51,7 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
     CATEGORY_MAP[categoryId] || {
       label: 'ทั่วไป',
       color: '#6B7280',
-      icon: 'Tag',
+      icon: 'Tag'
     }
   )
 }
@@ -56,6 +86,12 @@ export interface IReminder {
   createdAt: string
   updatedAt: string
   children: IReminder[]
+  // Recurrence fields
+  isRecurring?: boolean
+  recurrenceRule?: IRecurrenceRule
+  seriesId?: string // Links all reminders in a recurring series
+  parentReminderId?: string // Reference to parent reminder in series
+  occurrenceNumber?: number // Which occurrence this is (1, 2, 3, etc.)
 }
 
 export const reminderInitValue = (v: IReminder): IReminder => {
@@ -74,7 +110,18 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     createdAt: v.createdAt || '',
     updatedAt: v.updatedAt || '',
     children: v.children || [],
+    isRecurring: v.isRecurring || false,
+    recurrenceRule: v.recurrenceRule,
+    seriesId: v.seriesId,
+    parentReminderId: v.parentReminderId,
+    occurrenceNumber: v.occurrenceNumber || 1
   }
+}
+
+export const defaultRecurrenceRule: IRecurrenceRule = {
+  type: 'none',
+  interval: 1,
+  endType: 'never'
 }
 
 export const reminderValidationSchema = yup.object().shape({

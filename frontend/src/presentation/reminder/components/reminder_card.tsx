@@ -15,12 +15,14 @@ import {
   View
 } from 'react-native'
 
+import { formatRecurrenceText } from '@/src/utils/recurrence.utils'
 import {
   Bone,
   Clock,
   PawPrint,
   Pill,
   Pipette,
+  Repeat,
   Scissors,
   Stethoscope,
   Syringe,
@@ -224,15 +226,51 @@ export default function ReminderCard(props: ReminderCardProps) {
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <Text
-              style={[
-                styles.reminderTitle,
-                reminder?.reminderStatus === 'overdue' &&
-                  styles.overdueTitleText
-              ]}
-            >
-              {reminder?.reminderName}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text
+                style={[
+                  styles.reminderTitle,
+                  reminder?.reminderStatus === 'overdue' &&
+                    styles.overdueTitleText
+                ]}
+              >
+                {reminder?.reminderName}
+              </Text>
+              {reminder?.isRecurring && (
+                <View style={styles.recurringBadge}>
+                  <Repeat size={12} color="#5FA7D1" />
+                </View>
+              )}
+            </View>
+
+            {/* Show recurrence info if recurring */}
+            {reminder?.isRecurring && reminder?.recurrenceRule && (
+              <View style={styles.infoRow}>
+                <Repeat
+                  size={14}
+                  color={
+                    reminder?.reminderStatus === 'overdue'
+                      ? '#BF1737'
+                      : '#5FA7D1'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.recurrenceText,
+                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                  ]}
+                >
+                  {formatRecurrenceText(reminder.recurrenceRule, 'th')}
+                  {reminder.occurrenceNumber &&
+                    reminder.occurrenceNumber > 1 && (
+                      <Text style={styles.occurrenceNumber}>
+                        {' '}
+                        (ครั้งที่ {reminder.occurrenceNumber})
+                      </Text>
+                    )}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.infoRow}>
               <PawPrint
@@ -402,6 +440,28 @@ const styles = StyleSheet.create({
   middleSection: {
     flex: 1,
     gap: 2
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  recurringBadge: {
+    backgroundColor: '#E8F4F8',
+    borderRadius: 12,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  recurrenceText: {
+    fontSize: 12,
+    color: '#5FA7D1',
+    fontFamily: 'Prompt_400Regular'
+  },
+  occurrenceNumber: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontFamily: 'Prompt_400Regular'
   },
   categoryTag: {
     flexDirection: 'row',
