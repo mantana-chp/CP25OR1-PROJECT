@@ -8,7 +8,9 @@ import {
 } from '@/src/domain/reminder.domain'
 import { formatRecurrenceText } from '@/src/utils/recurrence.utils'
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -328,118 +330,131 @@ export default function RecurrencePicker({
         animationType="slide"
         onRequestClose={handleCustomCancel}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>กำหนดเองการทำซ้ำ</Text>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              {/* Frequency Type */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>ความถี่</Text>
-                <View style={styles.frequencyRow}>
-                  {(
-                    ['daily', 'weekly', 'monthly', 'yearly'] as RecurrenceType[]
-                  ).map((type) => (
-                    <Pressable
-                      key={type}
-                      style={[
-                        styles.frequencyChip,
-                        tempRule.type === type && styles.frequencyChipSelected
-                      ]}
-                      onPress={() => handleTypeChange(type)}
-                    >
-                      <Text
-                        style={[
-                          styles.frequencyChipText,
-                          tempRule.type === type &&
-                            styles.frequencyChipTextSelected
-                        ]}
-                      >
-                        {type === 'daily' && 'วัน'}
-                        {type === 'weekly' && 'สัปดาห์'}
-                        {type === 'monthly' && 'เดือน'}
-                        {type === 'yearly' && 'ปี'}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>กำหนดเองการทำซ้ำ</Text>
               </View>
 
-              {/* Interval */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>ทุก</Text>
-                <View style={styles.intervalRow}>
-                  <View style={{ flex: 1 }}>
-                    <InputText
-                      value={tempRule.interval.toString()}
-                      onChangeText={handleIntervalChange}
-                      keyboardType="numeric"
-                      placeholder="1"
-                      title=""
+              <ScrollView
+                style={styles.modalBody}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Frequency Type */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>ความถี่</Text>
+                  <View style={styles.frequencyRow}>
+                    {(
+                      [
+                        'daily',
+                        'weekly',
+                        'monthly',
+                        'yearly'
+                      ] as RecurrenceType[]
+                    ).map((type) => (
+                      <Pressable
+                        key={type}
+                        style={[
+                          styles.frequencyChip,
+                          tempRule.type === type && styles.frequencyChipSelected
+                        ]}
+                        onPress={() => handleTypeChange(type)}
+                      >
+                        <Text
+                          style={[
+                            styles.frequencyChipText,
+                            tempRule.type === type &&
+                              styles.frequencyChipTextSelected
+                          ]}
+                        >
+                          {type === 'daily' && 'วัน'}
+                          {type === 'weekly' && 'สัปดาห์'}
+                          {type === 'monthly' && 'เดือน'}
+                          {type === 'yearly' && 'ปี'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Interval */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>ทุก</Text>
+                  <View style={styles.intervalRow}>
+                    <View style={{ flex: 1 }}>
+                      <InputText
+                        value={tempRule.interval.toString()}
+                        onChangeText={handleIntervalChange}
+                        keyboardType="numeric"
+                        placeholder="1"
+                        title=""
+                      />
+                    </View>
+                    <Text style={styles.intervalLabel}>
+                      {tempRule.type === 'daily' && 'วัน'}
+                      {tempRule.type === 'weekly' && 'สัปดาห์'}
+                      {tempRule.type === 'monthly' && 'เดือน'}
+                      {tempRule.type === 'yearly' && 'ปี'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Weekday Selection for Weekly */}
+                {tempRule.type === 'weekly' && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>วันในสัปดาห์</Text>
+                    <WeekdaySelector
+                      selectedDays={tempRule.weekdays || []}
+                      onChange={handleWeekdaysChange}
                     />
                   </View>
-                  <Text style={styles.intervalLabel}>
-                    {tempRule.type === 'daily' && 'วัน'}
-                    {tempRule.type === 'weekly' && 'สัปดาห์'}
-                    {tempRule.type === 'monthly' && 'เดือน'}
-                    {tempRule.type === 'yearly' && 'ปี'}
-                  </Text>
-                </View>
-              </View>
+                )}
 
-              {/* Weekday Selection for Weekly */}
-              {tempRule.type === 'weekly' && (
+                {/* Monthly Options */}
+                {tempRule.type === 'monthly' && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>ทำซ้ำในวันที่</Text>
+                    <MonthlyOptions
+                      monthlyType={tempRule.monthlyType || 'day_of_month'}
+                      dayOfMonth={tempRule.dayOfMonth || getDefaultDayOfMonth()}
+                      onChange={handleMonthlyTypeChange}
+                    />
+                  </View>
+                )}
+
+                {/* End Condition */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>วันในสัปดาห์</Text>
-                  <WeekdaySelector
-                    selectedDays={tempRule.weekdays || []}
-                    onChange={handleWeekdaysChange}
+                  <Text style={styles.sectionTitle}>สิ้นสุด</Text>
+                  <EndConditionSelector
+                    endType={tempRule.endType}
+                    endAfterOccurrences={tempRule.endAfterOccurrences}
+                    endDate={tempRule.endDate}
+                    onChange={handleEndConditionChange}
                   />
                 </View>
-              )}
+              </ScrollView>
 
-              {/* Monthly Options */}
-              {tempRule.type === 'monthly' && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>ทำซ้ำในวันที่</Text>
-                  <MonthlyOptions
-                    monthlyType={tempRule.monthlyType || 'day_of_month'}
-                    dayOfMonth={tempRule.dayOfMonth || getDefaultDayOfMonth()}
-                    onChange={handleMonthlyTypeChange}
-                  />
-                </View>
-              )}
-
-              {/* End Condition */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>สิ้นสุด</Text>
-                <EndConditionSelector
-                  endType={tempRule.endType}
-                  endAfterOccurrences={tempRule.endAfterOccurrences}
-                  endDate={tempRule.endDate}
-                  onChange={handleEndConditionChange}
-                />
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={styles.cancelButton}
+                  onPress={handleCustomCancel}
+                >
+                  <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.confirmButton}
+                  onPress={handleCustomConfirm}
+                >
+                  <Text style={styles.confirmButtonText}>ตกลง</Text>
+                </Pressable>
               </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={styles.cancelButton}
-                onPress={handleCustomCancel}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </Pressable>
-              <Pressable
-                style={styles.confirmButton}
-                onPress={handleCustomConfirm}
-              >
-                <Text style={styles.confirmButtonText}>ตกลง</Text>
-              </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   )
