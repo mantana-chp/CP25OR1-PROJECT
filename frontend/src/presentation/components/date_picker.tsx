@@ -22,6 +22,8 @@ interface DatePickerProps {
   disabled?: boolean
   error?: string | null
   small?: boolean
+  maximumDate?: Date
+  minimumDate?: Date
   onChange: (date: Date) => void
 }
 
@@ -142,6 +144,8 @@ export default function DatePicker(props: DatePickerProps) {
           mode="date"
           display="default"
           onChange={handleChange}
+          maximumDate={props.maximumDate}
+          minimumDate={props.minimumDate}
         />
       )}
 
@@ -167,6 +171,8 @@ export default function DatePicker(props: DatePickerProps) {
                 textColor="#5FA7D1"
                 style={styles.picker}
                 locale="th-TH"
+                maximumDate={props.maximumDate}
+                minimumDate={props.minimumDate}
               />
 
               <View style={styles.modalFooter}>
