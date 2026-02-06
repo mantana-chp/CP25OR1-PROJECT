@@ -317,6 +317,7 @@ export default function PetProfileForm({
             onChange={(v) => formik.setFieldValue('birth_date', v)}
             error={formik?.errors?.birth_date}
             required={true}
+            maximumDate={new Date()}
           />
 
           <InputText
