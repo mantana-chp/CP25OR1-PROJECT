@@ -83,10 +83,38 @@ model reminders {
   pets               pets             @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user               users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  // Self-referencing relationship for parent-child reminders
+  // --- Recurrence ---
+  recurrence              recurrence?      // Links to the rules if this is a template.
+  recurring_template_id   String?          @db.Uuid
+  recurring_template      reminders?       @relation("RecurrenceSeries", fields: [recurring_template_id], references: [id], onDelete: Cascade)
+  recurring_instances     reminders[]      @relation("RecurrenceSeries")
+
+  // --- EXISTING relationship for vaccines ---
   parent_id          String?          @db.Uuid
   parent             reminders?       @relation("ReminderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
   children           reminders[]      @relation("ReminderHierarchy")
+}
+
+model recurrence {
+  id                  String    @id @default(uuid()) @db.Uuid
+  reminder_id         String    @unique @db.Uuid
+  reminder            reminders @relation(fields: [reminder_id], references: [id], onDelete: Cascade)
+
+  // Recurrence Pattern
+  frequency             RecurrenceFrequency
+  interval              Int                 @default(1)
+  reminder_time         DateTime?           @db.Time(6) @map("reminder_time")
+  daysOfWeek            Int?                @map("days_of_week")
+  dayOfMonth            Int?                @map("day_of_month")
+  
+  // End Condition
+  endDate               DateTime? @db.Date  @map("end_date")
+  endAfterOccurrences   Int?                @map("end_after_occurrences")
+
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@map("recurrences")
 }
 
 model sessions {
@@ -202,6 +230,13 @@ enum category_name {
   Deworming   @map("พยาธิ/เห็บหมัด")
   Grooming    @map("ความสะอาดและกรูมมิ่ง")
   Feeding     @map("ให้อาหาร")
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
 }
 
 enum VaccineLogicType {

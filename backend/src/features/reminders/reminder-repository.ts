@@ -112,3 +112,19 @@ export const updateStatusForIds = async (ids: string[], status: reminder_status)
     },
   });
 };
+
+export const findFullById = async (id: string) => {
+  return await prisma.reminders.findUnique({
+    where: { id },
+    include: {
+      pets: true,
+      children: true,
+      recurrence: true,
+      recurring_template: {
+        include: {
+          recurrence: true,
+        },
+      },
+    },
+  });
+};
