@@ -56,6 +56,9 @@ export const updateReminderSchema = z.object({
     reminderDate: z.string().min(1, 'Reminder Date is required').optional(),
     reminderTime: z.string().optional().nullable(),
     categoryName: z.enum(category_name).optional(),
+    // --- NEW FIELDS FOR RECURRENCE ---
+    editScope: z.enum(['THIS_INSTANCE_ONLY', 'THIS_AND_FUTURE_INSTANCES']).optional(),
+    recurrence: recurrenceSchema.optional(),
   }),
 });
 

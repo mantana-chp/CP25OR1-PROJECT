@@ -25,8 +25,8 @@ const calculateNextOccurrence = (lastDate: Date, rule: recurrence): Date | null 
           const dayBit = 1 << checkDate.getUTCDay();
 
           if ((rule.daysOfWeek & dayBit) > 0) {
-            // Simple interval logic for now, more complex logic might be needed for multi-week intervals with specific days
-            if ((i - 1) % (7 * rule.interval) === 0 || rule.interval === 1) {
+            // This is a simplified interval check, for more complex scenarios a library would be better
+            if (rule.interval === 1 || (i > 1 && Math.floor(new Date(checkDate.getTime() - lastDate.getTime()).getTime() / (1000 * 3600 * 24 * 7)) % rule.interval === 0)) {
               return checkDate;
             }
           }
@@ -38,10 +38,7 @@ const calculateNextOccurrence = (lastDate: Date, rule: recurrence): Date | null 
 
     case RecurrenceFrequency.MONTHLY:
       const newMonthDate = new Date(lastDate);
-      // Go to the next month
-      newMonthDate.setUTCMonth(lastDate.getUTCMonth() + rule.interval);
-      // If the day of the month has changed (e.g., from 31 to 1 because the next month is shorter)
-      // set the date to the last day of the *previous* month (which is the intended month)
+      newMonthDate.setUTCMonth(lastDate.getUTCMonth() + rule.interval, lastDate.getUTCDate());
       if (newMonthDate.getUTCDate() < lastDate.getUTCDate()) {
         newMonthDate.setUTCDate(0);
       }
@@ -61,26 +58,20 @@ const generateNextInstance = async (tx: Prisma.TransactionClient, currentReminde
   const template = currentReminder.recurring_template ?? currentReminder;
   const rule = template.recurrence;
 
-  if (!rule) return; // Series has been cancelled or was never recurring.
+  if (!rule) return;
 
-  // --- FIX: Check if any future instances already exist ---
   const futureInstanceExists = await tx.reminders.findFirst({
     where: {
       recurring_template_id: template.id,
       reminder_date: { gt: currentReminder.reminder_date },
     },
   });
-  // If a future instance already exists, the chain is not broken. Do nothing.
-  if (futureInstanceExists) {
-    return;
-  }
+  if (futureInstanceExists) return;
 
   const nextDate = calculateNextOccurrence(currentReminder.reminder_date, rule);
   if (!nextDate) return;
 
-  if (rule.endDate && nextDate > rule.endDate) {
-    return;
-  }
+  if (rule.endDate && nextDate > rule.endDate) return;
 
   if (rule.endAfterOccurrences) {
     const templateId = template.id;
@@ -89,18 +80,13 @@ const generateNextInstance = async (tx: Prisma.TransactionClient, currentReminde
         OR: [{ id: templateId }, { recurring_template_id: templateId }],
       },
     });
-    if (instanceCount >= rule.endAfterOccurrences) {
-      return;
-    }
+    if (instanceCount >= rule.endAfterOccurrences) return;
   }
 
-  // Final check for exact duplicates, just in case.
   const exactDuplicateExists = await tx.reminders.findFirst({
     where: { recurring_template_id: template.id, reminder_date: nextDate },
   });
-  if (exactDuplicateExists) {
-    return;
-  }
+  if (exactDuplicateExists) return;
 
   await tx.reminders.create({
     data: {
@@ -147,7 +133,12 @@ export const getReminderById = async (id: string, userId: string): Promise<Remin
 export const deleteReminder = async (id: string, userId: string, deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'): Promise<void> => {
   const reminder = await reminderRepository.findFullById(id);
   if (!reminder) throw new NotFoundError('Reminder not found');
-  if (reminder.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
+  if (reminder.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder' }]);
+
+  // UNIVERSAL RULE: A 'done' reminder is history and cannot be deleted, period.
+  if (reminder.reminder_status === 'done') {
+    throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
+  }
 
   const isRecurring = reminder.recurrence || reminder.recurring_template;
   const scope = deleteScope ?? 'THIS_INSTANCE_ONLY';
@@ -157,12 +148,12 @@ export const deleteReminder = async (id: string, userId: string, deleteScope?: '
     const template = reminder.recurring_template ?? reminder;
 
     await prisma.$transaction(async (tx) => {
-      // 1. Delete the recurrence rule to stop the series. This is safe.
+      // 1. Delete the recurrence rule to stop the series.
       await tx.recurrence.deleteMany({
         where: { reminder_id: template.id },
       });
 
-      // 2. Manually delete any future, un-done instances. This is safe.
+      // 2. Delete any other future, un-done instances.
       await tx.reminders.deleteMany({
         where: {
           recurring_template_id: template.id,
@@ -170,20 +161,14 @@ export const deleteReminder = async (id: string, userId: string, deleteScope?: '
         },
       });
 
-      // 3. If the reminder being acted upon is the template itself AND it's not done,
-      // it should be deleted as it's now a cancelled, non-recurring, to-do item.
-      if (reminder.id === template.id && reminder.reminder_status !== 'done') {
-        await tx.reminders.delete({ where: { id: template.id } });
-      }
+      // 3. If the reminder being acted upon is itself a to_do instance (template or not), delete it.
+      await tx.notifications.deleteMany({ where: { reminder_id: reminder.id } });
+      await tx.reminders.delete({ where: { id: reminder.id } });
     });
     return;
   }
 
   //--- DELETE A SINGLE INSTANCE (OR A NON-RECURRING REMINDER) ---
-  if (reminder.reminder_status === 'done') {
-    throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
-  }
-
   await prisma.$transaction(async (tx) => {
     if (isRecurring) {
       await generateNextInstance(tx, reminder);
@@ -270,7 +255,7 @@ export const createNewReminder = async (newReminderData: CreateReminderPayload, 
 export const toggleReminderStatus = async (id: string, userId: string): Promise<ReminderWithPetName> => {
   const reminderToToggle = await reminderRepository.findFullById(id);
   if (!reminderToToggle) throw new NotFoundError('Reminder not found');
-  if (reminderToToggle.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
+  if (reminderToToggle.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder' }]);
 
   await prisma.$transaction(async (tx) => {
     let newStatus: reminder_status;
@@ -286,9 +271,7 @@ export const toggleReminderStatus = async (id: string, userId: string): Promise<
         newStatus = reminder_status.done;
         newStatusBeforeDone = reminderToToggle.reminder_status;
         newStatusDoneAt = new Date();
-        if (healthCategories.includes(reminderToToggle.category_name)) {
-          isHealthRecord = true;
-        }
+        if (healthCategories.includes(reminderToToggle.category_name)) isHealthRecord = true;
         break;
       case 'done':
         newStatus = isReminderOverdue(reminderToToggle, new Date()) ? reminder_status.overdue : reminder_status.to_do;
@@ -341,52 +324,98 @@ export const updateReminder = async (
   userId: string,
   updateData: UpdateReminderPayload
 ): Promise<ReminderWithPetName> => {
-  const existingReminder = await reminderRepository.findById(reminderId);
-  if (!existingReminder) throw new NotFoundError('Reminder not found');
-  if (existingReminder.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
-  if (existingReminder.reminder_status === reminder_status.done) throw new BadRequestError('Cannot edit a reminder that is marked as "done".');
+  const { editScope, recurrence, ...reminderUpdateData } = updateData;
 
-  const newPetId = updateData.petId ?? existingReminder.pet_id;
-  if (updateData.petId && updateData.petId !== existingReminder.pet_id) {
-    const pet = await prisma.pets.findFirst({ where: { id: updateData.petId, user_id: userId } });
-    if (!pet) throw new NotFoundError('The pet was not found for this user.');
+  const reminderToUpdate = await reminderRepository.findFullById(reminderId);
+  if (!reminderToUpdate) throw new NotFoundError('Reminder not found');
+  if (reminderToUpdate.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder' }]);
+
+  const isChangingDateOrRecurrence = updateData.reminderDate || updateData.reminderTime || updateData.recurrence;
+  if (reminderToUpdate.reminder_status === 'done' && isChangingDateOrRecurrence) {
+    throw new BadRequestError('Cannot change date, time, or recurrence of a reminder that is marked as "done".');
   }
 
-  const newReminderName = updateData.reminderName ?? existingReminder.reminder_name;
-  const newReminderDate = updateData.reminderDate ? new Date(updateData.reminderDate) : existingReminder.reminder_date;
+  const isRecurring = reminderToUpdate.recurrence || reminderToUpdate.recurring_template;
 
-  if (updateData.reminderName || updateData.reminderDate) {
-    const conflictingReminder = await prisma.reminders.findFirst({
-      where: { id: { not: reminderId }, pet_id: newPetId, reminder_name: newReminderName, reminder_date: newReminderDate },
+  //--- "SPLIT THE SERIES" LOGIC BY UPGRADING THE CURRENT INSTANCE ---
+  if (isRecurring && editScope === 'THIS_AND_FUTURE_INSTANCES') {
+    const originalTemplate = reminderToUpdate.recurring_template ?? reminderToUpdate;
+    const originalRule = originalTemplate.recurrence;
+    if (!originalRule) throw new BadRequestError('Original series template or rule not found for update.');
+
+    const updatedResult = await prisma.$transaction(async (tx) => {
+      // 1. Delete the old recurrence rule. The old template becomes a historical artifact.
+      await tx.recurrence.delete({
+        where: { id: originalRule.id },
+      });
+
+      // 2. Delete any other future instances belonging to the old series.
+      await tx.reminders.deleteMany({
+        where: {
+          recurring_template_id: originalTemplate.id,
+          reminder_date: { gt: reminderToUpdate.reminder_date },
+        },
+      });
+
+      // 3. "Upgrade" the current instance to become the new template.
+      const newReminderTime = reminderUpdateData.reminderTime ? new Date(`1970-01-01T${reminderUpdateData.reminderTime}Z`) : reminderToUpdate.reminder_time;
+      await tx.reminders.update({
+        where: { id: reminderToUpdate.id },
+        data: {
+          recurring_template_id: null, // It is now its own template.
+          reminder_name: reminderUpdateData.reminderName ?? reminderToUpdate.reminder_name,
+          description: reminderUpdateData.description ?? reminderToUpdate.description,
+          category_name: reminderUpdateData.categoryName ?? reminderToUpdate.category_name,
+          reminder_time: newReminderTime,
+          reminder_date: reminderUpdateData.reminderDate ? new Date(reminderUpdateData.reminderDate) : reminderToUpdate.reminder_date,
+        },
+      });
+
+      // 4. Create a new recurrence rule and attach it to the newly upgraded instance.
+      await tx.recurrence.create({
+        data: {
+          reminder_id: reminderToUpdate.id, // Attached to the upgraded instance
+          frequency: recurrence?.frequency ?? originalRule.frequency,
+          interval: recurrence?.interval ?? originalRule.interval,
+          daysOfWeek: recurrence?.daysOfWeek ?? originalRule.daysOfWeek,
+          reminder_time: newReminderTime,
+          endDate: recurrence?.endDate ? new Date(recurrence.endDate) : originalRule.endDate,
+          endAfterOccurrences: recurrence?.endAfterOccurrences ?? originalRule.endAfterOccurrences,
+        },
+      });
+
+      // Return the ID of the reminder that was just upgraded.
+      return reminderToUpdate;
     });
-    if (conflictingReminder) throw new ConflictError('A reminder with this name and date already exists for the selected pet.');
+
+    const finalUpdatedReminder = await reminderRepository.findFullById(updatedResult.id);
+    if (!finalUpdatedReminder) throw new Error('Failed to retrieve updated reminder.');
+    return mapPrismaReminderWithPetToReminder(finalUpdatedReminder);
   }
 
-  const reminderTime = updateData.reminderTime === null ? null : updateData.reminderTime ? new Date(`1970-01-01T${updateData.reminderTime}Z`) : existingReminder.reminder_time;
-  const tempReminder = { reminder_date: newReminderDate, reminder_time: reminderTime } as reminders;
-  const newStatus = isReminderOverdue(tempReminder, new Date()) ? reminder_status.overdue : reminder_status.to_do;
+  //--- LOGIC FOR EDITING A SINGLE INSTANCE (OR NON-RECURRING) ---
+  const dataToUpdate: Prisma.remindersUpdateInput = {};
+  const finalDate = reminderUpdateData.reminderDate ? new Date(reminderUpdateData.reminderDate) : reminderToUpdate.reminder_date;
+  const finalTime = reminderUpdateData.reminderTime === null ? null : reminderUpdateData.reminderTime ? new Date(`1970-01-01T${reminderUpdateData.reminderTime}Z`) : reminderToUpdate.reminder_time;
+  const tempForStatus = { reminder_date: finalDate, reminder_time: finalTime } as reminders;
+  dataToUpdate.reminder_status = isReminderOverdue(tempForStatus, new Date()) ? 'overdue' : 'to_do';
 
-  const dataToUpdate: Prisma.remindersUpdateInput = { reminder_status: newStatus };
+  if (reminderUpdateData.reminderName) dataToUpdate.reminder_name = reminderUpdateData.reminderName;
+  if (reminderUpdateData.description !== undefined) dataToUpdate.description = reminderUpdateData.description;
+  if (reminderUpdateData.categoryName) dataToUpdate.category_name = reminderUpdateData.categoryName;
+  if (reminderUpdateData.petId) dataToUpdate.pets = { connect: { id: reminderUpdateData.petId } };
+  if (reminderUpdateData.reminderDate) dataToUpdate.reminder_date = finalDate;
+  if (reminderUpdateData.reminderTime !== undefined) dataToUpdate.reminder_time = finalTime;
 
-  if (updateData.petId) dataToUpdate.pets = { connect: { id: updateData.petId } };
-  if (updateData.reminderName) dataToUpdate.reminder_name = updateData.reminderName;
-  if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
-  if (updateData.reminderDate) dataToUpdate.reminder_date = new Date(updateData.reminderDate);
-  if (updateData.reminderTime !== undefined) dataToUpdate.reminder_time = reminderTime;
-  if (updateData.categoryName !== undefined) {
-    if (existingReminder.parent_id != null && existingReminder.category_name === category_name.Vaccination) {
-      throw new ConflictError('Cannot change the category of a vaccination reminder.');
-    }
-    dataToUpdate.category_name = updateData.categoryName;
+  if (Object.keys(reminderUpdateData).length === 0) {
+    throw new BadRequestError('Request body must contain at least one valid field to update.');
   }
-
-  if (Object.keys(updateData).length === 0) throw new BadRequestError('Request body must contain at least one valid field to update.');
 
   await prisma.reminders.update({ where: { id: reminderId }, data: dataToUpdate });
 
-  const updatedReminderWithPet = await reminderRepository.findById(reminderId);
-  if (!updatedReminderWithPet) throw new Error('Failed to retrieve reminder after update.');
-  return mapPrismaReminderWithPetToReminder(updatedReminderWithPet);
+  const updatedReminder = await reminderRepository.findFullById(reminderId);
+  if (!updatedReminder) throw new Error('Failed to retrieve reminder after update.');
+  return mapPrismaReminderWithPetToReminder(updatedReminder);
 };
 
 export const updateOverdueReminders = async (): Promise<void> => {
