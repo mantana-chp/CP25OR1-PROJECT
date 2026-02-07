@@ -1,6 +1,6 @@
 import * as reminderRepository from './reminder-repository';
-import { ReminderWithPetName } from './reminder-types';
-import { mapPrismaReminderWithPetToReminder } from './reminder-mapper';
+import { ReminderWithPetName, FullReminderDto } from './reminder-types';
+import { mapPrismaReminderWithPetToReminder, mapFullPrismaReminderToFullReminderDto } from './reminder-mapper';
 import { NotFoundError, ApiError, BadRequestError, ConflictError } from '../../shared/errors';
 import { reminder_status, category_name, reminders, Prisma, recurrence, RecurrenceFrequency } from '../../generated/prisma/client';
 import prisma from '../../libs/db';
@@ -117,17 +117,21 @@ const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
   }
 };
 
-export const getAllReminders = async (userId: string): Promise<ReminderWithPetName[]> => {
+export const getAllReminders = async (userId: string): Promise<{ reminders: ReminderWithPetName[]; recurringRules: recurrence[] }> => {
   const notDoneReminders = await reminderRepository.findNotDoneByUserId(userId);
   const doneReminders = await reminderRepository.findDoneByUserId(userId);
-  return [...notDoneReminders, ...doneReminders];
+  const recurringRules = await reminderRepository.findActiveRecurrenceRulesByUserId(userId);
+  return {
+    reminders: [...notDoneReminders, ...doneReminders],
+    recurringRules,
+  };
 };
 
-export const getReminderById = async (id: string, userId: string): Promise<ReminderWithPetName> => {
-  const reminder = await reminderRepository.findById(id);
+export const getReminderById = async (id: string, userId: string): Promise<FullReminderDto> => {
+  const reminder = await reminderRepository.findFullById(id);
   if (!reminder) throw new NotFoundError('Reminder not found');
   if (reminder.user_id !== userId) throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder', code: 403 }]);
-  return mapPrismaReminderWithPetToReminder(reminder);
+  return mapFullPrismaReminderToFullReminderDto(reminder);
 };
 
 export const deleteReminder = async (id: string, userId: string, deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'): Promise<void> => {

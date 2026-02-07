@@ -1,7 +1,7 @@
 import prisma from '../../libs/db';
 import { Reminder, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderToReminder, mapPrismaReminderWithPetToReminder } from './reminder-mapper';
-import { Prisma, reminder_status, reminders } from '../../generated/prisma/client';
+import { Prisma, recurrence, reminder_status, reminders } from '../../generated/prisma/client';
 
 // Define a type that includes the 'pets' relation for the parent and the direct children
 export type ReminderWithPetPayload = Prisma.remindersGetPayload<{
@@ -127,4 +127,16 @@ export const findFullById = async (id: string) => {
       },
     },
   });
+};
+
+export const findActiveRecurrenceRulesByUserId = async (userId: string): Promise<recurrence[]> => {
+  const recurrenceRules = await prisma.recurrence.findMany({
+    where: {
+      reminder: {
+        user_id: userId,
+        parent_id: null,
+      },
+    },
+  });
+  return recurrenceRules;
 };
