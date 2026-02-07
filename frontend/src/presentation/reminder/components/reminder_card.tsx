@@ -32,10 +32,14 @@ import {
   Tag,
   Trash2
 } from 'lucide-react-native'
+import DeleteSeriesModal from './delete_series_modal'
 
 interface ReminderCardProps {
   reminder: IReminder
-  onDelete?: (id: string) => void
+  onDelete?: (
+    id: string,
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+  ) => void
   isDeleting?: boolean
   canDelete?: boolean
   onPress?: (id: string) => void
@@ -59,6 +63,7 @@ export default function ReminderCard(props: ReminderCardProps) {
   // STATE
   // ------------------
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+  const [showSeriesModal, setShowSeriesModal] = React.useState(false)
 
   // ------------------
   // CONST
@@ -134,7 +139,12 @@ export default function ReminderCard(props: ReminderCardProps) {
   }
 
   const handleDeletePress = () => {
-    setShowDeleteModal(true)
+    // Check if reminder is recurring
+    if (reminder.recurrence) {
+      setShowSeriesModal(true)
+    } else {
+      setShowDeleteModal(true)
+    }
   }
 
   const handleConfirmDelete = () => {
@@ -150,6 +160,32 @@ export default function ReminderCard(props: ReminderCardProps) {
 
   const handleCancelDelete = () => {
     setShowDeleteModal(false)
+  }
+
+  const handleDeleteThisOnly = () => {
+    if (isDeleting) return
+
+    setShowSeriesModal(false)
+    closeDeleteButton()
+
+    if (onDelete) {
+      onDelete(reminder.id, 'THIS_INSTANCE_ONLY')
+    }
+  }
+
+  const handleDeleteAll = () => {
+    if (isDeleting) return
+
+    setShowSeriesModal(false)
+    closeDeleteButton()
+
+    if (onDelete) {
+      onDelete(reminder.id, 'ALL_INSTANCES')
+    }
+  }
+
+  const handleCloseSeriesModal = () => {
+    setShowSeriesModal(false)
   }
 
   const handleCardPress = () => {
@@ -370,6 +406,15 @@ export default function ReminderCard(props: ReminderCardProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Series Modal for Recurring Reminders */}
+      <DeleteSeriesModal
+        visible={showSeriesModal}
+        onClose={handleCloseSeriesModal}
+        onDeleteThisOnly={handleDeleteThisOnly}
+        onDeleteAll={handleDeleteAll}
+        reminderName={reminder.reminderName}
+      />
     </View>
   )
 }
