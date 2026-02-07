@@ -87,10 +87,19 @@ export interface IReminder {
   updatedAt: string
   children: IReminder[]
   // Recurrence fields
-  isRecurring?: boolean
-  recurrenceRule?: IRecurrenceRule
-  seriesId?: string // Links all reminders in a recurring series
-  parentReminderId?: string // Reference to parent reminder in series
+  recurrence?: {
+    id: string
+    reminderId: string
+    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+    interval: number
+    daysOfWeek?: number
+    dayOfMonth?: number | null
+    reminderTime?: string
+    endDate?: string | null
+    endAfterOccurrences?: number | null
+    createdAt: string
+    updatedAt: string
+  }
   occurrenceNumber?: number // Which occurrence this is (1, 2, 3, etc.)
 }
 
@@ -110,11 +119,8 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     createdAt: v.createdAt || '',
     updatedAt: v.updatedAt || '',
     children: v.children || [],
-    isRecurring: v.isRecurring || false,
-    recurrenceRule: v.recurrenceRule,
-    seriesId: v.seriesId,
-    parentReminderId: v.parentReminderId,
-    occurrenceNumber: v.occurrenceNumber || 1
+    recurrence: v.recurrence,
+    occurrenceNumber: v.occurrenceNumber
   }
 }
 

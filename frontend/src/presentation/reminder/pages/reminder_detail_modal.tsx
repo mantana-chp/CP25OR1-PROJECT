@@ -2,6 +2,10 @@ import { getCategoryInfo } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
+  convertFromBackendRecurrence,
+  formatRecurrenceText
+} from '@/src/utils/recurrence.utils'
+import {
   Bone,
   CalendarDays,
   Check,
@@ -12,6 +16,7 @@ import {
   PawPrint,
   Pill,
   Pipette,
+  Repeat,
   Scissors,
   SearchX,
   Stethoscope,
@@ -156,7 +161,7 @@ export default function ReminderDetailModal({
             </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={20} color={'#2E759E'} />
+              <PawPrint size={20} color={'#225877'} />
               <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
@@ -192,14 +197,31 @@ export default function ReminderDetailModal({
               </View>
             )}
 
-            {/* {reminder?.description && reminder.description !== '-' && ( */}
-            <View style={styles.descriptionSection}>
-              <Text style={styles.descriptionLabel}>รายละเอียด</Text>
-              <Text style={styles.descriptionText}>
-                {reminder?.description || '-'}
-              </Text>
-            </View>
-            {/* )} */}
+            {/* Recurring Information */}
+            {reminder?.recurrence && (
+              <View style={styles.recurringSection}>
+                <View style={styles.recurringInfo}>
+                  <Repeat size={16} color="#225877" />
+                  <Text style={styles.recurringText}>
+                    {formatRecurrenceText(
+                      convertFromBackendRecurrence(reminder.recurrence)
+                    )}
+                    {reminder.occurrenceNumber
+                      ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
+                      : ''}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {reminder?.description && (
+              <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionLabel}>รายละเอียด</Text>
+                <Text style={styles.descriptionText}>
+                  {reminder?.description}
+                </Text>
+              </View>
+            )}
 
             {/* Child Reminders Section */}
             {reminder?.children && reminder.children.length > 0 && (
@@ -550,5 +572,34 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center'
+  },
+  recurringSection: {
+    gap: 8
+  },
+  recurringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start'
+  },
+  recurringBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
+  },
+  recurringInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  recurringText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877',
+    flex: 1
   }
 })

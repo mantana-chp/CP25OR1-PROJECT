@@ -12,6 +12,7 @@ import { IDose } from '@/src/domain/vaccine.domain'
 import { useError } from '@/src/presentation/components/error_context'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import { convertToBackendRecurrence } from '@/src/utils/recurrence.utils'
 
 import { usePets } from '@/src/context/PetContext'
 import { useLocalSearchParams } from 'expo-router'
@@ -89,12 +90,15 @@ export default function AddReminderPage() {
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: values.petId,
-        isRecurring: !!recurrenceRule && recurrenceRule.type !== 'none',
-        recurrenceRule:
-          recurrenceRule && recurrenceRule.type !== 'none'
-            ? recurrenceRule
-            : undefined
+        petId: values.petId
+      }
+
+      // Convert frontend recurrence format to backend format
+      if (recurrenceRule && recurrenceRule.type !== 'none') {
+        const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
+        if (backendRecurrence) {
+          submitData.recurrence = backendRecurrence
+        }
       }
 
       if (

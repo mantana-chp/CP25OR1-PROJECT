@@ -101,16 +101,18 @@ export default function ReminderList({
     [tempDoneIds, updateStatusApi, onRefresh]
   )
 
-  const filteredReminders = reminders.filter((reminder) => {
-    if (activeTab === 'to_do') {
-      return (
-        reminder.reminderStatus === 'to_do' ||
-        reminder.reminderStatus === 'overdue'
-      )
-    } else {
-      return reminder.reminderStatus === activeTab
+  const filteredReminders = (Array.isArray(reminders) ? reminders : []).filter(
+    (reminder) => {
+      if (activeTab === 'to_do') {
+        return (
+          reminder.reminderStatus === 'to_do' ||
+          reminder.reminderStatus === 'overdue'
+        )
+      } else {
+        return reminder.reminderStatus === activeTab
+      }
     }
-  })
+  )
 
   return (
     <View style={styles.container}>

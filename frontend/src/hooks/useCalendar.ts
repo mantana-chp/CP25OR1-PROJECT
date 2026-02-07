@@ -29,6 +29,7 @@ export const useCalendar = (reminders: IReminder[] = []) => {
   }
 
   const hasReminders = (date: Date) => {
+    if (!Array.isArray(reminders)) return false
     return reminders.some((reminder) => {
       const reminderDate = new Date(reminder.reminderDate)
       return (
@@ -40,6 +41,7 @@ export const useCalendar = (reminders: IReminder[] = []) => {
   }
 
   const getReminderCount = (date: Date) => {
+    if (!Array.isArray(reminders)) return 0
     return reminders.filter((reminder) => {
       const reminderDate = new Date(reminder.reminderDate)
       return (
@@ -51,6 +53,7 @@ export const useCalendar = (reminders: IReminder[] = []) => {
   }
 
   const getRemindersForDate = (date: Date) => {
+    if (!Array.isArray(reminders)) return []
     return reminders.filter((reminder) => {
       const reminderDate = new Date(reminder.reminderDate)
       return (

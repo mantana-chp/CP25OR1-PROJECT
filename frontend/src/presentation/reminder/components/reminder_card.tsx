@@ -15,7 +15,10 @@ import {
   View
 } from 'react-native'
 
-import { formatRecurrenceText } from '@/src/utils/recurrence.utils'
+import {
+  convertFromBackendRecurrence,
+  formatRecurrenceText
+} from '@/src/utils/recurrence.utils'
 import {
   Bone,
   Clock,
@@ -236,41 +239,12 @@ export default function ReminderCard(props: ReminderCardProps) {
               >
                 {reminder?.reminderName}
               </Text>
-              {reminder?.isRecurring && (
+              {reminder?.recurrence && (
                 <View style={styles.recurringBadge}>
                   <Repeat size={12} color="#5FA7D1" />
                 </View>
               )}
             </View>
-
-            {/* Show recurrence info if recurring */}
-            {reminder?.isRecurring && reminder?.recurrenceRule && (
-              <View style={styles.infoRow}>
-                <Repeat
-                  size={14}
-                  color={
-                    reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#5FA7D1'
-                  }
-                />
-                <Text
-                  style={[
-                    styles.recurrenceText,
-                    reminder?.reminderStatus === 'overdue' && styles.overdueText
-                  ]}
-                >
-                  {formatRecurrenceText(reminder.recurrenceRule, 'th')}
-                  {reminder.occurrenceNumber &&
-                    reminder.occurrenceNumber > 1 && (
-                      <Text style={styles.occurrenceNumber}>
-                        {' '}
-                        (ครั้งที่ {reminder.occurrenceNumber})
-                      </Text>
-                    )}
-                </Text>
-              </View>
-            )}
 
             <View style={styles.infoRow}>
               <PawPrint
@@ -307,6 +281,37 @@ export default function ReminderCard(props: ReminderCardProps) {
                   : formattedDate}
               </Text>
             </View>
+            {/* Recurrence info if recurring */}
+            {reminder?.recurrence && (
+              <View style={styles.infoRow}>
+                <Repeat
+                  size={14}
+                  color={
+                    reminder?.reminderStatus === 'overdue'
+                      ? '#BF1737'
+                      : '#5FA7D1'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.recurrenceText,
+                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                  ]}
+                >
+                  {formatRecurrenceText(
+                    convertFromBackendRecurrence(reminder.recurrence),
+                    'th'
+                  )}
+                  {reminder.occurrenceNumber &&
+                    reminder.occurrenceNumber > 1 && (
+                      <Text style={styles.occurrenceNumber}>
+                        {' '}
+                        (ครั้งที่ {reminder.occurrenceNumber})
+                      </Text>
+                    )}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Right side - Category tag */}

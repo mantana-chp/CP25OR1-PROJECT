@@ -1,4 +1,8 @@
-import { IRecurrenceRule, Weekday } from '../domain/reminder.domain'
+import {
+  IRecurrenceRule,
+  RecurrenceType,
+  Weekday
+} from '../domain/reminder.domain'
 
 /**
  * Calculate the next occurrence date based on recurrence rule
@@ -246,4 +250,139 @@ export const getWeekdayFullNameThai = (weekday: Weekday): string => {
  */
 export const generateSeriesId = (): string => {
   return `series_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+/**
+ * Backend API recurrence payload interface
+ */
+export interface RecurrencePayload {
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+  interval: number
+  daysOfWeek?: number
+  dayOfMonth?: number
+  endDate?: string
+  endAfterOccurrences?: number
+}
+
+/**
+ * Convert frontend IRecurrenceRule to backend RecurrencePayload
+ */
+export const convertToBackendRecurrence = (
+  rule: IRecurrenceRule
+): RecurrencePayload | null => {
+  // Don't send recurrence if type is 'none'
+  if (rule.type === 'none') {
+    return null
+  }
+
+  const payload: RecurrencePayload = {
+    frequency: rule.type.toUpperCase() as
+      | 'DAILY'
+      | 'WEEKLY'
+      | 'MONTHLY'
+      | 'YEARLY',
+    interval: rule.interval
+  }
+
+  // Calculate daysOfWeek bitmask for weekly recurrence
+  if (rule.type === 'weekly' && rule.weekdays && rule.weekdays.length > 0) {
+    const dayValues: Record<Weekday, number> = {
+      sunday: 1,
+      monday: 2,
+      tuesday: 4,
+      wednesday: 8,
+      thursday: 16,
+      friday: 32,
+      saturday: 64
+    }
+
+    let daysOfWeekValue = 0
+    for (const day of rule.weekdays) {
+      daysOfWeekValue += dayValues[day]
+    }
+    payload.daysOfWeek = daysOfWeekValue
+  }
+
+  // Add dayOfMonth for monthly recurrence (only if not 'last_day')
+  if (
+    rule.type === 'monthly' &&
+    rule.monthlyType === 'day_of_month' &&
+    rule.dayOfMonth
+  ) {
+    payload.dayOfMonth = rule.dayOfMonth
+  }
+
+  // Add end conditions
+  if (rule.endType === 'on_date' && rule.endDate) {
+    payload.endDate = rule.endDate
+  } else if (rule.endType === 'after' && rule.endAfterOccurrences) {
+    payload.endAfterOccurrences = rule.endAfterOccurrences
+  }
+
+  return payload
+}
+
+/**
+ * Convert backend recurring rule to frontend IRecurrenceRule
+ */
+export const convertFromBackendRecurrence = (
+  backendRule: any
+): IRecurrenceRule => {
+  const frequency = backendRule.frequency as
+    | 'DAILY'
+    | 'WEEKLY'
+    | 'MONTHLY'
+    | 'YEARLY'
+
+  const rule: IRecurrenceRule = {
+    type: frequency.toLowerCase() as RecurrenceType,
+    interval: backendRule.interval || 1,
+    endType: 'never'
+  }
+
+  // Convert daysOfWeek bitmask back to array for weekly recurrence
+  if (frequency === 'WEEKLY' && backendRule.daysOfWeek) {
+    const dayValues: Record<number, Weekday> = {
+      1: 'sunday',
+      2: 'monday',
+      4: 'tuesday',
+      8: 'wednesday',
+      16: 'thursday',
+      32: 'friday',
+      64: 'saturday'
+    }
+
+    const weekdays: Weekday[] = []
+    const bitmask = backendRule.daysOfWeek
+
+    // Check each bit
+    for (const [value, day] of Object.entries(dayValues)) {
+      if (bitmask & parseInt(value)) {
+        weekdays.push(day)
+      }
+    }
+
+    rule.weekdays = weekdays
+  }
+
+  // Handle monthly recurrence
+  if (frequency === 'MONTHLY') {
+    if (backendRule.dayOfMonth) {
+      rule.monthlyType = 'day_of_month'
+      rule.dayOfMonth = backendRule.dayOfMonth
+    } else {
+      rule.monthlyType = 'last_day'
+    }
+  }
+
+  // Handle end conditions
+  if (backendRule.endDate) {
+    rule.endType = 'on_date'
+    rule.endDate = backendRule.endDate
+  } else if (backendRule.endAfterOccurrences) {
+    rule.endType = 'after'
+    rule.endAfterOccurrences = backendRule.endAfterOccurrences
+  }
+
+  return rule
 }
