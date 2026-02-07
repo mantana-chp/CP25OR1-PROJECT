@@ -86,7 +86,7 @@ model reminders {
   // --- Recurrence ---
   recurrence              recurrence?      // Links to the rules if this is a template.
   recurring_template_id   String?          @db.Uuid
-  recurring_template      reminders?       @relation("RecurrenceSeries", fields: [recurring_template_id], references: [id], onDelete: Cascade)
+  recurring_template      reminders?       @relation("RecurrenceSeries", fields: [recurring_template_id], references: [id])
   recurring_instances     reminders[]      @relation("RecurrenceSeries")
 
   // --- EXISTING relationship for vaccines ---

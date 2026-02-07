@@ -26,8 +26,8 @@ const calculateNextOccurrence = (lastDate: Date, rule: recurrence): Date | null 
 
           if ((rule.daysOfWeek & dayBit) > 0) {
             // Simple interval logic for now, more complex logic might be needed for multi-week intervals with specific days
-            if ((i - 1) % (7 * rule.interval) === 0 || rule.interval === 1) {
-              return checkDate;
+            if ((i-1) % (7 * rule.interval) === 0 || rule.interval === 1) {
+               return checkDate;
             }
           }
         }
@@ -50,7 +50,7 @@ const calculateNextOccurrence = (lastDate: Date, rule: recurrence): Date | null 
     case RecurrenceFrequency.YEARLY:
       nextDate.setUTCFullYear(lastDate.getUTCFullYear() + rule.interval);
       break;
-
+      
     default:
       return null;
   }
@@ -74,7 +74,7 @@ const generateNextInstance = async (tx: Prisma.TransactionClient, currentReminde
   if (futureInstanceExists) {
     return;
   }
-
+  
   const nextDate = calculateNextOccurrence(currentReminder.reminder_date, rule);
   if (!nextDate) return;
 
@@ -155,7 +155,7 @@ export const deleteReminder = async (id: string, userId: string, deleteScope?: '
   //--- CANCEL A RECURRING SERIES ---
   if (isRecurring && scope === 'ALL_INSTANCES') {
     const template = reminder.recurring_template ?? reminder;
-
+    
     await prisma.$transaction(async (tx) => {
       // 1. Delete the recurrence rule to stop the series. This is safe.
       await tx.recurrence.deleteMany({
@@ -183,7 +183,7 @@ export const deleteReminder = async (id: string, userId: string, deleteScope?: '
   if (reminder.reminder_status === 'done') {
     throw new BadRequestError('Reminders with status "Done" cannot be deleted.');
   }
-
+  
   await prisma.$transaction(async (tx) => {
     if (isRecurring) {
       await generateNextInstance(tx, reminder);
