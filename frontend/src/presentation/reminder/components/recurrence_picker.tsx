@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   mainModalTitle: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
-    color: '#8E8E93'
+    color: '#225877'
   },
   mainModalBody: {
     paddingVertical: 8
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   presetOptionText: {
     fontSize: 17,
     fontFamily: 'Prompt_400Regular',
-    color: '#000',
+    color: '#225877',
     flex: 1
   },
   customOptionRow: {
@@ -570,8 +570,6 @@ const styles = StyleSheet.create({
     color: '#225877',
     marginBottom: 12
   },
-
-  // Frequency Chips (iPhone style)
   frequencyRow: {
     flexDirection: 'row',
     gap: 8
