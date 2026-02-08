@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { category_name } from '../../generated/prisma/client';
+import { z } from 'zod'
+import { category_name } from '../../generated/prisma/client'
 
 const simpleReminderObject = z.object({
   reminderName: z.string().min(1, 'Reminder Name is required'),
@@ -7,7 +7,7 @@ const simpleReminderObject = z.object({
   reminderDate: z.string().min(1, 'Reminder Date is required'),
   reminderTime: z.string().optional(),
   categoryName: z.enum(category_name).optional(),
-});
+})
 
 export const createReminderSchema = z.object({
   body: z.object({
@@ -19,11 +19,11 @@ export const createReminderSchema = z.object({
     categoryName: z.enum(category_name).optional(),
     children: z.array(simpleReminderObject).optional(),
   }),
-});
+})
 
 export const getReminderByIdSchema = z.object({
-  id: z.uuid({ message: "Invalid reminder ID format" }),
-});
+  id: z.uuid({ message: 'Invalid reminder ID format' }),
+})
 
 export const updateReminderSchema = z.object({
   params: z.object({
@@ -36,8 +36,25 @@ export const updateReminderSchema = z.object({
     reminderDate: z.string().min(1, 'Reminder Date is required').optional(),
     reminderTime: z.string().optional().nullable(),
     categoryName: z.enum(category_name).optional(),
+    children: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          reminderName: z.string().min(1, 'Reminder Name is required'),
+          description: z.string().optional(),
+          reminderDate: z.string().min(1, 'Reminder Date is required'),
+          reminderTime: z.string().optional(),
+          categoryName: z.enum(category_name).optional(),
+        }),
+      )
+      .optional(),
+    childrenToDelete: z.array(z.string()).optional(),
   }),
-});
+})
 
-export type CreateReminderPayload = z.infer<typeof createReminderSchema.shape.body>;
-export type UpdateReminderPayload = z.infer<typeof updateReminderSchema.shape.body>;
+export type CreateReminderPayload = z.infer<
+  typeof createReminderSchema.shape.body
+>
+export type UpdateReminderPayload = z.infer<
+  typeof updateReminderSchema.shape.body
+>
