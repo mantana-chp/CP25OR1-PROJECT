@@ -92,19 +92,38 @@ export default function PetProfilePage() {
     }, [loadReminders, loadHealthRecords, loadPets])
   )
 
-  const reminders = getRemindersApi.data?.data || []
+  const reminders = getRemindersApi.data?.data?.reminders || []
+  const recurringRules = getRemindersApi.data?.data?.recurringRules || []
   const pets = getPetsApi.data?.data || []
 
-  // Use context pets as primary source since it's always up to date
+  const safeReminders = Array.isArray(reminders) ? reminders : []
+
+  const remindersWithRecurrence = safeReminders.map((reminder) => {
+    const recurringRule = Array.isArray(recurringRules)
+      ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
+      : null
+
+    if (recurringRule) {
+      return {
+        ...reminder,
+        recurrence: recurringRule
+      }
+    }
+
+    return reminder
+  })
+
   const displayPets = contextPets.length > 0 ? contextPets : pets
   const currentPet =
     displayPets.length > 0 ? displayPets[currentPetIndex] : null
   const healthRecords = getHealthRecordsApi.data?.data || []
 
-  // Filter reminders for the current pet
   const petReminders = currentPet
-    ? _.filter(reminders, (reminder) => reminder.petId === currentPet.id)
-    : reminders
+    ? _.filter(
+        remindersWithRecurrence,
+        (reminder) => reminder.petId === currentPet.id
+      )
+    : remindersWithRecurrence
 
   const upcomingReminders = _.filter(petReminders, (reminder) => {
     return reminder.reminderStatus === 'to_do'
@@ -114,16 +133,14 @@ export default function PetProfilePage() {
       const dateB = new Date(b.reminderDate).getTime()
       return dateA - dateB
     })
-    .slice(0, 5) // Show only 5 upcoming reminders
+    .slice(0, 5)
 
-  // Filter & Sort Health Records by latest Date and Time
   const healthHistoryList = _.filter(healthRecords, (record) => {
     const isCategoryMatch = HEALTH_CATEGORIES.includes(record.categoryName)
     const isDone = record.reminderStatus === 'done'
     const isPetMatch = currentPet ? record.petId === currentPet.id : true
     return isCategoryMatch && isDone && isPetMatch
   }).sort((a, b) => {
-    // combine date and time string to milliseconds
     const getTimestamp = (dateStr: string, timeStr: string) => {
       const d = new Date(dateStr)
       if (timeStr) {

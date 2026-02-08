@@ -3,6 +3,7 @@ import * as reminderService from './reminder-service';
 import {
   createReminderSchema,
   getReminderByIdSchema,
+  deleteReminderSchema,
   CreateReminderPayload,
   updateReminderSchema,
   UpdateReminderPayload,
@@ -41,9 +42,12 @@ export const updateReminder = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const deleteReminder = asyncHandler(async (req: Request, res: Response) => {
-  const { id: reminderId } = getReminderByIdSchema.parse(req.params);
+  const {
+    params: { id: reminderId },
+    query: { deleteScope },
+  } = deleteReminderSchema.parse(req);
   const { id: userId } = req.user!;
-  await reminderService.deleteReminder(reminderId, userId);
+  await reminderService.deleteReminder(reminderId, userId, deleteScope);
   sendSuccess(res, undefined, 200); // 200 OK not 204 just for consistency
 });
 

@@ -69,8 +69,11 @@ export default function ReminderList({
   }
 
   const handleDeleteReminder = useCallback(
-    async (id: string) => {
-      await deleteReminderApi.execute(id)
+    async (
+      id: string,
+      deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+    ) => {
+      await deleteReminderApi.execute(id, deleteScope)
     },
     [deleteReminderApi]
   )
@@ -101,16 +104,20 @@ export default function ReminderList({
     [tempDoneIds, updateStatusApi, onRefresh]
   )
 
-  const filteredReminders = reminders.filter((reminder) => {
-    if (activeTab === 'to_do') {
-      return (
-        reminder.reminderStatus === 'to_do' ||
-        reminder.reminderStatus === 'overdue'
-      )
-    } else {
-      return reminder.reminderStatus === activeTab
+  const filteredReminders = (Array.isArray(reminders) ? reminders : []).filter(
+    (reminder) => {
+      if (activeTab === 'to_do') {
+        return (
+          reminder.reminderStatus === 'to_do' ||
+          reminder.reminderStatus === 'overdue'
+        )
+      } else {
+        return reminder.reminderStatus === activeTab
+      }
     }
-  })
+  )
+
+  console.log(filteredReminders)
 
   return (
     <View style={styles.container}>
@@ -173,7 +180,7 @@ export default function ReminderList({
                     reminder={reminder}
                     instances={reminder.children || []}
                     onPress={() => handleReminderDetail(reminder.id)}
-                    onDelete={(id) => handleDeleteReminder(id)}
+                    onDelete={handleDeleteReminder}
                     onRefresh={onRefresh}
                     canDelete={reminder.reminderStatus !== 'done'}
                   />

@@ -61,7 +61,10 @@ interface RecurringReminderCardProps {
   instances: IReminder[]
   canDelete?: boolean
   onPress?: (id: string) => void
-  onDelete?: (reminderId: string) => void
+  onDelete?: (
+    reminderId: string,
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+  ) => void
   onRefresh?: () => void
 }
 
