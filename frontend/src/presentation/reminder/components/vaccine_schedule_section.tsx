@@ -27,6 +27,10 @@ interface VaccineScheduleSectionProps {
   onDose1DateChange: (dateString: string) => void
   onDose1TimeChange: (time: string) => void
   onCustomVaccineNameChange?: (name: string) => void
+  initialVaccineId?: number | null
+  initialVaccineName?: string
+  isEditMode?: boolean
+  initialCustomDoseCount?: number
 }
 
 export default function VaccineScheduleSection({
@@ -39,11 +43,15 @@ export default function VaccineScheduleSection({
   onDose1DateChange,
   onDose1TimeChange,
   onCustomVaccineNameChange,
+  initialVaccineId,
+  initialVaccineName,
+  isEditMode,
+  initialCustomDoseCount,
 }: VaccineScheduleSectionProps) {
   const { showError, showSuccess } = useError()
   const [vaccineList, setVaccineList] = useState<IVaccine[]>([])
   const [selectedVaccineId, setSelectedVaccineId] = useState<number | null>(
-    null,
+    initialVaccineId || null,
   )
   const [showVaccineDropdown, setShowVaccineDropdown] = useState(false)
   const [loadingVaccines, setLoadingVaccines] = useState(false)
@@ -51,8 +59,12 @@ export default function VaccineScheduleSection({
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [userEditedTime, setUserEditedTime] = useState(false)
   const [isSyncingDose1, setIsSyncingDose1] = useState(false)
-  const [isCustomVaccine, setIsCustomVaccine] = useState(false)
-  const [customVaccineName, setCustomVaccineName] = useState<string>('')
+  const [isCustomVaccine, setIsCustomVaccine] = useState<boolean>(
+    !initialVaccineId && initialVaccineName ? true : false,
+  )
+  const [customVaccineName, setCustomVaccineName] = useState<string>(
+    initialVaccineName || '',
+  )
   const [customDoseCount, setCustomDoseCount] = useState<number | null>(null)
   const [showCustomDoseInput, setShowCustomDoseInput] = useState(false)
   const [customDoseInputValue, setCustomDoseInputValue] = useState<string>('')
@@ -64,7 +76,17 @@ export default function VaccineScheduleSection({
 
   const formatDateForDisplay = (dateString: string): string => {
     try {
-      const date = new Date(dateString + 'T00:00:00')
+      if (!dateString) {
+        return 'Invalid Date'
+      }
+      let date: Date
+      // Handle ISO format with T
+      if (dateString.includes('T')) {
+        date = new Date(dateString)
+      } else {
+        // Handle YYYY-MM-DD format
+        date = new Date(dateString + 'T00:00:00')
+      }
       if (isNaN(date.getTime())) {
         return 'Invalid Date'
       }
@@ -80,6 +102,15 @@ export default function VaccineScheduleSection({
 
   const parseStringToDate = (dateString: string): Date => {
     try {
+      if (!dateString) {
+        return new Date()
+      }
+      // Handle both YYYY-MM-DD format and ISO date strings
+      if (dateString.includes('T')) {
+        // ISO format
+        return new Date(dateString.split('T')[0] + 'T00:00:00')
+      }
+      // YYYY-MM-DD format
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
       return date
@@ -118,6 +149,35 @@ export default function VaccineScheduleSection({
       setDoses([])
     }
   }, [isVaccinationCategory, petId, canUseVaccineSchedule])
+
+  useEffect(() => {
+    if (isEditMode && doses.length > 0 && !selectedVaccineId) {
+      setIsCustomVaccine(true)
+      if (initialVaccineName) {
+        setCustomVaccineName(initialVaccineName)
+        onCustomVaccineNameChange?.(initialVaccineName)
+      }
+      // Initialize custom dose count from initial data
+      if (initialCustomDoseCount) {
+        setCustomDoseCount(initialCustomDoseCount)
+        // If dose count > 6, activate custom input mode
+        if (initialCustomDoseCount > 6) {
+          setIsCustomDoseInputMode(true)
+          setCustomDoseInputValue(String(initialCustomDoseCount))
+          setShowCustomDoseInput(false)
+        } else {
+          setIsCustomDoseInputMode(false)
+          setShowCustomDoseInput(false)
+        }
+      }
+    }
+  }, [
+    isEditMode,
+    doses.length,
+    selectedVaccineId,
+    initialVaccineName,
+    initialCustomDoseCount,
+  ])
 
   useEffect(() => {
     if (selectedVaccineId && petId && reminderDate) {
@@ -199,6 +259,7 @@ export default function VaccineScheduleSection({
             ageInDays: calculatedDose.ageInDays,
             isAutoCalculated: index > 0,
             isEdited: wasEdited,
+            childReminderId: existingDose?.childReminderId,
           }
         },
       )

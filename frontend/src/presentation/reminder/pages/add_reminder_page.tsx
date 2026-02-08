@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 
 import {
   IReminder,
@@ -53,6 +53,9 @@ export default function AddReminderPage() {
   const [initialReminderData, setInitialReminderData] =
     useState<IReminder | null>(null)
   const [loadingReminder, setLoadingReminder] = useState(isEditMode)
+  const [loadedVaccineIsCustom, setLoadedVaccineIsCustom] =
+    useState<boolean>(false)
+  const [initialChildReminders, setInitialChildReminders] = useState<any[]>([])
 
   const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
@@ -129,16 +132,35 @@ export default function AddReminderPage() {
         const syncedDoses = doses.map((dose) =>
           dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose,
         )
-        const children: any[] = syncedDoses.map((dose, index) => ({
-          reminderName: customVaccineName
-            ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
-            : `วัคซีน เข็มที่ ${dose.doseNumber}`,
-          description: values.description,
-          reminderDate: dose.date,
-          reminderTime: dose.time || '',
-          categoryName: 'Vaccination',
-        }))
+        const children: any[] = syncedDoses.map((dose, index) => {
+          const childData: any = {
+            reminderName: customVaccineName
+              ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
+              : `วัคซีน เข็มที่ ${dose.doseNumber}`,
+            description: values.description,
+            reminderDate: dose.date,
+            reminderTime: dose.time || '',
+            categoryName: 'Vaccination',
+          }
+          if (dose.childReminderId) {
+            childData.id = dose.childReminderId
+          }
+          return childData
+        })
         submitData.children = children
+
+        if (isEditMode && initialChildReminders.length > 0) {
+          const currentChildIds = syncedDoses
+            .map((dose) => dose.childReminderId)
+            .filter((id) => !!id)
+          const childrenToDelete = initialChildReminders
+            .filter((child) => !currentChildIds.includes(child.id))
+            .map((child) => child.id)
+
+          if (childrenToDelete.length > 0) {
+            submitData.childrenToDelete = childrenToDelete
+          }
+        }
       }
 
       if (isEditMode && reminderId) {
@@ -152,52 +174,69 @@ export default function AddReminderPage() {
       }
       setDoses([])
       setCustomVaccineName('')
+      setInitialChildReminders([])
       setVaccineResetKey((prev) => prev + 1)
     },
   })
 
   const isSubmitting = createReminderApi.loading || updateReminderApi.loading
 
-  useEffect(() => {
+  const loadReminderData = useCallback(async () => {
     if (isEditMode && reminderId) {
-      const loadReminderData = async () => {
-        try {
-          const response = await reminderService.getReminderById(reminderId)
-          const reminderData = response.data
-          if (reminderData) {
-            setInitialReminderData(reminderData)
-            // Load children doses if they exist
-            if (reminderData.children && reminderData.children.length > 0) {
-              const childrenDoses: IDose[] = reminderData.children.map(
-                (child: any, index: number) => ({
-                  doseNumber: index + 1,
-                  date: child.reminderDate,
-                  time: child.reminderTime || '',
-                  isAutoCalculated: false,
-                  isEdited: false,
-                }),
-              )
-              setDoses(childrenDoses)
-              // Extract vaccine name from first child if possible
-              const nameMatch =
-                reminderData.children[0]?.reminderName?.match(/(.+?)\s+เข็ม/)
-              if (nameMatch) {
-                setCustomVaccineName(nameMatch[1])
-              }
+      setLoadingReminder(true)
+      try {
+        const response = await reminderService.getReminderById(reminderId)
+        const reminderData = response.data
+        if (reminderData) {
+          setInitialReminderData(reminderData)
+          if (reminderData.children && reminderData.children.length > 0) {
+            setInitialChildReminders(reminderData.children)
+            const childrenDoses: IDose[] = reminderData.children.map(
+              (child: any, index: number) => ({
+                doseNumber: index + 1,
+                date: child.reminderDate || '',
+                time: child.reminderTime || '',
+                isAutoCalculated: index > 0,
+                isEdited: false,
+                childReminderId: child.id,
+              }),
+            )
+            setDoses(childrenDoses)
+            const firstChildName = reminderData.children[0]?.reminderName || ''
+            const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+            if (nameMatch) {
+              const vaccineName = nameMatch[1]
+              setCustomVaccineName(vaccineName)
+              setLoadedVaccineIsCustom(true)
             }
           }
-        } catch (error) {
-          showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
-        } finally {
-          setLoadingReminder(false)
         }
+      } catch (error) {
+        showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
+      } finally {
+        setLoadingReminder(false)
       }
-      loadReminderData()
     } else {
       setInitialReminderData(null)
       setLoadingReminder(false)
+      setLoadedVaccineIsCustom(false)
+      setInitialChildReminders([])
+      setDoses([])
+      setCustomVaccineName('')
     }
-  }, [isEditMode, reminderId])
+  }, [isEditMode, reminderId, showError])
+
+  useEffect(() => {
+    loadReminderData()
+  }, [reminderId, isEditMode, loadReminderData])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isEditMode && reminderId) {
+        loadReminderData()
+      }
+    }, [isEditMode, reminderId, loadReminderData]),
+  )
 
   useEffect(() => {
     if (petIdFromParams) {
@@ -206,7 +245,6 @@ export default function AddReminderPage() {
   }, [petIdFromParams])
 
   useEffect(() => {
-    // Set pet ID from params or selected pet
     if (petIdFromParams) {
       formik.setFieldValue('petId', petIdFromParams)
     } else if (selectedPetId) {
@@ -375,6 +413,16 @@ export default function AddReminderPage() {
                   formik.setFieldValue('reminderTime', time)
                 }}
                 onCustomVaccineNameChange={setCustomVaccineName}
+                initialVaccineId={null}
+                initialVaccineName={
+                  isEditMode && customVaccineName
+                    ? customVaccineName
+                    : undefined
+                }
+                isEditMode={isEditMode}
+                initialCustomDoseCount={
+                  isEditMode && doses.length > 0 ? doses.length : undefined
+                }
               />
 
               <View>
