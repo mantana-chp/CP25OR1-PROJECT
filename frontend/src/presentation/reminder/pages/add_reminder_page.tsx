@@ -71,6 +71,13 @@ export default function AddReminderPage() {
   const [suggestions, setSuggestions] = useState<IReminder[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
 
+  const doneChildReminderIds = new Set(
+    initialChildReminders
+      .filter((child) => child.reminderStatus === 'done')
+      .map((child) => child.id),
+  )
+  const hasDoneChildren = doneChildReminderIds.size > 0
+
   const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
@@ -142,14 +149,12 @@ export default function AddReminderPage() {
         petId: values.petId,
       }
 
-      // Convert frontend recurrence format to backend format
       if (recurrenceRule && recurrenceRule.type !== 'none') {
         const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
         if (backendRecurrence) {
           submitData.recurrence = backendRecurrence
         }
       } else if (isEditMode && initialReminderData?.recurrence) {
-        // If in edit mode and recurrence was previously set but now is 'none', mark it for deletion
         submitData.recurrence = null
       }
 
@@ -220,7 +225,6 @@ export default function AddReminderPage() {
         if (reminderData) {
           setInitialReminderData(reminderData)
 
-          // Load recurrence data if it exists
           if (reminderData.recurrence) {
             const convertedRecurrence = convertFromBackendRecurrence(
               reminderData.recurrence,
@@ -230,16 +234,27 @@ export default function AddReminderPage() {
 
           if (reminderData.children && reminderData.children.length > 0) {
             setInitialChildReminders(reminderData.children)
-            const childrenDoses: IDose[] = reminderData.children.map(
-              (child: any, index: number) => ({
-                doseNumber: index + 1,
-                date: child.reminderDate || '',
-                time: child.reminderTime || '',
-                isAutoCalculated: index > 0,
-                isEdited: false,
-                childReminderId: child.id,
-              }),
+
+            const childrenWithDoseNumbers = reminderData.children.map(
+              (child: any) => {
+                const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
+                const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
+                return { ...child, extractedDoseNumber: doseNumber }
+              },
             )
+
+            const sortedChildren = childrenWithDoseNumbers.sort(
+              (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
+            )
+
+            const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
+              doseNumber: child.extractedDoseNumber,
+              date: child.reminderDate || '',
+              time: child.reminderTime || '',
+              isAutoCalculated: child.extractedDoseNumber > 1,
+              isEdited: false,
+              childReminderId: child.id,
+            }))
             setDoses(childrenDoses)
             const firstChildName = reminderData.children[0]?.reminderName || ''
             const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
@@ -278,7 +293,6 @@ export default function AddReminderPage() {
     }, [isEditMode, reminderId, loadReminderData]),
   )
 
-  // Fetch existing reminders on mount
   useEffect(() => {
     const fetchReminders = async () => {
       try {
@@ -358,7 +372,6 @@ export default function AddReminderPage() {
   const handleReminderNameChange = (value: string) => {
     formik.setFieldValue('reminderName', value)
 
-    // Filter suggestions based on input
     if (value.trim().length >= 2) {
       const filtered = existingReminders
         .filter((reminder) =>
@@ -504,6 +517,7 @@ export default function AddReminderPage() {
                   onChange={(v) => formik.setFieldValue('categoryName', v)}
                   error={formik.errors.categoryName}
                   required={true}
+                  disabled={hasDoneChildren || isSubmitting}
                 />
 
                 {/* Hide recurrence picker if no date selected or if category is Vaccination */}
@@ -552,6 +566,7 @@ export default function AddReminderPage() {
                   initialCustomDoseCount={
                     isEditMode && doses.length > 0 ? doses.length : undefined
                   }
+                  doneChildReminderIds={doneChildReminderIds}
                 />
 
                 <View>

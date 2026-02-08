@@ -31,6 +31,7 @@ interface VaccineScheduleSectionProps {
   initialVaccineName?: string
   isEditMode?: boolean
   initialCustomDoseCount?: number
+  doneChildReminderIds?: Set<string>
 }
 
 export default function VaccineScheduleSection({
@@ -47,6 +48,7 @@ export default function VaccineScheduleSection({
   initialVaccineName,
   isEditMode,
   initialCustomDoseCount,
+  doneChildReminderIds = new Set(),
 }: VaccineScheduleSectionProps) {
   const { showError, showSuccess } = useError()
   const [vaccineList, setVaccineList] = useState<IVaccine[]>([])
@@ -80,11 +82,9 @@ export default function VaccineScheduleSection({
         return 'Invalid Date'
       }
       let date: Date
-      // Handle ISO format with T
       if (dateString.includes('T')) {
         date = new Date(dateString)
       } else {
-        // Handle YYYY-MM-DD format
         date = new Date(dateString + 'T00:00:00')
       }
       if (isNaN(date.getTime())) {
@@ -105,12 +105,9 @@ export default function VaccineScheduleSection({
       if (!dateString) {
         return new Date()
       }
-      // Handle both YYYY-MM-DD format and ISO date strings
       if (dateString.includes('T')) {
-        // ISO format
         return new Date(dateString.split('T')[0] + 'T00:00:00')
       }
-      // YYYY-MM-DD format
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
       return date
@@ -157,10 +154,8 @@ export default function VaccineScheduleSection({
         setCustomVaccineName(initialVaccineName)
         onCustomVaccineNameChange?.(initialVaccineName)
       }
-      // Initialize custom dose count from initial data
       if (initialCustomDoseCount) {
         setCustomDoseCount(initialCustomDoseCount)
-        // If dose count > 6, activate custom input mode
         if (initialCustomDoseCount > 6) {
           setIsCustomDoseInputMode(true)
           setCustomDoseInputValue(String(initialCustomDoseCount))
@@ -185,7 +180,6 @@ export default function VaccineScheduleSection({
     }
   }, [selectedVaccineId, petId])
 
-  // Sync dose 1 with reminderDate
   useEffect(() => {
     if (doses.length > 0 && reminderDate) {
       const dose1 = doses.find((d) => d.doseNumber === 1)
@@ -667,80 +661,103 @@ export default function VaccineScheduleSection({
       {/* Doses */}
       {canUseVaccineSchedule && !loadingCalculate && doses.length > 0 && (
         <View style={styles.vaccineSubsection}>
-          {doses.map((dose, index) => (
-            <View key={dose.doseNumber}>
-              <View style={styles.doseCard}>
-                <View style={styles.doseHeader}>
-                  <View style={styles.doseTextBlock}>
-                    <Text style={styles.doseNumber}>
-                      {isCustomVaccine
-                        ? customVaccineName
-                        : selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
-                      เข็มที่ {dose.doseNumber}
-                    </Text>
-                    {dose.isAutoCalculated && !isCustomVaccine && (
-                      <Text style={styles.autocalculatedText}>
-                        {getAutocalculatedText(dose.date)}
+          {doses.map((dose, index) => {
+            const isDoseDone = !!(
+              dose.childReminderId &&
+              doneChildReminderIds.has(dose.childReminderId)
+            )
+
+            return (
+              <View key={dose.doseNumber}>
+                <View style={styles.doseCard}>
+                  <View style={styles.doseHeader}>
+                    <View style={styles.doseTextBlock}>
+                      <Text style={styles.doseNumber}>
+                        {isCustomVaccine
+                          ? customVaccineName
+                          : selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
+                        เข็มที่ {dose.doseNumber}
                       </Text>
-                    )}
-                    {dose.doseNumber === 1 && !isCustomVaccine && (
-                      <Text style={styles.completedDate}>
-                        {formatDateForDisplay(dose.date)}
-                      </Text>
+                      {dose.isAutoCalculated && !isCustomVaccine && (
+                        <Text style={styles.autocalculatedText}>
+                          {getAutocalculatedText(dose.date)}
+                        </Text>
+                      )}
+                      {dose.doseNumber === 1 && !isCustomVaccine && (
+                        <Text style={styles.completedDate}>
+                          {formatDateForDisplay(dose.date)}
+                        </Text>
+                      )}
+                      {isDoseDone && (
+                        <Text style={styles.doneText}>(ทำสำเร็จแล้ว)</Text>
+                      )}
+                    </View>
+
+                    {/* Delete Button */}
+                    {dose.doseNumber > 1 && (
+                      <Pressable
+                        style={[
+                          styles.deleteButton,
+                          isDoseDone && styles.deleteButtonDisabled,
+                        ]}
+                        onPress={() =>
+                          !isDoseDone && handleDeleteDose(dose.doseNumber)
+                        }
+                        disabled={isDoseDone}
+                      >
+                        <X
+                          size={18}
+                          color={isDoseDone ? '#d1d5db' : '#ef4444'}
+                        />
+                      </Pressable>
                     )}
                   </View>
 
-                  {/* Delete Button */}
-                  {dose.doseNumber > 1 && (
-                    <Pressable
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteDose(dose.doseNumber)}
-                    >
-                      <X size={18} color='#ef4444' />
-                    </Pressable>
-                  )}
+                  {/* Editable Inputs */}
+                  <View style={styles.doseInputsRow}>
+                    <View style={{ flex: 1 }}>
+                      <DatePicker
+                        title='วันที่เตือนความจำ'
+                        placeholder='วัน/เดือน/ปี'
+                        value={
+                          dose.date
+                            ? parseStringToDate(dose.date)
+                            : isCustomVaccine
+                              ? undefined
+                              : reminderDate
+                                ? new Date(reminderDate)
+                                : undefined
+                        }
+                        onChange={(date) =>
+                          handleDateChange(dose.doseNumber, date)
+                        }
+                        required={true}
+                        small={true}
+                        disabled={isDoseDone}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <TimePicker
+                        title='เวลาที่เตือนความจำ'
+                        placeholder='เลือกเวลา'
+                        value={dose.time}
+                        onChange={(time) =>
+                          handleTimeChange(dose.doseNumber, time)
+                        }
+                        small={true}
+                        disabled={isDoseDone}
+                      />
+                    </View>
+                  </View>
                 </View>
 
-                {/* Editable Inputs */}
-                <View style={styles.doseInputsRow}>
-                  <View style={{ flex: 1 }}>
-                    <DatePicker
-                      title='วันที่เตือนความจำ'
-                      placeholder='วัน/เดือน/ปี'
-                      value={
-                        dose.date
-                          ? parseStringToDate(dose.date)
-                          : isCustomVaccine
-                            ? undefined
-                            : reminderDate
-                              ? new Date(reminderDate)
-                              : undefined
-                      }
-                      onChange={(date) =>
-                        handleDateChange(dose.doseNumber, date)
-                      }
-                      required={true}
-                      small={true}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <TimePicker
-                      title='เวลาที่เตือนความจำ'
-                      placeholder='เลือกเวลา'
-                      value={dose.time}
-                      onChange={(time) =>
-                        handleTimeChange(dose.doseNumber, time)
-                      }
-                      small={true}
-                    />
-                  </View>
-                </View>
+                {/* Divider */}
+                {index < doses.length - 1 && (
+                  <View style={styles.doseDivider} />
+                )}
               </View>
-
-              {/* Divider */}
-              {index < doses.length - 1 && <View style={styles.doseDivider} />}
-            </View>
-          ))}
+            )
+          })}
         </View>
       )}
     </View>
@@ -1005,6 +1022,13 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     marginLeft: 4,
   },
+  doneText: {
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    color: '#ef4444',
+    marginLeft: 4,
+    fontWeight: '600',
+  },
   doseInputsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1024,5 +1048,8 @@ const styles = StyleSheet.create({
     padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
   },
 })
