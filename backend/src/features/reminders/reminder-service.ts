@@ -211,7 +211,6 @@ export const deleteReminder = async (
       { message: 'User is not the owner of this reminder' },
     ])
 
-  // UNIVERSAL RULE: A 'done' reminder is history and cannot be deleted, period.
   if (reminder.reminder_status === 'done') {
     throw new BadRequestError('Reminders with status "Done" cannot be deleted.')
   }
