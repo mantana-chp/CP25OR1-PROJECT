@@ -35,6 +35,7 @@ import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
 import RecurrencePicker from '../components/recurrence_picker'
+import ReminderSuggestions from '../components/reminder_suggestions'
 import VaccineScheduleSection from '../components/vaccine_schedule_section'
 
 export default function AddReminderPage() {
@@ -49,8 +50,15 @@ export default function AddReminderPage() {
   const [recurrenceRule, setRecurrenceRule] = useState<IRecurrenceRule | null>(
     null
   )
+  const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
+  const [suggestions, setSuggestions] = useState<IReminder[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
+
+  const getRemindersApi = useApi(reminderService.getReminders, {
+    showErrorAlert: false
+  })
 
   const createReminderApi = useApi(reminderService.createReminder, {
     onSuccess: () => {
@@ -132,6 +140,20 @@ export default function AddReminderPage() {
 
   const isSubmitting = createReminderApi.loading
 
+  // Fetch existing reminders on mount
+  useEffect(() => {
+    const fetchReminders = async () => {
+      try {
+        const response = await getRemindersApi.execute({})
+        const reminders = response?.data?.data?.reminders || []
+        setExistingReminders(Array.isArray(reminders) ? reminders : [])
+      } catch (error) {
+        console.error('Error fetching reminders:', error)
+      }
+    }
+    fetchReminders()
+  }, [])
+
   useEffect(() => {
     if (petIdFromParams) {
       formik.setFieldValue('petId', petIdFromParams)
@@ -196,6 +218,44 @@ export default function AddReminderPage() {
     }
   }
 
+  const handleReminderNameChange = (value: string) => {
+    formik.setFieldValue('reminderName', value)
+
+    // Filter suggestions based on input
+    if (value.trim().length >= 2) {
+      const filtered = existingReminders
+        .filter((reminder) =>
+          reminder.reminderName.toLowerCase().includes(value.toLowerCase())
+        )
+        .slice(0, 5) // Limit to 5 suggestions
+
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionSelect = (reminder: IReminder) => {
+    // Auto-fill all form fields from selected reminder
+    formik.setFieldValue('reminderName', reminder.reminderName)
+    formik.setFieldValue('description', reminder.description || '')
+    formik.setFieldValue('categoryName', reminder.categoryName || 'General')
+    formik.setFieldValue('reminderTime', reminder.reminderTime || '')
+
+    // Set recurrence if exists
+    if (reminder.recurrence) {
+      // Note: recurrence will be handled by RecurrencePicker if needed
+      // For now just clear it as we're creating a new reminder
+      setRecurrenceRule(null)
+    }
+
+    // Close suggestions
+    setShowSuggestions(false)
+    setSuggestions([])
+  }
+
   return (
     <View style={styles.screen}>
       <KeyboardAvoidingView
@@ -238,11 +298,17 @@ export default function AddReminderPage() {
 
               <InputText
                 value={formik.values.reminderName}
-                onChangeText={(v) => formik.setFieldValue('reminderName', v)}
+                onChangeText={handleReminderNameChange}
                 placeholder="หัวข้อเตือนความจำ"
                 title="หัวข้อ"
                 required={true}
                 error={formik.errors.reminderName}
+              />
+
+              <ReminderSuggestions
+                suggestions={suggestions}
+                onSelect={handleSuggestionSelect}
+                visible={showSuggestions}
               />
 
               <PetSelector
