@@ -117,10 +117,14 @@ const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
   }
 };
 
-export const getAllReminders = async (userId: string): Promise<{ reminders: ReminderWithPetName[]; recurringRules: recurrence[] }> => {
-  const notDoneReminders = await reminderRepository.findNotDoneByUserId(userId);
-  const doneReminders = await reminderRepository.findDoneByUserId(userId);
+export const getAllReminders = async (userId: string): Promise<{ reminders: FullReminderDto[]; recurringRules: recurrence[] }> => {
+  const notDonePrismaReminders = await reminderRepository.findNotDoneByUserIdWithRecurrence(userId);
+  const donePrismaReminders = await reminderRepository.findDoneByUserIdWithRecurrence(userId);
   const recurringRules = await reminderRepository.findActiveRecurrenceRulesByUserId(userId);
+
+  const notDoneReminders = notDonePrismaReminders.map(mapFullPrismaReminderToFullReminderDto);
+  const doneReminders = donePrismaReminders.map(mapFullPrismaReminderToFullReminderDto);
+
   return {
     reminders: [...notDoneReminders, ...doneReminders],
     recurringRules,
