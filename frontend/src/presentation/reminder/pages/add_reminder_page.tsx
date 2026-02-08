@@ -6,13 +6,16 @@ import {
   IRecurrenceRule,
   IReminder,
   reminderInitValue,
-  reminderValidationSchema
+  reminderValidationSchema,
 } from '@/src/domain/reminder.domain'
 import { IDose } from '@/src/domain/vaccine.domain'
 import { useError } from '@/src/presentation/components/error_context'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { convertToBackendRecurrence } from '@/src/utils/recurrence.utils'
+import {
+  convertToBackendRecurrence,
+  convertFromBackendRecurrence,
+} from '@/src/utils/recurrence.utils'
 
 import { usePets } from '@/src/context/PetContext'
 import { useLocalSearchParams } from 'expo-router'
@@ -26,7 +29,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native'
 import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
@@ -62,7 +65,7 @@ export default function AddReminderPage() {
     useState<boolean>(false)
   const [initialChildReminders, setInitialChildReminders] = useState<any[]>([])
   const [recurrenceRule, setRecurrenceRule] = useState<IRecurrenceRule | null>(
-    null
+    null,
   )
   const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
   const [suggestions, setSuggestions] = useState<IReminder[]>([])
@@ -71,13 +74,13 @@ export default function AddReminderPage() {
   const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const createReminderApi = useApi(reminderService.createReminder, {
     onSuccess: () => {
       router.push('/(tabs)')
-    }
+    },
   })
 
   const updateReminderApi = useApi(reminderService.updateReminder, {
@@ -136,7 +139,7 @@ export default function AddReminderPage() {
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: values.petId
+        petId: values.petId,
       }
 
       // Convert frontend recurrence format to backend format
@@ -145,6 +148,9 @@ export default function AddReminderPage() {
         if (backendRecurrence) {
           submitData.recurrence = backendRecurrence
         }
+      } else if (isEditMode && initialReminderData?.recurrence) {
+        // If in edit mode and recurrence was previously set but now is 'none', mark it for deletion
+        submitData.recurrence = null
       }
 
       if (
@@ -153,7 +159,7 @@ export default function AddReminderPage() {
         doses.length > 0
       ) {
         const syncedDoses = doses.map((dose) =>
-          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
+          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose,
         )
         const children: any[] = syncedDoses.map((dose, index) => {
           const childData: any = {
@@ -200,7 +206,7 @@ export default function AddReminderPage() {
       setInitialChildReminders([])
       setVaccineResetKey((prev) => prev + 1)
       setRecurrenceRule(null)
-    }
+    },
   })
 
   const isSubmitting = createReminderApi.loading || updateReminderApi.loading
@@ -213,6 +219,15 @@ export default function AddReminderPage() {
         const reminderData = response.data
         if (reminderData) {
           setInitialReminderData(reminderData)
+
+          // Load recurrence data if it exists
+          if (reminderData.recurrence) {
+            const convertedRecurrence = convertFromBackendRecurrence(
+              reminderData.recurrence,
+            )
+            setRecurrenceRule(convertedRecurrence)
+          }
+
           if (reminderData.children && reminderData.children.length > 0) {
             setInitialChildReminders(reminderData.children)
             const childrenDoses: IDose[] = reminderData.children.map(
@@ -247,6 +262,7 @@ export default function AddReminderPage() {
       setInitialChildReminders([])
       setDoses([])
       setCustomVaccineName('')
+      setRecurrenceRule(null)
     }
   }, [isEditMode, reminderId, showError])
 
@@ -322,7 +338,7 @@ export default function AddReminderPage() {
       () => {
         handleBack()
         return true
-      }
+      },
     )
 
     return () => backHandler.remove()
@@ -346,7 +362,7 @@ export default function AddReminderPage() {
     if (value.trim().length >= 2) {
       const filtered = existingReminders
         .filter((reminder) =>
-          reminder.reminderName.toLowerCase().includes(value.toLowerCase())
+          reminder.reminderName.toLowerCase().includes(value.toLowerCase()),
         )
         .slice(0, 5) // Limit to 5 suggestions
 
@@ -379,186 +395,186 @@ export default function AddReminderPage() {
 
   return (
     <View style={styles.screen}>
-            <KeyboardAvoidingView
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-      {loadingReminder ? (
-        <View style={styles.loadingContainer}>
-          <LoadingComponent />
-        </View>
-      ) : (
-        <View style={styles.safeArea}>
-          <Header
-            title={isEditMode ? 'แก้ไขเตือนความจำ' : 'เพิ่มเตือนความจำ'}
-            goBack={!isSubmitting}
-            onBackPress={handleBack}
-          />
+        {loadingReminder ? (
+          <View style={styles.loadingContainer}>
+            <LoadingComponent />
+          </View>
+        ) : (
+          <View style={styles.safeArea}>
+            <Header
+              title={isEditMode ? 'แก้ไขเตือนความจำ' : 'เพิ่มเตือนความจำ'}
+              goBack={!isSubmitting}
+              onBackPress={handleBack}
+            />
 
-          <ScrollView
-            style={styles.scrollView}
-            nestedScrollEnabled={true}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
-            <View style={styles.formCard}>
-              <View style={styles.cardHeader}>
-                <Pressable onPress={handleBack} disabled={isSubmitting}>
-                  <Text style={styles.cancelText}>ยกเลิก</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => formik.handleSubmit()}
-                  disabled={!canSubmit || isSubmitting}
-                >
-                  <Text
-                    style={[
-                      styles.addText,
-                      (!canSubmit || isSubmitting) && styles.submittingText,
-                    ]}
+            <ScrollView
+              style={styles.scrollView}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps='handled'
+              contentContainerStyle={{ flexGrow: 1 }}
+            >
+              <View style={styles.formCard}>
+                <View style={styles.cardHeader}>
+                  <Pressable onPress={handleBack} disabled={isSubmitting}>
+                    <Text style={styles.cancelText}>ยกเลิก</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => formik.handleSubmit()}
+                    disabled={!canSubmit || isSubmitting}
                   >
-                    {isSubmitting
-                      ? isEditMode
-                        ? 'กำลังแก้ไข...'
-                        : 'กำลังเพิ่ม...'
-                      : isEditMode
-                        ? 'แก้ไข'
-                        : 'เพิ่ม'}
-                  </Text>
-                </Pressable>
-              </View>
-
-              <InputText
-                value={formik.values.reminderName}
-                onChangeText={handleReminderNameChange}
-                placeholder="หัวข้อเตือนความจำ"
-                title="หัวข้อ"
-                required={true}
-                error={formik.errors.reminderName}
-              />
-
-              <ReminderSuggestions
-                suggestions={suggestions}
-                onSelect={handleSuggestionSelect}
-                visible={showSuggestions}
-              />
-
-              <PetSelector
-                pets={pets}
-                selectedPetId={formik.values.petId}
-                onSelectPet={(petId: string) => {
-                  formik.setFieldValue('petId', petId)
-                  setSelectedPetId(petId)
-                }}
-                label="สัตว์เลี้ยง"
-                required={true}
-                disabled={isSubmitting}
-              />
-
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <DatePicker
-                    title="วันที่เตือนความจำ"
-                    placeholder="วัน/เดือน/ปี"
-                    value={
-                      formik.values.reminderDate
-                        ? new Date(formik.values.reminderDate)
-                        : undefined
-                    }
-                    onChange={(v) => {
-                      const dateString = convertDateToString(v)
-                      formik.setFieldValue('reminderDate', dateString)
-                    }}
-                    error={formik.errors.reminderDate}
-                    required={true}
-                  />
+                    <Text
+                      style={[
+                        styles.addText,
+                        (!canSubmit || isSubmitting) && styles.submittingText,
+                      ]}
+                    >
+                      {isSubmitting
+                        ? isEditMode
+                          ? 'กำลังแก้ไข...'
+                          : 'กำลังเพิ่ม...'
+                        : isEditMode
+                          ? 'แก้ไข'
+                          : 'เพิ่ม'}
+                    </Text>
+                  </Pressable>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <TimePicker
-                    title="เวลาที่เตือนความจำ"
-                    placeholder="เลือกเวลา"
-                    value={formik.values.reminderTime}
-                    onChange={(v) => formik.setFieldValue('reminderTime', v)}
-                  />
-                </View>
-              </View>
 
-              <CategorySelector
-                value={formik.values.categoryName}
-                onChange={(v) => formik.setFieldValue('categoryName', v)}
-                error={formik.errors.categoryName}
-                required={true}
-              />
-
-              {/* Hide recurrence picker if no date selected or if category is Vaccination */}
-              {formik.values.reminderDate &&
-                formik.values.categoryName !== 'Vaccination' && (
-                  <RecurrencePicker
-                    value={
-                      recurrenceRule || {
-                        type: 'none',
-                        interval: 1,
-                        endType: 'never'
-                      }
-                    }
-                    onChange={setRecurrenceRule}
-                    reminderDate={
-                      formik.values.reminderDate
-                        ? new Date(formik.values.reminderDate)
-                        : undefined
-                    }
-                  />
-                )}
-
-              {/* Vaccine Schedule Section */}
-              <VaccineScheduleSection
-                key={vaccineResetKey}
-                isVaccinationCategory={isVaccinationCategory}
-                canUseVaccineSchedule={canUseVaccineSchedule || false}
-                petId={formik.values.petId}
-                reminderDate={formik.values.reminderDate}
-                doses={doses}
-                setDoses={setDoses}
-                onDose1DateChange={(dateString) => {
-                  formik.setFieldValue('reminderDate', dateString)
-                }}
-                onDose1TimeChange={(time) => {
-                  formik.setFieldValue('reminderTime', time)
-                }}
-                onCustomVaccineNameChange={setCustomVaccineName}
-                initialVaccineId={null}
-                initialVaccineName={
-                  isEditMode && customVaccineName
-                    ? customVaccineName
-                    : undefined
-                }
-                isEditMode={isEditMode}
-                initialCustomDoseCount={
-                  isEditMode && doses.length > 0 ? doses.length : undefined
-                }
-              />
-
-              <View>
-                <TextInput
-                  style={[styles.input, styles.textarea]}
-                  placeholder="รายละเอียดอื่นๆ"
-                  multiline
-                  numberOfLines={4}
-                  value={formik.values.description}
-                  onChangeText={formik.handleChange('description')}
-                  onBlur={formik.handleBlur('description')}
-                  editable={!isSubmitting}
+                <InputText
+                  value={formik.values.reminderName}
+                  onChangeText={handleReminderNameChange}
+                  placeholder='หัวข้อเตือนความจำ'
+                  title='หัวข้อ'
+                  required={true}
+                  error={formik.errors.reminderName}
                 />
-                {formik.touched.description && formik.errors.description && (
-                  <Text style={styles.errorText}>
-                    {formik.errors.description}
-                  </Text>
-                )}
+
+                <ReminderSuggestions
+                  suggestions={suggestions}
+                  onSelect={handleSuggestionSelect}
+                  visible={showSuggestions}
+                />
+
+                <PetSelector
+                  pets={pets}
+                  selectedPetId={formik.values.petId}
+                  onSelectPet={(petId: string) => {
+                    formik.setFieldValue('petId', petId)
+                    setSelectedPetId(petId)
+                  }}
+                  label='สัตว์เลี้ยง'
+                  required={true}
+                  disabled={isSubmitting}
+                />
+
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <DatePicker
+                      title='วันที่เตือนความจำ'
+                      placeholder='วัน/เดือน/ปี'
+                      value={
+                        formik.values.reminderDate
+                          ? new Date(formik.values.reminderDate)
+                          : undefined
+                      }
+                      onChange={(v) => {
+                        const dateString = convertDateToString(v)
+                        formik.setFieldValue('reminderDate', dateString)
+                      }}
+                      error={formik.errors.reminderDate}
+                      required={true}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <TimePicker
+                      title='เวลาที่เตือนความจำ'
+                      placeholder='เลือกเวลา'
+                      value={formik.values.reminderTime}
+                      onChange={(v) => formik.setFieldValue('reminderTime', v)}
+                    />
+                  </View>
+                </View>
+
+                <CategorySelector
+                  value={formik.values.categoryName}
+                  onChange={(v) => formik.setFieldValue('categoryName', v)}
+                  error={formik.errors.categoryName}
+                  required={true}
+                />
+
+                {/* Hide recurrence picker if no date selected or if category is Vaccination */}
+                {formik.values.reminderDate &&
+                  formik.values.categoryName !== 'Vaccination' && (
+                    <RecurrencePicker
+                      value={
+                        recurrenceRule || {
+                          type: 'none',
+                          interval: 1,
+                          endType: 'never',
+                        }
+                      }
+                      onChange={setRecurrenceRule}
+                      reminderDate={
+                        formik.values.reminderDate
+                          ? new Date(formik.values.reminderDate)
+                          : undefined
+                      }
+                    />
+                  )}
+
+                {/* Vaccine Schedule Section */}
+                <VaccineScheduleSection
+                  key={vaccineResetKey}
+                  isVaccinationCategory={isVaccinationCategory}
+                  canUseVaccineSchedule={canUseVaccineSchedule || false}
+                  petId={formik.values.petId}
+                  reminderDate={formik.values.reminderDate}
+                  doses={doses}
+                  setDoses={setDoses}
+                  onDose1DateChange={(dateString) => {
+                    formik.setFieldValue('reminderDate', dateString)
+                  }}
+                  onDose1TimeChange={(time) => {
+                    formik.setFieldValue('reminderTime', time)
+                  }}
+                  onCustomVaccineNameChange={setCustomVaccineName}
+                  initialVaccineId={null}
+                  initialVaccineName={
+                    isEditMode && customVaccineName
+                      ? customVaccineName
+                      : undefined
+                  }
+                  isEditMode={isEditMode}
+                  initialCustomDoseCount={
+                    isEditMode && doses.length > 0 ? doses.length : undefined
+                  }
+                />
+
+                <View>
+                  <TextInput
+                    style={[styles.input, styles.textarea]}
+                    placeholder='รายละเอียดอื่นๆ'
+                    multiline
+                    numberOfLines={4}
+                    value={formik.values.description}
+                    onChangeText={formik.handleChange('description')}
+                    onBlur={formik.handleBlur('description')}
+                    editable={!isSubmitting}
+                  />
+                  {formik.touched.description && formik.errors.description && (
+                    <Text style={styles.errorText}>
+                      {formik.errors.description}
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-          </ScrollView>
-        </View>
-      )}
+            </ScrollView>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </View>
   )
@@ -567,7 +583,7 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb'
+    backgroundColor: '#e5e7eb',
   },
   loadingContainer: {
     flex: 1,
@@ -577,10 +593,10 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -591,26 +607,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18
+    marginBottom: 18,
   },
   cancelText: {
     color: '#4b5563',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   addText: {
     color: '#2E759E',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   submittingText: {
-    color: '#6b7280'
+    color: '#6b7280',
   },
   input: {
     borderWidth: 1,
@@ -620,32 +636,32 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48
+    minHeight: 48,
   },
   errorText: {
     color: '#ef4444',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4
+    marginLeft: 4,
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12
+    paddingVertical: 12,
   },
   row: {
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
   },
   label: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 10
+    marginBottom: 10,
   },
   required: {
-    color: '#dc2626'
+    color: '#dc2626',
   },
   petSelector: {
     borderWidth: 1,
@@ -654,12 +670,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#fff',
-    marginBottom: 12
+    marginBottom: 12,
   },
   petSelectorText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDisplay: {
     borderWidth: 1,
@@ -668,12 +684,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#f9fafb',
-    marginBottom: 12
+    marginBottom: 12,
   },
   petDisplayText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDropdownMenu: {
     borderWidth: 1,
@@ -681,24 +697,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fff',
     marginBottom: 12,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   petDropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
+    borderBottomColor: '#f0f0f0',
   },
   petDropdownItemSelected: {
-    backgroundColor: '#e3f2fd'
+    backgroundColor: '#e3f2fd',
   },
   petDropdownItemText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium'
-  }
+    fontFamily: 'Prompt_500Medium',
+  },
 })
