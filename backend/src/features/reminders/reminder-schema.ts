@@ -76,7 +76,7 @@ export const updateReminderSchema = z.object({
     editScope: z
       .enum(['THIS_INSTANCE_ONLY', 'THIS_AND_FUTURE_INSTANCES'])
       .optional(),
-    recurrence: recurrenceSchema.optional(),
+    recurrence: recurrenceSchema.optional().nullable(),
   }),
 })
 

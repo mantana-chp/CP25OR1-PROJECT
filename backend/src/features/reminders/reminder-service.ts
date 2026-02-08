@@ -466,7 +466,7 @@ export const updateReminder = async (
   reminderId: string,
   userId: string,
   updateData: UpdateReminderPayload,
-): Promise<ReminderWithPetName> => {
+): Promise<FullReminderDto> => {
   const { editScope, recurrence, ...reminderUpdateData } = updateData
 
   const reminderToUpdate = await reminderRepository.findFullById(reminderId)
@@ -560,7 +560,7 @@ export const updateReminder = async (
     )
     if (!finalUpdatedReminder)
       throw new Error('Failed to retrieve updated reminder.')
-    return mapPrismaReminderWithPetToReminder(finalUpdatedReminder)
+    return mapFullPrismaReminderToFullReminderDto(finalUpdatedReminder)
   }
 
   //--- LOGIC FOR EDITING A SINGLE INSTANCE (OR NON-RECURRING) ---
@@ -660,16 +660,58 @@ export const updateReminder = async (
       await tx.reminders.deleteMany({
         where: {
           id: { in: updateData.childrenToDelete },
-          parent_id: reminderId, 
+          parent_id: reminderId,
         },
       })
+    }
+
+    if (recurrence !== undefined) {
+      if (recurrence === null) {
+        if (reminderToUpdate.recurrence) {
+          await tx.recurrence.delete({
+            where: { id: reminderToUpdate.recurrence.id },
+          })
+        }
+      } else {
+        const finalTime = reminderUpdateData.reminderTime
+          ? new Date(`1970-01-01T${reminderUpdateData.reminderTime}Z`)
+          : reminderToUpdate.reminder_time
+
+        if (reminderToUpdate.recurrence) {
+          await tx.recurrence.update({
+            where: { id: reminderToUpdate.recurrence.id },
+            data: {
+              frequency: recurrence.frequency,
+              interval: recurrence.interval,
+              daysOfWeek: recurrence.daysOfWeek,
+              dayOfMonth: recurrence.dayOfMonth ?? null,
+              reminder_time: finalTime,
+              endDate: recurrence.endDate ? new Date(recurrence.endDate) : null,
+              endAfterOccurrences: recurrence.endAfterOccurrences ?? null,
+            },
+          })
+        } else {
+          await tx.recurrence.create({
+            data: {
+              reminder_id: reminderId,
+              frequency: recurrence.frequency,
+              interval: recurrence.interval,
+              daysOfWeek: recurrence.daysOfWeek,
+              dayOfMonth: recurrence.dayOfMonth ?? null,
+              reminder_time: finalTime,
+              endDate: recurrence.endDate ? new Date(recurrence.endDate) : null,
+              endAfterOccurrences: recurrence.endAfterOccurrences ?? null,
+            },
+          })
+        }
+      }
     }
   })
 
   const updatedReminder = await reminderRepository.findFullById(reminderId)
   if (!updatedReminder)
     throw new Error('Failed to retrieve reminder after update.')
-  return mapPrismaReminderWithPetToReminder(updatedReminder)
+  return mapFullPrismaReminderToFullReminderDto(updatedReminder)
 }
 
 export const updateOverdueReminders = async (): Promise<void> => {
