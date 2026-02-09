@@ -38,8 +38,6 @@ export default function ReminderPage() {
 
   const reminders = getRemindersApi.data?.data?.reminders || []
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
-  console.log(recurringRules)
-
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
   const remindersWithRecurrence = safeReminders.map((reminder) => {

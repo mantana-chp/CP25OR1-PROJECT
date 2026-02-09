@@ -117,8 +117,6 @@ export default function ReminderList({
     }
   )
 
-  console.log(filteredReminders)
-
   return (
     <View style={styles.container}>
       {/* Tab Header */}
