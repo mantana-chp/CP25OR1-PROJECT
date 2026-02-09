@@ -46,14 +46,16 @@ export default function DeleteSeriesModal({
               onPress={onDeleteThisOnly}
               activeOpacity={0.8}
             >
-              <Text style={styles.deleteButtonText}>ลบเฉพาะครั้งนี้</Text>
+              <Text style={styles.deleteButtonText}>
+                ลบเฉพาะเตือนความจำครั้งนี้
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalButton, styles.deleteButton]}
               onPress={onDeleteAll}
               activeOpacity={0.8}
             >
-              <Text style={styles.deleteButtonText}>ลบทั้งหมด</Text>
+              <Text style={styles.deleteButtonText}>ลบเตือนความจำทั้งหมด</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalButton, styles.cancelButton]}
