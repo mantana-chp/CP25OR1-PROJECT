@@ -3,7 +3,7 @@ import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
   convertFromBackendRecurrence,
-  formatRecurrenceText
+  formatRecurrenceText,
 } from '@/src/utils/recurrence.utils'
 import {
   Bone,
@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Edit2,
   Hourglass,
   PawPrint,
   Pill,
@@ -22,10 +23,11 @@ import {
   Stethoscope,
   Syringe,
   Tag,
-  X
+  X,
 } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
 import LoadingComponent from '../../components/loading_component'
 import OverdueAlert from '../components/overdue_alert'
 
@@ -36,13 +38,13 @@ const ICON_MAP: Record<string, any> = {
   Pill,
   Pipette,
   Scissors,
-  Bone
+  Bone,
 }
 
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString('th-TH', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -62,16 +64,17 @@ interface ReminderDetailModalProps {
 
 export default function ReminderDetailModal({
   id,
-  onClose
+  onClose,
 }: ReminderDetailModalProps) {
   // ------------------
   // STATE & CONST
   // ------------------
+  const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
   const [isChildrenExpanded, setIsChildrenExpanded] = useState(false)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
-    showErrorAlert: true
+    showErrorAlert: true,
   })
 
   const reminder = getReminderApi?.data?.data
@@ -80,6 +83,14 @@ export default function ReminderDetailModal({
     ? getCategoryInfo(reminder.categoryName)
     : null
   const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
+
+  const handleEdit = () => {
+    onClose()
+    router.push({
+      pathname: '/(tabs)/add-reminder',
+      params: { reminderId: id },
+    })
+  }
 
   // ------------------
   // USE-EFFECTS
@@ -119,11 +130,11 @@ export default function ReminderDetailModal({
           <Pressable
             style={[
               styles.closeButtonOutside,
-              { top: modalLayout.y + modalLayout.height + 20 }
+              { top: modalLayout.y + modalLayout.height + 20 },
             ]}
             onPress={onClose}
           >
-            <X color="#FFFFFF" size={28} />
+            <X color='#FFFFFF' size={28} />
           </Pressable>
         )}
       </View>
@@ -147,6 +158,9 @@ export default function ReminderDetailModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
+          <Pressable onPress={handleEdit} style={styles.editButton}>
+            <Edit2 size={20} color='#5FA7D1' />
+          </Pressable>
         </View>
 
         {/* Form Card */}
@@ -181,8 +195,8 @@ export default function ReminderDetailModal({
                           weekday: 'long',
                           day: 'numeric',
                           month: 'short',
-                          year: 'numeric'
-                        }
+                          year: 'numeric',
+                        },
                       )
                     : '-'}
                 </Text>
@@ -201,10 +215,10 @@ export default function ReminderDetailModal({
             {reminder?.recurrence && (
               <View style={styles.recurringSection}>
                 <View style={styles.recurringInfo}>
-                  <Repeat size={16} color="#225877" />
+                  <Repeat size={16} color='#225877' />
                   <Text style={styles.recurringText}>
                     {formatRecurrenceText(
-                      convertFromBackendRecurrence(reminder.recurrence)
+                      convertFromBackendRecurrence(reminder.recurrence),
                     )}
                     {reminder.occurrenceNumber
                       ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
@@ -234,9 +248,9 @@ export default function ReminderDetailModal({
                     วัคซีนทั้งหมด ({reminder.children.length} เข็ม)
                   </Text>
                   {isChildrenExpanded ? (
-                    <ChevronUp size={20} color="#225877" />
+                    <ChevronUp size={20} color='#225877' />
                   ) : (
-                    <ChevronDown size={20} color="#225877" />
+                    <ChevronDown size={20} color='#225877' />
                   )}
                 </Pressable>
 
@@ -246,7 +260,7 @@ export default function ReminderDetailModal({
                       .sort(
                         (a, b) =>
                           new Date(a.reminderDate).getTime() -
-                          new Date(b.reminderDate).getTime()
+                          new Date(b.reminderDate).getTime(),
                       )
                       .map((child, index) => {
                         const isCompleted = child.reminderStatus === 'done'
@@ -266,16 +280,16 @@ export default function ReminderDetailModal({
                                 <Text
                                   style={[
                                     styles.childReminderText,
-                                    isOverdueChild && styles.overdueText
+                                    isOverdueChild && styles.overdueText,
                                   ]}
                                 >
                                   {child.reminderDate
                                     ? new Date(
-                                        child.reminderDate
+                                        child.reminderDate,
                                       ).toLocaleDateString('th-TH', {
                                         day: 'numeric',
                                         month: 'short',
-                                        year: 'numeric'
+                                        year: 'numeric',
                                       })
                                     : '-'}
                                 </Text>
@@ -286,12 +300,12 @@ export default function ReminderDetailModal({
                                 <Text
                                   style={[
                                     styles.childReminderText,
-                                    isOverdueChild && styles.overdueText
+                                    isOverdueChild && styles.overdueText,
                                   ]}
                                 >
                                   {child.reminderTime
                                     ? `${formatTime(
-                                        parseApiTime(child.reminderTime)
+                                        parseApiTime(child.reminderTime),
                                       )} น.`
                                     : '-'}
                                 </Text>
@@ -303,14 +317,14 @@ export default function ReminderDetailModal({
                                 {
                                   backgroundColor: isCompleted
                                     ? '#E6FFFA'
-                                    : '#FFF4E6'
-                                }
+                                    : '#FFF4E6',
+                                },
                               ]}
                             >
                               {isCompleted ? (
-                                <Check size={18} color="#15AD90" />
+                                <Check size={18} color='#15AD90' />
                               ) : (
-                                <Hourglass size={18} color="#FF9531" />
+                                <Hourglass size={18} color='#FF9531' />
                               )}
                             </View>
                           </View>
@@ -327,8 +341,8 @@ export default function ReminderDetailModal({
                   styles.categoryTag,
                   {
                     backgroundColor: categoryInfo.color + '20',
-                    borderColor: categoryInfo.color
-                  }
+                    borderColor: categoryInfo.color,
+                  },
                 ]}
               >
                 {CategoryIcon && (
@@ -350,11 +364,11 @@ export default function ReminderDetailModal({
         <Pressable
           style={[
             styles.closeButtonOutside,
-            { top: modalLayout.y + modalLayout.height + 20 }
+            { top: modalLayout.y + modalLayout.height + 20 },
           ]}
           onPress={onClose}
         >
-          <X color="#FFFFFF" size={28} />
+          <X color='#FFFFFF' size={28} />
         </Pressable>
       )}
     </View>
@@ -366,14 +380,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   backdrop: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0
+    bottom: 0,
   },
   modalContent: {
     backgroundColor: '#ffffff',
@@ -385,7 +399,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
   },
   notFoundContent: {
     backgroundColor: '#ffffff',
@@ -398,11 +412,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
   },
   notFoundContainer: {
     alignItems: 'center',
-    gap: 16
+    gap: 16,
   },
   closeButtonOutside: {
     position: 'absolute',
@@ -415,29 +429,40 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   header: {
     paddingTop: 16,
     paddingBottom: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    borderBottomColor: '#e5e7eb',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     color: '#225877',
     fontSize: 17,
     fontFamily: 'Prompt_400Regular',
-    textAlign: 'center'
+    textAlign: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  editButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   formCard: {
     padding: 20,
-    gap: 16
+    gap: 16,
   },
   reminderTitle: {
     fontSize: 20,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+    color: '#225877',
   },
   categoryTag: {
     flexDirection: 'row',
@@ -447,25 +472,25 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
   categoryText: {
     fontSize: 12,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   descriptionSection: {
-    gap: 2
+    gap: 2,
   },
   descriptionLabel: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#A6A6A6'
+    color: '#A6A6A6',
   },
   descriptionText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    lineHeight: 24
+    lineHeight: 24,
   },
   input: {
     borderWidth: 1,
@@ -476,65 +501,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     minHeight: 48,
-    color: '#111827'
+    color: '#111827',
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12
+    paddingVertical: 12,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   infoText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   overdueText: {
     color: '#DC2626',
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   notFoundTitle: {
     fontSize: 22,
     color: '#374151',
     fontFamily: 'Prompt_700Bold',
     marginBottom: 4,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   notFoundMessage: {
     fontSize: 16,
     color: '#6b7280',
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
-    lineHeight: 24
+    lineHeight: 24,
   },
   readOnlyInput: {
     backgroundColor: '#f3f4f6',
-    color: '#374151'
+    color: '#374151',
   },
   childReminderSection: {
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     paddingTop: 16,
-    maxHeight: 200
+    maxHeight: 200,
   },
   childReminderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8
+    paddingVertical: 8,
   },
   childReminderTitle: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+    color: '#225877',
   },
   childReminderList: {
     marginTop: 8,
-    gap: 12
+    gap: 12,
   },
   childReminderItem: {
     flexDirection: 'row',
@@ -544,37 +569,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#5FA7D1'
+    borderLeftColor: '#5FA7D1',
   },
   childReminderLeft: {
     flex: 1,
-    gap: 4
+    gap: 4,
   },
   childReminderNumber: {
     fontSize: 14,
     fontFamily: 'Prompt_700Bold',
-    color: '#225877'
+    color: '#225877',
   },
   childReminderInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   childReminderText: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   childStatusIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   recurringSection: {
-    gap: 8
+    gap: 8,
   },
   recurringBadge: {
     flexDirection: 'row',
@@ -584,22 +609,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
   recurringBadgeText: {
     fontSize: 12,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+    color: '#225877',
   },
   recurringInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   recurringText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    flex: 1
-  }
+    flex: 1,
+  },
 })

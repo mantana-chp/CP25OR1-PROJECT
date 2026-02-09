@@ -1,5 +1,8 @@
-import { z } from 'zod';
-import { category_name, RecurrenceFrequency } from '../../generated/prisma/client';
+import { z } from 'zod'
+import {
+  category_name,
+  RecurrenceFrequency,
+} from '../../generated/prisma/client'
 
 const simpleReminderObject = z.object({
   reminderName: z.string().min(1, 'Reminder Name is required'),
@@ -7,7 +10,7 @@ const simpleReminderObject = z.object({
   reminderDate: z.string().min(1, 'Reminder Date is required'),
   reminderTime: z.string().optional(),
   categoryName: z.enum(category_name).optional(),
-});
+})
 
 const recurrenceSchema = z.object({
   frequency: z.enum(RecurrenceFrequency),
@@ -17,7 +20,7 @@ const recurrenceSchema = z.object({
   dayOfMonth: z.number().min(1).max(31).optional(),
   endDate: z.string().optional(),
   endAfterOccurrences: z.number().min(1).optional(),
-});
+})
 
 export const createReminderSchema = z.object({
   body: z.object({
@@ -30,20 +33,20 @@ export const createReminderSchema = z.object({
     children: z.array(simpleReminderObject).optional(),
     recurrence: recurrenceSchema.optional(),
   }),
-});
+})
 
 export const getReminderByIdSchema = z.object({
-  id: z.uuid({ message: "Invalid reminder ID format" }),
-});
+  id: z.uuid({ message: 'Invalid reminder ID format' }),
+})
 
 export const deleteReminderSchema = z.object({
   params: z.object({
-    id: z.uuid({ message: "Invalid reminder ID format" }),
+    id: z.uuid({ message: 'Invalid reminder ID format' }),
   }),
   query: z.object({
     deleteScope: z.enum(['THIS_INSTANCE_ONLY', 'ALL_INSTANCES']).optional(),
   }),
-});
+})
 
 export const updateReminderSchema = z.object({
   params: z.object({
@@ -56,13 +59,34 @@ export const updateReminderSchema = z.object({
     reminderDate: z.string().min(1, 'Reminder Date is required').optional(),
     reminderTime: z.string().optional().nullable(),
     categoryName: z.enum(category_name).optional(),
+    children: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          reminderName: z.string().min(1, 'Reminder Name is required'),
+          description: z.string().optional(),
+          reminderDate: z.string().min(1, 'Reminder Date is required'),
+          reminderTime: z.string().optional(),
+          categoryName: z.enum(category_name).optional(),
+        }),
+      )
+      .optional(),
+    childrenToDelete: z.array(z.string()).optional(),
     // --- NEW FIELDS FOR RECURRENCE ---
-    editScope: z.enum(['THIS_INSTANCE_ONLY', 'THIS_AND_FUTURE_INSTANCES']).optional(),
-    recurrence: recurrenceSchema.optional(),
+    editScope: z
+      .enum(['THIS_INSTANCE_ONLY', 'THIS_AND_FUTURE_INSTANCES'])
+      .optional(),
+    recurrence: recurrenceSchema.optional().nullable(),
   }),
-});
+})
 
-export type RecurrencePayload = z.infer<typeof recurrenceSchema>;
-export type CreateReminderPayload = z.infer<typeof createReminderSchema.shape.body>;
-export type UpdateReminderPayload = z.infer<typeof updateReminderSchema.shape.body>;
-export type DeleteReminderQuery = z.infer<typeof deleteReminderSchema.shape.query>;
+export type RecurrencePayload = z.infer<typeof recurrenceSchema>
+export type CreateReminderPayload = z.infer<
+  typeof createReminderSchema.shape.body
+>
+export type UpdateReminderPayload = z.infer<
+  typeof updateReminderSchema.shape.body
+>
+export type DeleteReminderQuery = z.infer<
+  typeof deleteReminderSchema.shape.query
+>

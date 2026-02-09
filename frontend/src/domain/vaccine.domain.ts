@@ -15,6 +15,7 @@ export interface IDose {
   ageInDays?: number
   isAutoCalculated: boolean
   isEdited: boolean
+  childReminderId?: string
 }
 
 export interface ICalculateVaccineRequest {
@@ -36,6 +37,6 @@ export const vaccineScheduleValidationSchema = yup.object().shape({
   doses: yup.array().of(
     yup.object().shape({
       date: yup.string().required('กรุณาเลือกวันที่ เข็มที่ 1'),
-    })
+    }),
   ),
 })
