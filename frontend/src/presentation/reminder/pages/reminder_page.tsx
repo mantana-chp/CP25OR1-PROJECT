@@ -36,7 +36,24 @@ export default function ReminderPage() {
     }, [loadReminders])
   )
 
-  const reminders = getRemindersApi.data?.data || []
+  const reminders = getRemindersApi.data?.data?.reminders || []
+  const recurringRules = getRemindersApi.data?.data?.recurringRules || []
+  const safeReminders = Array.isArray(reminders) ? reminders : []
+
+  const remindersWithRecurrence = safeReminders.map((reminder) => {
+    const recurringRule = Array.isArray(recurringRules)
+      ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
+      : null
+
+    if (recurringRule) {
+      return {
+        ...reminder,
+        recurrence: recurringRule
+      }
+    }
+
+    return reminder
+  })
 
   const panResponder = useRef(
     PanResponder.create({
@@ -88,10 +105,10 @@ export default function ReminderPage() {
 
   const filteredReminders =
     hasUserSelectedDate && selectedDate
-      ? reminders.filter((reminder) =>
+      ? remindersWithRecurrence.filter((reminder) =>
           dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
         )
-      : reminders
+      : remindersWithRecurrence
 
   // ------------------
   // RENDER
@@ -104,7 +121,7 @@ export default function ReminderPage() {
       <Calendar
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
-        reminders={reminders}
+        reminders={remindersWithRecurrence}
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onReset={handleReset}

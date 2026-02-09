@@ -16,21 +16,30 @@ import {
 } from 'react-native'
 
 import {
+  convertFromBackendRecurrence,
+  formatRecurrenceText
+} from '@/src/utils/recurrence.utils'
+import {
   Bone,
   Clock,
   PawPrint,
   Pill,
   Pipette,
+  Repeat,
   Scissors,
   Stethoscope,
   Syringe,
   Tag,
   Trash2
 } from 'lucide-react-native'
+import DeleteSeriesModal from './delete_series_modal'
 
 interface ReminderCardProps {
   reminder: IReminder
-  onDelete?: (id: string) => void
+  onDelete?: (
+    id: string,
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+  ) => void
   isDeleting?: boolean
   canDelete?: boolean
   onPress?: (id: string) => void
@@ -54,6 +63,7 @@ export default function ReminderCard(props: ReminderCardProps) {
   // STATE
   // ------------------
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+  const [showSeriesModal, setShowSeriesModal] = React.useState(false)
 
   // ------------------
   // CONST
@@ -129,7 +139,12 @@ export default function ReminderCard(props: ReminderCardProps) {
   }
 
   const handleDeletePress = () => {
-    setShowDeleteModal(true)
+    // Check if reminder is recurring
+    if (reminder.recurrence) {
+      setShowSeriesModal(true)
+    } else {
+      setShowDeleteModal(true)
+    }
   }
 
   const handleConfirmDelete = () => {
@@ -145,6 +160,32 @@ export default function ReminderCard(props: ReminderCardProps) {
 
   const handleCancelDelete = () => {
     setShowDeleteModal(false)
+  }
+
+  const handleDeleteThisOnly = () => {
+    if (isDeleting) return
+
+    setShowSeriesModal(false)
+    closeDeleteButton()
+
+    if (onDelete) {
+      onDelete(reminder.id, 'THIS_INSTANCE_ONLY')
+    }
+  }
+
+  const handleDeleteAll = () => {
+    if (isDeleting) return
+
+    setShowSeriesModal(false)
+    closeDeleteButton()
+
+    if (onDelete) {
+      onDelete(reminder.id, 'ALL_INSTANCES')
+    }
+  }
+
+  const handleCloseSeriesModal = () => {
+    setShowSeriesModal(false)
   }
 
   const handleCardPress = () => {
@@ -224,15 +265,22 @@ export default function ReminderCard(props: ReminderCardProps) {
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <Text
-              style={[
-                styles.reminderTitle,
-                reminder?.reminderStatus === 'overdue' &&
-                  styles.overdueTitleText
-              ]}
-            >
-              {reminder?.reminderName}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text
+                style={[
+                  styles.reminderTitle,
+                  reminder?.reminderStatus === 'overdue' &&
+                    styles.overdueTitleText
+                ]}
+              >
+                {reminder?.reminderName}
+              </Text>
+              {reminder?.recurrence && (
+                <View style={styles.recurringBadge}>
+                  <Repeat size={12} color="#5FA7D1" />
+                </View>
+              )}
+            </View>
 
             <View style={styles.infoRow}>
               <PawPrint
@@ -269,6 +317,37 @@ export default function ReminderCard(props: ReminderCardProps) {
                   : formattedDate}
               </Text>
             </View>
+            {/* Recurrence info if recurring */}
+            {reminder?.recurrence && (
+              <View style={styles.infoRow}>
+                <Repeat
+                  size={14}
+                  color={
+                    reminder?.reminderStatus === 'overdue'
+                      ? '#BF1737'
+                      : '#5FA7D1'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.recurrenceText,
+                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                  ]}
+                >
+                  {formatRecurrenceText(
+                    convertFromBackendRecurrence(reminder.recurrence),
+                    'th'
+                  )}
+                  {reminder.occurrenceNumber &&
+                    reminder.occurrenceNumber > 1 && (
+                      <Text style={styles.occurrenceNumber}>
+                        {' '}
+                        (ครั้งที่ {reminder.occurrenceNumber})
+                      </Text>
+                    )}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Right side - Category tag */}
@@ -327,6 +406,15 @@ export default function ReminderCard(props: ReminderCardProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Series Modal for Recurring Reminders */}
+      <DeleteSeriesModal
+        visible={showSeriesModal}
+        onClose={handleCloseSeriesModal}
+        onDeleteThisOnly={handleDeleteThisOnly}
+        onDeleteAll={handleDeleteAll}
+        reminderName={reminder.reminderName}
+      />
     </View>
   )
 }
@@ -402,6 +490,28 @@ const styles = StyleSheet.create({
   middleSection: {
     flex: 1,
     gap: 2
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  recurringBadge: {
+    backgroundColor: '#E8F4F8',
+    borderRadius: 12,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  recurrenceText: {
+    fontSize: 12,
+    color: '#5FA7D1',
+    fontFamily: 'Prompt_400Regular'
+  },
+  occurrenceNumber: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontFamily: 'Prompt_400Regular'
   },
   categoryTag: {
     flexDirection: 'row',
