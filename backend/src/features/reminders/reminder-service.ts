@@ -21,6 +21,13 @@ import {
 import prisma from '../../libs/db'
 import { CreateReminderPayload, UpdateReminderPayload } from './reminder-schema'
 
+const healthCategories: category_name[] = [
+  category_name.Vaccination,
+  category_name.Checkup,
+  category_name.Medication,
+  category_name.Deworming,
+]
+
 const calculateNextOccurrence = (
   lastDate: Date,
   rule: recurrence,
@@ -283,9 +290,34 @@ export const createNewReminder = async (
     reminder_date: reminderDate,
     reminder_time: reminderTime,
   } as reminders
-  const initialStatus = isReminderOverdue(tempReminder, new Date())
-    ? reminder_status.overdue
-    : reminder_status.to_do
+
+  const isDateInPast = (date: Date): boolean => {
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0) // Normalize today to start of day UTC
+    const checkDate = new Date(date)
+    checkDate.setUTCHours(0, 0, 0, 0) // Normalize reminder date to start of day UTC
+    return checkDate < today
+  }
+
+  let initialStatus: reminder_status
+  let statusDoneAt: Date | null = null
+  let statusBeforeDone: reminder_status | null = null
+  let isHealth = false
+
+
+
+  if (isDateInPast(reminderDate)) {
+    initialStatus = reminder_status.done
+    statusDoneAt = reminderDate // Set completion date to reminder date
+    statusBeforeDone = reminder_status.overdue // If toggled back, it would have been overdue
+    if (parentData.categoryName && healthCategories.includes(parentData.categoryName)) {
+      isHealth = true
+    }
+  } else {
+    initialStatus = isReminderOverdue(tempReminder, new Date())
+      ? reminder_status.overdue
+      : reminder_status.to_do
+  }
 
   return await prisma.$transaction(async (tx) => {
     const parentReminder = await tx.reminders.create({
@@ -296,6 +328,9 @@ export const createNewReminder = async (
         reminder_date: reminderDate,
         reminder_time: reminderTime,
         reminder_status: initialStatus,
+        status_done_at: statusDoneAt,
+        status_before_done: statusBeforeDone,
+        is_health: isHealth,
         user: { connect: { id: userId } },
         pets: { connect: { id: petId } },
       },
@@ -311,12 +346,28 @@ export const createNewReminder = async (
           reminder_date: childReminderDate,
           reminder_time: childReminderTime,
         } as reminders
-        const childInitialStatus = isReminderOverdue(
-          childTempReminder,
-          new Date(),
-        )
-          ? reminder_status.overdue
-          : reminder_status.to_do
+        
+        let childInitialStatus: reminder_status
+        let childStatusDoneAt: Date | null = null
+        let childStatusBeforeDone: reminder_status | null = null
+        let childIsHealth = false
+
+        if (isDateInPast(childReminderDate)) {
+          childInitialStatus = reminder_status.done
+          childStatusDoneAt = childReminderDate
+          childStatusBeforeDone = reminder_status.overdue
+          if (child.categoryName && healthCategories.includes(child.categoryName)) {
+            childIsHealth = true
+          }
+        } else {
+          childInitialStatus = isReminderOverdue(
+            childTempReminder,
+            new Date(),
+          )
+            ? reminder_status.overdue
+            : reminder_status.to_do
+        }
+
         return {
           reminder_name: child.reminderName,
           description: child.description,
@@ -324,6 +375,9 @@ export const createNewReminder = async (
           reminder_date: childReminderDate,
           reminder_time: childReminderTime,
           reminder_status: childInitialStatus,
+          status_done_at: childStatusDoneAt,
+          status_before_done: childStatusBeforeDone,
+          is_health: childIsHealth,
           user_id: userId,
           pet_id: petId,
           parent_id: parentReminder.id,
@@ -376,12 +430,7 @@ export const toggleReminderStatus = async (
     let newStatusDoneAt: Date | null = reminderToToggle.status_done_at
     let isHealthRecord = reminderToToggle.is_health
 
-    const healthCategories: category_name[] = [
-      category_name.Vaccination,
-      category_name.Checkup,
-      category_name.Medication,
-      category_name.Deworming,
-    ]
+
 
     switch (reminderToToggle.reminder_status) {
       case 'to_do':
