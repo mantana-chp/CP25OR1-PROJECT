@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
   category_name,
   RecurrenceFrequency,
+  RecurrenceStatusEnum,
 } from '../../generated/prisma/client'
 
 const simpleReminderObject = z.object({
@@ -13,11 +14,17 @@ const simpleReminderObject = z.object({
 })
 
 const recurrenceSchema = z.object({
+  // --- Series Metadata (NEW) ---
+  reminderName: z.string().min(1, 'Reminder Name is required').optional(),
+  description: z.string().optional(),
+  categoryName: z.enum(category_name).optional(),
+  // --- Recurrence Pattern ---
   frequency: z.enum(RecurrenceFrequency),
   interval: z.number().min(1).default(1),
   reminderTime: z.string().optional(),
   daysOfWeek: z.number().optional(),
   dayOfMonth: z.number().min(1).max(31).optional(),
+  // --- End Condition ---
   endDate: z.string().optional(),
   endAfterOccurrences: z.number().min(1).optional(),
 })
@@ -72,7 +79,7 @@ export const updateReminderSchema = z.object({
       )
       .optional(),
     childrenToDelete: z.array(z.string()).optional(),
-    // --- NEW FIELDS FOR RECURRENCE ---
+    // --- FIELDS FOR RECURRENCE ---
     editScope: z
       .enum(['THIS_INSTANCE_ONLY', 'THIS_AND_FUTURE_INSTANCES'])
       .optional(),

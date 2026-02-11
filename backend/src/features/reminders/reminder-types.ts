@@ -1,4 +1,4 @@
-import { reminder_status, category_name, RecurrenceFrequency } from '../../generated/prisma/client';
+import { reminder_status, category_name, RecurrenceFrequency, RecurrenceStatusEnum } from '../../generated/prisma/client';
 
 export interface Reminder {
   id: string;
@@ -23,12 +23,18 @@ export interface ReminderWithPetName extends Reminder {
 
 export interface RecurrenceRule {
   id: string;
-  reminderId: string;
+  // --- Series Metadata (NEW) ---
+  reminderName?: string;
+  description?: string;
+  categoryName?: category_name;
+  recurrenceStatus: RecurrenceStatusEnum;
+  // --- Recurrence Pattern ---
   frequency: RecurrenceFrequency;
   interval: number;
   daysOfWeek?: number;
   dayOfMonth?: number;
   reminderTime?: string;
+  // --- End Condition ---
   endDate?: Date;
   endAfterOccurrences?: number;
   createdAt: Date;
@@ -36,5 +42,6 @@ export interface RecurrenceRule {
 }
 
 export interface FullReminderDto extends ReminderWithPetName {
+  recurrenceId?: string;
   recurrence?: RecurrenceRule;
 }

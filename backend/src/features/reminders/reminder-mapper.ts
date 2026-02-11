@@ -13,12 +13,7 @@ type PrismaReminderWithPetAndRecurrence = Prisma.remindersGetPayload<{
   include: {
     pets: true;
     children: true;
-    recurrence: true;
-    recurring_template: {
-      include: {
-        recurrence: true;
-      };
-    };
+    recurrence_template: true;
   };
 }>;
 
@@ -61,7 +56,10 @@ export const mapPrismaReminderWithPetToReminder = (prismaReminder: PrismaReminde
 const mapPrismaRecurrenceToRecurrenceRule = (prismaRecurrence: Prisma.recurrenceGetPayload<{}>): RecurrenceRule => {
   return {
     id: prismaRecurrence.id,
-    reminderId: prismaRecurrence.reminder_id,
+    reminderName: prismaRecurrence.reminder_name ?? undefined,
+    description: prismaRecurrence.description ?? undefined,
+    categoryName: prismaRecurrence.category_name ?? undefined,
+    recurrenceStatus: prismaRecurrence.recurrence_status,
     frequency: prismaRecurrence.frequency,
     interval: prismaRecurrence.interval,
     daysOfWeek: prismaRecurrence.daysOfWeek ?? undefined,
@@ -80,13 +78,14 @@ export const mapFullPrismaReminderToFullReminderDto = (prismaReminder: PrismaRem
   }
 
   const baseReminder = mapPrismaReminderWithPetToReminder(prismaReminder as any);
-  const dto: FullReminderDto = baseReminder;
+  const dto: FullReminderDto = {
+    ...baseReminder,
+    recurrenceId: prismaReminder.recurrence_id ?? undefined,
+  };
 
-  // Include recurrence data if available
-  if (prismaReminder.recurrence) {
-    dto.recurrence = mapPrismaRecurrenceToRecurrenceRule(prismaReminder.recurrence);
-  } else if (prismaReminder.recurring_template?.recurrence) {
-    dto.recurrence = mapPrismaRecurrenceToRecurrenceRule(prismaReminder.recurring_template.recurrence);
+  // Include recurrence data if linked via recurrence_id (NEW structure)
+  if (prismaReminder.recurrence_template) {
+    dto.recurrence = mapPrismaRecurrenceToRecurrenceRule(prismaReminder.recurrence_template);
   }
 
   return dto;

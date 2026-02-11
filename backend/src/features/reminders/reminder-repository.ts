@@ -1,7 +1,7 @@
 import prisma from '../../libs/db';
 import { Reminder, ReminderWithPetName } from './reminder-types';
 import { mapPrismaReminderToReminder, mapPrismaReminderWithPetToReminder } from './reminder-mapper';
-import { Prisma, recurrence, reminder_status, reminders } from '../../generated/prisma/client';
+import { Prisma, recurrence, reminder_status, reminders, RecurrenceStatusEnum } from '../../generated/prisma/client';
 
 // Define a type that includes the 'pets' relation for the parent and the direct children
 export type ReminderWithPetPayload = Prisma.remindersGetPayload<{
@@ -62,12 +62,7 @@ export const findNotDoneByUserIdWithRecurrence = async (userId: string) => {
     include: {
       pets: true,
       children: true,
-      recurrence: true,
-      recurring_template: {
-        include: {
-          recurrence: true,
-        },
-      },
+      recurrence_template: true, // NEW: Link to recurrence template via FK
     },
     orderBy: [
       { reminder_date: 'asc' },
@@ -86,12 +81,7 @@ export const findDoneByUserIdWithRecurrence = async (userId: string) => {
     include: {
       pets: true,
       children: true,
-      recurrence: true,
-      recurring_template: {
-        include: {
-          recurrence: true,
-        },
-      },
+      recurrence_template: true, // NEW: Link to recurrence template via FK
     },
     orderBy: {
       updated_at: 'asc',
@@ -168,22 +158,21 @@ export const findFullById = async (id: string) => {
     include: {
       pets: true,
       children: true,
-      recurrence: true,
-      recurring_template: {
-        include: {
-          recurrence: true,
-        },
-      },
+      recurrence_template: true, // NEW: Link to recurrence template via FK
     },
   });
 };
 
 export const findActiveRecurrenceRulesByUserId = async (userId: string): Promise<recurrence[]> => {
+  // Find all ACTIVE recurrence templates that are linked to reminders owned by this user
   const recurrenceRules = await prisma.recurrence.findMany({
     where: {
-      reminder: {
-        user_id: userId,
-        parent_id: null,
+      recurrence_status: RecurrenceStatusEnum.ACTIVE, // NEW: Filter by status field
+      reminders: {
+        some: {
+          user_id: userId,
+          parent_id: null,
+        },
       },
     },
   });
