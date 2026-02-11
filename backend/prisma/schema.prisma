@@ -108,6 +108,7 @@ model recurrence {
   reminder_time       DateTime?             @db.Time(6) @map("reminder_time")
   daysOfWeek          Int?                  @map("days_of_week")
   dayOfMonth          Int?                  @map("day_of_month")
+  template_start_date DateTime              @db.Date  @map("template_start_date")
   
   // End Condition
   endDate             DateTime?             @db.Date  @map("end_date")

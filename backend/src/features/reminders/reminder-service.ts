@@ -30,59 +30,65 @@ const healthCategories: category_name[] = [
 ]
 
 const calculateNextOccurrence = (
-  lastDate: Date,
+  templateStartDate: Date,
+  currentDate: Date,
   rule: recurrence,
 ): Date | null => {
-  const nextDate = new Date(lastDate.getTime())
+  // Use template_start_date as the anchor point, and find next occurrence after currentDate
+  const nextDate = new Date(templateStartDate.getTime())
   nextDate.setUTCHours(0, 0, 0, 0)
 
   switch (rule.frequency) {
     case RecurrenceFrequency.DAILY:
-      nextDate.setUTCDate(lastDate.getUTCDate() + rule.interval)
+      // Find how many intervals have passed since template start
+      const daysDiff = Math.floor(
+        (currentDate.getTime() - templateStartDate.getTime()) / (1000 * 3600 * 24)
+      )
+      const intervalsToAdd = Math.ceil(daysDiff / rule.interval) * rule.interval
+      nextDate.setUTCDate(templateStartDate.getUTCDate() + intervalsToAdd)
       break
 
     case RecurrenceFrequency.WEEKLY:
       if (rule.daysOfWeek) {
-        // Start checking from the day after the last occurrence
-        for (let i = 1; i <= 30; i++) {
-          const checkDate = new Date(lastDate.getTime())
-          checkDate.setUTCDate(lastDate.getUTCDate() + i)
+        // Start checking from currentDate onwards
+        for (let i = 0; i <= 365; i++) {
+          const checkDate = new Date(currentDate.getTime())
+          checkDate.setUTCDate(currentDate.getUTCDate() + i)
           const dayBit = 1 << checkDate.getUTCDay()
 
           if ((rule.daysOfWeek & dayBit) > 0) {
-            // This is a simplified interval check, for more complex scenarios a library would be better
-            if (
-              rule.interval === 1 ||
-              (i > 1 &&
-                Math.floor(
-                  new Date(checkDate.getTime() - lastDate.getTime()).getTime() /
-                  (1000 * 3600 * 24 * 7),
-                ) %
-                rule.interval ===
-                0)
-            ) {
+            // Calculate weeks since template start
+            const weeksSinceStart = Math.floor(
+              (checkDate.getTime() - templateStartDate.getTime()) / (1000 * 3600 * 24 * 7)
+            )
+            if (rule.interval === 1 || weeksSinceStart % rule.interval === 0) {
               return checkDate
             }
           }
         }
       }
       // Fallback for simple weekly interval without specific days
-      nextDate.setUTCDate(lastDate.getUTCDate() + 7 * rule.interval)
+      nextDate.setUTCDate(templateStartDate.getUTCDate() + 7 * rule.interval)
       break
 
     case RecurrenceFrequency.MONTHLY:
-      const newMonthDate = new Date(lastDate)
+      const newMonthDate = new Date(templateStartDate)
+      const monthsDiff = (currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()) * 12
+        + (currentDate.getUTCMonth() - templateStartDate.getUTCMonth())
+      const intervalsToAddMonth = Math.ceil(monthsDiff / rule.interval) * rule.interval
       newMonthDate.setUTCMonth(
-        lastDate.getUTCMonth() + rule.interval,
-        lastDate.getUTCDate(),
+        templateStartDate.getUTCMonth() + intervalsToAddMonth,
+        templateStartDate.getUTCDate(),
       )
-      if (newMonthDate.getUTCDate() < lastDate.getUTCDate()) {
+      if (newMonthDate.getUTCDate() < templateStartDate.getUTCDate()) {
         newMonthDate.setUTCDate(0)
       }
       return newMonthDate
 
     case RecurrenceFrequency.YEARLY:
-      nextDate.setUTCFullYear(lastDate.getUTCFullYear() + rule.interval)
+      const yearsDiff = currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()
+      const intervalsToAddYear = Math.ceil(yearsDiff / rule.interval) * rule.interval
+      nextDate.setUTCFullYear(templateStartDate.getUTCFullYear() + intervalsToAddYear)
       break
 
     default:
@@ -102,6 +108,11 @@ const generateNextInstance = async (
 
   if (!rule) return
 
+  // Use template_start_date as the anchor for calculation
+  const templateStartDate = new Date(rule.template_start_date)
+  const now = new Date()
+  now.setUTCHours(0, 0, 0, 0)
+
   // Check if a future instance already exists for this recurrence template
   const futureInstanceExists = await tx.reminders.findFirst({
     where: {
@@ -111,7 +122,7 @@ const generateNextInstance = async (
   })
   if (futureInstanceExists) return
 
-  const nextDate = calculateNextOccurrence(currentReminder.reminder_date, rule as any)
+  const nextDate = calculateNextOccurrence(templateStartDate, new Date(currentReminder.reminder_date.getTime() + 86400000), rule as any) // Add 1 day to current date to get next occurrence
   if (!nextDate) return
 
   if (rule.endDate && nextDate > rule.endDate) return
@@ -130,6 +141,10 @@ const generateNextInstance = async (
   })
   if (exactDuplicateExists) return
 
+  // Determine if this instance is overdue (past date)
+  const isOverdue = nextDate < now
+  const instanceStatus = isOverdue ? reminder_status.overdue : reminder_status.to_do
+
   // Create new instance linked to the recurrence template
   await tx.reminders.create({
     data: {
@@ -140,7 +155,7 @@ const generateNextInstance = async (
       category_name: rule.category_name ?? currentReminder.category_name,
       reminder_date: nextDate,
       reminder_time: rule.reminder_time,
-      reminder_status: reminder_status.to_do,
+      reminder_status: instanceStatus, // Set to overdue if past date
       recurrence_id: rule.id, // NEW: Link to recurrence template
     },
   })
@@ -332,6 +347,38 @@ export const createNewReminder = async (
     // Step 1: If recurring, create the recurrence template FIRST
     let recurrenceId: string | null = null
     if (recurrence) {
+      // Calculate template_start_date: if initial date matches pattern, use it; otherwise use first aligned date
+      let templateStartDate = reminderDate
+
+      if (recurrence.frequency === RecurrenceFrequency.WEEKLY && recurrence.daysOfWeek) {
+        // Check if initial date matches the weekly pattern
+        const dayBit = 1 << reminderDate.getUTCDay()
+        if ((recurrence.daysOfWeek & dayBit) === 0) {
+          // Initial date doesn't match pattern, find first aligned date
+          for (let i = 1; i <= 30; i++) {
+            const checkDate = new Date(reminderDate.getTime())
+            checkDate.setUTCDate(reminderDate.getUTCDate() + i)
+            const checkDayBit = 1 << checkDate.getUTCDay()
+            if ((recurrence.daysOfWeek & checkDayBit) > 0) {
+              templateStartDate = checkDate
+              break
+            }
+          }
+        }
+      } else if (recurrence.frequency === RecurrenceFrequency.MONTHLY && recurrence.dayOfMonth) {
+        // For monthly, check if day matches
+        if (reminderDate.getUTCDate() !== recurrence.dayOfMonth) {
+          // Find first aligned date
+          const checkDate = new Date(reminderDate.getTime())
+          checkDate.setUTCDate(recurrence.dayOfMonth)
+          if (checkDate < reminderDate) {
+            checkDate.setUTCMonth(reminderDate.getUTCMonth() + 1)
+          }
+          templateStartDate = checkDate
+        }
+      }
+      // For DAILY and YEARLY, the date itself is usually aligned, so use it as-is
+
       const newRecurrence = await tx.recurrence.create({
         data: {
           reminder_name: parentData.reminderName,
@@ -343,6 +390,7 @@ export const createNewReminder = async (
           reminder_time: reminderTime,
           daysOfWeek: recurrence.daysOfWeek,
           dayOfMonth: recurrence.dayOfMonth,
+          template_start_date: templateStartDate,
           endDate: recurrence.endDate ? new Date(recurrence.endDate) : undefined,
           endAfterOccurrences: recurrence.endAfterOccurrences,
         },
@@ -583,6 +631,36 @@ export const updateReminder = async (
         ? new Date(`1970-01-01T${reminderUpdateData.reminderTime}Z`)
         : reminderToUpdate.reminder_time
 
+      // Calculate template_start_date for the new recurrence based on updated reminder date
+      const newReminderDate = reminderUpdateData.reminderDate
+        ? new Date(reminderUpdateData.reminderDate)
+        : reminderToUpdate.reminder_date
+      let newTemplateStartDate = newReminderDate
+
+      if (recurrence?.frequency === RecurrenceFrequency.WEEKLY && recurrence.daysOfWeek) {
+        const dayBit = 1 << newReminderDate.getUTCDay()
+        if ((recurrence.daysOfWeek & dayBit) === 0) {
+          for (let i = 1; i <= 30; i++) {
+            const checkDate = new Date(newReminderDate.getTime())
+            checkDate.setUTCDate(newReminderDate.getUTCDate() + i)
+            const checkDayBit = 1 << checkDate.getUTCDay()
+            if ((recurrence.daysOfWeek & checkDayBit) > 0) {
+              newTemplateStartDate = checkDate
+              break
+            }
+          }
+        }
+      } else if (recurrence?.frequency === RecurrenceFrequency.MONTHLY && recurrence.dayOfMonth) {
+        if (newReminderDate.getUTCDate() !== recurrence.dayOfMonth) {
+          const checkDate = new Date(newReminderDate.getTime())
+          checkDate.setUTCDate(recurrence.dayOfMonth)
+          if (checkDate < newReminderDate) {
+            checkDate.setUTCMonth(newReminderDate.getUTCMonth() + 1)
+          }
+          newTemplateStartDate = checkDate
+        }
+      }
+
       const newRecurrence = await tx.recurrence.create({
         data: {
           reminder_name: reminderUpdateData.reminderName ?? reminderToUpdate.reminder_name,
@@ -594,6 +672,7 @@ export const updateReminder = async (
           daysOfWeek: recurrence?.daysOfWeek ?? originalRecurrence.daysOfWeek,
           dayOfMonth: recurrence?.dayOfMonth ?? originalRecurrence.dayOfMonth,
           reminder_time: newReminderTime,
+          template_start_date: newTemplateStartDate,
           endDate: recurrence?.endDate
             ? new Date(recurrence.endDate)
             : originalRecurrence.endDate,
@@ -766,6 +845,33 @@ export const updateReminder = async (
           })
         } else {
           // Create new recurrence template and link the reminder to it
+          // Calculate template_start_date based on current reminder date
+          let thisInstanceTemplateStartDate = reminderToUpdate.reminder_date
+
+          if (recurrence.frequency === RecurrenceFrequency.WEEKLY && recurrence.daysOfWeek) {
+            const dayBit = 1 << reminderToUpdate.reminder_date.getUTCDay()
+            if ((recurrence.daysOfWeek & dayBit) === 0) {
+              for (let i = 1; i <= 30; i++) {
+                const checkDate = new Date(reminderToUpdate.reminder_date.getTime())
+                checkDate.setUTCDate(reminderToUpdate.reminder_date.getUTCDate() + i)
+                const checkDayBit = 1 << checkDate.getUTCDay()
+                if ((recurrence.daysOfWeek & checkDayBit) > 0) {
+                  thisInstanceTemplateStartDate = checkDate
+                  break
+                }
+              }
+            }
+          } else if (recurrence.frequency === RecurrenceFrequency.MONTHLY && recurrence.dayOfMonth) {
+            if (reminderToUpdate.reminder_date.getUTCDate() !== recurrence.dayOfMonth) {
+              const checkDate = new Date(reminderToUpdate.reminder_date.getTime())
+              checkDate.setUTCDate(recurrence.dayOfMonth)
+              if (checkDate < reminderToUpdate.reminder_date) {
+                checkDate.setUTCMonth(reminderToUpdate.reminder_date.getUTCMonth() + 1)
+              }
+              thisInstanceTemplateStartDate = checkDate
+            }
+          }
+
           const newRecurrence = await tx.recurrence.create({
             data: {
               reminder_name: recurrence.reminderName,
@@ -777,6 +883,7 @@ export const updateReminder = async (
               daysOfWeek: recurrence.daysOfWeek,
               dayOfMonth: recurrence.dayOfMonth ?? null,
               reminder_time: finalTime,
+              template_start_date: thisInstanceTemplateStartDate,
               endDate: recurrence.endDate ? new Date(recurrence.endDate) : null,
               endAfterOccurrences: recurrence.endAfterOccurrences ?? null,
             },
