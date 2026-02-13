@@ -12,7 +12,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   UIManager,
-  View
+  View,
 } from 'react-native'
 import { useCalendar } from '../../../hooks/useCalendar'
 import CalendarDay from './calendar/CalendarDay'
@@ -34,6 +34,9 @@ interface CalendarProps {
   selectedDate: Date | null
   onReset: () => void
   hasUserSelectedDate: boolean
+  onResetFilters?: () => void
+  isPetFilterActive?: boolean
+  isCategoryFilterActive?: boolean
 }
 
 export default function Calendar({
@@ -43,7 +46,10 @@ export default function Calendar({
   onDateSelect,
   selectedDate,
   onReset,
-  hasUserSelectedDate
+  hasUserSelectedDate,
+  onResetFilters,
+  isPetFilterActive,
+  isCategoryFilterActive,
 }: CalendarProps) {
   // ------------------
   // CONST
@@ -55,7 +61,7 @@ export default function Calendar({
     getCurrentWeekDays,
     previousMonth,
     nextMonth,
-    goToToday
+    goToToday,
   } = useCalendar(reminders)
 
   const chevronRotation = useChevronAnimation(isExpanded)
@@ -91,6 +97,9 @@ export default function Calendar({
         onNextMonth={nextMonth}
         onReset={handleHeaderReset}
         showReset={showReset}
+        onResetFilters={onResetFilters}
+        isPetFilterActive={isPetFilterActive}
+        isCategoryFilterActive={isCategoryFilterActive}
       />
 
       <WeekDaysRow />
@@ -118,7 +127,7 @@ export default function Calendar({
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronDown size={24} color="#225877" />
+          <ChevronDown size={24} color='#225877' />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -135,19 +144,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3
+    elevation: 3,
   },
   calendarGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   toggleButton: {
     alignSelf: 'center',
     paddingVertical: 2,
     paddingHorizontal: 24,
-    marginTop: 0
+    marginTop: 0,
   },
   toggleButtonExpanded: {
-    marginTop: -64
-  }
+    marginTop: -64,
+  },
 })

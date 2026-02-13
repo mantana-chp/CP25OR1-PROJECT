@@ -50,6 +50,10 @@ interface ReminderListProps {
   isLoading?: boolean
   onRefresh?: () => void
   initialReminderId?: string | null
+  selectedCategory?: string | null
+  onSelectedCategoryChange?: (category: string | null) => void
+  selectedPetId?: string | null
+  onSelectedPetIdChange?: (petId: string | null) => void
 }
 
 export default function ReminderList({
@@ -58,10 +62,12 @@ export default function ReminderList({
   isLoading,
   onRefresh,
   initialReminderId,
+  selectedCategory = null,
+  onSelectedCategoryChange,
+  selectedPetId = null,
+  onSelectedPetIdChange,
 }: ReminderListProps) {
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [petModalVisible, setPetModalVisible] = useState(false)
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
@@ -222,7 +228,7 @@ export default function ReminderList({
 
         {/* Category Filter Tabs */}
         <TouchableOpacity
-          onPress={() => setSelectedCategory(null)}
+          onPress={() => onSelectedCategoryChange?.(null)}
           style={[
             styles.categoryTab,
             selectedCategory === null && styles.activeCategoryTab,
@@ -247,7 +253,7 @@ export default function ReminderList({
           return (
             <TouchableOpacity
               key={categoryKey}
-              onPress={() => setSelectedCategory(categoryKey)}
+              onPress={() => onSelectedCategoryChange?.(categoryKey)}
               style={[
                 styles.categoryTab,
                 selectedCategory === categoryKey && styles.activeCategoryTab,
@@ -356,7 +362,7 @@ export default function ReminderList({
               {/* All Pets Option */}
               <TouchableOpacity
                 onPress={() => {
-                  setSelectedPetId(null)
+                  onSelectedPetIdChange?.(null)
                   setPetModalVisible(false)
                 }}
                 style={[
@@ -385,7 +391,7 @@ export default function ReminderList({
                 <TouchableOpacity
                   key={pet.id}
                   onPress={() => {
-                    setSelectedPetId(pet.id)
+                    onSelectedPetIdChange?.(pet.id)
                     setPetModalVisible(false)
                   }}
                   style={[

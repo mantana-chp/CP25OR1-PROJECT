@@ -18,6 +18,8 @@ export default function ReminderPage() {
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const swipeStartY = useRef(0)
 
   // ------------------
@@ -114,6 +116,11 @@ export default function ReminderPage() {
     setSelectedDate(new Date())
   }
 
+  const handleResetRemindersFilters = () => {
+    setSelectedCategory(null)
+    setSelectedPetId(null)
+  }
+
   const filteredReminders =
     hasUserSelectedDate && selectedDate
       ? remindersWithRecurrence.filter((reminder) =>
@@ -136,7 +143,10 @@ export default function ReminderPage() {
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onReset={handleReset}
+        onResetFilters={handleResetRemindersFilters}
         hasUserSelectedDate={hasUserSelectedDate}
+        isPetFilterActive={selectedPetId !== null}
+        isCategoryFilterActive={selectedCategory !== null}
       />
 
       <View style={styles.reminderContainer} {...panResponder.panHandlers}>
@@ -146,6 +156,10 @@ export default function ReminderPage() {
           isLoading={getRemindersApi.loading}
           onRefresh={loadReminders}
           initialReminderId={params.reminderId}
+          selectedCategory={selectedCategory}
+          onSelectedCategoryChange={setSelectedCategory}
+          selectedPetId={selectedPetId}
+          onSelectedPetIdChange={setSelectedPetId}
         />
       </View>
     </View>
