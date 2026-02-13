@@ -221,11 +221,21 @@ export default function RecurrencePicker({
   }
 
   const handleIntervalChange = (interval: string) => {
-    const numInterval = parseInt(interval) || 1
-    setTempRule({
-      ...tempRule,
-      interval: Math.max(1, Math.min(999, numInterval))
-    })
+    if (interval === '') {
+      setTempRule({
+        ...tempRule,
+        interval: 0
+      })
+      return
+    }
+
+    const numInterval = parseInt(interval)
+    if (!isNaN(numInterval)) {
+      setTempRule({
+        ...tempRule,
+        interval: Math.max(1, Math.min(999, numInterval))
+      })
+    }
   }
 
   const handleEndConditionChange = (
@@ -242,7 +252,11 @@ export default function RecurrencePicker({
   }
 
   const handleCustomConfirm = () => {
-    onChange(tempRule)
+    const validatedRule = {
+      ...tempRule,
+      interval: Math.max(1, tempRule.interval || 1)
+    }
+    onChange(validatedRule)
     setShowCustomModal(false)
   }
 
@@ -387,7 +401,11 @@ export default function RecurrencePicker({
                   <View style={styles.intervalRow}>
                     <View style={{ flex: 1 }}>
                       <InputText
-                        value={tempRule.interval.toString()}
+                        value={
+                          tempRule.interval === 0
+                            ? ''
+                            : tempRule.interval.toString()
+                        }
                         onChangeText={handleIntervalChange}
                         keyboardType="numeric"
                         placeholder="1"
