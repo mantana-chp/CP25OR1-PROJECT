@@ -3,6 +3,7 @@ import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
+import { IPetProfile } from '@/src/domain/pet.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
@@ -17,6 +18,7 @@ import {
   Syringe,
   Tag,
 } from 'lucide-react-native'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import {
   Modal,
   ScrollView,
@@ -44,6 +46,7 @@ const ICON_MAP: Record<string, any> = {
 
 interface ReminderListProps {
   reminders: IReminder[]
+  pets?: IPetProfile[]
   isLoading?: boolean
   onRefresh?: () => void
   initialReminderId?: string | null
@@ -51,12 +54,15 @@ interface ReminderListProps {
 
 export default function ReminderList({
   reminders,
+  pets = [],
   isLoading,
   onRefresh,
   initialReminderId,
 }: ReminderListProps) {
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
+  const [petModalVisible, setPetModalVisible] = useState(false)
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
   const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
@@ -139,7 +145,10 @@ export default function ReminderList({
         ? reminder.categoryName === selectedCategory
         : true
 
-      return statusMatch && categoryMatch
+      // Filter by pet
+      const petMatch = selectedPetId ? reminder.petId === selectedPetId : true
+
+      return statusMatch && categoryMatch && petMatch
     },
   )
 
@@ -178,13 +187,40 @@ export default function ReminderList({
         </TouchableOpacity>
       </View>
 
-      {/* Category Filter Tabs */}
+      {/* Filter Section */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.categoryFilterContainer}
         contentContainerStyle={styles.categoryFilterContent}
       >
+        {/* Pet Filter Button */}
+        <TouchableOpacity
+          onPress={() => setPetModalVisible(true)}
+          style={[
+            styles.categoryTab,
+            selectedPetId && styles.activeCategoryTab,
+          ]}
+        >
+          <MaterialCommunityIcons
+            name='dog'
+            size={18}
+            color={selectedPetId ? '#fff' : '#6B7280'}
+          />
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedPetId && styles.activeCategoryTabText,
+            ]}
+          >
+            {selectedPetId
+              ? pets.find((p) => p.id === selectedPetId)?.pet_name ||
+                'สัตว์เลี้ยง'
+              : 'สัตว์เลี้ยง'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Category Filter Tabs */}
         <TouchableOpacity
           onPress={() => setSelectedCategory(null)}
           style={[
@@ -295,6 +331,90 @@ export default function ReminderList({
           <Plus size={32} color='#fff' strokeWidth={3} />
         </TouchableOpacity>
       </Link>
+
+      {/* Pet Selection Modal */}
+      <Modal
+        visible={petModalVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setPetModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPetModalVisible(false)}
+        >
+          <View style={styles.petModalContent}>
+            <View style={styles.petModalHeader}>
+              <Text style={styles.petModalTitle}>เลือกสัตว์เลี้ยง</Text>
+              <TouchableOpacity onPress={() => setPetModalVisible(false)}>
+                <Text style={styles.petModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.petModalList}>
+              {/* All Pets Option */}
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedPetId(null)
+                  setPetModalVisible(false)
+                }}
+                style={[
+                  styles.petModalItem,
+                  !selectedPetId && styles.petModalItemActive,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name='dog'
+                  size={20}
+                  color={!selectedPetId ? '#fff' : '#6B7280'}
+                />
+                <Text
+                  style={[
+                    styles.petModalItemText,
+                    !selectedPetId && styles.petModalItemTextActive,
+                  ]}
+                >
+                  สัตว์เลี้ยงทั้งหมด
+                </Text>
+                {!selectedPetId && <View style={styles.petModalCheckmark} />}
+              </TouchableOpacity>
+
+              {/* Individual Pets */}
+              {pets.map((pet) => (
+                <TouchableOpacity
+                  key={pet.id}
+                  onPress={() => {
+                    setSelectedPetId(pet.id)
+                    setPetModalVisible(false)
+                  }}
+                  style={[
+                    styles.petModalItem,
+                    selectedPetId === pet.id && styles.petModalItemActive,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name='dog'
+                    size={20}
+                    color={selectedPetId === pet.id ? '#fff' : '#6B7280'}
+                  />
+                  <Text
+                    style={[
+                      styles.petModalItemText,
+                      selectedPetId === pet.id && styles.petModalItemTextActive,
+                    ]}
+                  >
+                    {pet.pet_name}
+                  </Text>
+                  {selectedPetId === pet.id && (
+                    <View style={styles.petModalCheckmark} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Reminder Detail Modal */}
       <Modal
@@ -438,5 +558,67 @@ const styles = StyleSheet.create({
   activeCategoryTabText: {
     color: '#fff',
     fontFamily: 'Prompt_500Medium',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  petModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+    maxHeight: '80%',
+  },
+  petModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  petModalTitle: {
+    fontSize: 18,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#225877',
+  },
+  petModalClose: {
+    fontSize: 24,
+    color: '#6B7280',
+    fontWeight: 'bold',
+  },
+  petModalList: {
+    marginBottom: 10,
+  },
+  petModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 10,
+    gap: 12,
+  },
+  petModalItemActive: {
+    backgroundColor: '#5FA7D1',
+  },
+  petModalItemText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6B7280',
+  },
+  petModalItemTextActive: {
+    color: '#fff',
+    fontFamily: 'Prompt_600SemiBold',
+  },
+  petModalCheckmark: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
 })

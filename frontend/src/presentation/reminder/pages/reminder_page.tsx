@@ -1,4 +1,5 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
 import dayjs from 'dayjs'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
@@ -26,18 +27,28 @@ export default function ReminderPage() {
     showErrorAlert: false,
   })
 
+  const getPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false,
+  })
+
   const loadReminders = useCallback(() => {
     getRemindersApi.execute({})
+  }, [])
+
+  const loadPets = useCallback(() => {
+    getPetsApi.execute()
   }, [])
 
   useFocusEffect(
     useCallback(() => {
       loadReminders()
-    }, [loadReminders]),
+      loadPets()
+    }, [loadReminders, loadPets]),
   )
 
   const reminders = getRemindersApi.data?.data?.reminders || []
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
+  const pets = getPetsApi.data?.data || []
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
   const remindersWithRecurrence = safeReminders.map((reminder) => {
@@ -131,6 +142,7 @@ export default function ReminderPage() {
       <View style={styles.reminderContainer} {...panResponder.panHandlers}>
         <ReminderList
           reminders={filteredReminders}
+          pets={pets}
           isLoading={getRemindersApi.loading}
           onRefresh={loadReminders}
           initialReminderId={params.reminderId}
