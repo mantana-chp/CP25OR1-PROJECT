@@ -163,10 +163,6 @@ export default function RecurrencePicker({
     return 'custom'
   }
 
-  const handleOpenMainModal = () => {
-    setShowMainModal(true)
-  }
-
   const handleSelectPreset = (preset: PresetOption) => {
     if (preset.type === 'custom') {
       setTempRule(value)
@@ -274,7 +270,7 @@ export default function RecurrencePicker({
           <Text style={styles.labelText}>การทำซ้ำ</Text>
           <Repeat size={14} color="#225877" />
         </View>
-        <Pressable style={styles.button} onPress={handleOpenMainModal}>
+        <Pressable style={styles.button} onPress={() => setShowMainModal(true)}>
           <Text style={styles.buttonText}>{displayText}</Text>
           <ChevronRight size={20} color="#A6A6A6" />
         </Pressable>
