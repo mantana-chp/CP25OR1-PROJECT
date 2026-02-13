@@ -93,7 +93,7 @@ export default function VaccineScheduleSection({
         date = new Date(dateString)
       } else {
         // Handle YYYY-MM-DD format
-        date = new Date(dateString + 'T00:00:00')
+        date = new Date(dateString + 'T00:00')
       }
       if (isNaN(date.getTime())) {
         return 'Invalid Date'
@@ -116,7 +116,7 @@ export default function VaccineScheduleSection({
       // Handle both YYYY-MM-DD format and ISO date strings
       if (dateString.includes('T')) {
         // ISO format
-        return new Date(dateString.split('T')[0] + 'T00:00:00')
+        return new Date(dateString.split('T')[0] + 'T00:00')
       }
       // YYYY-MM-DD format
       const [year, month, day] = dateString.split('-').map(Number)
@@ -139,7 +139,7 @@ export default function VaccineScheduleSection({
   }
 
   const getAutocalculatedText = (dateString: string): string => {
-    const date = new Date(dateString + 'T00:00:00')
+    const date = new Date(dateString + 'T00:00')
     const formattedDate = date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
