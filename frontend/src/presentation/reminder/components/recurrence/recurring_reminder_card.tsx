@@ -30,9 +30,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
-import DeleteConfirmationModal from './modal/delete_confirmation_modal'
-import VaccineCompleteModal from './modal/vaccine_complete_modal'
-import VaccineUndoModal from './modal/vaccine_undo_modal'
+import DeleteConfirmationModal from '../modal/delete_confirmation_modal'
+import VaccineCompleteModal from '../modal/vaccine_complete_modal'
+import VaccineUndoModal from '../modal/vaccine_undo_modal'
 
 const ICON_MAP: Record<string, any> = {
   Tag,

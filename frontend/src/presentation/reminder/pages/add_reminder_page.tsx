@@ -35,13 +35,13 @@ import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import PetSelector from '../../components/pet_selector'
+import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
-import EndRepeatSelector from '../components/end_repeat_selector'
-import RecurrencePicker from '../components/recurrence_picker'
+import EndRepeatSelector from '../components/recurrence/end_repeat_selector'
+import RecurrencePicker from '../components/recurrence/recurrence_picker'
+import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
 import ReminderSuggestions from '../components/reminder_suggestions'
-import VaccineScheduleSection from '../components/vaccine_schedule_section'
-import InputText from '../../components/text_input'
 
 export default function AddReminderPage() {
   const router = useRouter()

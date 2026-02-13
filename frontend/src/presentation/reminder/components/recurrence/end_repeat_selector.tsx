@@ -2,8 +2,8 @@ import { IRecurrenceRule } from '@/src/domain/reminder.domain'
 import { Check, ChevronRight } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import DatePicker from '../../components/date_picker'
-import InputText from '../../components/text_input'
+import DatePicker from '../../../components/date_picker'
+import InputText from '../../../components/text_input'
 
 interface EndRepeatSelectorProps {
   recurrenceRule: IRecurrenceRule
