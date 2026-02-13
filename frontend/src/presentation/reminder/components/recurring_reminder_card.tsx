@@ -82,6 +82,7 @@ export default function RecurringReminderCard({
   const [isExpanded, setIsExpanded] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
+  const [showUndoModal, setShowUndoModal] = useState(false)
   const [selectedInstance, setSelectedInstance] = useState<{
     id: string
     status: string
@@ -188,14 +189,21 @@ export default function RecurringReminderCard({
     currentStatus: string,
     index: number
   ) => {
-    // If already done or in temp done state, skip confirmation
-    if (currentStatus === 'done' || tempDoneIds.includes(instanceId)) {
+    // If in temp done state, skip
+    if (tempDoneIds.includes(instanceId)) {
       return
     }
 
-    // Show confirmation modal for marking as done
     setSelectedInstance({ id: instanceId, status: currentStatus, index })
-    setShowCompleteModal(true)
+
+    // Show appropriate modal based on current status
+    if (currentStatus === 'done') {
+      // Show undo modal for marking back to todo
+      setShowUndoModal(true)
+    } else {
+      // Show complete modal for marking as done
+      setShowCompleteModal(true)
+    }
   }
 
   const handleConfirmComplete = async () => {
@@ -228,6 +236,32 @@ export default function RecurringReminderCard({
 
   const handleCancelComplete = () => {
     setShowCompleteModal(false)
+    setSelectedInstance(null)
+  }
+
+  const handleConfirmUndo = async () => {
+    if (!selectedInstance) return
+
+    const { id: instanceId } = selectedInstance
+
+    setShowUndoModal(false)
+    setSelectedInstance(null)
+
+    try {
+      await updateStatusApi.execute(instanceId)
+
+      setTimeout(() => {
+        if (onRefresh) {
+          onRefresh()
+        }
+      }, 200)
+    } catch (error) {
+      console.error('Failed to update instance status', error)
+    }
+  }
+
+  const handleCancelUndo = () => {
+    setShowUndoModal(false)
     setSelectedInstance(null)
   }
 
@@ -527,6 +561,44 @@ export default function RecurringReminderCard({
               <TouchableOpacity
                 style={[styles.modalButton, styles.completeButtonModal]}
                 onPress={handleConfirmComplete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deleteButtonText}>ยืนยัน</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Undo Confirmation Modal */}
+      <Modal
+        visible={showUndoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelUndo}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>ยืนยันการเปลี่ยนสถานะ</Text>
+            <Text style={styles.modalMessage}>
+              คุณต้องการเปลี่ยนสถานะ{' '}
+              <Text style={styles.modalBold}>
+                วัคซีนเข็มที่ {(selectedInstance?.index ?? 0) + 1}/{totalCount}
+              </Text>{' '}
+              กลับเป็น "ยังไม่เสร็จ" ใช่หรือไม่?
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelUndo}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.completeButtonModal]}
+                onPress={handleConfirmUndo}
                 activeOpacity={0.8}
               >
                 <Text style={styles.deleteButtonText}>ยืนยัน</Text>

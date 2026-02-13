@@ -41,6 +41,7 @@ import EndRepeatSelector from '../components/end_repeat_selector'
 import RecurrencePicker from '../components/recurrence_picker'
 import ReminderSuggestions from '../components/reminder_suggestions'
 import VaccineScheduleSection from '../components/vaccine_schedule_section'
+import InputText from '../../components/text_input'
 
 export default function AddReminderPage() {
   const router = useRouter()
