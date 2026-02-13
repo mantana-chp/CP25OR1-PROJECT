@@ -19,7 +19,6 @@ import {
 
 import { usePets } from '@/src/context/PetContext'
 import { useLocalSearchParams } from 'expo-router'
-import { Check, ChevronRight } from 'lucide-react-native'
 import {
   BackHandler,
   KeyboardAvoidingView,
@@ -36,9 +35,9 @@ import DatePicker from '../../components/date_picker'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import PetSelector from '../../components/pet_selector'
-import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
+import EndRepeatSelector from '../components/end_repeat_selector'
 import RecurrencePicker from '../components/recurrence_picker'
 import ReminderSuggestions from '../components/reminder_suggestions'
 import VaccineScheduleSection from '../components/vaccine_schedule_section'
@@ -68,7 +67,6 @@ export default function AddReminderPage() {
   const [recurrenceRule, setRecurrenceRule] = useState<IRecurrenceRule | null>(
     null
   )
-  const [showEndRepeatOptions, setShowEndRepeatOptions] = useState(false)
   const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
   const [suggestions, setSuggestions] = useState<IReminder[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -544,135 +542,10 @@ export default function AddReminderPage() {
 
                       {/* End Repeat Section */}
                       {recurrenceRule && recurrenceRule.type !== 'none' && (
-                        <View style={styles.endRepeatContainer}>
-                          <Pressable
-                            style={styles.endRepeatButton}
-                            onPress={() =>
-                              setShowEndRepeatOptions(!showEndRepeatOptions)
-                            }
-                          >
-                            <Text style={styles.endRepeatLabel}>
-                              สิ้นสุดการทำซ้ำ
-                            </Text>
-                            <View style={styles.endRepeatValueContainer}>
-                              <Text style={styles.endRepeatValue}>
-                                {recurrenceRule.endType === 'never'
-                                  ? 'ไม่สิ้นสุด'
-                                  : recurrenceRule.endType === 'on_date' &&
-                                      recurrenceRule.endDate
-                                    ? new Date(
-                                        recurrenceRule.endDate
-                                      ).toLocaleDateString('th-TH', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })
-                                    : recurrenceRule.endType === 'after' &&
-                                        recurrenceRule.endAfterOccurrences
-                                      ? `หลังจาก ${recurrenceRule.endAfterOccurrences} ครั้ง`
-                                      : 'ในวันที่'}
-                              </Text>
-                              <ChevronRight size={18} color="#C7C7CC" />
-                            </View>
-                          </Pressable>
-
-                          {showEndRepeatOptions && (
-                            <View style={styles.endRepeatOptions}>
-                              <Pressable
-                                style={styles.endRepeatOptionRow}
-                                onPress={() => {
-                                  setRecurrenceRule({
-                                    ...recurrenceRule,
-                                    endType: 'never',
-                                    endDate: undefined,
-                                    endAfterOccurrences: undefined
-                                  })
-                                  setShowEndRepeatOptions(false)
-                                }}
-                              >
-                                <Text style={styles.endRepeatOptionText}>
-                                  ไม่สิ้นสุด
-                                </Text>
-                                {recurrenceRule.endType === 'never' && (
-                                  <Check
-                                    size={20}
-                                    color="#007AFF"
-                                    strokeWidth={2.5}
-                                  />
-                                )}
-                              </Pressable>
-
-                              <View style={styles.endRepeatOptionRow}>
-                                <Text style={styles.endRepeatOptionText}>
-                                  ในวันที่
-                                </Text>
-                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                  <DatePicker
-                                    title=""
-                                    placeholder="เลือกวันที่"
-                                    value={
-                                      recurrenceRule.endDate
-                                        ? new Date(recurrenceRule.endDate)
-                                        : undefined
-                                    }
-                                    onChange={(date) => {
-                                      if (date) {
-                                        setRecurrenceRule({
-                                          ...recurrenceRule,
-                                          endType: 'on_date',
-                                          endDate: date.toISOString(),
-                                          endAfterOccurrences: undefined
-                                        })
-                                      }
-                                    }}
-                                    minimumDate={new Date()}
-                                  />
-                                </View>
-                              </View>
-
-                              <View style={styles.endRepeatOptionRow}>
-                                <Text style={styles.endRepeatOptionText}>
-                                  หลังจาก
-                                </Text>
-                                <View
-                                  style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                    flex: 1,
-                                    marginLeft: 12
-                                  }}
-                                >
-                                  <View style={{ flex: 1 }}>
-                                    <InputText
-                                      value={
-                                        recurrenceRule.endAfterOccurrences?.toString() ||
-                                        ''
-                                      }
-                                      onChangeText={(text) => {
-                                        const num = parseInt(text)
-                                        if (!isNaN(num) && num > 0) {
-                                          setRecurrenceRule({
-                                            ...recurrenceRule,
-                                            endType: 'after',
-                                            endAfterOccurrences: num,
-                                            endDate: undefined
-                                          })
-                                        }
-                                      }}
-                                      keyboardType="numeric"
-                                      placeholder="จำนวน"
-                                      title=""
-                                    />
-                                  </View>
-                                  <Text style={styles.afterCountLabel}>
-                                    ครั้ง
-                                  </Text>
-                                </View>
-                              </View>
-                            </View>
-                          )}
-                        </View>
+                        <EndRepeatSelector
+                          recurrenceRule={recurrenceRule}
+                          onChange={setRecurrenceRule}
+                        />
                       )}
                     </>
                   )}
@@ -868,61 +741,5 @@ const styles = StyleSheet.create({
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
     fontFamily: 'Prompt_500Medium'
-  },
-  endRepeatContainer: {
-    marginBottom: 16
-  },
-  endRepeatButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: '#fff'
-  },
-  endRepeatLabel: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  endRepeatValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
-  endRepeatValue: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#8E8E93'
-  },
-  endRepeatOptions: {
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    marginTop: 8
-  },
-  endRepeatOptionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    marginBottom: 1
-  },
-  endRepeatOptionText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  afterCountLabel: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
   }
 })
