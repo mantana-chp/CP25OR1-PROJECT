@@ -70,6 +70,8 @@ export default function AddReminderPage() {
   const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
   const [suggestions, setSuggestions] = useState<IReminder[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [hasUserStartedCreateMode, setHasUserStartedCreateMode] =
+    useState(false)
 
   const doneChildReminderIds = new Set(
     initialChildReminders
@@ -211,6 +213,7 @@ export default function AddReminderPage() {
       setInitialChildReminders([])
       setVaccineResetKey((prev) => prev + 1)
       setRecurrenceRule(null)
+      setHasUserStartedCreateMode(false)
     },
   })
 
@@ -270,7 +273,8 @@ export default function AddReminderPage() {
       } finally {
         setLoadingReminder(false)
       }
-    } else {
+    } else if (!hasUserStartedCreateMode) {
+      // Only clear data on initial mount in create mode, not on every re-render
       setInitialReminderData(null)
       setLoadingReminder(false)
       setLoadedVaccineIsCustom(false)
@@ -279,18 +283,110 @@ export default function AddReminderPage() {
       setCustomVaccineName('')
       setRecurrenceRule(null)
     }
-  }, [isEditMode, reminderId, showError])
+  }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
 
+  // Initial load effect - only depends on reminderId and isEditMode to avoid re-triggering
   useEffect(() => {
-    loadReminderData()
-  }, [reminderId, isEditMode, loadReminderData])
+    if (isEditMode && reminderId) {
+      loadReminderData()
+    } else if (!isEditMode && !hasUserStartedCreateMode) {
+      // Clear data on initial mount in create mode
+      setInitialReminderData(null)
+      setLoadingReminder(false)
+      setLoadedVaccineIsCustom(false)
+      setInitialChildReminders([])
+      setDoses([])
+      setCustomVaccineName('')
+      setRecurrenceRule(null)
+    }
+  }, [reminderId, isEditMode])
+
+  // Track when user starts creating doses in create mode
+  useEffect(() => {
+    if (!isEditMode && doses.length > 0) {
+      setHasUserStartedCreateMode(true)
+    }
+  }, [doses, isEditMode])
 
   useFocusEffect(
     useCallback(() => {
-      if (isEditMode && reminderId) {
-        loadReminderData()
+      // Only reload data on focus if we haven't already loaded it and user hasn't started modifying
+      if (
+        isEditMode &&
+        reminderId &&
+        !initialReminderData &&
+        !hasUserStartedCreateMode
+      ) {
+        // Reload data when user focuses back on the screen
+        setLoadingReminder(true)
+        reminderService
+          .getReminderById(reminderId)
+          .then((response) => {
+            const reminderData = response.data
+            if (reminderData) {
+              setInitialReminderData(reminderData)
+
+              if (reminderData.recurrence) {
+                const convertedRecurrence = convertFromBackendRecurrence(
+                  reminderData.recurrence,
+                )
+                setRecurrenceRule(convertedRecurrence)
+              }
+
+              if (reminderData.children && reminderData.children.length > 0) {
+                setInitialChildReminders(reminderData.children)
+
+                const childrenWithDoseNumbers = reminderData.children.map(
+                  (child: any) => {
+                    const doseMatch =
+                      child.reminderName.match(/เข็มที่\s*(\d+)/)
+                    const doseNumber = doseMatch
+                      ? parseInt(doseMatch[1], 10)
+                      : 0
+                    return { ...child, extractedDoseNumber: doseNumber }
+                  },
+                )
+
+                const sortedChildren = childrenWithDoseNumbers.sort(
+                  (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
+                )
+
+                const childrenDoses: IDose[] = sortedChildren.map(
+                  (child: any) => ({
+                    doseNumber: child.extractedDoseNumber,
+                    date: child.reminderDate || '',
+                    time: child.reminderTime || '',
+                    isAutoCalculated: child.extractedDoseNumber > 1,
+                    isEdited: false,
+                    childReminderId: child.id,
+                  }),
+                )
+                setDoses(childrenDoses)
+                const firstChildName =
+                  reminderData.children[0]?.reminderName || ''
+                const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+                if (nameMatch) {
+                  const vaccineName = nameMatch[1]
+                  setCustomVaccineName(vaccineName)
+                  setLoadedVaccineIsCustom(true)
+                }
+              }
+            }
+          })
+          .catch((error) => {
+            showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
+          })
+          .finally(() => {
+            setLoadingReminder(false)
+          })
       }
-    }, [isEditMode, reminderId, loadReminderData]),
+    }, [
+      isEditMode,
+      reminderId,
+      showError,
+      initialReminderData,
+      hasUserStartedCreateMode,
+    ]),
   )
 
   useEffect(() => {
@@ -342,6 +438,7 @@ export default function AddReminderPage() {
     setCustomVaccineName('')
     setVaccineResetKey((prev) => prev + 1)
     setRecurrenceRule(null)
+    setHasUserStartedCreateMode(false)
     formik.resetForm()
     router.back()
   }
@@ -567,6 +664,9 @@ export default function AddReminderPage() {
                     isEditMode && doses.length > 0 ? doses.length : undefined
                   }
                   doneChildReminderIds={doneChildReminderIds}
+                  onCustomDosesGenerated={() =>
+                    setHasUserStartedCreateMode(true)
+                  }
                 />
 
                 <View>

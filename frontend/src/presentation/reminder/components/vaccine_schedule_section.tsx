@@ -27,6 +27,7 @@ interface VaccineScheduleSectionProps {
   onDose1DateChange: (dateString: string) => void
   onDose1TimeChange: (time: string) => void
   onCustomVaccineNameChange?: (name: string) => void
+  onCustomDosesGenerated?: () => void
   initialVaccineId?: number | null
   initialVaccineName?: string
   isEditMode?: boolean
@@ -44,6 +45,7 @@ export default function VaccineScheduleSection({
   onDose1DateChange,
   onDose1TimeChange,
   onCustomVaccineNameChange,
+  onCustomDosesGenerated,
   initialVaccineId,
   initialVaccineName,
   isEditMode,
@@ -67,10 +69,14 @@ export default function VaccineScheduleSection({
   const [customVaccineName, setCustomVaccineName] = useState<string>(
     initialVaccineName || '',
   )
+  // const [isCustomVaccine, setIsCustomVaccine] = useState(false)
+  // const [customVaccineName, setCustomVaccineName] = useState<string>('')
   const [customDoseCount, setCustomDoseCount] = useState<number | null>(null)
   const [showCustomDoseInput, setShowCustomDoseInput] = useState(false)
   const [customDoseInputValue, setCustomDoseInputValue] = useState<string>('')
   const [isCustomDoseInputMode, setIsCustomDoseInputMode] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [isGeneratingCustomDoses, setIsGeneratingCustomDoses] = useState(false)
 
   const selectedVaccine = vaccineList.find((v) => v.id === selectedVaccineId)
   const hasReminderDate = !!reminderDate
@@ -82,9 +88,11 @@ export default function VaccineScheduleSection({
         return 'Invalid Date'
       }
       let date: Date
+      // Handle ISO format with T
       if (dateString.includes('T')) {
         date = new Date(dateString)
       } else {
+        // Handle YYYY-MM-DD format
         date = new Date(dateString + 'T00:00:00')
       }
       if (isNaN(date.getTime())) {
@@ -105,9 +113,12 @@ export default function VaccineScheduleSection({
       if (!dateString) {
         return new Date()
       }
+      // Handle both YYYY-MM-DD format and ISO date strings
       if (dateString.includes('T')) {
+        // ISO format
         return new Date(dateString.split('T')[0] + 'T00:00:00')
       }
+      // YYYY-MM-DD format
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
       return date
@@ -144,18 +155,45 @@ export default function VaccineScheduleSection({
       setVaccineList([])
       setSelectedVaccineId(null)
       setDoses([])
+      setIsInitialized(false)
     }
   }, [isVaccinationCategory, petId, canUseVaccineSchedule])
 
   useEffect(() => {
-    if (isEditMode && doses.length > 0 && !selectedVaccineId) {
-      setIsCustomVaccine(true)
+    // Only initialize once when edit mode data is loaded and not already initialized
+    if (
+      isEditMode &&
+      doses.length > 0 &&
+      !selectedVaccineId &&
+      vaccineList.length > 0 &&
+      !isInitialized
+    ) {
+      // Try to match initialVaccineName with vaccines in the list
       if (initialVaccineName) {
-        setCustomVaccineName(initialVaccineName)
-        onCustomVaccineNameChange?.(initialVaccineName)
+        const matchedVaccine = vaccineList.find(
+          (vaccine) =>
+            vaccine.vaccine_name_th === initialVaccineName ||
+            vaccine.vaccine_name === initialVaccineName,
+        )
+
+        if (matchedVaccine) {
+          // It's a standard vaccine from the list
+          setSelectedVaccineId(matchedVaccine.id)
+          setIsCustomVaccine(false)
+          setCustomVaccineName(initialVaccineName)
+          onCustomVaccineNameChange?.(initialVaccineName)
+        } else {
+          // It's a custom vaccine
+          setIsCustomVaccine(true)
+          setCustomVaccineName(initialVaccineName)
+          onCustomVaccineNameChange?.(initialVaccineName)
+        }
       }
+
+      // Initialize custom dose count from initial data
       if (initialCustomDoseCount) {
         setCustomDoseCount(initialCustomDoseCount)
+        // If dose count > 6, activate custom input mode
         if (initialCustomDoseCount > 6) {
           setIsCustomDoseInputMode(true)
           setCustomDoseInputValue(String(initialCustomDoseCount))
@@ -165,14 +203,24 @@ export default function VaccineScheduleSection({
           setShowCustomDoseInput(false)
         }
       }
+
+      setIsInitialized(true)
     }
   }, [
     isEditMode,
-    doses.length,
     selectedVaccineId,
     initialVaccineName,
     initialCustomDoseCount,
+    vaccineList,
+    isInitialized,
   ])
+
+  // Reset initialization flag when edit mode changes
+  useEffect(() => {
+    if (!isEditMode) {
+      setIsInitialized(false)
+    }
+  }, [isEditMode])
 
   useEffect(() => {
     if (selectedVaccineId && petId && reminderDate) {
@@ -180,6 +228,7 @@ export default function VaccineScheduleSection({
     }
   }, [selectedVaccineId, petId])
 
+  // Sync dose 1 with reminderDate
   useEffect(() => {
     if (doses.length > 0 && reminderDate) {
       const dose1 = doses.find((d) => d.doseNumber === 1)
@@ -272,7 +321,12 @@ export default function VaccineScheduleSection({
     setSelectedVaccineId(vaccineId)
     setShowVaccineDropdown(false)
     setIsCustomVaccine(false)
-    setCustomVaccineName('')
+
+    const vaccine = vaccineList.find((v) => v.id === vaccineId)
+    const vaccineName = vaccine?.vaccine_name_th || vaccine?.vaccine_name || ''
+    setCustomVaccineName(vaccineName)
+    onCustomVaccineNameChange?.(vaccineName)
+
     setCustomDoseCount(null)
     setShowCustomDoseInput(false)
     setIsCustomDoseInputMode(false)
@@ -285,6 +339,12 @@ export default function VaccineScheduleSection({
     setSelectedVaccineId(null)
     setShowVaccineDropdown(false)
     setDoses([])
+    setCustomVaccineName('')
+    setCustomDoseCount(null)
+    setShowCustomDoseInput(false)
+    setIsCustomDoseInputMode(false)
+    setCustomDoseInputValue('')
+    onCustomVaccineNameChange?.('')
   }
 
   const handleGenerateCustomDoses = () => {
@@ -294,7 +354,7 @@ export default function VaccineScheduleSection({
       return
     }
 
-    setDoses([])
+    setIsGeneratingCustomDoses(true)
 
     const generatedDoses: IDose[] = []
     for (let i = 1; i <= doseCountToUse; i++) {
@@ -312,7 +372,12 @@ export default function VaccineScheduleSection({
     }
 
     setDoses(generatedDoses)
+    onCustomDosesGenerated?.()
     showSuccess(`สร้างตารางวัคซีน ${customVaccineName} สำเร็จ !`)
+
+    setTimeout(() => {
+      setIsGeneratingCustomDoses(false)
+    }, 100)
   }
 
   const handleDateChange = (doseNumber: number, date: Date) => {
