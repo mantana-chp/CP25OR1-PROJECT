@@ -2,18 +2,28 @@ import { Link } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { IReminder } from '@/src/domain/reminder.domain'
+import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
-import { Plus } from 'lucide-react-native'
+import {
+  Bone,
+  LayoutGrid,
+  Pill,
+  Pipette,
+  Plus,
+  Scissors,
+  Stethoscope,
+  Syringe,
+  Tag,
+} from 'lucide-react-native'
 import {
   Modal,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import ReminderDetailModal from '../pages/reminder_detail_modal'
@@ -21,6 +31,16 @@ import RecurringReminderCard from './recurring_reminder_card'
 import ReminderCard from './reminder_card'
 
 type TabType = 'to_do' | 'done'
+
+const ICON_MAP: Record<string, any> = {
+  Tag,
+  Syringe,
+  Stethoscope,
+  Pill,
+  Pipette,
+  Scissors,
+  Bone,
+}
 
 interface ReminderListProps {
   reminders: IReminder[]
@@ -33,13 +53,14 @@ export default function ReminderList({
   reminders,
   isLoading,
   onRefresh,
-  initialReminderId
+  initialReminderId,
 }: ReminderListProps) {
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
   const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
-    initialReminderId || null
+    initialReminderId || null,
   )
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
@@ -47,11 +68,11 @@ export default function ReminderList({
       if (onRefresh) {
         onRefresh()
       }
-    }
+    },
   })
 
   const updateStatusApi = useApi(reminderService.updateReminderStatus, {
-    showErrorAlert: true
+    showErrorAlert: true,
   })
 
   useEffect(() => {
@@ -71,11 +92,11 @@ export default function ReminderList({
   const handleDeleteReminder = useCallback(
     async (
       id: string,
-      deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+      deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
     ) => {
       await deleteReminderApi.execute(id, deleteScope)
     },
-    [deleteReminderApi]
+    [deleteReminderApi],
   )
 
   const handleToggleStatus = useCallback(
@@ -101,20 +122,25 @@ export default function ReminderList({
         }
       }
     },
-    [tempDoneIds, updateStatusApi, onRefresh]
+    [tempDoneIds, updateStatusApi, onRefresh],
   )
 
   const filteredReminders = (Array.isArray(reminders) ? reminders : []).filter(
     (reminder) => {
-      if (activeTab === 'to_do') {
-        return (
-          reminder.reminderStatus === 'to_do' ||
-          reminder.reminderStatus === 'overdue'
-        )
-      } else {
-        return reminder.reminderStatus === activeTab
-      }
-    }
+      // Filter by status
+      const statusMatch =
+        activeTab === 'to_do'
+          ? reminder.reminderStatus === 'to_do' ||
+            reminder.reminderStatus === 'overdue'
+          : reminder.reminderStatus === activeTab
+
+      // Filter by category
+      const categoryMatch = selectedCategory
+        ? reminder.categoryName === selectedCategory
+        : true
+
+      return statusMatch && categoryMatch
+    },
   )
 
   return (
@@ -128,7 +154,7 @@ export default function ReminderList({
           <Text
             style={[
               styles.tabText,
-              activeTab === 'to_do' && styles.activeTabText
+              activeTab === 'to_do' && styles.activeTabText,
             ]}
           >
             เตือนความจำ
@@ -143,7 +169,7 @@ export default function ReminderList({
           <Text
             style={[
               styles.tabText,
-              activeTab === 'done' && styles.activeTabText
+              activeTab === 'done' && styles.activeTabText,
             ]}
           >
             เสร็จสิ้น
@@ -151,6 +177,69 @@ export default function ReminderList({
           {activeTab === 'done' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
       </View>
+
+      {/* Category Filter Tabs */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryFilterContainer}
+        contentContainerStyle={styles.categoryFilterContent}
+      >
+        <TouchableOpacity
+          onPress={() => setSelectedCategory(null)}
+          style={[
+            styles.categoryTab,
+            selectedCategory === null && styles.activeCategoryTab,
+          ]}
+        >
+          <LayoutGrid
+            size={18}
+            color={selectedCategory === null ? '#fff' : '#6B7280'}
+          />
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedCategory === null && styles.activeCategoryTabText,
+            ]}
+          >
+            ทั้งหมด
+          </Text>
+        </TouchableOpacity>
+
+        {Object.entries(CATEGORY_MAP).map(([categoryKey, categoryInfo]) => {
+          const Icon = ICON_MAP[categoryInfo.icon]
+          return (
+            <TouchableOpacity
+              key={categoryKey}
+              onPress={() => setSelectedCategory(categoryKey)}
+              style={[
+                styles.categoryTab,
+                selectedCategory === categoryKey && styles.activeCategoryTab,
+              ]}
+            >
+              {Icon && (
+                <Icon
+                  size={18}
+                  color={
+                    selectedCategory === categoryKey
+                      ? '#fff'
+                      : categoryInfo.color
+                  }
+                />
+              )}
+              <Text
+                style={[
+                  styles.categoryTabText,
+                  selectedCategory === categoryKey &&
+                    styles.activeCategoryTabText,
+                ]}
+              >
+                {categoryInfo.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
 
       {/* Reminder Content */}
       {isLoading ? (
@@ -193,7 +282,7 @@ export default function ReminderList({
                     onToggleStatus={handleToggleStatus}
                     isTempDone={tempDoneIds.includes(reminder.id)}
                   />
-                )
+                ),
               )}
             </>
           )}
@@ -201,9 +290,9 @@ export default function ReminderList({
       )}
 
       {/* Floating Add Button */}
-      <Link href="/(tabs)/add-reminder" push asChild>
+      <Link href='/(tabs)/add-reminder' push asChild>
         <TouchableOpacity style={styles.addReminderButton}>
-          <Plus size={32} color="#fff" strokeWidth={3} />
+          <Plus size={32} color='#fff' strokeWidth={3} />
         </TouchableOpacity>
       </Link>
 
@@ -211,7 +300,7 @@ export default function ReminderList({
       <Modal
         visible={!!selectedReminderId}
         transparent
-        animationType="fade"
+        animationType='fade'
         onRequestClose={() => setSelectedReminderId(null)}
       >
         <ReminderDetailModal
@@ -228,30 +317,30 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     backgroundColor: '#fff9f1',
-    borderRadius: 24
+    borderRadius: 24,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff9f1'
+    backgroundColor: '#fff9f1',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff9f1'
+    backgroundColor: '#fff9f1',
   },
   errorText: {
     fontSize: 16,
     color: '#BF1737',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -259,19 +348,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
-    backgroundColor: '#fff9f1'
+    backgroundColor: '#fff9f1',
   },
   tabButton: {
-    paddingBottom: 8
+    paddingBottom: 8,
   },
   tabText: {
     color: '#C4C4C4',
     fontSize: 20,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   activeTabText: {
     color: '#225877',
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   activeUnderline: {
     position: 'absolute',
@@ -279,24 +368,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#225877'
+    backgroundColor: '#225877',
   },
   contentContainer: {
-    flex: 1
+    flex: 1,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100
+    paddingBottom: 100,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60
+    paddingVertical: 60,
   },
   emptyText: {
     color: '#C4C4C4',
     fontSize: 16,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   addReminderButton: {
     position: 'absolute',
@@ -313,6 +402,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    overflow: 'visible'
-  }
+    overflow: 'visible',
+  },
+  categoryFilterContainer: {
+    backgroundColor: '#fff9f1',
+    paddingVertical: 14,
+    maxHeight: 50,
+  },
+  categoryFilterContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryTab: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 32,
+  },
+  activeCategoryTab: {
+    backgroundColor: '#5FA7D1',
+    borderColor: '#5FA7D1',
+  },
+  categoryTabText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center',
+  },
+  activeCategoryTabText: {
+    color: '#fff',
+    fontFamily: 'Prompt_500Medium',
+  },
 })
