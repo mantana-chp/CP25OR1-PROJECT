@@ -24,13 +24,15 @@ import {
 import React, { useRef, useState } from 'react'
 import {
   Animated,
-  Modal,
   PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native'
+import DeleteConfirmationModal from './modal/delete_confirmation_modal'
+import VaccineCompleteModal from './modal/vaccine_complete_modal'
+import VaccineUndoModal from './modal/vaccine_undo_modal'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -495,118 +497,30 @@ export default function RecurringReminderCard({
         )}
       </Animated.View>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
+      {/* Modals */}
+      <DeleteConfirmationModal
         visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelDelete}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ยืนยันการลบ</Text>
-            <Text style={styles.modalMessage}>
-              การลบเตือนความจำนี้จะลบเตือนความจำทั้งหมดใน{' '}
-              <Text style={styles.modalBold}>{reminder.reminderName}</Text> (
-              {totalCount} รายการ)
-            </Text>
-            <Text style={styles.modalSubMessage}>คุณแน่ใจหรือไม่?</Text>
+        reminderName={reminder.reminderName}
+        totalCount={totalCount}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.deleteButtonModal]}
-                onPress={handleConfirmDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteButtonText}>ลบทั้งหมด</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Complete Confirmation Modal */}
-      <Modal
+      <VaccineCompleteModal
         visible={showCompleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelComplete}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ยืนยันการทำเครื่องหมาย</Text>
-            <Text style={styles.modalMessage}>
-              คุณต้องการทำเครื่องหมาย{' '}
-              <Text style={styles.modalBold}>
-                วัคซีนเข็มที่ {(selectedInstance?.index ?? 0) + 1}/{totalCount}
-              </Text>{' '}
-              ว่าเสร็จสิ้นแล้วใช่หรือไม่?
-            </Text>
+        doseNumber={(selectedInstance?.index ?? 0) + 1}
+        totalCount={totalCount}
+        onConfirm={handleConfirmComplete}
+        onCancel={handleCancelComplete}
+      />
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelComplete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.completeButtonModal]}
-                onPress={handleConfirmComplete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteButtonText}>ยืนยัน</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Undo Confirmation Modal */}
-      <Modal
+      <VaccineUndoModal
         visible={showUndoModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelUndo}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ยืนยันการเปลี่ยนสถานะ</Text>
-            <Text style={styles.modalMessage}>
-              คุณต้องการเปลี่ยนสถานะ{' '}
-              <Text style={styles.modalBold}>
-                วัคซีนเข็มที่ {(selectedInstance?.index ?? 0) + 1}/{totalCount}
-              </Text>{' '}
-              กลับเป็น "ยังไม่เสร็จ" ใช่หรือไม่?
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelUndo}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.completeButtonModal]}
-                onPress={handleConfirmUndo}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteButtonText}>ยืนยัน</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        doseNumber={(selectedInstance?.index ?? 0) + 1}
+        totalCount={totalCount}
+        onConfirm={handleConfirmUndo}
+        onCancel={handleCancelUndo}
+      />
     </View>
   )
 }
@@ -772,75 +686,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Prompt_700Bold',
     color: '#225877'
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    gap: 16
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877',
-    textAlign: 'center'
-  },
-  modalMessage: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877',
-    textAlign: 'center',
-    lineHeight: 24
-  },
-  modalBold: {
-    fontFamily: 'Prompt_700Bold',
-    color: '#ef4444'
-  },
-  modalSubMessage: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#6b7280',
-    textAlign: 'center'
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center'
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db'
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_500Medium',
-    color: '#4b5563'
-  },
-  deleteButtonModal: {
-    backgroundColor: '#ef4444'
-  },
-  completeButtonModal: {
-    backgroundColor: '#15AD90'
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#fff'
   }
 })
