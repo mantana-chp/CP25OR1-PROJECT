@@ -10,7 +10,6 @@ import { formatRecurrenceText } from '@/src/utils/recurrence.utils'
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -344,10 +343,7 @@ export default function RecurrencePicker({
         animationType="slide"
         onRequestClose={handleCustomCancel}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
