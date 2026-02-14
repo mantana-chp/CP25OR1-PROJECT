@@ -599,18 +599,18 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    gap: 24,
+    gap: 20,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: '#fff9f1'
   },
   tabButton: {
-    paddingBottom: 8
+    paddingBottom: 4
   },
   tabText: {
     color: '#C4C4C4',
-    fontSize: 20,
+    fontSize: 17,
     fontFamily: 'Prompt_400Regular'
   },
   activeTabText: {
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
     paddingBottom: 100
   },
   emptyContainer: {
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   },
   categoryFilterContainer: {
     backgroundColor: '#fff9f1',
-    paddingVertical: 14,
+    paddingVertical: 4,
     maxHeight: 50
   },
   categoryFilterContent: {
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 32
+    height: 28
   },
   activeCategoryTab: {
     backgroundColor: '#5FA7D1',

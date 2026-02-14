@@ -169,33 +169,14 @@ export default function ReminderPage() {
     setSelectedDate(new Date())
   }
 
-  /**
-   * Virtual Reminder Filtering Logic:
-   *
-   * Main List (No Date Selected):
-   * - Shows ALL real reminders (past, present, future)
-   * - Shows ONLY past/present virtual reminders
-   * - Excludes future virtual reminders to avoid clutter
-   *
-   * Date-Filtered View:
-   * - Shows ALL reminders (including virtual) for the selected date
-   * - Allows users to see projected recurring reminders for future dates
-   *
-   * This approach gives users:
-   * 1. Clean main list without infinite virtual future items
-   * 2. Complete view when they specifically select a date
-   * 3. Ability to see their upcoming schedule in calendar
-   */
   const filteredReminders =
     hasUserSelectedDate && selectedDate
-      ? // When date is selected, show ALL reminders (including virtual)
-        allReminders.filter((reminder) =>
+      ? allReminders.filter((reminder) =>
           dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
         )
-      : // When no date selected, exclude virtual future reminders
-        allReminders.filter((reminder) => {
+      : allReminders.filter((reminder) => {
           if (!reminder.isVirtual) return true
-          // Only include virtual reminders if they are today or in the past
+
           return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
         })
 
