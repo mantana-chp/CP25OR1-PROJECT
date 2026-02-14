@@ -1,4 +1,5 @@
 import { IReminder, getCategoryInfo } from '@/src/domain/reminder.domain'
+import { IVirtualReminder } from '@/src/utils/recurring_reminder_generator'
 import dayjs from 'dayjs'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
@@ -9,10 +10,12 @@ interface CalendarDayProps {
   isToday: boolean
   hasEvents?: boolean
   reminderCount?: number
-  reminders?: IReminder[]
+  reminders?: Array<IReminder | IVirtualReminder>
   date: Date
   onPress: (date: Date) => void
   selectedDate: Date | null
+  hasVirtualReminders?: boolean
+  hasRealReminders?: boolean
 }
 
 export default function CalendarDay({
@@ -24,12 +27,16 @@ export default function CalendarDay({
   reminders = [],
   date,
   onPress,
-  selectedDate
+  selectedDate,
+  hasVirtualReminders,
+  hasRealReminders
 }: CalendarDayProps) {
-  // Get category colors for this day's reminders
-  const reminderColors = reminders
-    .slice(0, 3) // Only show up to 3 dots
-    .map((reminder) => getCategoryInfo(reminder.categoryName).color)
+  // Separate real and virtual reminders
+  const realReminders = reminders.filter((r) => !r.isVirtual)
+  const virtualReminders = reminders.filter((r) => r.isVirtual)
+
+  // Get category colors for this day's reminders (real first, then virtual)
+  const displayReminders = [...realReminders, ...virtualReminders].slice(0, 3)
 
   const isSelected = selectedDate && dayjs(date).isSame(selectedDate, 'day')
 
@@ -47,7 +54,11 @@ export default function CalendarDay({
             style={[
               styles.dayText,
               !isCurrentMonth && styles.inactiveDayText,
-              isSelected ? styles.selectedText : isToday ? styles.todayText : null
+              isSelected
+                ? styles.selectedText
+                : isToday
+                  ? styles.todayText
+                  : null
             ]}
           >
             {day}
@@ -56,16 +67,28 @@ export default function CalendarDay({
         {hasEvents && reminderCount && (
           <View style={styles.eventIndicatorContainer}>
             <View style={styles.dotsContainer}>
-              {/* Show up to 3 colored dots based on category colors */}
-              {reminderColors.map((color, index) => (
-                <View
-                  key={index}
-                  style={[styles.eventDot, { backgroundColor: color }]}
-                />
-              ))}
+              {/* Show dots with different styles for real vs virtual */}
+              {displayReminders.map((reminder, index) => {
+                const color = getCategoryInfo(reminder.categoryName).color
+                const isVirtual = reminder.isVirtual === true
+
+                return isVirtual ? (
+                  // Hollow dot for virtual reminders
+                  <View
+                    key={`${reminder.id}-${index}`}
+                    style={[styles.eventDotOutline, { borderColor: color }]}
+                  />
+                ) : (
+                  // Filled dot for real reminders
+                  <View
+                    key={`${reminder.id}-${index}`}
+                    style={[styles.eventDot, { backgroundColor: color }]}
+                  />
+                )
+              })}
 
               {/* Show "+X" text if more than 3 reminders */}
-              {reminderCount > 3 && (
+              {reminderCount && reminderCount > 3 && (
                 <Text style={styles.reminderCount}>+{reminderCount - 3}</Text>
               )}
             </View>
@@ -135,6 +158,13 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3
+  },
+  eventDotOutline: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent'
   },
   reminderCount: {
     fontSize: 9,
