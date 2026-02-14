@@ -355,7 +355,9 @@ export default function AddReminderPage() {
 
               // Set original pet species for tracking changes
               if (reminderData.petId) {
-                const originalPet = pets.find((p) => p.id === reminderData.petId)
+                const originalPet = pets.find(
+                  (p) => p.id === reminderData.petId,
+                )
                 if (originalPet) {
                   setOriginalPetSpecies(originalPet.species)
                 }
@@ -456,18 +458,21 @@ export default function AddReminderPage() {
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
   // Helper function to check if two species are the same type (both dogs, both cats, etc.)
-  const isSamePetType = (species1: string | null, species2: string | null): boolean => {
+  const isSamePetType = (
+    species1: string | null,
+    species2: string | null,
+  ): boolean => {
     if (!species1 || !species2) return false
-    
+
     // Check if both contain the same species keyword
     const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
-    
+
     for (const type of petTypes) {
       if (species1.includes(type) && species2.includes(type)) {
         return true
       }
     }
-    
+
     return false
   }
 
@@ -630,14 +635,21 @@ export default function AddReminderPage() {
                   selectedPetId={formik.values.petId}
                   onSelectPet={(petId: string) => {
                     const newPet = pets.find((p) => p.id === petId)
-                    const oldPetSpecies = originalPetSpecies || currentPet?.species
+                    const oldPetSpecies =
+                      originalPetSpecies || currentPet?.species
                     const newPetSpecies = newPet?.species
 
                     formik.setFieldValue('petId', petId)
                     setSelectedPetId(petId)
 
                     // If in edit mode and pet species changed, reset vaccine schedule
-                    if (isEditMode && !isSamePetType(oldPetSpecies || null, newPetSpecies || null)) {
+                    if (
+                      isEditMode &&
+                      !isSamePetType(
+                        oldPetSpecies || null,
+                        newPetSpecies || null,
+                      )
+                    ) {
                       // Mark all existing child reminders for deletion
                       const currentChildIds = initialChildReminders.map(
                         (child) => child.id,
