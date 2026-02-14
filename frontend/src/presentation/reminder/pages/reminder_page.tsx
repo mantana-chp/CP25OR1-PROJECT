@@ -8,7 +8,7 @@ import {
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import TodayRemindersModal from '../../components/today_reminders_modal'
@@ -27,6 +27,7 @@ export default function ReminderPage() {
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
+  const [virtualReminders, setVirtualReminders] = useState<any[]>([])
   const swipeStartY = useRef(0)
 
   // ------------------
@@ -76,6 +77,28 @@ export default function ReminderPage() {
     }
   }, [recurringRules])
 
+  // Generate virtual reminders asynchronously (AsyncStorage requires async)
+  useEffect(() => {
+    const loadVirtualReminders = async () => {
+      const virtuals = await generateAllVirtualReminders(
+        recurringRules,
+        {
+          monthsForward: 6,
+          monthsBackward: 1,
+          maxOccurrences: 100
+        },
+        safeReminders // Pass real reminders to copy pet_name
+      )
+      setVirtualReminders(virtuals)
+    }
+
+    if (recurringRules.length > 0) {
+      loadVirtualReminders()
+    } else {
+      setVirtualReminders([])
+    }
+  }, [recurringRules, safeReminders])
+
   const remindersWithRecurrence = safeReminders.map((reminder) => {
     const recurringRule = Array.isArray(recurringRules)
       ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
@@ -93,21 +116,11 @@ export default function ReminderPage() {
 
   // Generate virtual reminders and merge with real ones
   const allReminders = useMemo(() => {
-    const virtualReminders = generateAllVirtualReminders(
-      recurringRules,
-      {
-        monthsForward: 6,
-        monthsBackward: 1,
-        maxOccurrences: 100
-      },
-      safeReminders // Pass real reminders to copy pet_name
-    )
-
     return mergeRealAndVirtualReminders(
       remindersWithRecurrence,
       virtualReminders
     )
-  }, [remindersWithRecurrence, recurringRules, safeReminders])
+  }, [remindersWithRecurrence, virtualReminders])
 
   const panResponder = useRef(
     PanResponder.create({

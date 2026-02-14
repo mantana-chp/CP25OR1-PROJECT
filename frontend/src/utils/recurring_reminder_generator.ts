@@ -38,6 +38,7 @@ import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { IRecurringRule } from './api/services/reminder_service'
+import { getRuleExcludedDates } from './excluded_dates_storage'
 
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
@@ -89,10 +90,10 @@ function parseDaysOfWeekBitmap(bitmap: number): number[] {
 /**
  * Generate virtual reminder occurrences for a single recurring rule
  */
-export function generateVirtualOccurrencesForRule(
+export async function generateVirtualOccurrencesForRule(
   rule: IRecurringRule,
   options: GenerateVirtualRemindersOptions = {}
-): IVirtualReminder[] {
+): Promise<IVirtualReminder[]> {
   const {
     monthsForward = 6,
     monthsBackward = 1,
@@ -107,14 +108,23 @@ export function generateVirtualOccurrencesForRule(
   const rangeStart = now.subtract(monthsBackward, 'month').startOf('day')
   const rangeEnd = now.add(monthsForward, 'month').endOf('day')
 
+  // Merge excluded_dates from backend with AsyncStorage (workaround for backend not persisting)
+  const backendExcludedDates = rule.excluded_dates || []
+  const localStorageExcludedDates = await getRuleExcludedDates(rule.id)
+  const allExcludedDates = [
+    ...backendExcludedDates,
+    ...localStorageExcludedDates
+  ]
+
   // Create a set of excluded dates for fast lookup
-  const excludedDatesSet = new Set<string>(rule.excluded_dates || [])
+  const excludedDatesSet = new Set<string>(allExcludedDates)
 
   // Debug: Log if there are excluded dates
   if (excludedDatesSet.size > 0) {
     console.log(
       `[${rule.reminder_name}] Excluding dates:`,
-      Array.from(excludedDatesSet)
+      Array.from(excludedDatesSet),
+      `(backend: ${backendExcludedDates.length}, localStorage: ${localStorageExcludedDates.length})`
     )
   }
 
@@ -331,11 +341,11 @@ function createVirtualReminder(
  * Generate all virtual reminders from an array of recurring rules
  * Optionally accepts real reminders to copy pet_name from parent reminder
  */
-export function generateAllVirtualReminders(
+export async function generateAllVirtualReminders(
   recurringRules: IRecurringRule[],
   options: GenerateVirtualRemindersOptions = {},
   realReminders?: IReminder[]
-): IVirtualReminder[] {
+): Promise<IVirtualReminder[]> {
   const allVirtualReminders: IVirtualReminder[] = []
 
   // Create maps for quick lookup
@@ -358,7 +368,10 @@ export function generateAllVirtualReminders(
   for (const rule of recurringRules) {
     // Only generate for active rules
     if (rule.recurrence_status === 'ACTIVE') {
-      const virtualReminders = generateVirtualOccurrencesForRule(rule, options)
+      const virtualReminders = await generateVirtualOccurrencesForRule(
+        rule,
+        options
+      )
 
       // If pet_name is missing or empty, try to get it from the parent reminder
       for (const virtualReminder of virtualReminders) {

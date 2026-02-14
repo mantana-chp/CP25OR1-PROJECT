@@ -5,7 +5,7 @@ import {
   IVirtualReminder,
   mergeRealAndVirtualReminders
 } from '@/src/utils/recurring_reminder_generator'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { LayoutAnimation } from 'react-native'
 
 interface DayInfo {
@@ -25,22 +25,37 @@ export const useCalendar = (
   recurringRules: IRecurringRule[] = []
 ) => {
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [virtualReminders, setVirtualReminders] = useState<IVirtualReminder[]>(
+    []
+  )
   const today = new Date()
 
-  // Generate virtual reminders and merge with real ones
-  const allReminders = useMemo(() => {
-    const virtualReminders = generateAllVirtualReminders(
-      recurringRules,
-      {
-        monthsForward: 6,
-        monthsBackward: 1,
-        maxOccurrences: 100
-      },
-      reminders // Pass real reminders to copy pet_name
-    )
+  // Generate virtual reminders asynchronously (AsyncStorage requires async)
+  useEffect(() => {
+    const loadVirtualReminders = async () => {
+      const virtuals = await generateAllVirtualReminders(
+        recurringRules,
+        {
+          monthsForward: 6,
+          monthsBackward: 1,
+          maxOccurrences: 100
+        },
+        reminders // Pass real reminders to copy pet_name
+      )
+      setVirtualReminders(virtuals)
+    }
 
-    return mergeRealAndVirtualReminders(reminders, virtualReminders)
+    if (recurringRules.length > 0) {
+      loadVirtualReminders()
+    } else {
+      setVirtualReminders([])
+    }
   }, [reminders, recurringRules])
+
+  // Merge virtual reminders with real ones
+  const allReminders = useMemo(() => {
+    return mergeRealAndVirtualReminders(reminders, virtualReminders)
+  }, [reminders, virtualReminders])
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
