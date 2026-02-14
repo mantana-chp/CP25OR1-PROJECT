@@ -72,7 +72,7 @@ export default function ReminderList({
   isToday = true,
   allReminders = [],
 }: ReminderListProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('to_do')
+  const [activeTab, setActiveTab] = useState<TabType>('today')
   const [petModalVisible, setPetModalVisible] = useState(false)
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
