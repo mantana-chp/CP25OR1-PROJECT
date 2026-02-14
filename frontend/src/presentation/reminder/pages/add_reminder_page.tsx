@@ -656,11 +656,13 @@ export default function AddReminderPage() {
                       )
                       setChildrenToDelete(currentChildIds)
 
-                      // Reset all vaccine-related states
+                      // Reset all vaccine-related states and clear initial child reminders
                       setDoses([])
                       setCustomVaccineName('')
                       setLoadedVaccineIsCustom(false)
                       setVaccineResetKey((prev) => prev + 1)
+                      // clear disable category selector
+                      setInitialChildReminders([]) 
                     }
                     // If in edit mode and pet species is the same, keep previous values
                     // (do nothing, values are preserved)
