@@ -31,12 +31,8 @@ export default function CalendarDay({
   hasVirtualReminders,
   hasRealReminders
 }: CalendarDayProps) {
-  // Separate real and virtual reminders
-  const realReminders = reminders.filter((r) => !r.isVirtual)
-  const virtualReminders = reminders.filter((r) => r.isVirtual)
-
-  // Get category colors for this day's reminders (real first, then virtual)
-  const displayReminders = [...realReminders, ...virtualReminders].slice(0, 3)
+  // Show up to 3 reminder dots
+  const displayReminders = reminders.slice(0, 3)
 
   const isSelected = selectedDate && dayjs(date).isSame(selectedDate, 'day')
 
@@ -67,19 +63,11 @@ export default function CalendarDay({
         {hasEvents && reminderCount && (
           <View style={styles.eventIndicatorContainer}>
             <View style={styles.dotsContainer}>
-              {/* Show dots with different styles for real vs virtual */}
+              {/* Show dots with category colors */}
               {displayReminders.map((reminder, index) => {
                 const color = getCategoryInfo(reminder.categoryName).color
-                const isVirtual = reminder.isVirtual === true
 
-                return isVirtual ? (
-                  // Hollow dot for virtual reminders
-                  <View
-                    key={`${reminder.id}-${index}`}
-                    style={[styles.eventDotOutline, { borderColor: color }]}
-                  />
-                ) : (
-                  // Filled dot for real reminders
+                return (
                   <View
                     key={`${reminder.id}-${index}`}
                     style={[styles.eventDot, { backgroundColor: color }]}
@@ -158,13 +146,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3
-  },
-  eventDotOutline: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    borderWidth: 1.5,
-    backgroundColor: 'transparent'
   },
   reminderCount: {
     fontSize: 9,

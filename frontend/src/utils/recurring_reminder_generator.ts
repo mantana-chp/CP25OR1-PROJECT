@@ -11,9 +11,9 @@
  * - **Merging**: Combining real (database) and virtual reminders, with real ones taking precedence
  *
  * Visual Distinction:
- * - Real reminders: Filled dots in calendar
- * - Virtual reminders: Hollow/outlined dots in calendar
- * - Virtual reminders have "คาดการณ์" (Predicted) badge and cannot be edited/deleted
+ * - Calendar dots: All reminders (real and virtual) show filled dots with category colors
+ * - Virtual reminders have light gray background in list view and cannot be edited
+ * - Status toggle is disabled for virtual reminders to maintain data consistency
  *
  * Supported Frequencies:
  * - DAILY: Every N days
@@ -109,6 +109,14 @@ export function generateVirtualOccurrencesForRule(
 
   // Create a set of excluded dates for fast lookup
   const excludedDatesSet = new Set<string>(rule.excluded_dates || [])
+
+  // Debug: Log if there are excluded dates
+  if (excludedDatesSet.size > 0) {
+    console.log(
+      `[${rule.reminder_name}] Excluding dates:`,
+      Array.from(excludedDatesSet)
+    )
+  }
 
   // Determine end date from rule
   let effectiveEndDate = rangeEnd
@@ -330,12 +338,19 @@ export function generateAllVirtualReminders(
 ): IVirtualReminder[] {
   const allVirtualReminders: IVirtualReminder[] = []
 
-  // Create a map of reminder_id to pet_name for quick lookup
+  // Create maps for quick lookup
   const reminderToPetName = new Map<string, string>()
+  const petIdToPetName = new Map<string, string>()
+
   if (realReminders) {
     for (const reminder of realReminders) {
+      // Map by reminder ID
       if (reminder.id && reminder.pet_name) {
         reminderToPetName.set(reminder.id, reminder.pet_name)
+      }
+      // Map by pet ID (fallback)
+      if (reminder.petId && reminder.pet_name) {
+        petIdToPetName.set(reminder.petId, reminder.pet_name)
       }
     }
   }
@@ -345,12 +360,28 @@ export function generateAllVirtualReminders(
     if (rule.recurrence_status === 'ACTIVE') {
       const virtualReminders = generateVirtualOccurrencesForRule(rule, options)
 
-      // If pet_name is missing, try to get it from the parent reminder
+      // If pet_name is missing or empty, try to get it from the parent reminder
       for (const virtualReminder of virtualReminders) {
-        if (!virtualReminder.pet_name && rule.reminder_id) {
-          const petName = reminderToPetName.get(rule.reminder_id)
-          if (petName) {
-            virtualReminder.pet_name = petName
+        if (
+          !virtualReminder.pet_name ||
+          virtualReminder.pet_name.trim() === ''
+        ) {
+          // Try to get pet name by reminder_id first
+          if (rule.reminder_id) {
+            const petName = reminderToPetName.get(rule.reminder_id)
+            if (petName) {
+              virtualReminder.pet_name = petName
+              continue
+            }
+          }
+
+          // Fallback: Try to get pet name by pet_id
+          if (rule.pet_id || virtualReminder.petId) {
+            const petId = rule.pet_id || virtualReminder.petId
+            const petName = petIdToPetName.get(petId)
+            if (petName) {
+              virtualReminder.pet_name = petName
+            }
           }
         }
       }

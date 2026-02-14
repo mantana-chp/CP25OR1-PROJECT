@@ -201,11 +201,6 @@ export default function ReminderCard(props: ReminderCardProps) {
   }
 
   const handleCardPress = () => {
-    // Don't allow interaction with virtual reminders
-    if (isVirtual) {
-      return
-    }
-
     if (swipePosition.current < 0) {
       closeDeleteButton()
     } else {
@@ -225,7 +220,7 @@ export default function ReminderCard(props: ReminderCardProps) {
   // ------------------
   return (
     <View style={styles.container}>
-      {/* Delete Button Background - Only show if can delete AND not virtual */}
+      {/* Delete Button Background - Only for non-virtual deletable reminders */}
       {canDelete && !isVirtual && (
         <View style={styles.deleteButtonContainer}>
           <TouchableOpacity
@@ -258,17 +253,15 @@ export default function ReminderCard(props: ReminderCardProps) {
               ? '#F9FAFB' // Light gray for virtual reminders
               : reminder?.reminderStatus === 'overdue'
                 ? '#FEF2F2'
-                : '#fff',
-            opacity: isVirtual ? 0.85 : 1 // Slightly transparent for virtual
+                : '#fff'
           }
         ]}
         {...(canDelete && !isVirtual ? panResponder.panHandlers : {})}
       >
         <TouchableOpacity
-          activeOpacity={isVirtual ? 1 : 0.7}
+          activeOpacity={0.7}
           onPress={handleCardPress}
           style={styles.cardTouchable}
-          disabled={isVirtual}
         >
           {/* Left side - Checkbox circle (disabled for virtual reminders) */}
           {!hideToggle && (

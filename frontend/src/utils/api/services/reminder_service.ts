@@ -55,9 +55,20 @@ export const reminderService = {
 
   deleteReminder: async (
     id: string,
-    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
+    excludeDate?: string // For virtual reminders: the date to exclude (YYYY-MM-DD)
   ) => {
-    const params = deleteScope ? { deleteScope } : {}
+    const params: any = {}
+    if (deleteScope) {
+      params.deleteScope = deleteScope
+    }
+    if (excludeDate) {
+      params.excludeDate = excludeDate
+    }
+    console.log('[API DELETE Request]', {
+      url: `/v1/reminders/${id}`,
+      params
+    })
     return apiClient.delete(`/v1/reminders/${id}`, { params })
   },
 

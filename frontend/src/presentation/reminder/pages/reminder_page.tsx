@@ -47,6 +47,22 @@ export default function ReminderPage() {
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
+  // Debug: Log recurring rules to check excluded_dates
+  React.useEffect(() => {
+    if (recurringRules.length > 0) {
+      console.log('[Recurring Rules] Full Data:', recurringRules)
+      console.log(
+        '[Recurring Rules] Summary:',
+        recurringRules.map((rule: any) => ({
+          id: rule.id,
+          reminder_name: rule.reminder_name,
+          frequency: rule.frequency,
+          excluded_dates: rule.excluded_dates
+        }))
+      )
+    }
+  }, [recurringRules])
+
   const remindersWithRecurrence = safeReminders.map((reminder) => {
     const recurringRule = Array.isArray(recurringRules)
       ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)

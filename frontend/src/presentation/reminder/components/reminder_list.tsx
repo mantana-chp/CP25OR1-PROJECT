@@ -81,7 +81,42 @@ export default function ReminderList({
       deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
     ) => {
       try {
-        await deleteReminderApi.execute(id, deleteScope)
+        // Find the reminder to check if it's virtual
+        const reminder = reminders.find((r) => r.id === id)
+
+        let deleteId = id
+        let excludeDate: string | undefined
+
+        // For recurring reminders (both real and virtual), we need to handle deletion properly
+        if (reminder?.recurrence && deleteScope === 'THIS_INSTANCE_ONLY') {
+          // Pass the date to add to excluded_dates array
+          excludeDate = reminder.reminderDate
+
+          console.log('[Recurring Deletion]', {
+            isVirtual: reminder.isVirtual,
+            reminderDate: reminder.reminderDate,
+            recurrenceId: reminder.recurrence.id,
+            reminderId: id,
+            excludeDateToSend: excludeDate
+          })
+
+          // For virtual reminders, use the rule ID instead of the reminder ID
+          if (reminder.isVirtual) {
+            deleteId = reminder.recurrence.id
+          }
+        } else if (reminder?.isVirtual && deleteScope === 'ALL_INSTANCES') {
+          // For deleting all instances of virtual reminder, use the rule ID
+          deleteId = reminder.recurrence?.id || id
+        }
+
+        console.log('[About to DELETE]', {
+          deleteId,
+          deleteScope,
+          excludeDate,
+          originalReminderId: id
+        })
+
+        await deleteReminderApi.execute(deleteId, deleteScope, excludeDate)
 
         // Refresh the reminder list and calendar after successful deletion
         setTimeout(() => {
@@ -93,7 +128,7 @@ export default function ReminderList({
         console.error('Failed to delete reminder', error)
       }
     },
-    [deleteReminderApi, onRefresh]
+    [deleteReminderApi, onRefresh, reminders]
   )
 
   const handleToggleStatus = useCallback(

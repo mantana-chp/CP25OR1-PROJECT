@@ -149,11 +149,12 @@ const styles = StyleSheet.create({
   },
   toggleButton: {
     alignSelf: 'center',
-    paddingVertical: 2,
+    paddingBottom: 2,
     paddingHorizontal: 24,
-    marginTop: 0
+    marginTop: 0,
+    marginBottom: 8
   },
   toggleButtonExpanded: {
-    marginTop: -64
+    marginTop: -32
   }
 })
