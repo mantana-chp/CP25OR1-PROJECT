@@ -325,6 +325,16 @@ export const createNewReminder = async (
       'A reminder with this name and date already exists for this pet.',
     )
 
+  // Validate recurrence end date if provided
+  if (recurrence && recurrence.endDate) {
+    const endDate = new Date(recurrence.endDate)
+    if (endDate <= reminderDate) {
+      throw new BadRequestError(
+        'Recurrence end date must be after the reminder start date.',
+      )
+    }
+  }
+
   const reminderTime = parentData.reminderTime
     ? new Date(`1970-01-01T${parentData.reminderTime}Z`)
     : null
@@ -618,6 +628,19 @@ export const updateReminder = async (
     throw new BadRequestError(
       'Cannot change date, time, or recurrence of a reminder that is marked as "done".',
     )
+  }
+
+  // Validate recurrence end date if provided
+  if (recurrence && recurrence.endDate) {
+    const reminderDate = updateData.reminderDate
+      ? new Date(updateData.reminderDate)
+      : reminderToUpdate.reminder_date
+    const endDate = new Date(recurrence.endDate)
+    if (endDate <= reminderDate) {
+      throw new BadRequestError(
+        'Recurrence end date must be after the reminder start date.',
+      )
+    }
   }
 
   const isRecurring = reminderToUpdate.recurrence_id !== null && reminderToUpdate.recurrence_id !== undefined
