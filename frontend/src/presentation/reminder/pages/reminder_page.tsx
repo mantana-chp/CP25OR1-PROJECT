@@ -1,4 +1,5 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
 import dayjs from 'dayjs'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
@@ -17,27 +18,39 @@ export default function ReminderPage() {
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const swipeStartY = useRef(0)
 
   // ------------------
   // FETCH
   // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false
+    showErrorAlert: false,
+  })
+
+  const getPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false,
   })
 
   const loadReminders = useCallback(() => {
     getRemindersApi.execute({})
   }, [])
 
+  const loadPets = useCallback(() => {
+    getPetsApi.execute()
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       loadReminders()
-    }, [loadReminders])
+      loadPets()
+    }, [loadReminders, loadPets]),
   )
 
   const reminders = getRemindersApi.data?.data?.reminders || []
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
+  const pets = getPetsApi.data?.data || []
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
   const remindersWithRecurrence = safeReminders.map((reminder) => {
@@ -48,7 +61,7 @@ export default function ReminderPage() {
     if (recurringRule) {
       return {
         ...reminder,
-        recurrence: recurringRule as any
+        recurrence: recurringRule as any,
       }
     }
 
@@ -80,8 +93,8 @@ export default function ReminderPage() {
             setIsCalendarExpanded(true)
           }
         }
-      }
-    })
+      },
+    }),
   ).current
 
   // ------------------
@@ -92,9 +105,8 @@ export default function ReminderPage() {
   }
 
   const handleDateSelect = (date: Date) => {
-    if (!hasUserSelectedDate) {
-      setHasUserSelectedDate(true)
-    }
+    const isSelectingToday = dayjs(date).isSame(dayjs(), 'day')
+    setHasUserSelectedDate(!isSelectingToday)
     setSelectedDate(date)
   }
 
@@ -103,10 +115,17 @@ export default function ReminderPage() {
     setSelectedDate(new Date())
   }
 
+  const handleResetRemindersFilters = () => {
+    setSelectedCategory(null)
+    setSelectedPetId(null)
+  }
+
+  const isToday = dayjs(selectedDate).isSame(dayjs(), 'day')
+
   const filteredReminders =
-    hasUserSelectedDate && selectedDate
+    hasUserSelectedDate && selectedDate && !isToday
       ? remindersWithRecurrence.filter((reminder) =>
-          dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
+          dayjs(reminder.reminderDate).isSame(selectedDate, 'day'),
         )
       : remindersWithRecurrence
 
@@ -117,7 +136,7 @@ export default function ReminderPage() {
     <View style={styles.container}>
       <TodayRemindersModal />
 
-      <Header title="ปฏิทิน" />
+      <Header title='ปฏิทิน' />
       <Calendar
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
@@ -125,15 +144,25 @@ export default function ReminderPage() {
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onReset={handleReset}
+        onResetFilters={handleResetRemindersFilters}
         hasUserSelectedDate={hasUserSelectedDate}
+        isPetFilterActive={selectedPetId !== null}
+        isCategoryFilterActive={selectedCategory !== null}
       />
 
       <View style={styles.reminderContainer} {...panResponder.panHandlers}>
         <ReminderList
           reminders={filteredReminders}
+          pets={pets}
           isLoading={getRemindersApi.loading}
           onRefresh={loadReminders}
           initialReminderId={params.reminderId}
+          selectedCategory={selectedCategory}
+          onSelectedCategoryChange={setSelectedCategory}
+          selectedPetId={selectedPetId}
+          onSelectedPetIdChange={setSelectedPetId}
+          isToday={isToday}
+          allReminders={remindersWithRecurrence}
         />
       </View>
     </View>
@@ -143,9 +172,9 @@ export default function ReminderPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#f5f5f5',
   },
   reminderContainer: {
-    flex: 1
-  }
+    flex: 1,
+  },
 })

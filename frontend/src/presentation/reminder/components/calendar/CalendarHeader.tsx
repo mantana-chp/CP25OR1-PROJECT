@@ -9,6 +9,9 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
   onReset: () => void
   showReset: boolean
+  onResetFilters?: () => void
+  isPetFilterActive?: boolean
+  isCategoryFilterActive?: boolean
 }
 
 export default function CalendarHeader({
@@ -16,8 +19,22 @@ export default function CalendarHeader({
   onPreviousMonth,
   onNextMonth,
   onReset,
-  showReset
+  showReset,
+  onResetFilters,
+  isPetFilterActive = false,
+  isCategoryFilterActive = false,
 }: CalendarHeaderProps) {
+  const shouldShowReset =
+    showReset || isPetFilterActive || isCategoryFilterActive
+
+  const handleResetPress = () => {
+    // Reset calendar filter
+    onReset()
+    // Reset reminder filters if callback provided
+    if (onResetFilters) {
+      onResetFilters()
+    }
+  }
   return (
     <View style={styles.header}>
       <Text style={styles.headerText}>
@@ -25,17 +42,20 @@ export default function CalendarHeader({
         {currentDate.getFullYear() + 543}
       </Text>
       <View style={styles.navigation}>
-        {showReset && (
-          <TouchableOpacity onPress={onReset} style={styles.resetButton}>
-            <RotateCcw size={16} color="#225877" />
+        {shouldShowReset && (
+          <TouchableOpacity
+            onPress={handleResetPress}
+            style={styles.resetButton}
+          >
+            <RotateCcw size={16} color='#225877' />
           </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={onPreviousMonth} style={styles.navButton}>
-          <ChevronLeft size={20} color="#225877" />
+          <ChevronLeft size={20} color='#225877' />
         </TouchableOpacity>
         <TouchableOpacity onPress={onNextMonth} style={styles.navButton}>
-          <ChevronRight size={20} color="#225877" />
+          <ChevronRight size={20} color='#225877' />
         </TouchableOpacity>
       </View>
     </View>
@@ -47,27 +67,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 12,
   },
   headerText: {
     fontSize: 18,
     fontWeight: 'bold',
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   navigation: {
     flexDirection: 'row',
     gap: 6,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   resetButton: {
     padding: 8,
     borderRadius: 6,
     backgroundColor: '#f0f9ff',
-    marginRight: 4
+    marginRight: 4,
   },
   navButton: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: '#f0f9ff'
-  }
+    backgroundColor: '#f0f9ff',
+  },
 })
