@@ -29,7 +29,7 @@ if (
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
-  reminders?: IReminder[]
+  reminders?: any[]
   onDateSelect: (date: Date) => void
   selectedDate: Date | null
   onReset: () => void

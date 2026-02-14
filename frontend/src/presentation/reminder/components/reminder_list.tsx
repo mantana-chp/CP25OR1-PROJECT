@@ -1,6 +1,7 @@
 import { Link } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
+import dayjs from 'dayjs'
 
 import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
 import { IPetProfile } from '@/src/domain/pet.domain'
@@ -32,7 +33,7 @@ import ReminderDetailModal from '../pages/reminder_detail_modal'
 import RecurringReminderCard from './recurring_reminder_card'
 import ReminderCard from './reminder_card'
 
-type TabType = 'to_do' | 'done'
+type TabType = 'to_do' | 'today' | 'done'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -45,7 +46,7 @@ const ICON_MAP: Record<string, any> = {
 }
 
 interface ReminderListProps {
-  reminders: IReminder[]
+  reminders: any[]
   pets?: IPetProfile[]
   isLoading?: boolean
   onRefresh?: () => void
@@ -54,6 +55,8 @@ interface ReminderListProps {
   onSelectedCategoryChange?: (category: string | null) => void
   selectedPetId?: string | null
   onSelectedPetIdChange?: (petId: string | null) => void
+  isToday?: boolean
+  allReminders?: any[]
 }
 
 export default function ReminderList({
@@ -66,6 +69,8 @@ export default function ReminderList({
   onSelectedCategoryChange,
   selectedPetId = null,
   onSelectedPetIdChange,
+  isToday = true,
+  allReminders = [],
 }: ReminderListProps) {
   const [activeTab, setActiveTab] = useState<TabType>('to_do')
   const [petModalVisible, setPetModalVisible] = useState(false)
@@ -96,6 +101,12 @@ export default function ReminderList({
       setSelectedReminderId(initialReminderId)
     }
   }, [initialReminderId])
+
+  useEffect(() => {
+    if (!isToday && activeTab === 'today') {
+      setActiveTab('to_do')
+    }
+  }, [isToday, activeTab])
 
   const handleReminderDetail = (reminderId: string) => {
     setSelectedReminderId(reminderId)
@@ -137,26 +148,42 @@ export default function ReminderList({
     [tempDoneIds, updateStatusApi, onRefresh],
   )
 
-  const filteredReminders = (Array.isArray(reminders) ? reminders : []).filter(
-    (reminder) => {
-      // Filter by status
-      const statusMatch =
-        activeTab === 'to_do'
-          ? reminder.reminderStatus === 'to_do' ||
-            reminder.reminderStatus === 'overdue'
-          : reminder.reminderStatus === activeTab
+  const filteredReminders = (() => {
+    const sourceReminders =
+      activeTab === 'today'
+        ? Array.isArray(allReminders)
+          ? allReminders
+          : Array.isArray(reminders)
+            ? reminders
+            : []
+        : Array.isArray(reminders)
+          ? reminders
+          : []
 
-      // Filter by category
+    return sourceReminders.filter((reminder) => {
+      let statusMatch = false
+      if (activeTab === 'to_do') {
+        statusMatch =
+          reminder.reminderStatus === 'to_do' ||
+          reminder.reminderStatus === 'overdue'
+      } else if (activeTab === 'today') {
+        statusMatch =
+          (reminder.reminderStatus === 'to_do' ||
+            reminder.reminderStatus === 'overdue') &&
+          dayjs(reminder.reminderDate).isSame(dayjs(), 'day')
+      } else {
+        statusMatch = reminder.reminderStatus === 'done'
+      }
+
       const categoryMatch = selectedCategory
         ? reminder.categoryName === selectedCategory
         : true
 
-      // Filter by pet
       const petMatch = selectedPetId ? reminder.petId === selectedPetId : true
 
       return statusMatch && categoryMatch && petMatch
-    },
-  )
+    })
+  })()
 
   return (
     <View style={styles.container}>
@@ -172,10 +199,27 @@ export default function ReminderList({
               activeTab === 'to_do' && styles.activeTabText,
             ]}
           >
-            เตือนความจำ
+            ทั้งหมด
           </Text>
           {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
+
+        {isToday && (
+          <TouchableOpacity
+            onPress={() => setActiveTab('today')}
+            style={styles.tabButton}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'today' && styles.activeTabText,
+              ]}
+            >
+              วันนี้
+            </Text>
+            {activeTab === 'today' && <View style={styles.activeUnderline} />}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={() => setActiveTab('done')}

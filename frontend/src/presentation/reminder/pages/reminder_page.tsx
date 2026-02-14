@@ -105,9 +105,8 @@ export default function ReminderPage() {
   }
 
   const handleDateSelect = (date: Date) => {
-    if (!hasUserSelectedDate) {
-      setHasUserSelectedDate(true)
-    }
+    const isSelectingToday = dayjs(date).isSame(dayjs(), 'day')
+    setHasUserSelectedDate(!isSelectingToday)
     setSelectedDate(date)
   }
 
@@ -121,8 +120,10 @@ export default function ReminderPage() {
     setSelectedPetId(null)
   }
 
+  const isToday = dayjs(selectedDate).isSame(dayjs(), 'day')
+
   const filteredReminders =
-    hasUserSelectedDate && selectedDate
+    hasUserSelectedDate && selectedDate && !isToday
       ? remindersWithRecurrence.filter((reminder) =>
           dayjs(reminder.reminderDate).isSame(selectedDate, 'day'),
         )
@@ -160,6 +161,8 @@ export default function ReminderPage() {
           onSelectedCategoryChange={setSelectedCategory}
           selectedPetId={selectedPetId}
           onSelectedPetIdChange={setSelectedPetId}
+          isToday={isToday}
+          allReminders={remindersWithRecurrence}
         />
       </View>
     </View>

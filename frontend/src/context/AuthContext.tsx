@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasCompletedOnboarding(hasSeenOnboarding)
 
       // 401 Problem
-      // await apiClient.clearTokens()
+      await apiClient.clearTokens()
 
       // Step 2: Check for existing token
       console.log('📝 Checking for existing token...')
