@@ -61,11 +61,7 @@ export default function ReminderPage() {
     if (recurringRule) {
       return {
         ...reminder,
-<<<<<<< HEAD
-        recurrence: recurringRule,
-=======
-        recurrence: recurringRule as any
->>>>>>> 7d0b63422686bf58e327a7b4a501164b71f49783
+        recurrence: recurringRule as any,
       }
     }
 
