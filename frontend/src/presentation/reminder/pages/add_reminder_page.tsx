@@ -72,6 +72,10 @@ export default function AddReminderPage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [hasUserStartedCreateMode, setHasUserStartedCreateMode] =
     useState(false)
+  const [originalPetSpecies, setOriginalPetSpecies] = useState<string | null>(
+    null,
+  )
+  const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
 
   const doneChildReminderIds = new Set(
     initialChildReminders
@@ -189,14 +193,25 @@ export default function AddReminderPage() {
           const currentChildIds = syncedDoses
             .map((dose) => dose.childReminderId)
             .filter((id) => !!id)
-          const childrenToDelete = initialChildReminders
+          const calculatedChildrenToDelete = initialChildReminders
             .filter((child) => !currentChildIds.includes(child.id))
             .map((child) => child.id)
 
-          if (childrenToDelete.length > 0) {
-            submitData.childrenToDelete = childrenToDelete
+          // Merge with childrenToDelete from pet species change
+          const allChildrenToDelete = [
+            ...new Set([...calculatedChildrenToDelete, ...childrenToDelete]),
+          ]
+
+          if (allChildrenToDelete.length > 0) {
+            submitData.childrenToDelete = allChildrenToDelete
           }
+        } else if (childrenToDelete.length > 0) {
+          // If user changed pet type and no new doses, still delete old child reminders
+          submitData.childrenToDelete = childrenToDelete
         }
+      } else if (isEditMode && childrenToDelete.length > 0) {
+        // If category changed from Vaccination to something else, delete all children
+        submitData.childrenToDelete = childrenToDelete
       }
 
       if (isEditMode && reminderId) {
@@ -213,6 +228,8 @@ export default function AddReminderPage() {
       setVaccineResetKey((prev) => prev + 1)
       setRecurrenceRule(null)
       setHasUserStartedCreateMode(false)
+      setChildrenToDelete([])
+      setOriginalPetSpecies(null)
       if (!isEditMode) {
         formik.resetForm()
       }
@@ -235,6 +252,14 @@ export default function AddReminderPage() {
               reminderData.recurrence,
             )
             setRecurrenceRule(convertedRecurrence)
+          }
+
+          // Set original pet species for tracking changes
+          if (reminderData.petId) {
+            const originalPet = pets.find((p) => p.id === reminderData.petId)
+            if (originalPet) {
+              setOriginalPetSpecies(originalPet.species)
+            }
           }
 
           if (reminderData.children && reminderData.children.length > 0) {
@@ -327,6 +352,14 @@ export default function AddReminderPage() {
             const reminderData = response.data
             if (reminderData) {
               setInitialReminderData(reminderData)
+
+              // Set original pet species for tracking changes
+              if (reminderData.petId) {
+                const originalPet = pets.find((p) => p.id === reminderData.petId)
+                if (originalPet) {
+                  setOriginalPetSpecies(originalPet.species)
+                }
+              }
 
               if (reminderData.recurrence) {
                 const convertedRecurrence = convertFromBackendRecurrence(
@@ -422,6 +455,22 @@ export default function AddReminderPage() {
 
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
+  // Helper function to check if two species are the same type (both dogs, both cats, etc.)
+  const isSamePetType = (species1: string | null, species2: string | null): boolean => {
+    if (!species1 || !species2) return false
+    
+    // Check if both contain the same species keyword
+    const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
+    
+    for (const type of petTypes) {
+      if (species1.includes(type) && species2.includes(type)) {
+        return true
+      }
+    }
+    
+    return false
+  }
+
   const canUseVaccineSchedule =
     currentPet &&
     (currentPet.species?.includes('สุนัข') ||
@@ -444,6 +493,8 @@ export default function AddReminderPage() {
     setInitialReminderData(null)
     setInitialChildReminders([])
     setLoadedVaccineIsCustom(false)
+    setChildrenToDelete([])
+    setOriginalPetSpecies(null)
     formik.resetForm()
     router.back()
   }
@@ -578,8 +629,29 @@ export default function AddReminderPage() {
                   pets={pets}
                   selectedPetId={formik.values.petId}
                   onSelectPet={(petId: string) => {
+                    const newPet = pets.find((p) => p.id === petId)
+                    const oldPetSpecies = originalPetSpecies || currentPet?.species
+                    const newPetSpecies = newPet?.species
+
                     formik.setFieldValue('petId', petId)
                     setSelectedPetId(petId)
+
+                    // If in edit mode and pet species changed, reset vaccine schedule
+                    if (isEditMode && !isSamePetType(oldPetSpecies || null, newPetSpecies || null)) {
+                      // Mark all existing child reminders for deletion
+                      const currentChildIds = initialChildReminders.map(
+                        (child) => child.id,
+                      )
+                      setChildrenToDelete(currentChildIds)
+
+                      // Reset all vaccine-related states
+                      setDoses([])
+                      setCustomVaccineName('')
+                      setLoadedVaccineIsCustom(false)
+                      setVaccineResetKey((prev) => prev + 1)
+                    }
+                    // If in edit mode and pet species is the same, keep previous values
+                    // (do nothing, values are preserved)
                   }}
                   label='สัตว์เลี้ยง'
                   required={true}
