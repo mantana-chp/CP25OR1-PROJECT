@@ -2,7 +2,7 @@ import { IPetProfile } from '@/src/domain/pet.domain'
 import { Ionicons } from '@expo/vector-icons'
 import _ from 'lodash'
 import { ChevronDown, Dog } from 'lucide-react-native'
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 
 import {
   Animated,
@@ -27,15 +27,40 @@ export default function PetDropdown({
 }: PetDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [rotateAnim] = useState(new Animated.Value(0))
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
+  const buttonRef = useRef<View>(null)
 
   const toggleDropdown = () => {
-    const toValue = isOpen ? 0 : 1
+    if (!isOpen) {
+      // Measure button position before opening
+      buttonRef.current?.measureInWindow((x, y, width, height) => {
+        setDropdownPosition({
+          top: y + height + 8, // 8px gap below the button
+          right: 24
+        })
+        openDropdown()
+      })
+    } else {
+      closeDropdown()
+    }
+  }
+
+  const openDropdown = () => {
     Animated.timing(rotateAnim, {
-      toValue,
+      toValue: 1,
       duration: 200,
       useNativeDriver: true
     }).start()
-    setIsOpen(!isOpen)
+    setIsOpen(true)
+  }
+
+  const closeDropdown = () => {
+    Animated.timing(rotateAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start()
+    setIsOpen(false)
   }
 
   const handleSelectPet = (pet: IPetProfile) => {
@@ -51,18 +76,20 @@ export default function PetDropdown({
   return (
     <View style={styles.container}>
       {/* Dropdown Toggle Button */}
-      <TouchableOpacity
-        style={styles.toggleButton}
-        onPress={toggleDropdown}
-        activeOpacity={0.8}
-      >
-        <Animated.View style={[{ transform: [{ rotate: rotation }] }]}>
-          <ChevronDown size={18} color="#2E759E" />
-        </Animated.View>
-        <View style={styles.petIconContainer}>
-          <Dog size={28} color="#2E759E" />
-        </View>
-      </TouchableOpacity>
+      <View ref={buttonRef} collapsable={false}>
+        <TouchableOpacity
+          style={styles.toggleButton}
+          onPress={toggleDropdown}
+          activeOpacity={0.8}
+        >
+          <Animated.View style={[{ transform: [{ rotate: rotation }] }]}>
+            <ChevronDown size={18} color="#2E759E" />
+          </Animated.View>
+          <View style={styles.petIconContainer}>
+            <Dog size={28} color="#2E759E" />
+          </View>
+        </TouchableOpacity>
+      </View>
 
       {/* Dropdown Modal */}
       <Modal
@@ -72,7 +99,15 @@ export default function PetDropdown({
         onRequestClose={toggleDropdown}
       >
         <Pressable style={styles.modalOverlay} onPress={toggleDropdown}>
-          <View style={styles.dropdownContainer}>
+          <View
+            style={[
+              styles.dropdownContainer,
+              {
+                top: dropdownPosition.top,
+                right: dropdownPosition.right
+              }
+            ]}
+          >
             {pets.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>ไม่พบข้อมูลสัตว์เลี้ยง</Text>
@@ -143,8 +178,6 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: 'absolute',
-    top: 95,
-    right: 24,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     overflow: 'hidden',

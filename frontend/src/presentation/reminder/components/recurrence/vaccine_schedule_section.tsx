@@ -1,5 +1,5 @@
 import _ from 'lodash'
-import { Check, ChevronDown, X } from 'lucide-react-native'
+import { ChevronDown, X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 
 import { ICalculatedDose, IDose, IVaccine } from '@/src/domain/vaccine.domain'
@@ -12,10 +12,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
-import DatePicker from '../../components/date_picker'
-import TimePicker from '../../components/time_picker'
+import DatePicker from '../../../components/date_picker'
+import TimePicker from '../../../components/time_picker'
 
 interface VaccineScheduleSectionProps {
   isVaccinationCategory: boolean
@@ -48,12 +48,12 @@ export default function VaccineScheduleSection({
   initialVaccineName,
   isEditMode,
   initialCustomDoseCount,
-  doneChildReminderIds = new Set(),
+  doneChildReminderIds = new Set()
 }: VaccineScheduleSectionProps) {
   const { showError, showSuccess } = useError()
   const [vaccineList, setVaccineList] = useState<IVaccine[]>([])
   const [selectedVaccineId, setSelectedVaccineId] = useState<number | null>(
-    initialVaccineId || null,
+    initialVaccineId || null
   )
   const [showVaccineDropdown, setShowVaccineDropdown] = useState(false)
   const [loadingVaccines, setLoadingVaccines] = useState(false)
@@ -62,10 +62,10 @@ export default function VaccineScheduleSection({
   const [userEditedTime, setUserEditedTime] = useState(false)
   const [isSyncingDose1, setIsSyncingDose1] = useState(false)
   const [isCustomVaccine, setIsCustomVaccine] = useState<boolean>(
-    !initialVaccineId && initialVaccineName ? true : false,
+    !initialVaccineId && initialVaccineName ? true : false
   )
   const [customVaccineName, setCustomVaccineName] = useState<string>(
-    initialVaccineName || '',
+    initialVaccineName || ''
   )
   const [customDoseCount, setCustomDoseCount] = useState<number | null>(null)
   const [showCustomDoseInput, setShowCustomDoseInput] = useState(false)
@@ -93,7 +93,7 @@ export default function VaccineScheduleSection({
       return date.toLocaleDateString('th-TH', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric',
+        year: 'numeric'
       })
     } catch (e) {
       return 'Invalid Date'
@@ -132,7 +132,7 @@ export default function VaccineScheduleSection({
     const formattedDate = date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
+      year: 'numeric'
     })
     return `คำนวนอัตโนมัติ: ${formattedDate}`
   }
@@ -171,7 +171,7 @@ export default function VaccineScheduleSection({
     doses.length,
     selectedVaccineId,
     initialVaccineName,
-    initialCustomDoseCount,
+    initialCustomDoseCount
   ])
 
   useEffect(() => {
@@ -186,8 +186,8 @@ export default function VaccineScheduleSection({
       if (dose1 && dose1.date !== reminderDate) {
         setDoses((prev) =>
           prev.map((dose) =>
-            dose.doseNumber === 1 ? { ...dose, date: reminderDate } : dose,
-          ),
+            dose.doseNumber === 1 ? { ...dose, date: reminderDate } : dose
+          )
         )
       }
     }
@@ -224,7 +224,7 @@ export default function VaccineScheduleSection({
       const response = await vaccineService.calculateVaccineSchedule({
         petId: petId,
         vaccineId: selectedVaccineId,
-        startDate: startDate,
+        startDate: startDate
       })
 
       const doseArray = Array.isArray(response)
@@ -234,7 +234,7 @@ export default function VaccineScheduleSection({
       const calculatedDoses: IDose[] = (doseArray || []).map(
         (calculatedDose: ICalculatedDose, index: number) => {
           const existingDose = doses.find(
-            (d) => d.doseNumber === calculatedDose.doseNumber,
+            (d) => d.doseNumber === calculatedDose.doseNumber
           )
           const wasEdited = existingDose?.isEdited || false
 
@@ -253,9 +253,9 @@ export default function VaccineScheduleSection({
             ageInDays: calculatedDose.ageInDays,
             isAutoCalculated: index > 0,
             isEdited: wasEdited,
-            childReminderId: existingDose?.childReminderId,
+            childReminderId: existingDose?.childReminderId
           }
-        },
+        }
       )
 
       setDoses(calculatedDoses)
@@ -307,7 +307,7 @@ export default function VaccineScheduleSection({
         type: 'custom',
         ageInDays: 0,
         isAutoCalculated: false,
-        isEdited: false,
+        isEdited: false
       })
     }
 
@@ -331,8 +331,8 @@ export default function VaccineScheduleSection({
         prev.map((dose) =>
           dose.doseNumber === doseNumber
             ? { ...dose, date: dateString, isEdited: true }
-            : dose,
-        ),
+            : dose
+        )
       )
     }
   }
@@ -341,8 +341,8 @@ export default function VaccineScheduleSection({
     if (userEditedTime) {
       setDoses((prev) =>
         prev.map((dose) =>
-          dose.doseNumber === doseNumber ? { ...dose, time: time } : dose,
-        ),
+          dose.doseNumber === doseNumber ? { ...dose, time: time } : dose
+        )
       )
       return
     }
@@ -352,8 +352,8 @@ export default function VaccineScheduleSection({
       setDoses((prev) =>
         prev.map((dose) => ({
           ...dose,
-          time: time,
-        })),
+          time: time
+        }))
       )
       setUserEditedTime(true)
 
@@ -390,7 +390,7 @@ export default function VaccineScheduleSection({
           <TouchableOpacity
             style={[
               styles.vaccineDropdown,
-              isVaccineDropdownDisabled && styles.vaccineDropdownDisabled,
+              isVaccineDropdownDisabled && styles.vaccineDropdownDisabled
             ]}
             onPress={() => {
               if (!isVaccineDropdownDisabled) {
@@ -400,7 +400,7 @@ export default function VaccineScheduleSection({
             disabled={isVaccineDropdownDisabled}
           >
             {loadingVaccines ? (
-              <ActivityIndicator size='small' color='#5FA7D1' />
+              <ActivityIndicator size="small" color="#5FA7D1" />
             ) : (
               <>
                 <Text style={styles.vaccineDropdownValue}>
@@ -408,7 +408,7 @@ export default function VaccineScheduleSection({
                     ? 'อื่น ๆ'
                     : selectedVaccine?.vaccine_name_th || 'เลือกวัคซีน'}
                 </Text>
-                <ChevronDown size={20} color='#6b7280' />
+                <ChevronDown size={20} color="#6b7280" />
               </>
             )}
           </TouchableOpacity>
@@ -425,7 +425,7 @@ export default function VaccineScheduleSection({
                     style={[
                       styles.vaccineDropdownItem,
                       selectedVaccineId === vaccine.id &&
-                        styles.vaccineDropdownItemSelected,
+                        styles.vaccineDropdownItemSelected
                     ]}
                     onPress={() => handleVaccineSelect(vaccine.id)}
                   >
@@ -433,7 +433,7 @@ export default function VaccineScheduleSection({
                       style={[
                         styles.vaccineDropdownItemText,
                         selectedVaccineId === vaccine.id &&
-                          styles.vaccineDropdownItemTextSelected,
+                          styles.vaccineDropdownItemTextSelected
                       ]}
                     >
                       {vaccine.vaccine_name_th || vaccine.vaccine_name}
@@ -446,14 +446,14 @@ export default function VaccineScheduleSection({
                 style={[
                   styles.vaccineDropdownItem,
                   isCustomVaccine && styles.vaccineDropdownItemSelected,
-                  styles.vaccineDropdownItemOther,
+                  styles.vaccineDropdownItemOther
                 ]}
                 onPress={() => handleSelectCustomVaccine()}
               >
                 <Text
                   style={[
                     styles.vaccineDropdownItemTextOther,
-                    isCustomVaccine && styles.vaccineDropdownItemTextSelected,
+                    isCustomVaccine && styles.vaccineDropdownItemTextSelected
                   ]}
                 >
                   อื่น ๆ
@@ -472,7 +472,7 @@ export default function VaccineScheduleSection({
           </Text>
           <TextInput
             style={styles.textInput}
-            placeholder='กรุณากรอกชื่อวัคซีน'
+            placeholder="กรุณากรอกชื่อวัคซีน"
             value={customVaccineName}
             onChangeText={(text) => {
               setCustomVaccineName(text)
@@ -500,7 +500,7 @@ export default function VaccineScheduleSection({
                     ? `${customDoseCount} เข็ม`
                     : 'เลือกจำนวนเข็ม'}
                 </Text>
-                <ChevronDown size={20} color='#6b7280' />
+                <ChevronDown size={20} color="#6b7280" />
               </TouchableOpacity>
 
               {showCustomDoseInput && (
@@ -510,7 +510,7 @@ export default function VaccineScheduleSection({
                       key={dose}
                       style={[
                         styles.doseOption,
-                        customDoseCount === dose && styles.doseOptionSelected,
+                        customDoseCount === dose && styles.doseOptionSelected
                       ]}
                       onPress={() => {
                         setCustomDoseCount(dose)
@@ -523,7 +523,7 @@ export default function VaccineScheduleSection({
                         style={[
                           styles.doseOptionText,
                           customDoseCount === dose &&
-                            styles.doseOptionTextSelected,
+                            styles.doseOptionTextSelected
                         ]}
                       >
                         {dose} เข็ม
@@ -562,7 +562,7 @@ export default function VaccineScheduleSection({
                 <Text style={styles.doseDropdownValue}>
                   มากกว่า 6 เข็ม (กรุณาระบุ)
                 </Text>
-                <ChevronDown size={20} color='#6b7280' />
+                <ChevronDown size={20} color="#6b7280" />
               </TouchableOpacity>
 
               {showCustomDoseInput && (
@@ -572,7 +572,7 @@ export default function VaccineScheduleSection({
                       key={dose}
                       style={[
                         styles.doseOption,
-                        customDoseCount === dose && styles.doseOptionSelected,
+                        customDoseCount === dose && styles.doseOptionSelected
                       ]}
                       onPress={() => {
                         setCustomDoseCount(dose)
@@ -585,7 +585,7 @@ export default function VaccineScheduleSection({
                         style={[
                           styles.doseOptionText,
                           customDoseCount === dose &&
-                            styles.doseOptionTextSelected,
+                            styles.doseOptionTextSelected
                         ]}
                       >
                         {dose} เข็ม
@@ -610,8 +610,8 @@ export default function VaccineScheduleSection({
               <View style={styles.customDoseInputContainer}>
                 <TextInput
                   style={[styles.textInput, { flex: 1, marginTop: 8 }]}
-                  placeholder='จำนวนเข็ม'
-                  keyboardType='number-pad'
+                  placeholder="จำนวนเข็ม"
+                  keyboardType="number-pad"
                   value={customDoseInputValue}
                   onChangeText={setCustomDoseInputValue}
                 />
@@ -627,7 +627,7 @@ export default function VaccineScheduleSection({
                 pressed && styles.generateButtonPressed,
                 (!customVaccineName.trim() ||
                   (customDoseCount === null && !customDoseInputValue)) &&
-                  styles.generateButtonDisabled,
+                  styles.generateButtonDisabled
               ]}
               onPress={() => {
                 if (isCustomDoseInputMode && customDoseInputValue) {
@@ -654,7 +654,7 @@ export default function VaccineScheduleSection({
       {/* Loading Calculate */}
       {canUseVaccineSchedule && loadingCalculate && (
         <View style={styles.vaccineSubsection}>
-          <ActivityIndicator size='large' color='#5FA7D1' />
+          <ActivityIndicator size="large" color="#5FA7D1" />
         </View>
       )}
 
@@ -698,7 +698,7 @@ export default function VaccineScheduleSection({
                       <Pressable
                         style={[
                           styles.deleteButton,
-                          isDoseDone && styles.deleteButtonDisabled,
+                          isDoseDone && styles.deleteButtonDisabled
                         ]}
                         onPress={() =>
                           !isDoseDone && handleDeleteDose(dose.doseNumber)
@@ -717,8 +717,8 @@ export default function VaccineScheduleSection({
                   <View style={styles.doseInputsRow}>
                     <View style={{ flex: 1 }}>
                       <DatePicker
-                        title='วันที่เตือนความจำ'
-                        placeholder='วัน/เดือน/ปี'
+                        title="วันที่เตือนความจำ"
+                        placeholder="วัน/เดือน/ปี"
                         value={
                           dose.date
                             ? parseStringToDate(dose.date)
@@ -738,8 +738,8 @@ export default function VaccineScheduleSection({
                     </View>
                     <View style={{ flex: 1 }}>
                       <TimePicker
-                        title='เวลาที่เตือนความจำ'
-                        placeholder='เลือกเวลา'
+                        title="เวลาที่เตือนความจำ"
+                        placeholder="เลือกเวลา"
                         value={dose.time}
                         onChange={(time) =>
                           handleTimeChange(dose.doseNumber, time)
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginVertical: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   warningBox: {
     backgroundColor: '#fef3c7',
@@ -779,21 +779,21 @@ const styles = StyleSheet.create({
     borderColor: '#fde68a',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 16
   },
   warningText: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#92400e',
+    color: '#92400e'
   },
   vaccineSubsection: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   vaccineLabel: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 10,
+    marginBottom: 10
   },
   vaccineDropdown: {
     flexDirection: 'row',
@@ -804,17 +804,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
   vaccineDropdownDisabled: {
     backgroundColor: '#f3f4f6',
     borderColor: '#e5e7eb',
-    opacity: 0.6,
+    opacity: 0.6
   },
   vaccineDropdownValue: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   vaccineDropdownMenu: {
     borderWidth: 1,
@@ -825,38 +825,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginTop: -1,
     overflow: 'hidden',
-    zIndex: 10,
+    zIndex: 10
   },
   vaccineDropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f0f0f0'
   },
   vaccineDropdownItemSelected: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e3f2fd'
   },
   vaccineDropdownItemText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   vaccineDropdownItemTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_500Medium'
   },
   vaccineDropdownItemOther: {
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#e5e7eb'
   },
   vaccineDropdownItemTextOther: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   customVaccineContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   changeVaccineButton: {
     backgroundColor: '#e3f2fd',
@@ -864,18 +864,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   changeVaccineButtonText: {
     fontSize: 13,
     fontFamily: 'Prompt_500Medium',
-    color: '#5FA7D1',
+    color: '#5FA7D1'
   },
   inputLabel: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 8,
+    marginBottom: 8
   },
   textInput: {
     borderWidth: 1,
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     minHeight: 44,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
   doseDropdown: {
     flexDirection: 'row',
@@ -897,12 +897,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
   doseDropdownValue: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    color: '#225877'
   },
   doseOptionsMenu: {
     borderWidth: 1,
@@ -913,30 +913,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginTop: -1,
     overflow: 'hidden',
-    zIndex: 10,
+    zIndex: 10
   },
   doseOption: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f0f0f0'
   },
   doseOptionSelected: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e3f2fd'
   },
   doseOptionText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   doseOptionTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_500Medium'
   },
   customDoseInputContainer: {
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'flex-end',
+    alignItems: 'flex-end'
   },
   confirmButton: {
     backgroundColor: '#5FA7D1',
@@ -944,12 +944,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   confirmButtonText: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff',
+    color: '#fff'
   },
   generateButton: {
     backgroundColor: '#5FA7D1',
@@ -958,31 +958,31 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 12
   },
   generateButtonPressed: {
     backgroundColor: '#4a90b8',
     opacity: 0.8,
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.98 }]
   },
   generateButtonText: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff',
+    color: '#fff'
   },
   generateButtonDisabled: {
     backgroundColor: '#9ca3af',
-    opacity: 0.6,
+    opacity: 0.6
   },
   required: {
-    color: '#BF1737',
+    color: '#BF1737'
   },
   doseCard: {
-    marginBottom: 4,
+    marginBottom: 4
   },
   doseHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'flex-start'
   },
   doseCircle: {
     width: 40,
@@ -993,63 +993,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
-    marginTop: 2,
+    marginTop: 2
   },
   doseCircleCompleted: {
     backgroundColor: '#5FA7D1',
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   doseTextBlock: {
-    flex: 1,
+    flex: 1
   },
   doseNumber: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
     marginBottom: 4,
-    marginLeft: 4,
+    marginLeft: 4
   },
   autocalculatedText: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
     fontStyle: 'italic',
-    marginLeft: 4,
+    marginLeft: 4
   },
   completedDate: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
-    marginLeft: 4,
+    marginLeft: 4
   },
   doneText: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#ef4444',
     marginLeft: 4,
-    fontWeight: '600',
+    fontWeight: '600'
   },
   doseInputsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 8
   },
   doseInputLabel: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    marginLeft: 4,
+    marginLeft: 4
   },
   doseDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginVertical: 12,
+    marginVertical: 12
   },
   deleteButton: {
     padding: 8,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   deleteButtonDisabled: {
-    opacity: 0.5,
-  },
+    opacity: 0.5
+  }
 })

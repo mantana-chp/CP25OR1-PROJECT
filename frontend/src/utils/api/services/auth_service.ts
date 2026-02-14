@@ -11,22 +11,35 @@ export const authService = {
   > => {
     const deviceIdentifiers = await deviceIdService.getDeviceIdentifiers()
 
-    const response = await apiClient.post<{ data: DeviceLoginResponse }>(
-      '/v1/auth/device-login',
-      {
-        installationId: deviceIdentifiers.installationId,
-        platform: deviceIdentifiers.platform,
-        platformDeviceId: deviceIdentifiers.platformDeviceId,
-        platformIdSource: deviceIdentifiers.platformIdSource
-      }
-    )
+    const requestPayload = {
+      installationId: deviceIdentifiers.installationId,
+      platform: deviceIdentifiers.platform,
+      platformDeviceId: deviceIdentifiers.platformDeviceId,
+      platformIdSource: deviceIdentifiers.platformIdSource
+    }
 
-    return {
-      ...response.data,
-      installationId: deviceIdentifiers.installationId
+    console.log('🚀 [Auth] Device login request payload:', requestPayload)
+
+    try {
+      const response = await apiClient.post<{ data: DeviceLoginResponse }>(
+        '/v1/auth/device-login',
+        requestPayload
+      )
+
+      return {
+        ...response.data,
+        installationId: deviceIdentifiers.installationId
+      }
+    } catch (error: any) {
+      console.error('❌ [Auth] Device login failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        requestPayload
+      })
+      throw error
     }
   },
-  
+
   getDeviceIdentifiers: async (): Promise<DeviceIdentifiers> => {
     return deviceIdService.getDeviceIdentifiers()
   }
