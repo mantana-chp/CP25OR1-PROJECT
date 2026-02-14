@@ -41,6 +41,9 @@ export default function ReminderList({
   const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
     initialReminderId || null
   )
+  const [selectedReminder, setSelectedReminder] = useState<IReminder | null>(
+    null
+  )
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     onSuccess: () => {
@@ -61,11 +64,15 @@ export default function ReminderList({
   useEffect(() => {
     if (initialReminderId) {
       setSelectedReminderId(initialReminderId)
+      const reminder = reminders.find((r) => r.id === initialReminderId)
+      setSelectedReminder(reminder || null)
     }
-  }, [initialReminderId])
+  }, [initialReminderId, reminders])
 
   const handleReminderDetail = (reminderId: string) => {
+    const reminder = reminders.find((r) => r.id === reminderId)
     setSelectedReminderId(reminderId)
+    setSelectedReminder(reminder || null)
   }
 
   const handleDeleteReminder = useCallback(
@@ -73,9 +80,20 @@ export default function ReminderList({
       id: string,
       deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
     ) => {
-      await deleteReminderApi.execute(id, deleteScope)
+      try {
+        await deleteReminderApi.execute(id, deleteScope)
+
+        // Refresh the reminder list and calendar after successful deletion
+        setTimeout(() => {
+          if (onRefresh) {
+            onRefresh()
+          }
+        }, 200)
+      } catch (error) {
+        console.error('Failed to delete reminder', error)
+      }
     },
-    [deleteReminderApi]
+    [deleteReminderApi, onRefresh]
   )
 
   const handleToggleStatus = useCallback(
@@ -212,11 +230,21 @@ export default function ReminderList({
         visible={!!selectedReminderId}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedReminderId(null)}
+        onRequestClose={() => {
+          setSelectedReminderId(null)
+          setSelectedReminder(null)
+        }}
       >
         <ReminderDetailModal
           id={selectedReminderId || ''}
-          onClose={() => setSelectedReminderId(null)}
+          onClose={() => {
+            setSelectedReminderId(null)
+            setSelectedReminder(null)
+          }}
+          isVirtual={selectedReminder?.isVirtual || false}
+          virtualReminderData={
+            selectedReminder?.isVirtual ? selectedReminder : undefined
+          }
         />
       </Modal>
     </View>

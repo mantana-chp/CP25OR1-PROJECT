@@ -1,13 +1,20 @@
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import {
+  generateAllVirtualReminders,
+  mergeRealAndVirtualReminders
+} from '@/src/utils/recurring_reminder_generator'
 import dayjs from 'dayjs'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import TodayRemindersModal from '../../components/today_reminders_modal'
 import Calendar from '../components/calendar_component'
 import ReminderList from '../components/reminder_list'
+
+dayjs.extend(isSameOrBefore)
 
 export default function ReminderPage() {
   // ------------------
@@ -54,6 +61,24 @@ export default function ReminderPage() {
 
     return reminder
   })
+
+  // Generate virtual reminders and merge with real ones
+  const allReminders = useMemo(() => {
+    const virtualReminders = generateAllVirtualReminders(
+      recurringRules,
+      {
+        monthsForward: 6,
+        monthsBackward: 1,
+        maxOccurrences: 100
+      },
+      safeReminders // Pass real reminders to copy pet_name
+    )
+
+    return mergeRealAndVirtualReminders(
+      remindersWithRecurrence,
+      virtualReminders
+    )
+  }, [remindersWithRecurrence, recurringRules, safeReminders])
 
   const panResponder = useRef(
     PanResponder.create({
@@ -103,12 +128,35 @@ export default function ReminderPage() {
     setSelectedDate(new Date())
   }
 
+  /**
+   * Virtual Reminder Filtering Logic:
+   *
+   * Main List (No Date Selected):
+   * - Shows ALL real reminders (past, present, future)
+   * - Shows ONLY past/present virtual reminders
+   * - Excludes future virtual reminders to avoid clutter
+   *
+   * Date-Filtered View:
+   * - Shows ALL reminders (including virtual) for the selected date
+   * - Allows users to see projected recurring reminders for future dates
+   *
+   * This approach gives users:
+   * 1. Clean main list without infinite virtual future items
+   * 2. Complete view when they specifically select a date
+   * 3. Ability to see their upcoming schedule in calendar
+   */
   const filteredReminders =
     hasUserSelectedDate && selectedDate
-      ? remindersWithRecurrence.filter((reminder) =>
+      ? // When date is selected, show ALL reminders (including virtual)
+        allReminders.filter((reminder) =>
           dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
         )
-      : remindersWithRecurrence
+      : // When no date selected, exclude virtual future reminders
+        allReminders.filter((reminder) => {
+          if (!reminder.isVirtual) return true
+          // Only include virtual reminders if they are today or in the past
+          return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
+        })
 
   // ------------------
   // RENDER
@@ -122,6 +170,7 @@ export default function ReminderPage() {
         isExpanded={isCalendarExpanded}
         onToggle={handleToggleCalendar}
         reminders={remindersWithRecurrence}
+        recurringRules={recurringRules}
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onReset={handleReset}

@@ -4,14 +4,24 @@ import { apiClient } from '../api_client'
 // Interface for recurring rules from backend
 export interface IRecurringRule {
   id: string
-  reminder_id: string
+  reminder_id?: string
+  pet_id?: string
+  pet_name?: string
+  reminder_name: string
+  description?: string
+  category_name?: string
+  recurrence_status: 'ACTIVE' | 'PAUSED' | 'COMPLETED'
   frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
   interval: number
   reminder_time: string
   daysOfWeek: number | null
   dayOfMonth: number | null
+  template_start_date: string
   endDate: string | null
   endAfterOccurrences: number | null
+  // Array of dates (YYYY-MM-DD) that have been deleted with 'THIS_INSTANCE_ONLY'
+  // These dates should be excluded from virtual reminder generation
+  excluded_dates?: string[]
   created_at: string
   updated_at: string
 }
@@ -27,7 +37,7 @@ export interface GetRemindersResponse {
 export const reminderService = {
   getReminders: async (params?: { category?: string; page?: number }) => {
     return apiClient.get<GetRemindersResponse>('/v1/reminders', {
-      params,
+      params
     })
   },
 
@@ -45,7 +55,7 @@ export const reminderService = {
 
   deleteReminder: async (
     id: string,
-    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
   ) => {
     const params = deleteScope ? { deleteScope } : {}
     return apiClient.delete(`/v1/reminders/${id}`, { params })
@@ -53,5 +63,5 @@ export const reminderService = {
 
   updateReminderStatus: async (id: string) => {
     return apiClient.patch<IReminder>(`/v1/reminders/${id}/status`)
-  },
+  }
 }

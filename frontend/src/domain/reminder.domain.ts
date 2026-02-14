@@ -101,6 +101,10 @@ export interface IReminder {
     updatedAt: string
   }
   occurrenceNumber?: number // Which occurrence this is (1, 2, 3, etc.)
+  // Virtual reminder fields (for display-only instances generated from recurring rules)
+  isVirtual?: boolean
+  originalRuleId?: string
+  virtualOccurrenceNumber?: number
 }
 
 export const reminderInitValue = (v: IReminder): IReminder => {
@@ -120,7 +124,10 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     updatedAt: v.updatedAt || '',
     children: v.children || [],
     recurrence: v.recurrence,
-    occurrenceNumber: v.occurrenceNumber
+    occurrenceNumber: v.occurrenceNumber,
+    isVirtual: v.isVirtual,
+    originalRuleId: v.originalRuleId,
+    virtualOccurrenceNumber: v.virtualOccurrenceNumber
   }
 }
 
