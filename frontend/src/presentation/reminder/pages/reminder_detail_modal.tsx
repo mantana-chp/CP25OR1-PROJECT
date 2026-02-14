@@ -16,7 +16,6 @@ import {
   Clock,
   Edit2,
   Hourglass,
-  Info,
   PawPrint,
   Pill,
   Pipette,
@@ -29,14 +28,7 @@ import {
   X
 } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import OverdueAlert from '../components/overdue_alert'
 
@@ -85,7 +77,6 @@ export default function ReminderDetailModal({
   const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
   const [isChildrenExpanded, setIsChildrenExpanded] = useState(false)
-  const [showVirtualInfoModal, setShowVirtualInfoModal] = useState(false)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
@@ -103,12 +94,6 @@ export default function ReminderDetailModal({
   const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
 
   const handleEdit = () => {
-    // If virtual reminder, show info modal instead of allowing edit
-    if (isVirtual) {
-      setShowVirtualInfoModal(true)
-      return
-    }
-
     onClose()
     router.push({
       pathname: '/(tabs)/add-reminder',
@@ -183,13 +168,11 @@ export default function ReminderDetailModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
-          <Pressable onPress={handleEdit} style={styles.editButton}>
-            {isVirtual ? (
-              <Info size={20} color="#6B7280" />
-            ) : (
+          {!isVirtual && (
+            <Pressable onPress={handleEdit} style={styles.editButton}>
               <Edit2 size={20} color="#5FA7D1" />
-            )}
-          </Pressable>
+            </Pressable>
+          )}
         </View>
 
         {/* Form Card */}
@@ -198,6 +181,22 @@ export default function ReminderDetailModal({
         ) : (
           <View style={styles.formCard}>
             {isOverdue && !reminder?.children && <OverdueAlert />}
+
+            {/* Virtual Reminder Alert */}
+            {isVirtual && (
+              <View style={styles.virtualAlert}>
+                <AlertCircle color="#F59E0B" size={20} />
+                <View style={styles.virtualAlertTextContainer}>
+                  <Text style={styles.virtualAlertTitle}>
+                    เตือนความจำคาดการณ์
+                  </Text>
+                  <Text style={styles.virtualAlertMessage}>
+                    นี่คือการแสดงผลล่วงหน้าจากรูปแบบการทำซ้ำ
+                    คุณสามารถดูรายละเอียดได้เท่านั้น
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <Text style={styles.reminderTitle}>
               {reminder?.reminderName || ''}
@@ -400,72 +399,6 @@ export default function ReminderDetailModal({
           <X color="#FFFFFF" size={28} />
         </Pressable>
       )}
-
-      {/* Virtual Reminder Info Modal */}
-      <Modal
-        visible={showVirtualInfoModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowVirtualInfoModal(false)}
-      >
-        <View style={styles.infoModalOverlay}>
-          <View style={styles.infoModalContent}>
-            <View style={styles.infoModalHeader}>
-              <AlertCircle size={40} color="#F59E0B" />
-              <Text style={styles.infoModalTitle}>เตือนความจำจากรูปแบบ</Text>
-            </View>
-
-            <Text style={styles.infoModalMessage}>
-              นี่คือการเตือนความจำที่
-              <Text style={styles.infoModalBold}>สร้างจากรูปแบบการทำซ้ำ</Text>
-            </Text>
-
-            <View style={styles.infoModalSection}>
-              <Text style={styles.infoModalSectionTitle}>คุณสามารถ:</Text>
-              <View style={styles.infoModalListItem}>
-                <Text style={styles.infoModalBullet}>•</Text>
-                <Text style={styles.infoModalListText}>
-                  ดูรายละเอียดของเตือนความจำนี้
-                </Text>
-              </View>
-              <View style={styles.infoModalListItem}>
-                <Text style={styles.infoModalBullet}>•</Text>
-                <Text style={styles.infoModalListText}>
-                  ลบเหตุการณ์นี้หรือทั้งซีรีส์
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.infoModalSection}>
-              <Text style={styles.infoModalSectionTitle}>คุณไม่สามารถ:</Text>
-              <View style={styles.infoModalListItem}>
-                <Text style={styles.infoModalBullet}>•</Text>
-                <Text style={styles.infoModalListText}>
-                  แก้ไขเตือนความจำคาดการณ์
-                </Text>
-              </View>
-              <View style={styles.infoModalListItem}>
-                <Text style={styles.infoModalBullet}>•</Text>
-                <Text style={styles.infoModalListText}>
-                  เปลี่ยนสถานะเป็นเสร็จสิ้น
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.infoModalNote}>
-              💡 หากต้องการแก้ไข กรุณาแก้ไขที่
-              <Text style={styles.infoModalBold}>รูปแบบการทำซ้ำหลัก</Text>
-            </Text>
-
-            <Pressable
-              style={styles.infoModalButton}
-              onPress={() => setShowVirtualInfoModal(false)}
-            >
-              <Text style={styles.infoModalButtonText}>เข้าใจแล้ว</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </View>
   )
 }
@@ -722,88 +655,29 @@ const styles = StyleSheet.create({
     color: '#225877',
     flex: 1
   },
-  infoModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  infoModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    gap: 16
-  },
-  infoModalHeader: {
-    alignItems: 'center',
-    gap: 12
-  },
-  infoModalTitle: {
-    fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877',
-    textAlign: 'center'
-  },
-  infoModalMessage: {
-    fontSize: 15,
-    fontFamily: 'Prompt_400Regular',
-    color: '#374151',
-    textAlign: 'center',
-    lineHeight: 22
-  },
-  infoModalBold: {
-    fontFamily: 'Prompt_700Bold',
-    color: '#F59E0B'
-  },
-  infoModalSection: {
-    gap: 8
-  },
-  infoModalSectionTitle: {
-    fontSize: 15,
-    fontFamily: 'Prompt_600SemiBold',
-    color: '#225877',
-    marginBottom: 4
-  },
-  infoModalListItem: {
+  virtualAlert: {
     flexDirection: 'row',
-    gap: 8,
-    paddingLeft: 8
-  },
-  infoModalBullet: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontFamily: 'Prompt_400Regular'
-  },
-  infoModalListText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6B7280',
-    flex: 1,
-    lineHeight: 20
-  },
-  infoModalNote: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6B7280',
     backgroundColor: '#FEF3C7',
-    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     borderRadius: 8,
-    textAlign: 'center',
-    lineHeight: 20
+    padding: 8,
+    gap: 8,
+    alignItems: 'center'
   },
-  infoModalButton: {
-    backgroundColor: '#5FA7D1',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8
+  virtualAlertTextContainer: {
+    flex: 1,
+    gap: 2
   },
-  infoModalButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_600SemiBold',
-    color: '#fff'
+  virtualAlertTitle: {
+    color: '#F59E0B',
+    fontSize: 14,
+    fontFamily: 'Prompt_700Bold'
+  },
+  virtualAlertMessage: {
+    color: '#92400E',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    lineHeight: 16
   }
 })
