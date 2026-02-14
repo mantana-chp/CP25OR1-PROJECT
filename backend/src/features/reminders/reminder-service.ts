@@ -44,7 +44,8 @@ const calculateNextOccurrence = (
       const daysDiff = Math.floor(
         (currentDate.getTime() - templateStartDate.getTime()) / (1000 * 3600 * 24)
       )
-      const intervalsToAdd = Math.ceil(daysDiff / rule.interval) * rule.interval
+      // Calculate intervals: (+1 to account for "next interval after current period")
+      const intervalsToAdd = Math.ceil((daysDiff + 1) / rule.interval) * rule.interval
       nextDate.setUTCDate(templateStartDate.getUTCDate() + intervalsToAdd)
       break
 
@@ -73,9 +74,17 @@ const calculateNextOccurrence = (
 
     case RecurrenceFrequency.MONTHLY:
       const newMonthDate = new Date(templateStartDate)
-      const monthsDiff = (currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()) * 12
+      let monthsDiff = (currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()) * 12
         + (currentDate.getUTCMonth() - templateStartDate.getUTCMonth())
-      const intervalsToAddMonth = Math.ceil(monthsDiff / rule.interval) * rule.interval
+
+      // If we're in a later month but haven't reached the occurrence day yet,
+      // we haven't actually completed the transition to that month's interval
+      if (currentDate.getUTCDate() < templateStartDate.getUTCDate() && monthsDiff > 0) {
+        monthsDiff--
+      }
+
+      // Calculate intervals: (+1 to account for "next interval after current period")
+      const intervalsToAddMonth = Math.ceil((monthsDiff + 1) / rule.interval) * rule.interval
       newMonthDate.setUTCMonth(
         templateStartDate.getUTCMonth() + intervalsToAddMonth,
         templateStartDate.getUTCDate(),
@@ -86,8 +95,21 @@ const calculateNextOccurrence = (
       return newMonthDate
 
     case RecurrenceFrequency.YEARLY:
-      const yearsDiff = currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()
-      const intervalsToAddYear = Math.ceil(yearsDiff / rule.interval) * rule.interval
+      let yearsDiff = currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()
+
+      // If we're in a later year but haven't reached the occurrence date yet,
+      // we haven't actually completed the transition to that year's interval
+      if (
+        yearsDiff > 0 &&
+        (currentDate.getUTCMonth() < templateStartDate.getUTCMonth() ||
+          (currentDate.getUTCMonth() === templateStartDate.getUTCMonth() &&
+            currentDate.getUTCDate() < templateStartDate.getUTCDate()))
+      ) {
+        yearsDiff--
+      }
+
+      // Calculate intervals: (+1 to account for "next interval after current period")
+      const intervalsToAddYear = Math.ceil((yearsDiff + 1) / rule.interval) * rule.interval
       nextDate.setUTCFullYear(templateStartDate.getUTCFullYear() + intervalsToAddYear)
       break
 
@@ -122,7 +144,7 @@ const generateNextInstance = async (
   })
   if (futureInstanceExists) return
 
-  const nextDate = calculateNextOccurrence(templateStartDate, new Date(currentReminder.reminder_date.getTime() + 86400000), rule as any) // Add 1 day to current date to get next occurrence
+  const nextDate = calculateNextOccurrence(templateStartDate, currentReminder.reminder_date, rule as any)
   if (!nextDate) return
 
   if (rule.endDate && nextDate > rule.endDate) return
@@ -302,6 +324,16 @@ export const createNewReminder = async (
     throw new ConflictError(
       'A reminder with this name and date already exists for this pet.',
     )
+
+  // Validate recurrence end date if provided
+  if (recurrence && recurrence.endDate) {
+    const endDate = new Date(recurrence.endDate)
+    if (endDate <= reminderDate) {
+      throw new BadRequestError(
+        'Recurrence end date must be after the reminder start date.',
+      )
+    }
+  }
 
   const reminderTime = parentData.reminderTime
     ? new Date(`1970-01-01T${parentData.reminderTime}Z`)
@@ -596,6 +628,19 @@ export const updateReminder = async (
     throw new BadRequestError(
       'Cannot change date, time, or recurrence of a reminder that is marked as "done".',
     )
+  }
+
+  // Validate recurrence end date if provided
+  if (recurrence && recurrence.endDate) {
+    const reminderDate = updateData.reminderDate
+      ? new Date(updateData.reminderDate)
+      : reminderToUpdate.reminder_date
+    const endDate = new Date(recurrence.endDate)
+    if (endDate <= reminderDate) {
+      throw new BadRequestError(
+        'Recurrence end date must be after the reminder start date.',
+      )
+    }
   }
 
   const isRecurring = reminderToUpdate.recurrence_id !== null && reminderToUpdate.recurrence_id !== undefined

@@ -30,7 +30,7 @@ import {
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import ReminderDetailModal from '../pages/reminder_detail_modal'
-import RecurringReminderCard from './recurring_reminder_card'
+import RecurringReminderCard from './recurrence/recurring_reminder_card'
 import ReminderCard from './reminder_card'
 
 type TabType = 'to_do' | 'today' | 'done'

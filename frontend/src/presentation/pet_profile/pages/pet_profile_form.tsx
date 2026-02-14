@@ -314,14 +314,20 @@ export default function PetProfileForm({
                 ? new Date(formik.values.birth_date)
                 : undefined
             }
-            onChange={(v) => formik.setFieldValue('birth_date', v)}
+            onChange={(v) => {
+              const today = new Date()
+              today.setHours(23, 59, 59, 999) // Set to end of today
+              if (v && v <= today) {
+                formik.setFieldValue('birth_date', v)
+              }
+            }}
             error={formik?.errors?.birth_date}
             required={true}
             maximumDate={new Date()}
           />
 
           <InputText
-            title="น้ำหนักสัตว์เลี้ยง (กก.)"
+            title="น้ำหนักสัตว์เลี้ยง (กิโลกรัม)"
             value={formik.values?.weight}
             placeholder="น้ำหนักสัตว์เลี้ยง"
             keyboardType="numeric"

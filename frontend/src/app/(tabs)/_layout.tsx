@@ -96,7 +96,6 @@ export default function TabLayout() {
               icon={BotMessageSquare}
               color={color}
               focused={focused}
-              badge={unreadCount}
             />
           )
         }}

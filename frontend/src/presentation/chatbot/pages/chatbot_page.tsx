@@ -133,7 +133,8 @@ export default function ChatbotPage() {
 
       <KeyboardAvoidingView
         style={styles.chatContainer}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={0}
+        behavior="padding"
       >
         {/* Chat Messages */}
         <ScrollView

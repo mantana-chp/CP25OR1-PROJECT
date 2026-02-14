@@ -1,7 +1,6 @@
 import { Send } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   TextInput,
@@ -30,38 +29,33 @@ export default function ChatInput({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <View style={styles.container}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={message}
-            onChangeText={setMessage}
-            placeholder={placeholder}
-            placeholderTextColor="#A0AEC0"
-            multiline
-            maxLength={500}
-            editable={!disabled}
-            onSubmitEditing={handleSend}
-            returnKeyType="send"
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!message.trim() || disabled) && styles.sendButtonDisabled
-            ]}
-            onPress={handleSend}
-            disabled={!message.trim() || disabled}
-            activeOpacity={0.7}
-          >
-            <Send size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={message}
+          onChangeText={setMessage}
+          placeholder={placeholder}
+          placeholderTextColor="#A0AEC0"
+          multiline
+          maxLength={500}
+          editable={!disabled}
+          onSubmitEditing={handleSend}
+          returnKeyType="send"
+        />
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            (!message.trim() || disabled) && styles.sendButtonDisabled
+          ]}
+          onPress={handleSend}
+          disabled={!message.trim() || disabled}
+          activeOpacity={0.7}
+        >
+          <Send size={20} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 

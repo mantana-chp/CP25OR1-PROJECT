@@ -1,7 +1,7 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import DatePicker from '../../components/date_picker'
-import InputText from '../../components/text_input'
+import DatePicker from '../../../components/date_picker'
+import InputText from '../../../components/text_input'
 
 interface EndConditionSelectorProps {
   endType: 'never' | 'after' | 'on_date'
@@ -60,7 +60,7 @@ export default function EndConditionSelector({
             onChangeText={handleOccurrencesChange}
             keyboardType="numeric"
             placeholder="10"
-            title=''
+            title=""
           />
         </View>
         <Text style={styles.optionText}>ครั้ง</Text>
