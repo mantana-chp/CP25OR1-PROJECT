@@ -13,7 +13,7 @@ export const thaiMonths = [
   { name_th: 'ธันวาคม', name_en: 'December' }
 ]
 
-export const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+export const weekDays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 
 export interface Reminder {
   id: string
