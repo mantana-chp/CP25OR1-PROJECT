@@ -6,10 +6,12 @@ This repository contains the backend service for the PetPal mobile application, 
 
 -   **Authentication**: A secure, device-based "1 device, 1 user" authentication system using JWTs (Access & Refresh Tokens).
 -   **Pet Profiles**: Create and manage a profile for a user's pet.
--   **Reminders**: Full CRUD functionality for reminders. Supports parent-child relationships for complex reminder chains (e.g., a multi-dose vaccination series).
+-   **Reminders**: Full CRUD functionality for reminders. Supports parent-child relationships for complex reminder chains (e.g., a multi-dose vaccination series) and recurring reminders.
 -   **Vaccine Schedules**: Calculate vaccination schedules based on a pet's species and age.
 -   **Health Records**: Automatically generates a health record history from completed health-related reminders.
 -   **Notifications**: An integrated system to create and manage notifications based on upcoming reminders.
+-   **AI Chat (RAG)**: Personalized veterinary assistant powered by Google Gemini with Retrieval-Augmented Generation using Pinecone vector database for knowledge base retrieval.
+-   **AI Tips Generation**: Generates personalized pet care tips based on pet profile and health history.
 -   **Localization**: Supports returning data in different languages (e.g., Thai names for species and breeds).
 
 ---
@@ -35,6 +37,10 @@ All protected endpoints require an `Authorization: Bearer <token>` header and an
 -   **Zod**: For robust request validation.
 -   **Docker & Docker Compose**: For containerization and production deployment.
 -   **Swagger (OpenAPI)**: For live API documentation.
+-   **AI/ML Stack**:
+    -   **Google Gemini API**: LLM (gemini-2.5-flash) and embeddings (gemini-embedding-001)
+    -   **LangChain**: Framework for building RAG applications
+    -   **Pinecone**: Vector database for semantic search and knowledge retrieval
 
 ---
 
@@ -80,6 +86,43 @@ All protected endpoints require an `Authorization: Bearer <token>` header and an
     npm run dev
     ```
     The server will be running at `http://localhost:3000`.
+
+---
+
+## AI Features Setup
+
+### Environment Variables
+
+To use the AI features, you need to configure the following environment variables in your `.env` file:
+
+```env
+# Google Gemini API
+GOOGLE_API_KEY=your_google_api_key
+
+# Pinecone Vector Database
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX_NAME=your_index_name
+```
+
+### Ingesting Vaccine Data to Vector Database
+
+Before using the AI chat feature, you need to ingest the vaccine knowledge base into Pinecone:
+
+1.  **Ensure the database is seeded:**
+    ```bash
+    npm run seed
+    ```
+
+2.  **Run the vaccine ingestion script:**
+    This script fetches all vaccine records from the database, generates embeddings using Google Gemini, and stores them in Pinecone for semantic search.
+    ```bash
+    npx ts-node src/scripts/ingest-vaccines.ts
+    ```
+
+The AI chat feature uses RAG (Retrieval-Augmented Generation) to provide accurate, context-aware responses by combining:
+- **Vector Search**: Retrieves relevant vaccine/pet care information from Pinecone
+- **Pet Context**: Incorporates current pet profile and health history
+- **LLM Generation**: Google Gemini generates natural, helpful responses
 
 ---
 

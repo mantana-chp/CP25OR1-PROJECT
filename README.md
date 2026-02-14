@@ -43,7 +43,11 @@ The platform aims to solve common pet care challenges such as:
 - **Backend:** Node.js + Express.js
 - **Database:** PostgreSQL
 - **Storage:** MinIO (for images/files)
-- **AI Model:** Gemma 3
+- **AI Services:**
+  - **LLM:** Google Gemini 2.5 Flash (gemini-2.5-flash)
+  - **Embeddings:** Google Gemini Embeddings (gemini-embedding-001)
+  - **Vector Database:** Pinecone
+  - **Architecture:** RAG (Retrieval-Augmented Generation)
 - **Containerization:** Docker
 - **OS Environment:** Ubuntu (SIT VM)
 - **Push Notifications:** Expo Notifications (via FCM / APNs)
