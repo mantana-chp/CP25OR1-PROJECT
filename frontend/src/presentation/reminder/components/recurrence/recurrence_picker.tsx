@@ -17,9 +17,9 @@ import {
   View
 } from 'react-native'
 import InputText from '../../../components/text_input'
-import EndConditionSelector from '../end_condition_selector'
 import MonthlyOptions from '../monthly_options'
 import WeekdaySelector from '../weekday_selector'
+import EndConditionSelector from './end_condition_selector'
 
 interface RecurrencePickerProps {
   value: IRecurrenceRule
