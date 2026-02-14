@@ -14,7 +14,7 @@ export class GeminiService {
     }
     this.genAI = new GoogleGenerativeAI(config.google.apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    this.embeddingModel = this.genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    this.embeddingModel = this.genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
   }
 
   async generateText(prompt: string): Promise<string> {

@@ -168,7 +168,7 @@ export default function ReminderDetailModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
-          {!isVirtual && (
+          {(!isVirtual || reminder?.reminderStatus !== 'done') && (
             <Pressable onPress={handleEdit} style={styles.editButton}>
               <Edit2 size={20} color="#5FA7D1" />
             </Pressable>

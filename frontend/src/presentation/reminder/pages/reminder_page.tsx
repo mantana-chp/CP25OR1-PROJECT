@@ -1,3 +1,4 @@
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
@@ -24,6 +25,8 @@ export default function ReminderPage() {
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const swipeStartY = useRef(0)
 
   // ------------------
@@ -33,18 +36,28 @@ export default function ReminderPage() {
     showErrorAlert: false
   })
 
+  const getPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false
+  })
+
   const loadReminders = useCallback(() => {
     getRemindersApi.execute({})
+  }, [])
+
+  const loadPets = useCallback(() => {
+    getPetsApi.execute()
   }, [])
 
   useFocusEffect(
     useCallback(() => {
       loadReminders()
-    }, [loadReminders])
+      loadPets()
+    }, [loadReminders, loadPets])
   )
 
   const reminders = getRemindersApi.data?.data?.reminders || []
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
+  const pets = getPetsApi.data?.data || []
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
   // Debug: Log recurring rules to check excluded_dates
@@ -133,9 +146,8 @@ export default function ReminderPage() {
   }
 
   const handleDateSelect = (date: Date) => {
-    if (!hasUserSelectedDate) {
-      setHasUserSelectedDate(true)
-    }
+    const isSelectingToday = dayjs(date).isSame(dayjs(), 'day')
+    setHasUserSelectedDate(!isSelectingToday)
     setSelectedDate(date)
   }
 
@@ -174,6 +186,13 @@ export default function ReminderPage() {
           return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
         })
 
+  const handleResetRemindersFilters = () => {
+    setSelectedCategory(null)
+    setSelectedPetId(null)
+  }
+
+  const isToday = dayjs(selectedDate).isSame(dayjs(), 'day')
+
   // ------------------
   // RENDER
   // ------------------
@@ -190,15 +209,25 @@ export default function ReminderPage() {
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onReset={handleReset}
+        onResetFilters={handleResetRemindersFilters}
         hasUserSelectedDate={hasUserSelectedDate}
+        isPetFilterActive={selectedPetId !== null}
+        isCategoryFilterActive={selectedCategory !== null}
       />
 
       <View style={styles.reminderContainer} {...panResponder.panHandlers}>
         <ReminderList
           reminders={filteredReminders}
+          pets={pets}
           isLoading={getRemindersApi.loading}
           onRefresh={loadReminders}
           initialReminderId={params.reminderId}
+          selectedCategory={selectedCategory}
+          onSelectedCategoryChange={setSelectedCategory}
+          selectedPetId={selectedPetId}
+          onSelectedPetIdChange={setSelectedPetId}
+          isToday={isToday}
+          allReminders={remindersWithRecurrence}
         />
       </View>
     </View>
