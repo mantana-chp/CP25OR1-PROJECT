@@ -257,7 +257,7 @@ export default function AddReminderPage() {
               date: child.reminderDate || '',
               time: child.reminderTime || '',
               isAutoCalculated: child.extractedDoseNumber > 1,
-              isEdited: false,
+              isEdited: child.extractedDoseNumber > 1,
               childReminderId: child.id,
             }))
             setDoses(childrenDoses)
@@ -359,7 +359,7 @@ export default function AddReminderPage() {
                     date: child.reminderDate || '',
                     time: child.reminderTime || '',
                     isAutoCalculated: child.extractedDoseNumber > 1,
-                    isEdited: false,
+                    isEdited: child.extractedDoseNumber > 1,
                     childReminderId: child.id,
                   }),
                 )

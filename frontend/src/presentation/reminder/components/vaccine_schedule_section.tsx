@@ -215,18 +215,33 @@ export default function VaccineScheduleSection({
     isInitialized,
   ])
 
-  // Reset initialization flag when edit mode changes
+  // Reset all state when switching from edit mode to create mode
   useEffect(() => {
     if (!isEditMode) {
       setIsInitialized(false)
+      setSelectedVaccineId(null)
+      setIsCustomVaccine(false)
+      setCustomVaccineName('')
+      setCustomDoseCount(null)
+      setShowCustomDoseInput(false)
+      setCustomDoseInputValue('')
+      setIsCustomDoseInputMode(false)
+      setShowVaccineDropdown(false)
+      setSelectedTime('')
+      setUserEditedTime(false)
+      setDoses([])
     }
   }, [isEditMode])
 
   useEffect(() => {
-    if (selectedVaccineId && petId && reminderDate) {
+    // Skip recalculation if in edit mode with already-loaded doses from database
+    const hasLoadedDoses =
+      isEditMode && doses.length > 0 && doses.some((d) => d.childReminderId)
+
+    if (selectedVaccineId && petId && reminderDate && !hasLoadedDoses) {
       calculateVaccineSchedule(reminderDate)
     }
-  }, [selectedVaccineId, petId])
+  }, [selectedVaccineId, petId, isEditMode])
 
   // Sync dose 1 with reminderDate
   useEffect(() => {
