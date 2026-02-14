@@ -205,15 +205,17 @@ export default function AddReminderPage() {
         await createReminderApi.execute(submitData)
       }
 
-      if (!isEditMode) {
-        formik.resetForm()
-      }
       setDoses([])
       setCustomVaccineName('')
       setInitialChildReminders([])
+      setInitialReminderData(null)
+      setLoadedVaccineIsCustom(false)
       setVaccineResetKey((prev) => prev + 1)
       setRecurrenceRule(null)
       setHasUserStartedCreateMode(false)
+      if (!isEditMode) {
+        formik.resetForm()
+      }
     },
   })
 
@@ -439,6 +441,9 @@ export default function AddReminderPage() {
     setVaccineResetKey((prev) => prev + 1)
     setRecurrenceRule(null)
     setHasUserStartedCreateMode(false)
+    setInitialReminderData(null)
+    setInitialChildReminders([])
+    setLoadedVaccineIsCustom(false)
     formik.resetForm()
     router.back()
   }
