@@ -10,17 +10,16 @@ import { formatRecurrenceText } from '@/src/utils/recurrence.utils'
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View
 } from 'react-native'
-import InputText from '../../components/text_input'
+import InputText from '../../../components/text_input'
+import MonthlyOptions from '../monthly_options'
+import WeekdaySelector from '../weekday_selector'
 import EndConditionSelector from './end_condition_selector'
-import MonthlyOptions from './monthly_options'
-import WeekdaySelector from './weekday_selector'
 
 interface RecurrencePickerProps {
   value: IRecurrenceRule
@@ -164,10 +163,6 @@ export default function RecurrencePicker({
     return 'custom'
   }
 
-  const handleOpenMainModal = () => {
-    setShowMainModal(true)
-  }
-
   const handleSelectPreset = (preset: PresetOption) => {
     if (preset.type === 'custom') {
       setTempRule(value)
@@ -221,11 +216,21 @@ export default function RecurrencePicker({
   }
 
   const handleIntervalChange = (interval: string) => {
-    const numInterval = parseInt(interval) || 1
-    setTempRule({
-      ...tempRule,
-      interval: Math.max(1, Math.min(999, numInterval))
-    })
+    if (interval === '') {
+      setTempRule({
+        ...tempRule,
+        interval: 0
+      })
+      return
+    }
+
+    const numInterval = parseInt(interval)
+    if (!isNaN(numInterval)) {
+      setTempRule({
+        ...tempRule,
+        interval: Math.max(1, Math.min(999, numInterval))
+      })
+    }
   }
 
   const handleEndConditionChange = (
@@ -242,7 +247,11 @@ export default function RecurrencePicker({
   }
 
   const handleCustomConfirm = () => {
-    onChange(tempRule)
+    const validatedRule = {
+      ...tempRule,
+      interval: Math.max(1, tempRule.interval || 1)
+    }
+    onChange(validatedRule)
     setShowCustomModal(false)
   }
 
@@ -261,7 +270,7 @@ export default function RecurrencePicker({
           <Text style={styles.labelText}>การทำซ้ำ</Text>
           <Repeat size={14} color="#225877" />
         </View>
-        <Pressable style={styles.button} onPress={handleOpenMainModal}>
+        <Pressable style={styles.button} onPress={() => setShowMainModal(true)}>
           <Text style={styles.buttonText}>{displayText}</Text>
           <ChevronRight size={20} color="#A6A6A6" />
         </Pressable>
@@ -330,10 +339,7 @@ export default function RecurrencePicker({
         animationType="slide"
         onRequestClose={handleCustomCancel}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -387,7 +393,11 @@ export default function RecurrencePicker({
                   <View style={styles.intervalRow}>
                     <View style={{ flex: 1 }}>
                       <InputText
-                        value={tempRule.interval.toString()}
+                        value={
+                          tempRule.interval === 0
+                            ? ''
+                            : tempRule.interval.toString()
+                        }
                         onChangeText={handleIntervalChange}
                         keyboardType="numeric"
                         placeholder="1"

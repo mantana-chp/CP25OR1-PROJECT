@@ -1,5 +1,5 @@
 import _ from 'lodash'
-import { Check, ChevronDown, X } from 'lucide-react-native'
+import { ChevronDown, X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 
 import { ICalculatedDose, IDose, IVaccine } from '@/src/domain/vaccine.domain'
@@ -14,8 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import DatePicker from '../../components/date_picker'
-import TimePicker from '../../components/time_picker'
+import DatePicker from '../../../components/date_picker'
+import TimePicker from '../../../components/time_picker'
 
 interface VaccineScheduleSectionProps {
   isVaccinationCategory: boolean

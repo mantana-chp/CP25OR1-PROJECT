@@ -36,7 +36,7 @@ export class PineconeService {
         logger.info(`Creating Pinecone index: ${this.indexName}`);
         await this.pc.createIndex({
           name: this.indexName,
-          dimension: 768, // Matches text-embedding-004
+          dimension: 3072, // according to google docs
           metric: 'cosine',
           spec: {
             serverless: {

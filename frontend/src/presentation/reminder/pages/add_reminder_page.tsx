@@ -1,6 +1,6 @@
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import {
   IRecurrenceRule,
@@ -13,8 +13,8 @@ import { useError } from '@/src/presentation/components/error_context'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
-  convertToBackendRecurrence,
   convertFromBackendRecurrence,
+  convertToBackendRecurrence,
 } from '@/src/utils/recurrence.utils'
 
 import { usePets } from '@/src/context/PetContext'
@@ -38,9 +38,10 @@ import PetSelector from '../../components/pet_selector'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
-import RecurrencePicker from '../components/recurrence_picker'
+import EndRepeatSelector from '../components/recurrence/end_repeat_selector'
+import RecurrencePicker from '../components/recurrence/recurrence_picker'
+import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
 import ReminderSuggestions from '../components/reminder_suggestions'
-import VaccineScheduleSection from '../components/vaccine_schedule_section'
 
 export default function AddReminderPage() {
   const router = useRouter()
@@ -718,21 +719,31 @@ export default function AddReminderPage() {
                 {/* Hide recurrence picker if no date selected or if category is Vaccination */}
                 {formik.values.reminderDate &&
                   formik.values.categoryName !== 'Vaccination' && (
-                    <RecurrencePicker
-                      value={
-                        recurrenceRule || {
-                          type: 'none',
-                          interval: 1,
-                          endType: 'never',
+                    <>
+                      <RecurrencePicker
+                        value={
+                          recurrenceRule || {
+                            type: 'none',
+                            interval: 1,
+                            endType: 'never',
+                          }
                         }
-                      }
-                      onChange={setRecurrenceRule}
-                      reminderDate={
-                        formik.values.reminderDate
-                          ? new Date(formik.values.reminderDate)
-                          : undefined
-                      }
-                    />
+                        onChange={setRecurrenceRule}
+                        reminderDate={
+                          formik.values.reminderDate
+                            ? new Date(formik.values.reminderDate)
+                            : undefined
+                        }
+                      />
+
+                      {/* End Repeat Section */}
+                      {recurrenceRule && recurrenceRule.type !== 'none' && (
+                        <EndRepeatSelector
+                          recurrenceRule={recurrenceRule}
+                          onChange={setRecurrenceRule}
+                        />
+                      )}
+                    </>
                   )}
 
                 {/* Vaccine Schedule Section */}

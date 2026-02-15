@@ -60,18 +60,8 @@ class DeviceIdService {
 
         return { deviceId: fallbackId, source: 'ios_keychain' }
       } else if (platform === 'android') {
-        // Android: Use Android ID (changes on factory reset)
-        const androidId = Application.getAndroidId()
-        if (androidId) {
-          console.log('🤖 [DeviceId] Android ID:', androidId)
-          return { deviceId: androidId, source: 'android_ssaid' }
-        }
-        // Fallback for Android: use installation ID
-        const fallbackId = uuidv4()
-        console.warn(
-          '⚠️ [DeviceId] Android ID not available, using UUID fallback'
-        )
-        return { deviceId: fallbackId, source: 'android_ssaid' }
+        const installationId = await this.getInstallationId()
+        return { deviceId: installationId, source: 'android_ssaid' }
       } else {
         console.warn(
           '⚠️ [DeviceId] Platform not supported by backend, defaulting to android'
@@ -112,7 +102,14 @@ class DeviceIdService {
     console.log('✅ [DeviceId] Device identifiers:', {
       installationId: identifiers.installationId.substring(0, 8) + '...',
       platform: identifiers.platform,
-      platformDeviceId: identifiers.platformDeviceId.substring(0, 8) + '...',
+      platformDeviceId: identifiers.platformDeviceId, // Show full ID for debugging
+      platformIdSource: identifiers.platformIdSource
+    })
+
+    console.log('📤 [DeviceId] Will send to backend:', {
+      installationId: identifiers.installationId,
+      platform: identifiers.platform,
+      platformDeviceId: identifiers.platformDeviceId,
       platformIdSource: identifiers.platformIdSource
     })
 

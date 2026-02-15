@@ -17,7 +17,7 @@ const llm = new ChatGoogleGenerativeAI({
 });
 
 const embeddings = new GoogleGenerativeAIEmbeddings({
-  model: 'text-embedding-004',
+  model: 'gemini-embedding-001',
   apiKey: config.google.apiKey,
 });
 

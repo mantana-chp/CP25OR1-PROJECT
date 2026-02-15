@@ -14,9 +14,21 @@ const reminderJob = cron.schedule('*/15 * * * *', async () => { // job run every
       logger.error('Error running overdue reminder job:', new Error(String(error)));
     }
   }
+}, {
+  timezone: 'Etc/UTC' // Explicitly use UTC timezone
 });
 
 export const startSchedulers = () => {
   reminderJob.start();
-  logger.info('Started reminder scheduler. (every 15 min)');
+  
+  const now = new Date();
+  const nowUTC = now.toISOString();
+  
+  logger.info('========================================');
+  logger.info('📅 Reminder Overdue Scheduler Started');
+  logger.info('========================================');
+  logger.info(`Current time: ${nowUTC} (UTC)`);
+  logger.info('Schedule: */15 * * * * (every 15 minutes, UTC)');
+  logger.info('Description: Updates reminder status to "overdue" when past due date/time');
+  logger.info('========================================');
 };

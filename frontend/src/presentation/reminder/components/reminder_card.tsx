@@ -32,7 +32,7 @@ import {
   Tag,
   Trash2
 } from 'lucide-react-native'
-import DeleteSeriesModal from './delete_series_modal'
+import DeleteSeriesModal from './modal/delete_series_modal'
 
 interface ReminderCardProps {
   reminder: IReminder

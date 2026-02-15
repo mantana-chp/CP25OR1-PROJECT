@@ -73,7 +73,7 @@ Your response MUST be a valid JSON array of objects, with no surrounding text or
   {
     "userId": "the-user-id-from-input",
     "petId": "the-pet-id-from-input",
-    "title": "Thai question about the topic including pet's name",
+    "title": "Thai question about the topic including pet's name (remeber that do not call the user with their pet's name, make it sound more personal and warm, not robotic)",
     "description": "Thai answer to the question in the title"
   }
 ]
@@ -137,10 +137,12 @@ export const generateAndSendAITips = async () => {
     status: 'pending' as const,
   }));
 
+  let createdNotificationIds: string[] = [];
   try {
     const createResult = await prisma.notifications.createMany({
       data: notificationsToCreate,
     });
+    createdNotificationIds = notificationsToCreate.map(n => n.id);
     logger.info(`[AITipsService] Successfully saved ${createResult.count} notification records to the database.`);
   } catch (error) {
     logger.error('[AITipsService] Failed to save AI tips to the database:', error as Error);
@@ -186,10 +188,38 @@ export const generateAndSendAITips = async () => {
     }
   }
 
+  let finalStatus: 'sent' | 'failed' = 'sent';
+  const sentAt = new Date();
+
   if (pushMessages.length > 0) {
-    logger.info(`[AITipsService] Sending ${pushMessages.length} push notifications via Expo.`);
-    await expoPushService.send(pushMessages);
-    logger.info('[AITipsService] Push notification job submitted to Expo.');
+    try {
+      logger.info(`[AITipsService] Sending ${pushMessages.length} push notifications via Expo.`);
+      await expoPushService.send(pushMessages);
+      logger.info('[AITipsService] Push notification job submitted to Expo successfully.');
+    } catch (error) {
+      logger.error('[AITipsService] Failed to send push notifications via Expo:', error as Error);
+      finalStatus = 'failed';
+    }
+  } else {
+    logger.info('[AITipsService] No push messages to send (users have no push tokens).');
+  }
+
+  // Update all created notifications with final status and sent_at
+  try {
+    await prisma.notifications.updateMany({
+      where: {
+        id: {
+          in: createdNotificationIds,
+        },
+      },
+      data: {
+        status: finalStatus,
+        sent_at: finalStatus === 'sent' ? sentAt : null,
+      },
+    });
+    logger.info(`[AITipsService] Updated ${createdNotificationIds.length} notifications to status: ${finalStatus}.`);
+  } catch (error) {
+    logger.error('[AITipsService] CRITICAL: Failed to update notification statuses:', error as Error);
   }
 
   logger.info('[AITipsService] AI Tip generation job finished successfully.');
@@ -235,8 +265,9 @@ export const generateAndSendTipForSingleUser = async (userId: string) => {
   const tip = generatedTips[0];
   logger.info(`[AITipsService] [Manual Trigger] Successfully generated tip for user ${userId}.`);
 
+  let notificationId: string;
   try {
-    await prisma.notifications.create({
+    const notification = await prisma.notifications.create({
       data: {
         id: uuidv4(),
         user_id: tip.userId,
@@ -246,6 +277,7 @@ export const generateAndSendTipForSingleUser = async (userId: string) => {
         status: 'pending' as const,
       },
     });
+    notificationId = notification.id;
     logger.info(`[AITipsService] [Manual Trigger] Successfully saved notification record for user ${userId}.`);
   } catch (error) {
     logger.error(`[AITipsService] [Manual Trigger] Failed to save AI tip to the database for user ${userId}:`, error as Error);
@@ -258,7 +290,19 @@ export const generateAndSendTipForSingleUser = async (userId: string) => {
   });
 
   if (pushTokens.length === 0) {
-    logger.warn(`[AITipsService] [Manual Trigger] No push token found for user ${userId}. Cannot send tip notification.`);
+    logger.warn(`[AITipsService] [Manual Trigger] No push token found for user ${userId}. Notification saved for in-app only.`);
+    // Still update status to 'sent' for in-app notification
+    try {
+      await prisma.notifications.update({
+        where: { id: notificationId },
+        data: {
+          status: 'sent',
+          sent_at: new Date(),
+        },
+      });
+    } catch (error) {
+      logger.error(`[AITipsService] [Manual Trigger] Failed to update notification status:`, error as Error);
+    }
     return;
   }
 
@@ -269,7 +313,29 @@ export const generateAndSendTipForSingleUser = async (userId: string) => {
     sound: 'default',
   }));
 
-  logger.info(`[AITipsService] [Manual Trigger] Sending ${pushMessages.length} push notifications for user ${userId}.`);
-  await expoPushService.send(pushMessages);
-  logger.info('[AITipsService] [Manual Trigger] Push notification job submitted to Expo for user ${userId}.');
+  let finalStatus: 'sent' | 'failed' = 'sent';
+  const sentAt = new Date();
+
+  try {
+    logger.info(`[AITipsService] [Manual Trigger] Sending ${pushMessages.length} push notifications for user ${userId}.`);
+    await expoPushService.send(pushMessages);
+    logger.info(`[AITipsService] [Manual Trigger] Push notification job submitted to Expo for user ${userId}.`);
+  } catch (error) {
+    logger.error(`[AITipsService] [Manual Trigger] Failed to send push notifications:`, error as Error);
+    finalStatus = 'failed';
+  }
+
+  // Update notification status
+  try {
+    await prisma.notifications.update({
+      where: { id: notificationId },
+      data: {
+        status: finalStatus,
+        sent_at: finalStatus === 'sent' ? sentAt : null,
+      },
+    });
+    logger.info(`[AITipsService] [Manual Trigger] Updated notification to status: ${finalStatus}.`);
+  } catch (error) {
+    logger.error(`[AITipsService] [Manual Trigger] CRITICAL: Failed to update notification status:`, error as Error);
+  }
 };
