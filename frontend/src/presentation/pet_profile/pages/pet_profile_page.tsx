@@ -229,7 +229,7 @@ export default function PetProfilePage() {
                 pets={displayPets}
                 selectedIndex={currentPetIndex}
                 onSelect={handlePetSelect}
-                maxPets={11}
+                maxPets={10}
               />
 
               {/* Selected Pet Info */}
