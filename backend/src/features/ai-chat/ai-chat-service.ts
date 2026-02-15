@@ -6,6 +6,7 @@ import { logger } from '../../libs/logger';
 import { Document } from '@langchain/core/documents';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
+import { ApiError } from '../../shared/errors';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
@@ -149,7 +150,10 @@ Answer:
 
   } catch (error) {
     logger.error('Error in AI Chat service:', error as Error);
-    throw error;
+    throw new ApiError(
+      'We experienced an unexpected issue. Our AI assistant should be available soon. Please try again in a moment.',
+      500
+    );
   }
 };
 
