@@ -70,7 +70,7 @@ export default function PetSelector({
       ))}
 
       {/* Add Pet Button */}
-      {pets.length < maxPets && (
+      {pets.length === maxPets && (
         <TouchableOpacity
           style={styles.petItem}
           onPress={() => router.push('/(tabs)/add_pet_form')}
