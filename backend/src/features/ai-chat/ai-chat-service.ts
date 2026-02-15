@@ -124,6 +124,7 @@ INSTRUCTIONS:
    - IF the knowledge base contains information (like dog vaccines) but the user asks about a different topic (like "How to feed a parrot" or "Tiger behavior"), IGNORE the knowledge base completely.
 3. If ignoring the knowledge base, answer the question using your own general veterinary knowledge.
 4. Do NOT apologize for missing data. Just answer helpfuly.
+5. IMPORTANT: Do NOT provide medical diagnoses. If the user describes serious symptoms (e.g., vomiting, lethargy, difficulty breathing, bleeding, seizures, injury), ALWAYS recommend consulting a licensed veterinarian immediately. You can provide general information, but emphasize the importance of professional veterinary care for health concerns.
 
 ${petContext ? petContext : ''}
 
