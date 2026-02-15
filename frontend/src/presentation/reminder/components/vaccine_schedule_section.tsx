@@ -396,6 +396,15 @@ export default function VaccineScheduleSection({
   }
 
   const handleDateChange = (doseNumber: number, date: Date) => {
+    // Prevent modifications to done child reminders
+    const dose = doses.find((d) => d.doseNumber === doseNumber)
+    if (
+      dose?.childReminderId &&
+      doneChildReminderIds.has(dose.childReminderId)
+    ) {
+      return
+    }
+
     const dateString = convertDateToString(date)
 
     if (doseNumber === 1) {
@@ -418,6 +427,15 @@ export default function VaccineScheduleSection({
   }
 
   const handleTimeChange = (doseNumber: number, time: string) => {
+    // Prevent modifications to done child reminders
+    const dose = doses.find((d) => d.doseNumber === doseNumber)
+    if (
+      dose?.childReminderId &&
+      doneChildReminderIds.has(dose.childReminderId)
+    ) {
+      return
+    }
+
     if (userEditedTime) {
       setDoses((prev) =>
         prev.map((dose) =>
@@ -430,10 +448,19 @@ export default function VaccineScheduleSection({
     if (selectedTime !== time) {
       setSelectedTime(time)
       setDoses((prev) =>
-        prev.map((dose) => ({
-          ...dose,
-          time: time,
-        })),
+        prev.map((dose) => {
+          // Don't sync time to done child reminders
+          if (
+            dose.childReminderId &&
+            doneChildReminderIds.has(dose.childReminderId)
+          ) {
+            return dose
+          }
+          return {
+            ...dose,
+            time: time,
+          }
+        }),
       )
       setUserEditedTime(true)
 
@@ -444,6 +471,15 @@ export default function VaccineScheduleSection({
   }
 
   const handleDeleteDose = (doseNumber: number) => {
+    // Prevent deletion of done child reminders
+    const dose = doses.find((d) => d.doseNumber === doseNumber)
+    if (
+      dose?.childReminderId &&
+      doneChildReminderIds.has(dose.childReminderId)
+    ) {
+      return
+    }
+
     setDoses((prev) => prev.filter((dose) => dose.doseNumber !== doseNumber))
   }
 
@@ -749,7 +785,7 @@ export default function VaccineScheduleSection({
 
             return (
               <View key={dose.doseNumber}>
-                <View style={styles.doseCard}>
+                <View style={[styles.doseCard]}>
                   <View style={styles.doseHeader}>
                     <View style={styles.doseTextBlock}>
                       <Text style={styles.doseNumber}>
@@ -765,8 +801,9 @@ export default function VaccineScheduleSection({
                       )}
                       {dose.doseNumber === 1 && !isCustomVaccine && (
                         <Text style={styles.completedDate}>
-                          {formatDateForDisplay(dose.date)}
+                          {formatDateForDisplay(dose.date)} 
                         </Text>
+                        
                       )}
                       {isDoseDone && (
                         <Text style={styles.doneText}>(ทำสำเร็จแล้ว)</Text>
@@ -1059,6 +1096,13 @@ const styles = StyleSheet.create({
   },
   doseCard: {
     marginBottom: 4,
+  },
+  doseCardCompleted: {
+    backgroundColor: '#f0fdf4',
+    borderLeftWidth: 4,
+    borderLeftColor: '#22c55e',
+    paddingLeft: 12,
+    opacity: 0.75,
   },
   doseHeader: {
     flexDirection: 'row',

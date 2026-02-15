@@ -84,6 +84,14 @@ export default function AddReminderPage() {
   )
   const hasDoneChildren = doneChildReminderIds.size > 0
 
+  // Check if dose 1 is a done child reminder
+  const isDose1Done = (() => {
+    const dose1 = doses.find((d) => d.doseNumber === 1)
+    return !!(
+      dose1?.childReminderId && doneChildReminderIds.has(dose1.childReminderId)
+    )
+  })()
+
   const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
@@ -172,21 +180,32 @@ export default function AddReminderPage() {
         const syncedDoses = doses.map((dose) =>
           dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose,
         )
-        const children: any[] = syncedDoses.map((dose, index) => {
-          const childData: any = {
-            reminderName: customVaccineName
-              ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
-              : `วัคซีน เข็มที่ ${dose.doseNumber}`,
-            description: values.description,
-            reminderDate: dose.date,
-            reminderTime: dose.time || '',
-            categoryName: 'Vaccination',
-          }
-          if (dose.childReminderId) {
-            childData.id = dose.childReminderId
-          }
-          return childData
-        })
+        const children: any[] = syncedDoses
+          .filter((dose) => {
+            // Exclude done child reminders from updates
+            if (
+              dose.childReminderId &&
+              doneChildReminderIds.has(dose.childReminderId)
+            ) {
+              return false
+            }
+            return true
+          })
+          .map((dose, index) => {
+            const childData: any = {
+              reminderName: customVaccineName
+                ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
+                : `วัคซีน เข็มที่ ${dose.doseNumber}`,
+              description: values.description,
+              reminderDate: dose.date,
+              reminderTime: dose.time || '',
+              categoryName: 'Vaccination',
+            }
+            if (dose.childReminderId) {
+              childData.id = dose.childReminderId
+            }
+            return childData
+          })
         submitData.children = children
 
         if (isEditMode && initialChildReminders.length > 0) {
@@ -245,7 +264,11 @@ export default function AddReminderPage() {
         const response = await reminderService.getReminderById(reminderId)
         const reminderData = response.data
         if (reminderData) {
-          setInitialReminderData(reminderData)
+          const formattedReminderData = {
+            ...reminderData,
+            reminderTime: (reminderData.reminderTime || '').substring(0, 5),
+          }
+          setInitialReminderData(formattedReminderData)
 
           if (reminderData.recurrence) {
             const convertedRecurrence = convertFromBackendRecurrence(
@@ -280,7 +303,7 @@ export default function AddReminderPage() {
             const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
               doseNumber: child.extractedDoseNumber,
               date: child.reminderDate || '',
-              time: child.reminderTime || '',
+              time: (child.reminderTime || '').substring(0, 5),
               isAutoCalculated: child.extractedDoseNumber > 1,
               isEdited: child.extractedDoseNumber > 1,
               childReminderId: child.id,
@@ -351,7 +374,13 @@ export default function AddReminderPage() {
           .then((response) => {
             const reminderData = response.data
             if (reminderData) {
-              setInitialReminderData(reminderData)
+              // Format time to HH:MM (remove seconds if present)
+              const formattedReminderData = {
+                ...reminderData,
+                reminderTime: (reminderData.reminderTime || '').substring(0, 5),
+              }
+              setInitialReminderData(formattedReminderData)
+              // setInitialReminderData(reminderData)
 
               // Set original pet species for tracking changes
               if (reminderData.petId) {
@@ -392,7 +421,7 @@ export default function AddReminderPage() {
                   (child: any) => ({
                     doseNumber: child.extractedDoseNumber,
                     date: child.reminderDate || '',
-                    time: child.reminderTime || '',
+                    time: (child.reminderTime || '').substring(0, 5),
                     isAutoCalculated: child.extractedDoseNumber > 1,
                     isEdited: child.extractedDoseNumber > 1,
                     childReminderId: child.id,
@@ -662,7 +691,7 @@ export default function AddReminderPage() {
                       setLoadedVaccineIsCustom(false)
                       setVaccineResetKey((prev) => prev + 1)
                       // clear disable category selector
-                      setInitialChildReminders([]) 
+                      setInitialChildReminders([])
                     }
                     // If in edit mode and pet species is the same, keep previous values
                     // (do nothing, values are preserved)
@@ -688,6 +717,7 @@ export default function AddReminderPage() {
                       }}
                       error={formik.errors.reminderDate}
                       required={true}
+                      disabled={isDose1Done || isSubmitting}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
