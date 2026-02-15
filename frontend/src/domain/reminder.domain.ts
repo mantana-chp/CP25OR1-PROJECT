@@ -87,6 +87,7 @@ export interface IReminder {
   updatedAt: string
   children: IReminder[]
   // Recurrence fields
+  recurrenceId?: string // ID of the recurring rule (if this reminder is part of a series)
   recurrence?: {
     id: string
     reminderId: string

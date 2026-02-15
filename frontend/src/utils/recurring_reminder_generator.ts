@@ -338,29 +338,68 @@ function createVirtualReminder(
 }
 
 /**
+ * Simple pet interface for looking up pet names
+ */
+interface SimplePet {
+  id: string
+  pet_name: string
+}
+
+/**
  * Generate all virtual reminders from an array of recurring rules
- * Optionally accepts real reminders to copy pet_name from parent reminder
+ * Optionally accepts real reminders and pets array to copy pet_name
  */
 export async function generateAllVirtualReminders(
   recurringRules: IRecurringRule[],
   options: GenerateVirtualRemindersOptions = {},
-  realReminders?: IReminder[]
+  realReminders?: IReminder[],
+  pets?: SimplePet[]
 ): Promise<IVirtualReminder[]> {
   const allVirtualReminders: IVirtualReminder[] = []
 
   // Create maps for quick lookup
   const reminderToPetName = new Map<string, string>()
+  const reminderToPetId = new Map<string, string>()
   const petIdToPetName = new Map<string, string>()
+  const recurrenceIdToPetInfo = new Map<
+    string,
+    { petId: string; petName: string }
+  >()
 
+  // Primary source: pets array (most reliable for pet names)
+  if (pets) {
+    for (const pet of pets) {
+      if (pet.id && pet.pet_name) {
+        petIdToPetName.set(pet.id, pet.pet_name)
+      }
+    }
+  }
+
+  // Secondary source: real reminders - build multiple lookup maps
   if (realReminders) {
     for (const reminder of realReminders) {
-      // Map by reminder ID
       if (reminder.id && reminder.pet_name) {
         reminderToPetName.set(reminder.id, reminder.pet_name)
       }
-      // Map by pet ID (fallback)
-      if (reminder.petId && reminder.pet_name) {
+      if (reminder.id && reminder.petId) {
+        reminderToPetId.set(reminder.id, reminder.petId)
+      }
+
+      if (
+        reminder.petId &&
+        reminder.pet_name &&
+        !petIdToPetName.has(reminder.petId)
+      ) {
         petIdToPetName.set(reminder.petId, reminder.pet_name)
+      }
+
+      
+      const recurrenceId = reminder.recurrenceId || reminder.recurrence?.id
+      if (recurrenceId && reminder.petId) {
+        recurrenceIdToPetInfo.set(recurrenceId, {
+          petId: reminder.petId,
+          petName: reminder.pet_name || ''
+        })
       }
     }
   }
@@ -373,27 +412,51 @@ export async function generateAllVirtualReminders(
         options
       )
 
-      // If pet_name is missing or empty, try to get it from the parent reminder
+      // If pet_name is missing or empty, try to get it from available sources
       for (const virtualReminder of virtualReminders) {
         if (
           !virtualReminder.pet_name ||
           virtualReminder.pet_name.trim() === ''
         ) {
-          // Try to get pet name by reminder_id first
-          if (rule.reminder_id) {
-            const petName = reminderToPetName.get(rule.reminder_id)
+          // Try to get pet info by recurrenceId (rule.id) - most reliable for this case
+          const petInfo = recurrenceIdToPetInfo.get(rule.id)
+          if (petInfo) {
+            virtualReminder.petId = petInfo.petId
+            const petName = petIdToPetName.get(petInfo.petId) || petInfo.petName
             if (petName) {
               virtualReminder.pet_name = petName
               continue
             }
           }
 
-          // Fallback: Try to get pet name by pet_id
-          if (rule.pet_id || virtualReminder.petId) {
-            const petId = rule.pet_id || virtualReminder.petId
-            const petName = petIdToPetName.get(petId)
+          // Try to get pet name by pet_id from rule
+          if (rule.pet_id) {
+            const petName = petIdToPetName.get(rule.pet_id)
             if (petName) {
               virtualReminder.pet_name = petName
+              continue
+            }
+          }
+
+          // Try pet_id from virtual reminder
+          if (virtualReminder.petId) {
+            const petName = petIdToPetName.get(virtualReminder.petId)
+            if (petName) {
+              virtualReminder.pet_name = petName
+              continue
+            }
+          }
+
+          // Fallback: Try to get pet name by reminder_id
+          if (rule.reminder_id) {
+            const petName = reminderToPetName.get(rule.reminder_id)
+            if (petName) {
+              virtualReminder.pet_name = petName
+              // Also set petId if available
+              const petId = reminderToPetId.get(rule.reminder_id)
+              if (petId) {
+                virtualReminder.petId = petId
+              }
             }
           }
         }

@@ -87,7 +87,8 @@ export default function ReminderPage() {
           monthsBackward: 1,
           maxOccurrences: 100
         },
-        safeReminders // Pass real reminders to copy pet_name
+        safeReminders, // Pass real reminders to copy pet_name
+        pets // Pass pets array for direct pet_name lookup
       )
       setVirtualReminders(virtuals)
     }
@@ -97,7 +98,7 @@ export default function ReminderPage() {
     } else {
       setVirtualReminders([])
     }
-  }, [recurringRules, safeReminders])
+  }, [recurringRules, safeReminders, pets])
 
   const remindersWithRecurrence = safeReminders.map((reminder) => {
     const recurringRule = Array.isArray(recurringRules)
@@ -200,6 +201,7 @@ export default function ReminderPage() {
         onToggle={handleToggleCalendar}
         reminders={remindersWithRecurrence}
         recurringRules={recurringRules}
+        pets={pets}
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onReset={handleReset}

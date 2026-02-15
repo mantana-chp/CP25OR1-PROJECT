@@ -13,7 +13,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   UIManager,
-  View,
+  View
 } from 'react-native'
 import { useCalendar } from '../../../hooks/useCalendar'
 import CalendarDay from './calendar/calendar_day'
@@ -27,11 +27,17 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
+interface SimplePet {
+  id: string
+  pet_name: string
+}
+
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
   reminders?: IReminder[]
   recurringRules?: IRecurringRule[]
+  pets?: SimplePet[]
   onDateSelect: (date: Date) => void
   selectedDate: Date | null
   onReset: () => void
@@ -46,13 +52,14 @@ export default function Calendar({
   onToggle,
   reminders = [],
   recurringRules = [],
+  pets = [],
   onDateSelect,
   selectedDate,
   onReset,
   hasUserSelectedDate,
   onResetFilters,
   isPetFilterActive,
-  isCategoryFilterActive,
+  isCategoryFilterActive
 }: CalendarProps) {
   // ------------------
   // CONST
@@ -66,7 +73,7 @@ export default function Calendar({
     nextMonth,
     goToToday,
     allReminders
-  } = useCalendar(reminders, recurringRules)
+  } = useCalendar(reminders, recurringRules, pets)
 
   const chevronRotation = useChevronAnimation(isExpanded)
 
@@ -133,7 +140,7 @@ export default function Calendar({
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronDown size={24} color='#225877' />
+          <ChevronDown size={24} color="#225877" />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -150,11 +157,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 3
   },
   calendarGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap'
   },
   toggleButton: {
     alignSelf: 'center',

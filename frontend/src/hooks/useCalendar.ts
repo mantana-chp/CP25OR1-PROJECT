@@ -20,9 +20,15 @@ interface DayInfo {
   hasRealReminders?: boolean
 }
 
+interface SimplePet {
+  id: string
+  pet_name: string
+}
+
 export const useCalendar = (
   reminders: IReminder[] = [],
-  recurringRules: IRecurringRule[] = []
+  recurringRules: IRecurringRule[] = [],
+  pets: SimplePet[] = []
 ) => {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [virtualReminders, setVirtualReminders] = useState<IVirtualReminder[]>(
@@ -40,7 +46,8 @@ export const useCalendar = (
           monthsBackward: 1,
           maxOccurrences: 100
         },
-        reminders // Pass real reminders to copy pet_name
+        reminders, // Pass real reminders to copy pet_name
+        pets // Pass pets array for direct pet_name lookup
       )
       setVirtualReminders(virtuals)
     }
@@ -50,7 +57,7 @@ export const useCalendar = (
     } else {
       setVirtualReminders([])
     }
-  }, [reminders, recurringRules])
+  }, [reminders, recurringRules, pets])
 
   // Merge virtual reminders with real ones
   const allReminders = useMemo(() => {
