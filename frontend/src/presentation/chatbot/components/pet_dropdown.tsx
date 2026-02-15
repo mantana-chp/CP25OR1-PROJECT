@@ -82,12 +82,15 @@ export default function PetDropdown({
           onPress={toggleDropdown}
           activeOpacity={0.8}
         >
-          <Animated.View style={[{ transform: [{ rotate: rotation }] }]}>
-            <ChevronDown size={18} color="#2E759E" />
-          </Animated.View>
           <View style={styles.petIconContainer}>
-            <Dog size={28} color="#2E759E" />
+            <Dog size={20} color="#2E759E" />
           </View>
+          <Text style={styles.petNameText} numberOfLines={1}>
+            {selectedPet?.pet_name || 'เลือก'}
+          </Text>
+          <Animated.View style={[{ transform: [{ rotate: rotation }] }]}>
+            <ChevronDown size={16} color="#5FA7D1" />
+          </Animated.View>
         </TouchableOpacity>
       </View>
 
@@ -153,23 +156,25 @@ const styles = StyleSheet.create({
   toggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#D7E9F4',
-    borderRadius: 35,
-    paddingLeft: 8,
-    height: 36,
-    width: 60,
-    shadowColor: '#000',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingLeft: 4,
+    paddingRight: 10,
+    paddingVertical: 2,
+    gap: 6,
+    shadowColor: '#225877',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E8F4FC'
   },
   petIconContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 27,
-    width: 36,
-    height: 36,
+    backgroundColor: '#E8F4FC',
+    borderRadius: 14,
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -211,7 +216,7 @@ const styles = StyleSheet.create({
     marginRight: 12
   },
   itemText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#225877',
     fontFamily: 'Prompt_400Regular'
   },
@@ -228,5 +233,12 @@ const styles = StyleSheet.create({
     color: '#718096',
     textAlign: 'center',
     fontFamily: 'Prompt_400Regular'
+  },
+  petNameText: {
+    fontSize: 14,
+    color: '#225877',
+    fontFamily: 'Prompt_500Medium',
+    minWidth: 20,
+    maxWidth: 50
   }
 })
