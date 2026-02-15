@@ -470,18 +470,21 @@ export default function AddReminderPage() {
     ])
   )
 
-  useEffect(() => {
-    const fetchReminders = async () => {
-      try {
-        const response = await getRemindersApi.execute({})
-        const reminders = response?.data?.data?.reminders || []
-        setExistingReminders(Array.isArray(reminders) ? reminders : [])
-      } catch (error) {
-        console.error('Error fetching reminders:', error)
+  // Fetch existing reminders for suggestions - refresh on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      const fetchReminders = async () => {
+        try {
+          const response = await getRemindersApi.execute({})
+          const reminders = response?.data?.data?.reminders || []
+          setExistingReminders(Array.isArray(reminders) ? reminders : [])
+        } catch (error) {
+          console.error('Error fetching reminders:', error)
+        }
       }
-    }
-    fetchReminders()
-  }, [])
+      fetchReminders()
+    }, [])
+  )
 
   useEffect(() => {
     if (petIdFromParams) {
