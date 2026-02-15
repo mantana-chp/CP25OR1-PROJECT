@@ -138,14 +138,14 @@ Answer:
     `.trim();
 
     logger.info(`AI Chat Request - Question: "${query}"`);
-    logger.debug(`Full AI Prompt:\n${prompt}`);
+    logger.info(`Full AI Prompt:\n${prompt}`);
 
     // 4. Generate Answer
     const response = await llm.invoke(prompt);
     const answer = response.content as string;
 
     logger.info(`AI Chat Response received successfully.`);
-    logger.debug(`AI Answer:\n${answer}`);
+    logger.info(`AI Answer:\n${answer}`);
 
     return answer;
 
