@@ -74,6 +74,10 @@ export default function AddReminderPage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [hasUserStartedCreateMode, setHasUserStartedCreateMode] =
     useState(false)
+  const [originalPetSpecies, setOriginalPetSpecies] = useState<string | null>(
+    null
+  )
+  const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
   const [showDiscardModal, setShowDiscardModal] = useState(false)
 
   const doneChildReminderIds = new Set(
@@ -82,6 +86,13 @@ export default function AddReminderPage() {
       .map((child) => child.id)
   )
   const hasDoneChildren = doneChildReminderIds.size > 0
+
+  const isDose1Done = (() => {
+    const dose1 = doses.find((d) => d.doseNumber === 1)
+    return !!(
+      dose1?.childReminderId && doneChildReminderIds.has(dose1.childReminderId)
+    )
+  })()
 
   const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
@@ -171,35 +182,53 @@ export default function AddReminderPage() {
         const syncedDoses = doses.map((dose) =>
           dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
         )
-        const children: any[] = syncedDoses.map((dose, index) => {
-          const childData: any = {
-            reminderName: customVaccineName
-              ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
-              : `วัคซีน เข็มที่ ${dose.doseNumber}`,
-            description: values.description,
-            reminderDate: dose.date,
-            reminderTime: dose.time || '',
-            categoryName: 'Vaccination'
-          }
-          if (dose.childReminderId) {
-            childData.id = dose.childReminderId
-          }
-          return childData
-        })
+        const children: any[] = syncedDoses
+          .filter((dose) => {
+            if (
+              dose.childReminderId &&
+              doneChildReminderIds.has(dose.childReminderId)
+            ) {
+              return false
+            }
+            return true
+          })
+          .map((dose, index) => {
+            const childData: any = {
+              reminderName: customVaccineName
+                ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
+                : `วัคซีน เข็มที่ ${dose.doseNumber}`,
+              description: values.description,
+              reminderDate: dose.date,
+              reminderTime: dose.time || '',
+              categoryName: 'Vaccination'
+            }
+            if (dose.childReminderId) {
+              childData.id = dose.childReminderId
+            }
+            return childData
+          })
         submitData.children = children
 
         if (isEditMode && initialChildReminders.length > 0) {
           const currentChildIds = syncedDoses
             .map((dose) => dose.childReminderId)
             .filter((id) => !!id)
-          const childrenToDelete = initialChildReminders
+          const calculatedChildrenToDelete = initialChildReminders
             .filter((child) => !currentChildIds.includes(child.id))
             .map((child) => child.id)
 
-          if (childrenToDelete.length > 0) {
-            submitData.childrenToDelete = childrenToDelete
+          const allChildrenToDelete = [
+            ...new Set([...calculatedChildrenToDelete, ...childrenToDelete])
+          ]
+
+          if (allChildrenToDelete.length > 0) {
+            submitData.childrenToDelete = allChildrenToDelete
           }
+        } else if (childrenToDelete.length > 0) {
+          submitData.childrenToDelete = childrenToDelete
         }
+      } else if (isEditMode && childrenToDelete.length > 0) {
+        submitData.childrenToDelete = childrenToDelete
       }
 
       if (isEditMode && reminderId) {
@@ -208,15 +237,19 @@ export default function AddReminderPage() {
         await createReminderApi.execute(submitData)
       }
 
-      if (!isEditMode) {
-        formik.resetForm()
-      }
       setDoses([])
       setCustomVaccineName('')
       setInitialChildReminders([])
+      setInitialReminderData(null)
+      setLoadedVaccineIsCustom(false)
       setVaccineResetKey((prev) => prev + 1)
       setRecurrenceRule(null)
       setHasUserStartedCreateMode(false)
+      setChildrenToDelete([])
+      setOriginalPetSpecies(null)
+      if (!isEditMode) {
+        formik.resetForm()
+      }
     }
   })
 
@@ -229,13 +262,24 @@ export default function AddReminderPage() {
         const response = await reminderService.getReminderById(reminderId)
         const reminderData = response.data
         if (reminderData) {
-          setInitialReminderData(reminderData)
+          const formattedReminderData = {
+            ...reminderData,
+            reminderTime: (reminderData.reminderTime || '').substring(0, 5)
+          }
+          setInitialReminderData(formattedReminderData)
 
           if (reminderData.recurrence) {
             const convertedRecurrence = convertFromBackendRecurrence(
               reminderData.recurrence
             )
             setRecurrenceRule(convertedRecurrence)
+          }
+
+          if (reminderData.petId) {
+            const originalPet = pets.find((p) => p.id === reminderData.petId)
+            if (originalPet) {
+              setOriginalPetSpecies(originalPet.species)
+            }
           }
 
           if (reminderData.children && reminderData.children.length > 0) {
@@ -256,9 +300,9 @@ export default function AddReminderPage() {
             const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
               doseNumber: child.extractedDoseNumber,
               date: child.reminderDate || '',
-              time: child.reminderTime || '',
+              time: (child.reminderTime || '').substring(0, 5),
               isAutoCalculated: child.extractedDoseNumber > 1,
-              isEdited: false,
+              isEdited: child.extractedDoseNumber > 1,
               childReminderId: child.id
             }))
             setDoses(childrenDoses)
@@ -277,7 +321,6 @@ export default function AddReminderPage() {
         setLoadingReminder(false)
       }
     } else if (!hasUserStartedCreateMode) {
-      // Only clear data on initial mount in create mode, not on every re-render
       setInitialReminderData(null)
       setLoadingReminder(false)
       setLoadedVaccineIsCustom(false)
@@ -288,12 +331,10 @@ export default function AddReminderPage() {
     }
   }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
 
-  // Initial load effect - only depends on reminderId and isEditMode to avoid re-triggering
   useEffect(() => {
     if (isEditMode && reminderId) {
       loadReminderData()
     } else if (!isEditMode && !hasUserStartedCreateMode) {
-      // Clear data on initial mount in create mode
       setInitialReminderData(null)
       setLoadingReminder(false)
       setLoadedVaccineIsCustom(false)
@@ -304,7 +345,6 @@ export default function AddReminderPage() {
     }
   }, [reminderId, isEditMode])
 
-  // Track when user starts creating doses in create mode
   useEffect(() => {
     if (!isEditMode && doses.length > 0) {
       setHasUserStartedCreateMode(true)
@@ -313,21 +353,32 @@ export default function AddReminderPage() {
 
   useFocusEffect(
     useCallback(() => {
-      // Only reload data on focus if we haven't already loaded it and user hasn't started modifying
       if (
         isEditMode &&
         reminderId &&
         !initialReminderData &&
         !hasUserStartedCreateMode
       ) {
-        // Reload data when user focuses back on the screen
         setLoadingReminder(true)
         reminderService
           .getReminderById(reminderId)
           .then((response) => {
             const reminderData = response.data
             if (reminderData) {
-              setInitialReminderData(reminderData)
+              const formattedReminderData = {
+                ...reminderData,
+                reminderTime: (reminderData.reminderTime || '').substring(0, 5)
+              }
+              setInitialReminderData(formattedReminderData)
+
+              if (reminderData.petId) {
+                const originalPet = pets.find(
+                  (p) => p.id === reminderData.petId
+                )
+                if (originalPet) {
+                  setOriginalPetSpecies(originalPet.species)
+                }
+              }
 
               if (reminderData.recurrence) {
                 const convertedRecurrence = convertFromBackendRecurrence(
@@ -358,9 +409,9 @@ export default function AddReminderPage() {
                   (child: any) => ({
                     doseNumber: child.extractedDoseNumber,
                     date: child.reminderDate || '',
-                    time: child.reminderTime || '',
+                    time: (child.reminderTime || '').substring(0, 5),
                     isAutoCalculated: child.extractedDoseNumber > 1,
-                    isEdited: false,
+                    isEdited: child.extractedDoseNumber > 1,
                     childReminderId: child.id
                   })
                 )
@@ -423,6 +474,23 @@ export default function AddReminderPage() {
 
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
+  const isSamePetType = (
+    species1: string | null,
+    species2: string | null
+  ): boolean => {
+    if (!species1 || !species2) return false
+
+    const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
+
+    for (const type of petTypes) {
+      if (species1.includes(type) && species2.includes(type)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
   const canUseVaccineSchedule =
     currentPet &&
     (currentPet.species?.includes('สุนัข') ||
@@ -443,6 +511,11 @@ export default function AddReminderPage() {
     setVaccineResetKey((prev) => prev + 1)
     setRecurrenceRule(null)
     setHasUserStartedCreateMode(false)
+    setInitialReminderData(null)
+    setInitialChildReminders([])
+    setLoadedVaccineIsCustom(false)
+    setChildrenToDelete([])
+    setOriginalPetSpecies(null)
     formik.resetForm()
     router.back()
   }
@@ -486,7 +559,7 @@ export default function AddReminderPage() {
         .filter((reminder) =>
           reminder.reminderName.toLowerCase().includes(value.toLowerCase())
         )
-        .slice(0, 5) // Limit to 5 suggestions
+        .slice(0, 5)
 
       setSuggestions(filtered)
       setShowSuggestions(filtered.length > 0)
@@ -633,8 +706,32 @@ export default function AddReminderPage() {
                   pets={pets}
                   selectedPetId={formik.values.petId}
                   onSelectPet={(petId: string) => {
+                    const newPet = pets.find((p) => p.id === petId)
+                    const oldPetSpecies =
+                      originalPetSpecies || currentPet?.species
+                    const newPetSpecies = newPet?.species
+
                     formik.setFieldValue('petId', petId)
                     setSelectedPetId(petId)
+
+                    if (
+                      isEditMode &&
+                      !isSamePetType(
+                        oldPetSpecies || null,
+                        newPetSpecies || null
+                      )
+                    ) {
+                      const currentChildIds = initialChildReminders.map(
+                        (child) => child.id
+                      )
+                      setChildrenToDelete(currentChildIds)
+
+                      setDoses([])
+                      setCustomVaccineName('')
+                      setLoadedVaccineIsCustom(false)
+                      setVaccineResetKey((prev) => prev + 1)
+                      setInitialChildReminders([])
+                    }
                   }}
                   label="สัตว์เลี้ยง"
                   required={true}
@@ -657,6 +754,7 @@ export default function AddReminderPage() {
                       }}
                       error={formik.errors.reminderDate}
                       required={true}
+                      disabled={isDose1Done || isSubmitting}
                     />
                   </View>
                   <View style={{ flex: 1 }}>

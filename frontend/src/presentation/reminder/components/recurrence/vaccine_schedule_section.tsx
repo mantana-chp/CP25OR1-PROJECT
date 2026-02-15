@@ -69,8 +69,6 @@ export default function VaccineScheduleSection({
   const [customVaccineName, setCustomVaccineName] = useState<string>(
     initialVaccineName || ''
   )
-  // const [isCustomVaccine, setIsCustomVaccine] = useState(false)
-  // const [customVaccineName, setCustomVaccineName] = useState<string>('')
   const [customDoseCount, setCustomDoseCount] = useState<number | null>(null)
   const [showCustomDoseInput, setShowCustomDoseInput] = useState(false)
   const [customDoseInputValue, setCustomDoseInputValue] = useState<string>('')
@@ -88,11 +86,9 @@ export default function VaccineScheduleSection({
         return 'Invalid Date'
       }
       let date: Date
-      // Handle ISO format with T
       if (dateString.includes('T')) {
         date = new Date(dateString)
       } else {
-        // Handle YYYY-MM-DD format
         date = new Date(dateString + 'T00:00')
       }
       if (isNaN(date.getTime())) {
@@ -113,12 +109,9 @@ export default function VaccineScheduleSection({
       if (!dateString) {
         return new Date()
       }
-      // Handle both YYYY-MM-DD format and ISO date strings
       if (dateString.includes('T')) {
-        // ISO format
         return new Date(dateString.split('T')[0] + 'T00:00')
       }
-      // YYYY-MM-DD format
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
       return date
@@ -139,7 +132,13 @@ export default function VaccineScheduleSection({
   }
 
   const getAutocalculatedText = (dateString: string): string => {
+    if (!dateString || dateString.trim() === '') {
+      return ''
+    }
     const date = new Date(dateString + 'T00:00')
+    if (isNaN(date.getTime())) {
+      return ''
+    }
     const formattedDate = date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
@@ -214,20 +213,32 @@ export default function VaccineScheduleSection({
     doses.length
   ])
 
-  // Reset initialization flag when edit mode changes
   useEffect(() => {
     if (!isEditMode) {
       setIsInitialized(false)
+      setSelectedVaccineId(null)
+      setIsCustomVaccine(false)
+      setCustomVaccineName('')
+      setCustomDoseCount(null)
+      setShowCustomDoseInput(false)
+      setCustomDoseInputValue('')
+      setIsCustomDoseInputMode(false)
+      setShowVaccineDropdown(false)
+      setSelectedTime('')
+      setUserEditedTime(false)
+      setDoses([])
     }
   }, [isEditMode])
 
   useEffect(() => {
-    if (selectedVaccineId && petId && reminderDate) {
+    const hasLoadedDoses =
+      isEditMode && doses.length > 0 && doses.some((d) => d.childReminderId)
+
+    if (selectedVaccineId && petId && reminderDate && !hasLoadedDoses) {
       calculateVaccineSchedule(reminderDate)
     }
-  }, [selectedVaccineId, petId])
+  }, [selectedVaccineId, petId, isEditMode])
 
-  // Sync dose 1 with reminderDate
   useEffect(() => {
     if (doses.length > 0 && reminderDate) {
       const dose1 = doses.find((d) => d.doseNumber === 1)
@@ -380,6 +391,14 @@ export default function VaccineScheduleSection({
   }
 
   const handleDateChange = (doseNumber: number, date: Date) => {
+    const dose = doses.find((d) => d.doseNumber === doseNumber)
+    if (
+      dose?.childReminderId &&
+      doneChildReminderIds.has(dose.childReminderId)
+    ) {
+      return
+    }
+
     const dateString = convertDateToString(date)
 
     if (doseNumber === 1) {
@@ -402,6 +421,14 @@ export default function VaccineScheduleSection({
   }
 
   const handleTimeChange = (doseNumber: number, time: string) => {
+    const dose = doses.find((d) => d.doseNumber === doseNumber)
+    if (
+      dose?.childReminderId &&
+      doneChildReminderIds.has(dose.childReminderId)
+    ) {
+      return
+    }
+
     if (userEditedTime) {
       setDoses((prev) =>
         prev.map((dose) =>
@@ -414,10 +441,18 @@ export default function VaccineScheduleSection({
     if (selectedTime !== time) {
       setSelectedTime(time)
       setDoses((prev) =>
-        prev.map((dose) => ({
-          ...dose,
-          time: time
-        }))
+        prev.map((dose) => {
+          if (
+            dose.childReminderId &&
+            doneChildReminderIds.has(dose.childReminderId)
+          ) {
+            return dose
+          }
+          return {
+            ...dose,
+            time: time
+          }
+        })
       )
       setUserEditedTime(true)
 
@@ -428,6 +463,14 @@ export default function VaccineScheduleSection({
   }
 
   const handleDeleteDose = (doseNumber: number) => {
+    const dose = doses.find((d) => d.doseNumber === doseNumber)
+    if (
+      dose?.childReminderId &&
+      doneChildReminderIds.has(dose.childReminderId)
+    ) {
+      return
+    }
+
     setDoses((prev) => prev.filter((dose) => dose.doseNumber !== doseNumber))
   }
 
@@ -733,7 +776,7 @@ export default function VaccineScheduleSection({
 
             return (
               <View key={dose.doseNumber}>
-                <View style={styles.doseCard}>
+                <View style={[styles.doseCard]}>
                   <View style={styles.doseHeader}>
                     <View style={styles.doseTextBlock}>
                       <Text style={styles.doseNumber}>
@@ -742,14 +785,17 @@ export default function VaccineScheduleSection({
                           : selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
                         เข็มที่ {dose.doseNumber}
                       </Text>
-                      {dose.isAutoCalculated && !isCustomVaccine && (
-                        <Text style={styles.autocalculatedText}>
-                          {getAutocalculatedText(dose.date)}
-                        </Text>
-                      )}
-                      {dose.doseNumber === 1 && !isCustomVaccine && (
-                        <Text style={styles.completedDate}>
-                          {formatDateForDisplay(dose.date)}
+                      {!isCustomVaccine && dose.date && (
+                        <Text
+                          style={
+                            dose.doseNumber === 1
+                              ? styles.completedDate
+                              : styles.autocalculatedText
+                          }
+                        >
+                          {dose.doseNumber === 1
+                            ? formatDateForDisplay(dose.date)
+                            : `คำนวนอัตโนมัติ: ${formatDateForDisplay(dose.date)}`}
                         </Text>
                       )}
                       {isDoseDone && (
@@ -1043,6 +1089,13 @@ const styles = StyleSheet.create({
   },
   doseCard: {
     marginBottom: 4
+  },
+  doseCardCompleted: {
+    backgroundColor: '#f0fdf4',
+    borderLeftWidth: 4,
+    borderLeftColor: '#22c55e',
+    paddingLeft: 12,
+    opacity: 0.75,
   },
   doseHeader: {
     flexDirection: 'row',

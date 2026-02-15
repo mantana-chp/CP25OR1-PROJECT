@@ -57,30 +57,41 @@ export const markAsRead = async (
  */
 export const processAndSendNotifications = async () => {
   logger.info('--- RUNNING NOTIFICATION JOB ---');
-  const now = new Date();
-
-  // Convert current UTC time to GMT+7 (Bangkok timezone)
-  const gmtPlus7Now = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  const now = new Date(); // Current time in UTC
 
   // Use UTC for all date comparisons to avoid timezone issues
   const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const dayAfterTomorrowUTC = new Date(todayUTC);
   dayAfterTomorrowUTC.setUTCDate(todayUTC.getUTCDate() + 2);
 
-  // Find reminders for today or tomorrow that have not been notified yet.
+  // Find reminders for today or tomorrow that either:
+  // 1. Have not been notified yet, OR
+  // 2. Have failed/pending notifications (for retry)
   const candidateReminders = await prisma.reminders.findMany({
     where: {
       reminder_status: { in: ['to_do', 'overdue'] },
-      notifications: { none: {} },
       reminder_date: {
         gte: todayUTC,
         lt: dayAfterTomorrowUTC,
       },
+      OR: [
+        // Reminders with no notifications yet
+        { notifications: { none: {} } },
+        // OR reminders with failed/pending notifications (for retry within grace period)
+        {
+          notifications: {
+            some: {
+              status: { in: ['failed', 'pending'] },
+            },
+          },
+        },
+      ],
     },
     include: {
       user: { include: { push_tokens: true } },
       pets: true,
-      children: true, // Include to check if it's a parent
+      children: true,
+      notifications: { orderBy: { created_at: 'desc' } }, // Include to check retry attempts
     },
   });
 
@@ -93,6 +104,10 @@ export const processAndSendNotifications = async () => {
   const candidateIds = candidateReminders.map(r => r.id);
   logger.info(`[NotificationJob] Found ${candidateReminders.length} candidate reminders for today/tomorrow: [${candidateIds.join(', ')}]`);
 
+  // Configuration for retry logic
+  const MAX_RETRY_ATTEMPTS = 5; // Maximum times to retry a failed notification
+  const RETRY_INTERVAL_MS = 15 * 60 * 1000; // Wait at least 15 minutes between retries
+
   // Filter in-memory to find only the reminders that are actually due to be processed now
   const dueReminders = candidateReminders.filter(reminder => {
     // Skip parent reminders (reminders that have children)
@@ -101,56 +116,85 @@ export const processAndSendNotifications = async () => {
       return false;
     }
 
-    let notificationSendTime: Date;
-    let reminderActualTime: Date;
-
-    if (reminder.reminder_time) {
-      // Get the time part in milliseconds from the 1970-01-01 date
-      const timeMillis = reminder.reminder_time.getTime() - new Date('1970-01-01T00:00:00Z').getTime();
-      // Add time to the actual date
-      reminderActualTime = new Date(reminder.reminder_date.getTime() + timeMillis);
-      // Subtract 30 minutes for notification send time
-      notificationSendTime = new Date(reminderActualTime.getTime() - 30 * 60 * 1000);
-    } else {
-      // For reminders without specific time: notify at 9 AM GMT+7
-      const reminderDateUTC = reminder.reminder_date;
-
-      // Create times in UTC first, then convert to GMT+7
-      const notificationTimeUTC = new Date(Date.UTC(
-        reminderDateUTC.getUTCFullYear(),
-        reminderDateUTC.getUTCMonth(),
-        reminderDateUTC.getUTCDate(),
-        2, 0, 0  // 2 AM UTC = 9 AM GMT+7
-      ));
-      const reminderActualTimeUTC = new Date(Date.UTC(
-        reminderDateUTC.getUTCFullYear(),
-        reminderDateUTC.getUTCMonth(),
-        reminderDateUTC.getUTCDate(),
-        16, 59, 59  // 16:59:59 UTC = 23:59:59 GMT+7 (same day)
-      ));
-
-      // Convert UTC to GMT+7 for comparison
-      notificationSendTime = new Date(notificationTimeUTC.getTime() + (7 * 60 * 60 * 1000));
-      reminderActualTime = new Date(reminderActualTimeUTC.getTime() + (7 * 60 * 60 * 1000));
+    // Check if already successfully notified
+    const hasSuccessfulNotification = reminder.notifications?.some(n => n.status === 'sent');
+    if (hasSuccessfulNotification) {
+      logger.info(`[NotificationJob] Skipping reminder ${reminder.id} (already successfully notified).`);
+      return false;
     }
 
-    // Create notification if:
-    // 1. Current time has reached or passed the notification send time AND
-    // 2. Current time has NOT yet passed the actual reminder time (with buffer)
-    // 
-    // Special case: If notification send time has passed and we're checking now,
-    // we should still create it if it hasn't been too long past the reminder time
-    const notificationTimeReached = notificationSendTime <= gmtPlus7Now;
-    const reminderNotYetOccurred = gmtPlus7Now < reminderActualTime;
+    // Check retry attempts for failed/pending notifications
+    const failedAttempts = reminder.notifications?.filter(n => n.status === 'failed' || n.status === 'pending') || [];
+    const existingNotification = failedAttempts[0]; // Most recent (ordered by created_at desc)
+    const retryCount = existingNotification?.retry_count || 0;
 
-    // Allow creation if notification time has passed AND we're within grace period after reminder
-    // (e.g., if reminder was at 19:30 and it's now 20:00, still create within 60 minutes after)
-    const gracePeriodMs = 60 * 60 * 1000; // 60 minutes grace period
-    const withinGracePeriod = gmtPlus7Now <= new Date(reminderActualTime.getTime() + gracePeriodMs);
+    if (retryCount >= MAX_RETRY_ATTEMPTS) {
+      logger.warn(`[NotificationJob] Skipping reminder ${reminder.id} (max retry attempts reached: ${retryCount}/${MAX_RETRY_ATTEMPTS}). Notification permanently failed.`);
+      return false;
+    }
+
+    // If this is a retry, check if enough time has passed since last attempt
+    if (retryCount > 0 && existingNotification) {
+      const timeSinceLastAttempt = now.getTime() - new Date(existingNotification.created_at!).getTime();
+
+      if (timeSinceLastAttempt < RETRY_INTERVAL_MS) {
+        // Too soon to retry, wait longer
+        return false;
+      }
+
+      logger.info(`[NotificationJob] Retry attempt #${retryCount + 1} for reminder ${reminder.id} (last attempt: ${Math.floor(timeSinceLastAttempt / 60000)} min ago).`);
+    }
+
+    let notificationSendTimeUTC: Date;
+    let reminderActualTimeUTC: Date;
+
+    if (reminder.reminder_time) {
+      // IMPORTANT: reminder_time is stored as Asia/Bangkok local time (GMT+7)
+      // We need to convert it to UTC for accurate comparison
+
+      // Get the time part in milliseconds from the 1970-01-01 date
+      const bangkokTimeMillis = reminder.reminder_time.getTime() - new Date('1970-01-01T00:00:00Z').getTime();
+
+      // Convert Bangkok time to UTC by subtracting 7 hours (GMT+7 offset)
+      const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+      const utcTimeMillis = bangkokTimeMillis - BANGKOK_OFFSET_MS;
+
+      // Create the actual reminder time in UTC
+      reminderActualTimeUTC = new Date(reminder.reminder_date.getTime() + utcTimeMillis);
+
+      // Notification should be sent 30 minutes before the reminder time
+      notificationSendTimeUTC = new Date(reminderActualTimeUTC.getTime() - 30 * 60 * 1000);
+    } else {
+      // For reminders without specific time: notify at 9 AM Bangkok (2 AM UTC)
+      const reminderDateUTC = reminder.reminder_date;
+
+      notificationSendTimeUTC = new Date(Date.UTC(
+        reminderDateUTC.getUTCFullYear(),
+        reminderDateUTC.getUTCMonth(),
+        reminderDateUTC.getUTCDate(),
+        2, 0, 0  // 2 AM UTC = 9 AM Bangkok
+      ));
+
+      reminderActualTimeUTC = new Date(Date.UTC(
+        reminderDateUTC.getUTCFullYear(),
+        reminderDateUTC.getUTCMonth(),
+        reminderDateUTC.getUTCDate(),
+        16, 59, 59  // 16:59:59 UTC = 23:59:59 Bangkok (same day)
+      ));
+    }
+
+    // All comparisons now in UTC
+    const notificationTimeReached = notificationSendTimeUTC <= now;
+    const reminderNotYetOccurred = now < reminderActualTimeUTC;
+
+    // Grace period: allow sending up to 60 minutes after the reminder time
+    const gracePeriodMs = 60 * 60 * 1000;
+    const withinGracePeriod = now <= new Date(reminderActualTimeUTC.getTime() + gracePeriodMs);
 
     const shouldCreateNotification = notificationTimeReached && (reminderNotYetOccurred || withinGracePeriod);
 
-    // logger.debug(`[NotificationJob] Reminder ${reminder.id}: notificationTime=${notificationSendTime.toISOString()}, reminderTime=${reminderActualTime.toISOString()}, now(GMT+7)=${gmtPlus7Now.toISOString()}, notificationReached=${notificationTimeReached}, reminderNotYet=${reminderNotYetOccurred}, withinGrace=${withinGracePeriod}`);
+    // Uncomment for debugging:
+    // logger.debug(`[NotificationJob] Reminder ${reminder.id}: notificationTime=${notificationSendTimeUTC.toISOString()}, reminderTime=${reminderActualTimeUTC.toISOString()}, now=${now.toISOString()}, shouldSend=${shouldCreateNotification}`);
 
     return shouldCreateNotification;
   });
@@ -164,19 +208,65 @@ export const processAndSendNotifications = async () => {
   logger.info(`[NotificationJob] Found ${dueReminders.length} reminders that are actually due for notification: [${dueReminders.map(r => r.id).join(', ')}]`);
 
   for (const reminder of dueReminders) {
-    logger.info(`[NotificationJob] Processing reminder ${reminder.id}...`);
+    const failedAttempts = reminder.notifications?.filter(n => n.status === 'failed' || n.status === 'pending') || [];
+    const existingNotification = failedAttempts[0];
+    const retryCount = existingNotification?.retry_count || 0;
+    const isRetry = retryCount > 0;
+
+    logger.info(`[NotificationJob] Processing reminder ${reminder.id}${isRetry ? ` (retry attempt #${retryCount + 1})` : ''}...`);
 
     const hasPushTokens = reminder.user.push_tokens && reminder.user.push_tokens.length > 0;
     const petName = reminder.pets?.pet_name;
     const reminderName = reminder.reminder_name;
 
-    // Create the notification record first
-    const newNotification = await notificationRepository.create({
-      id: uuidv4(),
-      status: notification_status.pending, // Start as pending
-      user: { connect: { id: reminder.user_id } },
-      reminders: { connect: { id: reminder.id } },
-    });
+    // Check if notification is fundamentally broken (missing required data)
+    if (!petName || !reminderName) {
+      logger.error(`[NotificationJob] Skipping reminder ${reminder.id}: Missing required data (petName: ${petName}, reminderName: ${reminderName}). Marking as failed.`);
+
+      // Check if there's already a failed notification for this reminder
+      if (existingNotification) {
+        // Update existing notification to permanently failed
+        await notificationRepository.update(existingNotification.id, {
+          status: notification_status.failed,
+          sent_at: null,
+          retry_count: retryCount, // Keep current retry count
+        });
+      } else {
+        // Create a failed notification to prevent infinite retries
+        await notificationRepository.create({
+          id: uuidv4(),
+          status: notification_status.failed,
+          retry_count: 0,
+          user: { connect: { id: reminder.user_id } },
+          reminders: { connect: { id: reminder.id } },
+          sent_at: null,
+        });
+      }
+      continue;
+    }
+
+    // Reuse existing notification or create new one
+    let notificationToProcess;
+    if (isRetry && existingNotification) {
+      // Reuse the most recent failed/pending notification
+      notificationToProcess = existingNotification;
+      logger.info(`[NotificationJob] Reusing existing notification ${notificationToProcess.id} for retry.`);
+
+      // Update status to pending and increment retry count before attempting
+      await notificationRepository.update(notificationToProcess.id, {
+        status: notification_status.pending,
+        retry_count: retryCount + 1,
+      });
+    } else {
+      // Create new notification for first attempt
+      notificationToProcess = await notificationRepository.create({
+        id: uuidv4(),
+        status: notification_status.pending,
+        retry_count: 0, // First attempt
+        user: { connect: { id: reminder.user_id } },
+        reminders: { connect: { id: reminder.id } },
+      });
+    }
 
     let finalStatus: notification_status = notification_status.sent;
     let sentAt: Date | null = new Date();
@@ -190,36 +280,46 @@ export const processAndSendNotifications = async () => {
           sound: 'default',
           title: `แจ้งเตือนน: ${reminderName}`,
           body: `ถึงเวลาของน้อง ${petName} แล้วว`,
-          data: { reminderId: reminder.id, notificationId: newNotification.id },
+          data: { reminderId: reminder.id, notificationId: notificationToProcess.id },
         });
       }
     } else {
-      logger.info(`[NotificationJob] Notification ${newNotification.id} will be processed for in-app only (no push tokens or missing data).`);
+      logger.info(`[NotificationJob] Notification ${notificationToProcess.id} will be processed for in-app only (no push tokens or missing data).`);
     }
 
     // Send push notifications if any were prepared
     if (messagesToSend.length > 0) {
       try {
-        logger.info(`[NotificationJob] Sending ${messagesToSend.length} push notifications for notification ID: ${newNotification.id}`);
+        logger.info(`[NotificationJob] Sending ${messagesToSend.length} push notifications for notification ID: ${notificationToProcess.id}${isRetry ? ` (retry #${retryCount + 1})` : ''}`);
         await expoPushService.send(messagesToSend);
+        logger.info(`[NotificationJob] Successfully sent push notifications for ${notificationToProcess.id}.`);
       } catch (error: unknown) {
-        if (error instanceof Error) { // Type guard
-          logger.error(`[NotificationJob] Failed to send push for notification ${newNotification.id}:`, error);
+        if (error instanceof Error) {
+          logger.error(`[NotificationJob] Failed to send push for notification ${notificationToProcess.id} (attempt ${retryCount + 1}):`, error);
         } else {
-          logger.error(`[NotificationJob] Failed to send push for notification ${newNotification.id}:`, new Error(String(error)));
+          logger.error(`[NotificationJob] Failed to send push for notification ${notificationToProcess.id} (attempt ${retryCount + 1}):`, new Error(String(error)));
         }
         finalStatus = notification_status.failed;
         sentAt = null;
+
+        // Log warning if approaching max retries
+        if (retryCount + 1 >= MAX_RETRY_ATTEMPTS - 1) {
+          logger.warn(`[NotificationJob] ⚠️ Reminder ${reminder.id} has failed ${retryCount + 1} times. Will attempt ${MAX_RETRY_ATTEMPTS - retryCount - 1} more time(s) before permanent failure.`);
+        }
       }
+    } else if (!hasPushTokens) {
+      // No push tokens but notification still created for in-app display
+      logger.info(`[NotificationJob] No push tokens for user ${reminder.user_id}. Notification ${notificationToProcess.id} saved for in-app only.`);
     }
 
     // Update the notification to its final state
-    await notificationRepository.update(newNotification.id, {
+    await notificationRepository.update(notificationToProcess.id, {
       status: finalStatus,
       sent_at: sentAt,
     });
-    logger.info(`[NotificationJob] Marked notification ${newNotification.id} as ${finalStatus}.`);
+    logger.info(`[NotificationJob] Marked notification ${notificationToProcess.id} as ${finalStatus}.`);
   }
+
   logger.info('--- FINISHED NOTIFICATION JOB ---');
 };
 
