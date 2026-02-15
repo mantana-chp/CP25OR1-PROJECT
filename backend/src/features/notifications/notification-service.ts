@@ -57,10 +57,7 @@ export const markAsRead = async (
  */
 export const processAndSendNotifications = async () => {
   logger.info('--- RUNNING NOTIFICATION JOB ---');
-  const now = new Date();
-
-  // Convert current UTC time to GMT+7 (Bangkok timezone)
-  const gmtPlus7Now = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  const now = new Date(); // Current time in UTC
 
   // Use UTC for all date comparisons to avoid timezone issues
   const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -101,56 +98,56 @@ export const processAndSendNotifications = async () => {
       return false;
     }
 
-    let notificationSendTime: Date;
-    let reminderActualTime: Date;
+    let notificationSendTimeUTC: Date;
+    let reminderActualTimeUTC: Date;
 
     if (reminder.reminder_time) {
+      // IMPORTANT: reminder_time is stored as Asia/Bangkok local time (GMT+7)
+      // We need to convert it to UTC for accurate comparison
+
       // Get the time part in milliseconds from the 1970-01-01 date
-      const timeMillis = reminder.reminder_time.getTime() - new Date('1970-01-01T00:00:00Z').getTime();
-      // Add time to the actual date
-      reminderActualTime = new Date(reminder.reminder_date.getTime() + timeMillis);
-      // Subtract 30 minutes for notification send time
-      notificationSendTime = new Date(reminderActualTime.getTime() - 30 * 60 * 1000);
+      const bangkokTimeMillis = reminder.reminder_time.getTime() - new Date('1970-01-01T00:00:00Z').getTime();
+
+      // Convert Bangkok time to UTC by subtracting 7 hours (GMT+7 offset)
+      const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+      const utcTimeMillis = bangkokTimeMillis - BANGKOK_OFFSET_MS;
+
+      // Create the actual reminder time in UTC
+      reminderActualTimeUTC = new Date(reminder.reminder_date.getTime() + utcTimeMillis);
+
+      // Notification should be sent 30 minutes before the reminder time
+      notificationSendTimeUTC = new Date(reminderActualTimeUTC.getTime() - 30 * 60 * 1000);
     } else {
-      // For reminders without specific time: notify at 9 AM GMT+7
+      // For reminders without specific time: notify at 9 AM Bangkok (2 AM UTC)
       const reminderDateUTC = reminder.reminder_date;
 
-      // Create times in UTC first, then convert to GMT+7
-      const notificationTimeUTC = new Date(Date.UTC(
+      notificationSendTimeUTC = new Date(Date.UTC(
         reminderDateUTC.getUTCFullYear(),
         reminderDateUTC.getUTCMonth(),
         reminderDateUTC.getUTCDate(),
-        2, 0, 0  // 2 AM UTC = 9 AM GMT+7
-      ));
-      const reminderActualTimeUTC = new Date(Date.UTC(
-        reminderDateUTC.getUTCFullYear(),
-        reminderDateUTC.getUTCMonth(),
-        reminderDateUTC.getUTCDate(),
-        16, 59, 59  // 16:59:59 UTC = 23:59:59 GMT+7 (same day)
+        2, 0, 0  // 2 AM UTC = 9 AM Bangkok
       ));
 
-      // Convert UTC to GMT+7 for comparison
-      notificationSendTime = new Date(notificationTimeUTC.getTime() + (7 * 60 * 60 * 1000));
-      reminderActualTime = new Date(reminderActualTimeUTC.getTime() + (7 * 60 * 60 * 1000));
+      reminderActualTimeUTC = new Date(Date.UTC(
+        reminderDateUTC.getUTCFullYear(),
+        reminderDateUTC.getUTCMonth(),
+        reminderDateUTC.getUTCDate(),
+        16, 59, 59  // 16:59:59 UTC = 23:59:59 Bangkok (same day)
+      ));
     }
 
-    // Create notification if:
-    // 1. Current time has reached or passed the notification send time AND
-    // 2. Current time has NOT yet passed the actual reminder time (with buffer)
-    // 
-    // Special case: If notification send time has passed and we're checking now,
-    // we should still create it if it hasn't been too long past the reminder time
-    const notificationTimeReached = notificationSendTime <= gmtPlus7Now;
-    const reminderNotYetOccurred = gmtPlus7Now < reminderActualTime;
+    // All comparisons now in UTC
+    const notificationTimeReached = notificationSendTimeUTC <= now;
+    const reminderNotYetOccurred = now < reminderActualTimeUTC;
 
-    // Allow creation if notification time has passed AND we're within grace period after reminder
-    // (e.g., if reminder was at 19:30 and it's now 20:00, still create within 60 minutes after)
-    const gracePeriodMs = 60 * 60 * 1000; // 60 minutes grace period
-    const withinGracePeriod = gmtPlus7Now <= new Date(reminderActualTime.getTime() + gracePeriodMs);
+    // Grace period: allow sending up to 60 minutes after the reminder time
+    const gracePeriodMs = 60 * 60 * 1000;
+    const withinGracePeriod = now <= new Date(reminderActualTimeUTC.getTime() + gracePeriodMs);
 
     const shouldCreateNotification = notificationTimeReached && (reminderNotYetOccurred || withinGracePeriod);
 
-    // logger.debug(`[NotificationJob] Reminder ${reminder.id}: notificationTime=${notificationSendTime.toISOString()}, reminderTime=${reminderActualTime.toISOString()}, now(GMT+7)=${gmtPlus7Now.toISOString()}, notificationReached=${notificationTimeReached}, reminderNotYet=${reminderNotYetOccurred}, withinGrace=${withinGracePeriod}`);
+    // Uncomment for debugging:
+    // logger.debug(`[NotificationJob] Reminder ${reminder.id}: notificationTime=${notificationSendTimeUTC.toISOString()}, reminderTime=${reminderActualTimeUTC.toISOString()}, now=${now.toISOString()}, shouldSend=${shouldCreateNotification}`);
 
     return shouldCreateNotification;
   });
