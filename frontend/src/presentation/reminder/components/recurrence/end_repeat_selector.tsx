@@ -1,7 +1,7 @@
 import { IRecurrenceRule } from '@/src/domain/reminder.domain'
 import { Check, ChevronRight } from 'lucide-react-native'
-import React, { useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import React, { useEffect, useRef, useState } from 'react'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import DatePicker from '../../../components/date_picker'
 import InputText from '../../../components/text_input'
 
@@ -15,6 +15,20 @@ export default function EndRepeatSelector({
   onChange
 }: EndRepeatSelectorProps) {
   const [showEndRepeatOptions, setShowEndRepeatOptions] = useState(false)
+  const rotateAnim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.timing(rotateAnim, {
+      toValue: showEndRepeatOptions ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true
+    }).start()
+  }, [showEndRepeatOptions])
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '90deg']
+  })
 
   const getDisplayValue = () => {
     if (recurrenceRule.endType === 'never') {
@@ -78,21 +92,34 @@ export default function EndRepeatSelector({
         <Text style={styles.label}>สิ้นสุดการทำซ้ำ</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.value}>{getDisplayValue()}</Text>
-          <ChevronRight size={18} color="#C7C7CC" />
+          <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+            <ChevronRight size={18} color="#8E8E93" />
+          </Animated.View>
         </View>
       </Pressable>
 
       {showEndRepeatOptions && (
         <View style={styles.options}>
-          <Pressable style={styles.optionRow} onPress={handleNeverSelect}>
-            <Text style={styles.optionText}>ไม่สิ้นสุด</Text>
+          <Pressable
+            style={[styles.optionRow, { borderBottomWidth: 1 }]}
+            onPress={handleNeverSelect}
+          >
+            <View style={styles.optionContent}>
+              <Text style={styles.optionText}>ไม่สิ้นสุด</Text>
+              <Text style={styles.optionDescription}>ทำซ้ำต่อไปเรื่อยๆ</Text>
+            </View>
             {recurrenceRule.endType === 'never' && (
               <Check size={20} color="#007AFF" strokeWidth={2.5} />
             )}
           </Pressable>
 
-          <View style={styles.optionRow}>
-            <Text style={styles.optionText}>ในวันที่</Text>
+          <View style={[styles.optionRow, { borderBottomWidth: 1 }]}>
+            <View style={styles.optionContent}>
+              <Text style={styles.optionText}>สิ้นสุดในวันที่</Text>
+              <Text style={styles.optionDescription}>
+                หยุดทำซ้ำเมื่อถึงวันที่กำหนด
+              </Text>
+            </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <DatePicker
                 title=""
@@ -108,8 +135,13 @@ export default function EndRepeatSelector({
             </View>
           </View>
 
-          <View style={styles.optionRow}>
-            <Text style={styles.optionText}>หลังจาก</Text>
+          <View style={[styles.optionRow, { borderBottomWidth: 0 }]}>
+            <View style={styles.optionContent}>
+              <Text style={styles.optionText}>สิ้นสุดหลังจาก</Text>
+              <Text style={styles.optionDescription}>
+                หยุดทำซ้ำเมื่อครบจำนวนครั้ง
+              </Text>
+            </View>
             <View
               style={{
                 flexDirection: 'row',
@@ -148,49 +180,59 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     backgroundColor: '#fff'
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Prompt_400Regular',
     color: '#225877'
   },
   valueContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 4
   },
   value: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#8E8E93'
   },
   options: {
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 8,
+    backgroundColor: '#fff',
+    paddingVertical: 0,
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
-    marginTop: 8
+    marginTop: 4
   },
   optionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    marginBottom: 1
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb'
+  },
+  optionContent: {
+    flexShrink: 0
   },
   optionText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
+    fontSize: 13,
+    fontFamily: 'Prompt_500Medium',
     color: '#225877'
   },
+  optionDescription: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af',
+    marginTop: 2
+  },
   afterLabel: {
-    fontSize: 16,
+    fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#225877'
   }
