@@ -149,8 +149,7 @@ export default function PetProfileForm({
           await completeOnboarding()
         }
 
-        formik.resetForm()
-        setSelectedSpeciesId('')
+        router.push('/(tabs)/pet_profile')
 
         Alert.alert(
           'สำเร็จ!',
@@ -166,6 +165,9 @@ export default function PetProfileForm({
             }
           ]
         )
+
+        formik.resetForm()
+        setSelectedSpeciesId('')
       } catch (error: any) {
         console.error('❌ Error creating pet profile:', error)
         Alert.alert(
