@@ -73,7 +73,7 @@ Your response MUST be a valid JSON array of objects, with no surrounding text or
   {
     "userId": "the-user-id-from-input",
     "petId": "the-pet-id-from-input",
-    "title": "Thai question about the topic including pet's name",
+    "title": "Thai question about the topic including pet's name (remeber that do not call the user with their pet's name, make it sound more personal and warm, not robotic)",
     "description": "Thai answer to the question in the title"
   }
 ]
