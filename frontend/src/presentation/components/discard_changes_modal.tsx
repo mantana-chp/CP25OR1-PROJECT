@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     color: '#4b5563'
   },
   discardButton: {
-    backgroundColor: '#ef4444'
+    backgroundColor: '#BF1737'
   },
   discardButtonText: {
     fontSize: 14,
