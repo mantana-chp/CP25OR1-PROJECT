@@ -76,7 +76,7 @@ export default function ReminderDetailModal({
   // ------------------
   const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
-  const [isChildrenExpanded, setIsChildrenExpanded] = useState(false)
+  const [isChildrenExpanded, setIsChildrenExpanded] = useState(true)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
@@ -168,7 +168,7 @@ export default function ReminderDetailModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
-          {(!isVirtual && reminder?.reminderStatus !== 'done') && (
+          {!isVirtual && reminder?.reminderStatus !== 'done' && (
             <Pressable onPress={handleEdit} style={styles.editButton}>
               <Edit2 size={20} color="#5FA7D1" />
             </Pressable>
@@ -298,7 +298,7 @@ export default function ReminderDetailModal({
                           <View key={child.id} style={styles.childReminderItem}>
                             <View style={styles.childReminderLeft}>
                               <Text style={styles.childReminderNumber}>
-                                เข็มที่ {index + 1}
+                                {child.reminderName}
                               </Text>
                               <View style={styles.childReminderInfo}>
                                 <CalendarDays

@@ -22,7 +22,6 @@ import { useLocalSearchParams } from 'expo-router'
 import {
   BackHandler,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -33,6 +32,7 @@ import {
   View
 } from 'react-native'
 import DatePicker from '../../components/date_picker'
+import DiscardChangesModal from '../../components/discard_changes_modal'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import PetSelector from '../../components/pet_selector'
@@ -759,37 +759,12 @@ export default function AddReminderPage() {
         )}
       </KeyboardAvoidingView>
 
-      {/* Discard Changes Modal */}
-      <Modal
+      <DiscardChangesModal
         visible={showDiscardModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDiscardModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>ยกเลิกการเปลี่ยนแปลง?</Text>
-            <Text style={styles.modalMessage}>
-              คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก
-              ต้องการยกเลิกการเปลี่ยนแปลงหรือไม่?
-            </Text>
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setShowDiscardModal(false)}
-              >
-                <Text style={styles.modalButtonCancelText}>แก้ไขต่อ</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonDiscard]}
-                onPress={confirmBack}
-              >
-                <Text style={styles.modalButtonDiscardText}>ยกเลิก</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowDiscardModal(false)}
+        onDiscard={confirmBack}
+        variant="reminder"
+      />
     </View>
   )
 }
@@ -930,62 +905,5 @@ const styles = StyleSheet.create({
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
     fontFamily: 'Prompt_500Medium'
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    marginHorizontal: 32,
-    width: '85%',
-    maxWidth: 340
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Prompt_600SemiBold',
-    color: '#1f2937',
-    textAlign: 'center',
-    marginBottom: 12
-  },
-  modalMessage: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center'
-  },
-  modalButtonCancel: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db'
-  },
-  modalButtonCancelText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#4b5563'
-  },
-  modalButtonDiscard: {
-    backgroundColor: '#ef4444'
-  },
-  modalButtonDiscardText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#fff'
   }
 })
