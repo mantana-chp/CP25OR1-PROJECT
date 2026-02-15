@@ -638,8 +638,8 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
     alignItems: 'center'
   },
   cancelButton: {
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     color: '#4b5563'
   },
   deleteButtonModal: {
-    backgroundColor: '#ef4444'
+    backgroundColor: '#BF1737'
   },
   deleteButtonText: {
     fontSize: 16,
