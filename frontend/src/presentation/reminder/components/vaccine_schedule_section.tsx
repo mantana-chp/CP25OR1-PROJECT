@@ -139,7 +139,13 @@ export default function VaccineScheduleSection({
   }
 
   const getAutocalculatedText = (dateString: string): string => {
+    if (!dateString || dateString.trim() === '') {
+      return ''
+    }
     const date = new Date(dateString + 'T00:00')
+    if (isNaN(date.getTime())) {
+      return ''
+    }
     const formattedDate = date.toLocaleDateString('th-TH', {
       day: '2-digit',
       month: '2-digit',
@@ -794,16 +800,18 @@ export default function VaccineScheduleSection({
                           : selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
                         เข็มที่ {dose.doseNumber}
                       </Text>
-                      {dose.isAutoCalculated && !isCustomVaccine && (
-                        <Text style={styles.autocalculatedText}>
-                          {getAutocalculatedText(dose.date)}
+                      {!isCustomVaccine && dose.date && (
+                        <Text
+                          style={
+                            dose.doseNumber === 1
+                              ? styles.completedDate
+                              : styles.autocalculatedText
+                          }
+                        >
+                          {dose.doseNumber === 1
+                            ? formatDateForDisplay(dose.date)
+                            : `คำนวนอัตโนมัติ: ${formatDateForDisplay(dose.date)}`}
                         </Text>
-                      )}
-                      {dose.doseNumber === 1 && !isCustomVaccine && (
-                        <Text style={styles.completedDate}>
-                          {formatDateForDisplay(dose.date)} 
-                        </Text>
-                        
                       )}
                       {isDoseDone && (
                         <Text style={styles.doneText}>(ทำสำเร็จแล้ว)</Text>
