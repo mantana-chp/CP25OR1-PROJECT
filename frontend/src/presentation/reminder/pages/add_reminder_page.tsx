@@ -84,7 +84,6 @@ export default function AddReminderPage() {
   )
   const hasDoneChildren = doneChildReminderIds.size > 0
 
-  // Check if dose 1 is a done child reminder
   const isDose1Done = (() => {
     const dose1 = doses.find((d) => d.doseNumber === 1)
     return !!(
@@ -182,7 +181,6 @@ export default function AddReminderPage() {
         )
         const children: any[] = syncedDoses
           .filter((dose) => {
-            // Exclude done child reminders from updates
             if (
               dose.childReminderId &&
               doneChildReminderIds.has(dose.childReminderId)
@@ -216,7 +214,6 @@ export default function AddReminderPage() {
             .filter((child) => !currentChildIds.includes(child.id))
             .map((child) => child.id)
 
-          // Merge with childrenToDelete from pet species change
           const allChildrenToDelete = [
             ...new Set([...calculatedChildrenToDelete, ...childrenToDelete]),
           ]
@@ -225,11 +222,9 @@ export default function AddReminderPage() {
             submitData.childrenToDelete = allChildrenToDelete
           }
         } else if (childrenToDelete.length > 0) {
-          // If user changed pet type and no new doses, still delete old child reminders
           submitData.childrenToDelete = childrenToDelete
         }
       } else if (isEditMode && childrenToDelete.length > 0) {
-        // If category changed from Vaccination to something else, delete all children
         submitData.childrenToDelete = childrenToDelete
       }
 
@@ -277,7 +272,6 @@ export default function AddReminderPage() {
             setRecurrenceRule(convertedRecurrence)
           }
 
-          // Set original pet species for tracking changes
           if (reminderData.petId) {
             const originalPet = pets.find((p) => p.id === reminderData.petId)
             if (originalPet) {
@@ -324,7 +318,6 @@ export default function AddReminderPage() {
         setLoadingReminder(false)
       }
     } else if (!hasUserStartedCreateMode) {
-      // Only clear data on initial mount in create mode, not on every re-render
       setInitialReminderData(null)
       setLoadingReminder(false)
       setLoadedVaccineIsCustom(false)
@@ -335,12 +328,10 @@ export default function AddReminderPage() {
     }
   }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
 
-  // Initial load effect - only depends on reminderId and isEditMode to avoid re-triggering
   useEffect(() => {
     if (isEditMode && reminderId) {
       loadReminderData()
     } else if (!isEditMode && !hasUserStartedCreateMode) {
-      // Clear data on initial mount in create mode
       setInitialReminderData(null)
       setLoadingReminder(false)
       setLoadedVaccineIsCustom(false)
@@ -351,7 +342,6 @@ export default function AddReminderPage() {
     }
   }, [reminderId, isEditMode])
 
-  // Track when user starts creating doses in create mode
   useEffect(() => {
     if (!isEditMode && doses.length > 0) {
       setHasUserStartedCreateMode(true)
@@ -360,29 +350,24 @@ export default function AddReminderPage() {
 
   useFocusEffect(
     useCallback(() => {
-      // Only reload data on focus if we haven't already loaded it and user hasn't started modifying
       if (
         isEditMode &&
         reminderId &&
         !initialReminderData &&
         !hasUserStartedCreateMode
       ) {
-        // Reload data when user focuses back on the screen
         setLoadingReminder(true)
         reminderService
           .getReminderById(reminderId)
           .then((response) => {
             const reminderData = response.data
             if (reminderData) {
-              // Format time to HH:MM (remove seconds if present)
               const formattedReminderData = {
                 ...reminderData,
                 reminderTime: (reminderData.reminderTime || '').substring(0, 5),
               }
               setInitialReminderData(formattedReminderData)
-              // setInitialReminderData(reminderData)
 
-              // Set original pet species for tracking changes
               if (reminderData.petId) {
                 const originalPet = pets.find(
                   (p) => p.id === reminderData.petId,
@@ -486,14 +471,12 @@ export default function AddReminderPage() {
 
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
-  // Helper function to check if two species are the same type (both dogs, both cats, etc.)
   const isSamePetType = (
     species1: string | null,
     species2: string | null,
   ): boolean => {
     if (!species1 || !species2) return false
 
-    // Check if both contain the same species keyword
     const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
 
     for (const type of petTypes) {
@@ -564,7 +547,7 @@ export default function AddReminderPage() {
         .filter((reminder) =>
           reminder.reminderName.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 5) // Limit to 5 suggestions
+        .slice(0, 5) 
 
       setSuggestions(filtered)
       setShowSuggestions(filtered.length > 0)
@@ -671,7 +654,6 @@ export default function AddReminderPage() {
                     formik.setFieldValue('petId', petId)
                     setSelectedPetId(petId)
 
-                    // If in edit mode and pet species changed, reset vaccine schedule
                     if (
                       isEditMode &&
                       !isSamePetType(
@@ -679,22 +661,17 @@ export default function AddReminderPage() {
                         newPetSpecies || null,
                       )
                     ) {
-                      // Mark all existing child reminders for deletion
                       const currentChildIds = initialChildReminders.map(
                         (child) => child.id,
                       )
                       setChildrenToDelete(currentChildIds)
 
-                      // Reset all vaccine-related states and clear initial child reminders
                       setDoses([])
                       setCustomVaccineName('')
                       setLoadedVaccineIsCustom(false)
                       setVaccineResetKey((prev) => prev + 1)
-                      // clear disable category selector
                       setInitialChildReminders([])
                     }
-                    // If in edit mode and pet species is the same, keep previous values
-                    // (do nothing, values are preserved)
                   }}
                   label='สัตว์เลี้ยง'
                   required={true}

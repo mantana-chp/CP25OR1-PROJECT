@@ -69,8 +69,6 @@ export default function VaccineScheduleSection({
   const [customVaccineName, setCustomVaccineName] = useState<string>(
     initialVaccineName || '',
   )
-  // const [isCustomVaccine, setIsCustomVaccine] = useState(false)
-  // const [customVaccineName, setCustomVaccineName] = useState<string>('')
   const [customDoseCount, setCustomDoseCount] = useState<number | null>(null)
   const [showCustomDoseInput, setShowCustomDoseInput] = useState(false)
   const [customDoseInputValue, setCustomDoseInputValue] = useState<string>('')
@@ -88,11 +86,9 @@ export default function VaccineScheduleSection({
         return 'Invalid Date'
       }
       let date: Date
-      // Handle ISO format with T
       if (dateString.includes('T')) {
         date = new Date(dateString)
       } else {
-        // Handle YYYY-MM-DD format
         date = new Date(dateString + 'T00:00')
       }
       if (isNaN(date.getTime())) {
@@ -113,12 +109,9 @@ export default function VaccineScheduleSection({
       if (!dateString) {
         return new Date()
       }
-      // Handle both YYYY-MM-DD format and ISO date strings
       if (dateString.includes('T')) {
-        // ISO format
         return new Date(dateString.split('T')[0] + 'T00:00')
       }
-      // YYYY-MM-DD format
       const [year, month, day] = dateString.split('-').map(Number)
       const date = new Date(year, month - 1, day)
       return date
@@ -166,7 +159,6 @@ export default function VaccineScheduleSection({
   }, [isVaccinationCategory, petId, canUseVaccineSchedule])
 
   useEffect(() => {
-    // Only initialize once when edit mode data is loaded and not already initialized
     if (
       isEditMode &&
       doses.length > 0 &&
@@ -174,7 +166,6 @@ export default function VaccineScheduleSection({
       vaccineList.length > 0 &&
       !isInitialized
     ) {
-      // Try to match initialVaccineName with vaccines in the list
       if (initialVaccineName) {
         const matchedVaccine = vaccineList.find(
           (vaccine) =>
@@ -183,23 +174,19 @@ export default function VaccineScheduleSection({
         )
 
         if (matchedVaccine) {
-          // It's a standard vaccine from the list
           setSelectedVaccineId(matchedVaccine.id)
           setIsCustomVaccine(false)
           setCustomVaccineName(initialVaccineName)
           onCustomVaccineNameChange?.(initialVaccineName)
         } else {
-          // It's a custom vaccine
           setIsCustomVaccine(true)
           setCustomVaccineName(initialVaccineName)
           onCustomVaccineNameChange?.(initialVaccineName)
         }
       }
 
-      // Initialize custom dose count from initial data
       if (initialCustomDoseCount) {
         setCustomDoseCount(initialCustomDoseCount)
-        // If dose count > 6, activate custom input mode
         if (initialCustomDoseCount > 6) {
           setIsCustomDoseInputMode(true)
           setCustomDoseInputValue(String(initialCustomDoseCount))
@@ -221,7 +208,6 @@ export default function VaccineScheduleSection({
     isInitialized,
   ])
 
-  // Reset all state when switching from edit mode to create mode
   useEffect(() => {
     if (!isEditMode) {
       setIsInitialized(false)
@@ -240,7 +226,6 @@ export default function VaccineScheduleSection({
   }, [isEditMode])
 
   useEffect(() => {
-    // Skip recalculation if in edit mode with already-loaded doses from database
     const hasLoadedDoses =
       isEditMode && doses.length > 0 && doses.some((d) => d.childReminderId)
 
@@ -249,7 +234,6 @@ export default function VaccineScheduleSection({
     }
   }, [selectedVaccineId, petId, isEditMode])
 
-  // Sync dose 1 with reminderDate
   useEffect(() => {
     if (doses.length > 0 && reminderDate) {
       const dose1 = doses.find((d) => d.doseNumber === 1)
@@ -402,7 +386,6 @@ export default function VaccineScheduleSection({
   }
 
   const handleDateChange = (doseNumber: number, date: Date) => {
-    // Prevent modifications to done child reminders
     const dose = doses.find((d) => d.doseNumber === doseNumber)
     if (
       dose?.childReminderId &&
@@ -433,7 +416,6 @@ export default function VaccineScheduleSection({
   }
 
   const handleTimeChange = (doseNumber: number, time: string) => {
-    // Prevent modifications to done child reminders
     const dose = doses.find((d) => d.doseNumber === doseNumber)
     if (
       dose?.childReminderId &&
@@ -455,7 +437,6 @@ export default function VaccineScheduleSection({
       setSelectedTime(time)
       setDoses((prev) =>
         prev.map((dose) => {
-          // Don't sync time to done child reminders
           if (
             dose.childReminderId &&
             doneChildReminderIds.has(dose.childReminderId)
@@ -477,7 +458,6 @@ export default function VaccineScheduleSection({
   }
 
   const handleDeleteDose = (doseNumber: number) => {
-    // Prevent deletion of done child reminders
     const dose = doses.find((d) => d.doseNumber === doseNumber)
     if (
       dose?.childReminderId &&
