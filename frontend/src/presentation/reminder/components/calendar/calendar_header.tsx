@@ -22,7 +22,7 @@ export default function CalendarHeader({
   showReset,
   onResetFilters,
   isPetFilterActive = false,
-  isCategoryFilterActive = false,
+  isCategoryFilterActive = false
 }: CalendarHeaderProps) {
   const shouldShowReset =
     showReset || isPetFilterActive || isCategoryFilterActive
@@ -47,15 +47,15 @@ export default function CalendarHeader({
             onPress={handleResetPress}
             style={styles.resetButton}
           >
-            <RotateCcw size={16} color='#225877' />
+            <RotateCcw size={16} color="#225877" />
           </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={onPreviousMonth} style={styles.navButton}>
-          <ChevronLeft size={20} color='#225877' />
+          <ChevronLeft size={20} color="#225877" />
         </TouchableOpacity>
         <TouchableOpacity onPress={onNextMonth} style={styles.navButton}>
-          <ChevronRight size={20} color='#225877' />
+          <ChevronRight size={20} color="#225877" />
         </TouchableOpacity>
       </View>
     </View>
@@ -67,27 +67,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 12
   },
   headerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Prompt_700Bold',
+    fontSize: 17,
+    fontFamily: 'Prompt_500Medium'
   },
   navigation: {
     flexDirection: 'row',
     gap: 6,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   resetButton: {
     padding: 8,
     borderRadius: 6,
     backgroundColor: '#f0f9ff',
-    marginRight: 4,
+    marginRight: 4
   },
   navButton: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: '#f0f9ff',
-  },
+    backgroundColor: '#f0f9ff'
+  }
 })

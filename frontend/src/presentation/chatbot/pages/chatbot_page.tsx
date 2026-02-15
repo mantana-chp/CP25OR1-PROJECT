@@ -2,7 +2,6 @@ import _ from 'lodash'
 import React, { useEffect, useRef, useState } from 'react'
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   View
@@ -51,7 +50,7 @@ export default function ChatbotPage() {
     if (disclaimerAccepted && messages.length === 0) {
       const welcomeMessage: Message = {
         id: '1',
-        text: 'สวัสดีครับ! ผมพร้อมที่จะช่วยตอบคำถามเกี่ยวกับสัตว์เลี้ยงของคุณครับ',
+        text: 'สวัสดีค่ะ! 😊 ยินดีต้อนรับค่ะ ดิฉันพร้อมช่วยเหลือคำถามต่างๆ เกี่ยวกับเลี้ยงสัตว์เลี้ยงของคุณ ไม่ว่าจะเป็นเรื่องการดูแล อาหาร สุขภาพ หรือเรื่องอื่นๆ สามารถถามได้ตลอดเวลาค่ะ 🐾',
         isUser: false
       }
       setMessages([welcomeMessage])

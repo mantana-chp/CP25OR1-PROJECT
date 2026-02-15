@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, Modal, Pressable, StyleSheet } from 'react-native'
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 
 interface DisclaimerModalProps {
   visible: boolean
@@ -8,13 +8,13 @@ interface DisclaimerModalProps {
 
 export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({
   visible,
-  onClose,
+  onClose
 }) => {
   return (
     <Modal
       visible={visible}
       transparent={true}
-      animationType='fade'
+      animationType="fade"
       onRequestClose={onClose}
     >
       <Pressable onPress={onClose} style={styles.backdrop}>
@@ -47,7 +47,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({
             onPress={onClose}
             style={({ pressed }) => [
               styles.closeButton,
-              pressed && styles.closeButtonPressed,
+              pressed && styles.closeButtonPressed
             ]}
           >
             <Text style={styles.closeButtonText}>เข้าใจแล้ว</Text>
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
@@ -76,22 +76,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
-    elevation: 8,
+    elevation: 8
   },
   iconEmoji: {
     fontSize: 28,
-    marginBottom: 8,
+    marginBottom: 8
   },
   titleText: {
     fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_700Bold',
     color: '#225877',
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   bodyTextContainer: {
-    width: '100%',
+    width: '100%'
   },
   bodyText: {
     fontSize: 13,
@@ -99,35 +98,35 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   bodyTextBold: {
     fontFamily: 'Prompt_500Medium',
     fontWeight: '600',
-    textDecorationLine: 'underline',
+    textDecorationLine: 'underline'
   },
   mediumWeight: {
-    fontWeight: '600',
+    fontWeight: '600'
   },
   emphasis: {
     fontWeight: '600',
-    color: '#1C3E5E',
+    color: '#1C3E5E'
   },
   closeButton: {
     backgroundColor: '#5FA7D1',
     borderRadius: 50,
     paddingVertical: 8,
     paddingHorizontal: 80,
-    alignSelf: 'center',
+    alignSelf: 'center'
   },
   closeButtonPressed: {
-    backgroundColor: '#4A8AB0',
+    backgroundColor: '#4A8AB0'
   },
   closeButtonText: {
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    fontFamily: 'Prompt_500Medium',
-  },
+    fontFamily: 'Prompt_500Medium'
+  }
 })
