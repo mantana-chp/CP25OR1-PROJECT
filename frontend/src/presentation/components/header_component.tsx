@@ -2,7 +2,14 @@ import React from 'react'
 
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Platform,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 interface HeaderProps {
@@ -20,6 +27,17 @@ export default function Header(props: HeaderProps) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
+  // Android needs extra padding for status bar
+  const getTopPadding = () => {
+    if (Platform.OS === 'android') {
+      const statusBarHeight = StatusBar.currentHeight || 24
+      return Math.max(insets.top, statusBarHeight) + 8
+    }
+    return insets.top > 0 ? insets.top : 24
+  }
+
+  const topPadding = getTopPadding()
+
   const handleBackPress = () => {
     if (props.onBackPress) {
       props.onBackPress()
@@ -36,8 +54,8 @@ export default function Header(props: HeaderProps) {
       style={[
         styles.header,
         {
-          paddingTop: insets.top > 0 ? insets.top : 24,
-          height: (insets.top > 0 ? insets.top : 24) + 50
+          paddingTop: topPadding,
+          height: topPadding + 50
         }
       ]}
     >

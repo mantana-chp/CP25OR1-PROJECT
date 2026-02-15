@@ -63,47 +63,58 @@ export default function PetInfoCard(props: PetInfoCardProps) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.petAvatar}>
-          <MaterialCommunityIcons name="dog" size={42} color="white" />
+          <MaterialCommunityIcons name="dog" size={28} color="white" />
         </View>
         <View style={styles.cardHeaderText}>
-          <Text style={styles.petName}>{props.data.pet_name}</Text>
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Ionicons name="paw-outline" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>
-                {props.data.species} {props.data.breed}
-              </Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Cake size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>
-                {convertDaysToThaiAge(props.data.age)}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <VenusAndMars size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>
-                เพศ {getThaiGender(props.data.gender)}
-              </Text>
-            </View>
-            <View style={styles.infoItem}>
-              <FontAwesome6 name="weight-scale" size={14} color="#5BA3D0" />
-              <Text style={styles.infoText}>
-                {props.data.weight
-                  ? `${formatWeight(parseFloat(props.data.weight))} กิโลกรัม`
-                  : '-'}
-              </Text>
-            </View>
+          <View style={styles.nameRow}>
+            <Text style={styles.petName} numberOfLines={1}>
+              {props.data.pet_name}
+            </Text>
+            <Link
+              href={`/(tabs)/add_pet_form?petId=${props.data.id}`}
+              push
+              asChild
+            >
+              <TouchableOpacity style={styles.editButton}>
+                <Edit2 size={16} color="#5FA7D1" />
+              </TouchableOpacity>
+            </Link>
           </View>
         </View>
+      </View>
 
-        <Link href={`/(tabs)/add_pet_form?petId=${props.data.id}`} push asChild>
-          <TouchableOpacity style={styles.editButton}>
-            <Edit2 size={18} color="#5FA7D1" />
-          </TouchableOpacity>
-        </Link>
+      <View
+        style={[
+          styles.infoGrid,
+          { flexDirection: 'row', justifyContent: 'space-between' }
+        ]}
+      >
+        <View style={styles.infoItem}>
+          <Ionicons name="paw-outline" size={12} color="#5BA3D0" />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {props.data.species} {props.data.breed}
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Cake size={12} color="#5BA3D0" />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {convertDaysToThaiAge(props.data.age)}
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <VenusAndMars size={12} color="#5BA3D0" />
+          <Text style={styles.infoText} numberOfLines={1}>
+            เพศ {getThaiGender(props.data.gender)}
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <FontAwesome6 name="weight-scale" size={12} color="#5BA3D0" />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {props.data.weight
+              ? `${formatWeight(parseFloat(props.data.weight))} กก.`
+              : '-'}
+          </Text>
+        </View>
       </View>
     </View>
   )
@@ -113,52 +124,67 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#5FA7D1'
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start'
+    alignItems: 'center'
   },
   petAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 80,
+    width: 48,
+    height: 48,
+    borderRadius: 28,
     backgroundColor: '#5BA3D0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16
+    marginRight: 12
   },
   cardHeaderText: {
-    flex: 1
+    flex: 1,
+    minWidth: 0
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
   },
   petName: {
     fontSize: 17,
     color: '#225877',
-    marginBottom: 4,
-    fontFamily: 'Prompt_500Medium'
+    marginBottom: 2,
+    fontFamily: 'Prompt_500Medium',
+    flex: 1,
+    marginRight: 8
   },
-  infoRow: {
+  infoGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E8F4F8'
+  },
+  infoGridItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '50%',
     marginBottom: 4
   },
   infoItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-    flex: 1
+    alignItems: 'center'
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#225877',
     marginLeft: 4,
     fontFamily: 'Prompt_400Regular'
   },
   editButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#E8F4F8',
-    alignSelf: 'flex-start'
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#E8F4F8'
   }
 })

@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 40,
     alignItems: 'center'
   },
   cancelButton: {
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_500Medium',
     color: '#fff'
   }
 })

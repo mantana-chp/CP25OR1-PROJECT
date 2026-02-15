@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   modalButton: {
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
     alignItems: 'center'
   },
   deleteButton: {

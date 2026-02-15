@@ -2,6 +2,7 @@ import _ from 'lodash'
 import React from 'react'
 
 import { IReminder } from '@/src/domain/reminder.domain'
+import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 
 import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
 import { ChevronDown } from 'lucide-react-native'
@@ -15,9 +16,9 @@ import {
   View,
 } from 'react-native'
 import { useCalendar } from '../../../hooks/useCalendar'
-import CalendarDay from './calendar/CalendarDay'
-import CalendarHeader from './calendar/CalendarHeader'
-import WeekDaysRow from './calendar/WeekDaysRow'
+import CalendarDay from './calendar/calendar_day'
+import CalendarHeader from './calendar/calendar_header'
+import WeekDaysRow from './calendar/week_days_row'
 
 if (
   Platform.OS === 'android' &&
@@ -29,7 +30,8 @@ if (
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
-  reminders?: any[]
+  reminders?: IReminder[]
+  recurringRules?: IRecurringRule[]
   onDateSelect: (date: Date) => void
   selectedDate: Date | null
   onReset: () => void
@@ -43,6 +45,7 @@ export default function Calendar({
   isExpanded,
   onToggle,
   reminders = [],
+  recurringRules = [],
   onDateSelect,
   selectedDate,
   onReset,
@@ -62,7 +65,8 @@ export default function Calendar({
     previousMonth,
     nextMonth,
     goToToday,
-  } = useCalendar(reminders)
+    allReminders
+  } = useCalendar(reminders, recurringRules)
 
   const chevronRotation = useChevronAnimation(isExpanded)
 
@@ -117,6 +121,8 @@ export default function Calendar({
             date={item.date}
             onPress={handleDatePress}
             selectedDate={selectedDate}
+            hasVirtualReminders={item.hasVirtualReminders}
+            hasRealReminders={item.hasRealReminders}
           />
         ))}
       </View>
@@ -152,11 +158,12 @@ const styles = StyleSheet.create({
   },
   toggleButton: {
     alignSelf: 'center',
-    paddingVertical: 2,
+    paddingBottom: 2,
     paddingHorizontal: 24,
     marginTop: 0,
+    marginBottom: 8
   },
   toggleButtonExpanded: {
-    marginTop: -64,
-  },
+    marginTop: -32
+  }
 })

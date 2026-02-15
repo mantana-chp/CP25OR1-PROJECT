@@ -12,20 +12,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Dimensions,
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View
 } from 'react-native'
 
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import ReminderCard from '../../reminder/components/reminder_card'
 import HealthRecordCard from '../components/health_record_card'
 import PetInfoCard from '../components/pet_info_card'
+import PetSelector from '../components/pet_selector'
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
@@ -226,71 +225,12 @@ export default function PetProfilePage() {
             </View>
           ) : (
             <>
-              {/* Pet Selector */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.petSelectorContainer}
-              >
-                {_.map(displayPets, (pet, index) => (
-                  <TouchableOpacity
-                    key={pet.id}
-                    onPress={() => handlePetSelect(index)}
-                    style={styles.petSelectorItem}
-                  >
-                    <View
-                      style={[
-                        styles.petImageWrapper,
-                        currentPetIndex === index &&
-                          styles.selectedPetImageWrapper
-                      ]}
-                    >
-                      {pet.imageUrl ? (
-                        <Image
-                          source={{ uri: pet.imageUrl }}
-                          style={styles.petSelectorImage}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.petSelectorImage,
-                            { justifyContent: 'center', alignItems: 'center' }
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name="dog"
-                            size={36}
-                            color="white"
-                          />
-                        </View>
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.petSelectorName,
-                        currentPetIndex === index && styles.selectedPetName
-                      ]}
-                    >
-                      {pet.pet_name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-
-                {/* Add Pet Button */}
-                {_.size(pets) < 11 && (
-                  <TouchableOpacity
-                    style={styles.petSelectorItem}
-                    onPress={() => {
-                      router.push('/(tabs)/add_pet_form')
-                    }}
-                  >
-                    <View style={styles.addPetWrapper}>
-                      <Text style={styles.addPetIcon}>+</Text>
-                    </View>
-                    <Text style={styles.petSelectorName}>เพิ่มสัตว์เลี้ยง</Text>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
+              <PetSelector
+                pets={displayPets}
+                selectedIndex={currentPetIndex}
+                onSelect={handlePetSelect}
+                maxPets={11}
+              />
 
               {/* Selected Pet Info */}
               {currentPet && <PetInfoCard data={currentPet} />}
@@ -431,60 +371,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
     marginBottom: 4
-  },
-  petSelectorContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    paddingBottom: 16,
-    gap: 12
-  },
-  petSelectorItem: {
-    alignItems: 'center',
-    width: 80
-  },
-  petImageWrapper: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 3,
-    borderColor: 'transparent',
-    padding: 2,
-    marginBottom: 8
-  },
-  selectedPetImageWrapper: {
-    borderColor: '#5FA7D1'
-  },
-  petSelectorImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 33,
-    backgroundColor: '#5FA7D1'
-  },
-  petSelectorName: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#666',
-    textAlign: 'center'
-  },
-  selectedPetName: {
-    color: '#225877',
-    fontFamily: 'Prompt_500Medium'
-  },
-  addPetWrapper: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: '#5FA7D1',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F0F8FF',
-    marginBottom: 8
-  },
-  addPetIcon: {
-    fontSize: 32,
-    color: '#5FA7D1',
-    fontWeight: '300'
   }
 })
