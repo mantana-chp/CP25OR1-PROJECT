@@ -170,7 +170,7 @@ export default function ReminderDetailModal({
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
           {!isVirtual && reminder?.reminderStatus !== 'done' && (
             <Pressable onPress={handleEdit} style={styles.editButton}>
-              <Edit2 size={20} color="#5FA7D1" />
+              <Edit2 size={18} color="#5FA7D1" />
             </Pressable>
           )}
         </View>
@@ -185,7 +185,7 @@ export default function ReminderDetailModal({
             {/* Virtual Reminder Alert */}
             {isVirtual && (
               <View style={styles.virtualAlert}>
-                <AlertCircle color="#F59E0B" size={20} />
+                <AlertCircle color="#F59E0B" size={16} />
                 <View style={styles.virtualAlertTextContainer}>
                   <Text style={styles.virtualAlertTitle}>
                     เตือนความจำคาดการณ์
@@ -203,14 +203,14 @@ export default function ReminderDetailModal({
             </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={20} color={'#225877'} />
+              <PawPrint size={16} color={'#225877'} />
               <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
             {!reminder?.children && (
               <View style={styles.infoRow}>
                 <CalendarDays
-                  size={20}
+                  size={16}
                   color={isOverdue ? '#DC2626' : '#225877'}
                 />
                 <Text
@@ -228,7 +228,7 @@ export default function ReminderDetailModal({
                       )
                     : '-'}
                 </Text>
-                <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
+                <Clock size={16} color={isOverdue ? '#DC2626' : '#225877'} />
                 <Text
                   style={[styles.infoText, isOverdue && styles.overdueText]}
                 >
@@ -276,9 +276,9 @@ export default function ReminderDetailModal({
                     วัคซีนทั้งหมด ({reminder.children.length} เข็ม)
                   </Text>
                   {isChildrenExpanded ? (
-                    <ChevronUp size={20} color="#225877" />
+                    <ChevronUp size={16} color="#225877" />
                   ) : (
-                    <ChevronDown size={20} color="#225877" />
+                    <ChevronDown size={16} color="#225877" />
                   )}
                 </Pressable>
 
@@ -485,10 +485,10 @@ const styles = StyleSheet.create({
   },
   formCard: {
     padding: 20,
-    gap: 16
+    gap: 12
   },
   reminderTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontFamily: 'Prompt_500Medium',
     color: '#225877'
   },
@@ -510,31 +510,15 @@ const styles = StyleSheet.create({
     gap: 2
   },
   descriptionLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#A6A6A6'
   },
   descriptionText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
     lineHeight: 24
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    minHeight: 48,
-    color: '#111827'
-  },
-  textarea: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingVertical: 12
   },
   infoRow: {
     flexDirection: 'row',
@@ -542,7 +526,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   infoText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877'
   },
