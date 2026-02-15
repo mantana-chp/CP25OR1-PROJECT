@@ -160,7 +160,7 @@ export default function TodayRemindersModal({
                           size={14}
                           color={
                             reminder?.reminderStatus.includes('overdue')
-                              ? '#ef4444'
+                              ? '#BF1737'
                               : '#FF9531'
                           }
                         />
@@ -168,7 +168,7 @@ export default function TodayRemindersModal({
                           style={[
                             styles.reminderTime,
                             reminder?.reminderStatus.includes('overdue') && {
-                              color: '#ef4444'
+                              color: '#BF1737'
                             }
                           ]}
                         >

@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     minHeight: 48
   },
   errorText: {
-    color: '#ef4444',
+    color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,

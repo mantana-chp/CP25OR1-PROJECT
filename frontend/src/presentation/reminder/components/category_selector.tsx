@@ -8,7 +8,7 @@ import {
   Stethoscope,
   Syringe,
   Tag,
-  X,
+  X
 } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
@@ -17,7 +17,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 
 const ICON_MAP: Record<string, any> = {
@@ -27,7 +27,7 @@ const ICON_MAP: Record<string, any> = {
   Pill,
   Pipette,
   Scissors,
-  Bone,
+  Bone
 }
 
 interface CategorySelectorProps {
@@ -43,7 +43,7 @@ export default function CategorySelector({
   onChange,
   error,
   required,
-  disabled,
+  disabled
 }: CategorySelectorProps) {
   const [modalVisible, setModalVisible] = useState(false)
 
@@ -66,7 +66,7 @@ export default function CategorySelector({
           styles.selector,
           modalVisible && styles.selectorActive,
           error && styles.selectorError,
-          disabled && styles.selectorDisabled,
+          disabled && styles.selectorDisabled
         ]}
         onPress={() => !disabled && setModalVisible(true)}
         disabled={disabled}
@@ -87,7 +87,7 @@ export default function CategorySelector({
             <Text
               style={[
                 styles.placeholder,
-                modalVisible && styles.placeholderActive,
+                modalVisible && styles.placeholderActive
               ]}
             >
               เลือกหมวดหมู่
@@ -101,7 +101,7 @@ export default function CategorySelector({
       <Modal
         visible={modalVisible}
         transparent
-        animationType='fade'
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable
@@ -112,7 +112,7 @@ export default function CategorySelector({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>เลือกหมวดหมู่</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X size={24} color='#6b7280' />
+                <X size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
@@ -128,15 +128,15 @@ export default function CategorySelector({
                       styles.categoryItem,
                       isSelected && {
                         backgroundColor: category.color + '20',
-                        borderColor: category.color,
-                      },
+                        borderColor: category.color
+                      }
                     ]}
                     onPress={() => handleSelect(id)}
                   >
                     <View
                       style={[
                         styles.iconContainer,
-                        isSelected && { backgroundColor: category.color },
+                        isSelected && { backgroundColor: category.color }
                       ]}
                     >
                       <Icon
@@ -147,7 +147,7 @@ export default function CategorySelector({
                     <Text
                       style={[
                         styles.categoryLabel,
-                        isSelected && { color: category.color },
+                        isSelected && { color: category.color }
                       ]}
                     >
                       {category.label}
@@ -165,21 +165,21 @@ export default function CategorySelector({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 8
   },
   label: {
     fontSize: 14,
     color: '#225877',
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4,
+    marginLeft: 4
   },
   required: {
-    color: '#ef4444',
+    color: '#BF1737'
   },
   selector: {
     borderWidth: 1,
@@ -189,79 +189,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     minHeight: 48,
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   selectorActive: {
     backgroundColor: '#5FA7D1',
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   selectorError: {
-    borderColor: '#ef4444',
+    borderColor: '#BF1737'
   },
   selectorDisabled: {
     backgroundColor: '#f3f4f6',
     borderColor: '#e5e7eb',
-    opacity: 0.6,
+    opacity: 0.6
   },
   selectedContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   selectedText: {
     fontSize: 16,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   placeholderContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   placeholder: {
     fontSize: 16,
     color: '#9ca3af',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   placeholderActive: {
-    color: '#ffffff',
+    color: '#ffffff'
   },
   errorText: {
-    color: '#ef4444',
+    color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4,
+    marginLeft: 4
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
     width: '85%',
-    maxWidth: 400,
+    maxWidth: 400
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   modalTitle: {
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877',
+    color: '#225877'
   },
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   categoryItem: {
     width: 90,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    gap: 8,
+    gap: 8
   },
   iconContainer: {
     width: 56,
@@ -278,12 +278,12 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   categoryLabel: {
     fontSize: 12,
     color: '#6b7280',
     fontFamily: 'Prompt_400Regular',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+  }
 })

@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff'
   },
   selectorError: {
-    borderColor: '#ef4444'
+    borderColor: '#BF1737'
   },
   selectorDisabled: {
     backgroundColor: '#f3f4f6',
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     color: '#6b7280'
   },
   errorText: {
-    color: '#ef4444',
+    color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,

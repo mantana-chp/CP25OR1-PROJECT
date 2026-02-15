@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   },
   modalBold: {
     fontFamily: 'Prompt_700Bold',
-    color: '#ef4444'
+    color: '#BF1737'
   },
   modalButtons: {
     flexDirection: 'row',

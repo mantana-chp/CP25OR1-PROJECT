@@ -817,7 +817,7 @@ export default function VaccineScheduleSection({
                       >
                         <X
                           size={18}
-                          color={isDoseDone ? '#d1d5db' : '#ef4444'}
+                          color={isDoseDone ? '#d1d5db' : '#BF1737'}
                         />
                       </Pressable>
                     )}
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#22c55e',
     paddingLeft: 12,
-    opacity: 0.75,
+    opacity: 0.75
   },
   doseHeader: {
     flexDirection: 'row',
@@ -1142,7 +1142,7 @@ const styles = StyleSheet.create({
   doneText: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#ef4444',
+    color: '#BF1737',
     marginLeft: 4,
     fontWeight: '600'
   },

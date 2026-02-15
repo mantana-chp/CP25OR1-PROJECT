@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   modalBold: {
     fontFamily: 'Prompt_700Bold',
-    color: '#ef4444'
+    color: '#BF1737'
   },
   modalSubMessage: {
     fontSize: 14,
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     color: '#4b5563'
   },
   deleteButtonModal: {
-    backgroundColor: '#ef4444'
+    backgroundColor: '#BF1737'
   },
   deleteButtonText: {
     fontSize: 16,

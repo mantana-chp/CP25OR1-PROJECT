@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
-    color: '#ef4444'
+    color: '#BF1737'
   },
   cancelButton: {
     backgroundColor: '#f3f4f6',
