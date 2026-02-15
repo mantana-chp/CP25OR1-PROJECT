@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   IRecurrenceRule,
@@ -79,6 +79,8 @@ export default function AddReminderPage() {
   )
   const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
   const [showDiscardModal, setShowDiscardModal] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  const apiSuccessRef = useRef(false)
 
   const doneChildReminderIds = new Set(
     initialChildReminders
@@ -101,14 +103,36 @@ export default function AddReminderPage() {
   })
 
   const createReminderApi = useApi(reminderService.createReminder, {
+    showErrorAlert: false,
     onSuccess: () => {
+      apiSuccessRef.current = true
+      setDuplicateError(null)
       router.push('/(tabs)')
+    },
+    onError: (error) => {
+      apiSuccessRef.current = false
+      if (error.statusCode === 409) {
+        setDuplicateError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
+      } else {
+        showError(error.message || 'ไม่สามารถสร้างเตือนความจำได้')
+      }
     }
   })
 
   const updateReminderApi = useApi(reminderService.updateReminder, {
+    showErrorAlert: false,
     onSuccess: () => {
+      apiSuccessRef.current = true
+      setDuplicateError(null)
       router.push('/(tabs)')
+    },
+    onError: (error) => {
+      apiSuccessRef.current = false
+      if (error.statusCode === 409) {
+        setDuplicateError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
+      } else {
+        showError(error.message || 'ไม่สามารถแก้ไขเตือนความจำได้')
+      }
     }
   })
 
@@ -231,24 +255,28 @@ export default function AddReminderPage() {
         submitData.childrenToDelete = childrenToDelete
       }
 
+      apiSuccessRef.current = false
       if (isEditMode && reminderId) {
         await updateReminderApi.execute(reminderId, submitData)
       } else {
         await createReminderApi.execute(submitData)
       }
 
-      setDoses([])
-      setCustomVaccineName('')
-      setInitialChildReminders([])
-      setInitialReminderData(null)
-      setLoadedVaccineIsCustom(false)
-      setVaccineResetKey((prev) => prev + 1)
-      setRecurrenceRule(null)
-      setHasUserStartedCreateMode(false)
-      setChildrenToDelete([])
-      setOriginalPetSpecies(null)
-      if (!isEditMode) {
-        formik.resetForm()
+      // Only reset form state on success
+      if (apiSuccessRef.current) {
+        setDoses([])
+        setCustomVaccineName('')
+        setInitialChildReminders([])
+        setInitialReminderData(null)
+        setLoadedVaccineIsCustom(false)
+        setVaccineResetKey((prev) => prev + 1)
+        setRecurrenceRule(null)
+        setHasUserStartedCreateMode(false)
+        setChildrenToDelete([])
+        setOriginalPetSpecies(null)
+        if (!isEditMode) {
+          formik.resetForm()
+        }
       }
     }
   })
@@ -554,6 +582,11 @@ export default function AddReminderPage() {
   const handleReminderNameChange = (value: string) => {
     formik.setFieldValue('reminderName', value)
 
+    // Clear duplicate error when user changes the name
+    if (duplicateError) {
+      setDuplicateError(null)
+    }
+
     if (value.trim().length >= 2) {
       const filtered = existingReminders
         .filter((reminder) =>
@@ -686,6 +719,18 @@ export default function AddReminderPage() {
                     </Text>
                   </Pressable>
                 </View>
+
+                {/* Duplicate Error Toast */}
+                {duplicateError && (
+                  <View style={styles.duplicateErrorToast}>
+                    <Text style={styles.duplicateErrorText}>
+                      {duplicateError}
+                    </Text>
+                    <Pressable onPress={() => setDuplicateError(null)}>
+                      <Text style={styles.duplicateErrorDismiss}>✕</Text>
+                    </Pressable>
+                  </View>
+                )}
 
                 <InputText
                   value={formik.values.reminderName}
@@ -1004,5 +1049,28 @@ const styles = StyleSheet.create({
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
     fontFamily: 'Prompt_500Medium'
+  },
+  duplicateErrorToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12
+  },
+  duplicateErrorText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#B91C1C',
+    flex: 1
+  },
+  duplicateErrorDismiss: {
+    fontSize: 16,
+    color: '#B91C1C',
+    paddingLeft: 8
   }
 })

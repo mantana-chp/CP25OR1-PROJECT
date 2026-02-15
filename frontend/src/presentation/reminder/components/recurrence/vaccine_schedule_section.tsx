@@ -213,8 +213,10 @@ export default function VaccineScheduleSection({
     doses.length
   ])
 
+  // Reset initialization flag when edit mode changes
+  // But don't clear doses if they came from suggestion selection (initialVaccineName is set)
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !initialVaccineName) {
       setIsInitialized(false)
       setSelectedVaccineId(null)
       setIsCustomVaccine(false)
@@ -228,11 +230,14 @@ export default function VaccineScheduleSection({
       setUserEditedTime(false)
       setDoses([])
     }
-  }, [isEditMode])
+  }, [isEditMode, initialVaccineName])
 
   useEffect(() => {
+    // Don't recalculate if doses are already loaded from edit mode or suggestion selection
     const hasLoadedDoses =
-      isEditMode && doses.length > 0 && doses.some((d) => d.childReminderId)
+      doses.length > 0 &&
+      (doses.some((d) => d.childReminderId) || // Edit mode doses
+        doses.some((d) => d.date && d.doseNumber > 1)) // Suggestion doses with dates
 
     if (selectedVaccineId && petId && reminderDate && !hasLoadedDoses) {
       calculateVaccineSchedule(reminderDate)
