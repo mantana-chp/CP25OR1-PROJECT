@@ -1,9 +1,12 @@
 import _ from 'lodash'
+import { PawPrint } from 'lucide-react-native'
 import React, { useEffect, useRef, useState } from 'react'
 import {
+  Animated,
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
+  Text,
   View
 } from 'react-native'
 
@@ -37,6 +40,8 @@ export default function ChatbotPage() {
   const [isTyping, setIsTyping] = useState(false)
   const [isError, setIsError] = useState(false)
   const [lastFailedMessage, setLastFailedMessage] = useState<string>('')
+  const [toastMessage, setToastMessage] = useState<string>('')
+  const toastOpacity = useRef(new Animated.Value(0)).current
   const scrollViewRef = useRef<ScrollView>(null)
 
   useEffect(() => {
@@ -64,6 +69,24 @@ export default function ChatbotPage() {
 
   const handleSelectPet = (pet: IPetProfile) => {
     setSelectedPetId(pet.id)
+    showPetToast(pet.pet_name)
+  }
+
+  const showPetToast = (petName: string) => {
+    setToastMessage(`กำลังสนทนาเกี่ยวกับ ${petName}`)
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true
+      }),
+      Animated.delay(2000),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true
+      })
+    ]).start()
   }
 
   const handleSendMessage = async (text: string) => {
@@ -161,6 +184,15 @@ export default function ChatbotPage() {
           />
         )}
 
+        {/* Pet Selection Toast */}
+        <Animated.View
+          style={[styles.toast, { opacity: toastOpacity }]}
+          pointerEvents="none"
+        >
+          <PawPrint size={14} color="#5FA7D1" />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+
         {/* Chat Input */}
         <ChatInput
           onSend={handleSendMessage}
@@ -192,5 +224,29 @@ const styles = StyleSheet.create({
   messagesContent: {
     paddingVertical: 16,
     flexGrow: 1
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 70,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#225877',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E8F4FC'
+  },
+  toastText: {
+    fontSize: 13,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
   }
 })
