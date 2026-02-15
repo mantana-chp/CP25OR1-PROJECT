@@ -526,6 +526,9 @@ export default function AddReminderPage() {
       reminder.children &&
       reminder.children.length > 0
     ) {
+      // Reset vaccine section to force reinitialize with new data
+      setVaccineResetKey((prev) => prev + 1)
+
       const childrenWithDoseNumbers = reminder.children.map((child: any) => {
         const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
         const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
@@ -722,9 +725,7 @@ export default function AddReminderPage() {
                   onCustomVaccineNameChange={setCustomVaccineName}
                   initialVaccineId={null}
                   initialVaccineName={
-                    isEditMode && customVaccineName
-                      ? customVaccineName
-                      : undefined
+                    customVaccineName ? customVaccineName : undefined
                   }
                   isEditMode={isEditMode}
                   initialCustomDoseCount={
