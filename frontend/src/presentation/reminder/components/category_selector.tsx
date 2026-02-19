@@ -35,13 +35,15 @@ interface CategorySelectorProps {
   onChange: (categoryId: string) => void
   error?: string
   required?: boolean
+  disabled?: boolean
 }
 
 export default function CategorySelector({
   value,
   onChange,
   error,
-  required
+  required,
+  disabled
 }: CategorySelectorProps) {
   const [modalVisible, setModalVisible] = useState(false)
 
@@ -63,9 +65,11 @@ export default function CategorySelector({
         style={[
           styles.selector,
           modalVisible && styles.selectorActive,
-          error && styles.selectorError
+          error && styles.selectorError,
+          disabled && styles.selectorDisabled
         ]}
-        onPress={() => setModalVisible(true)}
+        onPress={() => !disabled && setModalVisible(true)}
+        disabled={disabled}
       >
         {selectedCategory ? (
           <View style={styles.selectedContent}>
@@ -172,11 +176,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#225877',
     fontFamily: 'Prompt_400Regular',
-    marginLeft: 4,
-  
+    marginLeft: 4
   },
   required: {
-    color: '#ef4444'
+    color: '#BF1737'
   },
   selector: {
     borderWidth: 1,
@@ -193,7 +196,12 @@ const styles = StyleSheet.create({
     borderColor: '#5FA7D1'
   },
   selectorError: {
-    borderColor: '#ef4444'
+    borderColor: '#BF1737'
+  },
+  selectorDisabled: {
+    backgroundColor: '#f3f4f6',
+    borderColor: '#e5e7eb',
+    opacity: 0.6
   },
   selectedContent: {
     flexDirection: 'row',
@@ -219,7 +227,7 @@ const styles = StyleSheet.create({
     color: '#ffffff'
   },
   errorText: {
-    color: '#ef4444',
+    color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,

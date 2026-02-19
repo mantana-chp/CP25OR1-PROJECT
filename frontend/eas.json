@@ -6,16 +6,29 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "development",
+        "GOOGLE_SERVICES_JSON": "./google-services.json"
+      }
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "APP_ENV": "preview",
+        "GOOGLE_SERVICES_JSON": "./google-services.json"
+      },
       "android": {
         "buildType": "apk"
+        // "credentialsSource": "remote"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production",
+        "GOOGLE_SERVICES_JSON": "./google-services.json"
+      }
     }
   },
   "submit": {

@@ -1,12 +1,13 @@
 import { IReminder } from '@/src/domain/reminder.domain'
+import dayjs from 'dayjs'
 import {
-  Hospital,
-  Syringe,
-  Pill,
   Bug,
-  FileText,
-  PawPrint,
   Clock,
+  FileText,
+  Hospital,
+  PawPrint,
+  Pill,
+  Syringe
 } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -43,25 +44,23 @@ export default function HealthRecordCard(props: HealthRecordCardProps) {
 
   const HealthRecordIcon = getHealthRecordIcon(reminder.categoryName)
 
-  const formatDate = (dateString: string, timeString: string) => {
-    try {
-      const date = new Date(dateString)
-      const day = date.getDate().toString().padStart(2, '0')
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const year = (date.getFullYear() + 543).toString() // Buddhist Year
-      const formattedTime = timeString ? timeString.substring(0, 5) : '00:00'
-      return `${day}/${month}/${year}, ${formattedTime} น.`
-    } catch (e) {
-      return dateString
-    }
+  const formatDate = (dateString: string) => {
+    const date = dayjs(dateString).locale('th')
+    const formattedDate = `${date.format('วันdddd DD MMM')} ${
+      date.year() + 543
+    }`
+    return formattedDate
   }
 
+  const formatTime = (timeString: string) => {
+    return timeString.substring(0, 5) + ' น.'
+  }
   return (
     <View style={styles.card}>
       {/* Left Side: Hero Icon Circle */}
       <View style={styles.iconContainer}>
         <View style={styles.iconCircle}>
-          <HealthRecordIcon size={32} color='#FFFFFF' strokeWidth={2} />
+          <HealthRecordIcon size={32} color="#FFFFFF" strokeWidth={2} />
         </View>
       </View>
 
@@ -72,14 +71,18 @@ export default function HealthRecordCard(props: HealthRecordCardProps) {
         </Text>
 
         <View style={styles.infoRow}>
-          <PawPrint size={16} color='#2E759E' fill='#2E759E' />
+          <PawPrint size={16} color="#2E759E" />
           <Text style={styles.infoText}>{reminder.pet_name || '-'}</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Clock size={16} color='#2E759E' />
+          <Clock size={16} color="#2E759E" />
           <Text style={[styles.infoText]}>
-            {formatDate(reminder.reminderDate, reminder.reminderTime)}
+            {reminder.reminderTime
+              ? `${formatDate(reminder.reminderDate)}, ${formatTime(
+                  reminder.reminderTime
+                )}`
+              : formatDate(reminder.reminderDate)}
           </Text>
         </View>
       </View>
@@ -99,10 +102,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 3
   },
   iconContainer: {
-    marginRight: 16,
+    marginRight: 16
   },
   iconCircle: {
     width: 56,
@@ -110,29 +113,29 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#5FA7D1',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   contentContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   titleText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_700Bold',
+    fontFamily: 'Prompt_700Bold'
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   smallIcon: {
-    marginRight: 6,
+    marginRight: 6
   },
   infoText: {
     fontSize: 14,
     color: '#225877',
-    fontFamily: 'Prompt_400Regular',
-  },
+    fontFamily: 'Prompt_400Regular'
+  }
 })

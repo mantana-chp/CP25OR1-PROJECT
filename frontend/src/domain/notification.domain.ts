@@ -1,12 +1,12 @@
 export interface INotification {
   id: string
   userId: string
-  reminderId: string
+  reminderId: string | null
   sentAt: string | null
   status: string
   readAt: string | null
   createdAt: string
-  reminder: {
+  reminder?: {
     id: string
     userId: string
     petId: string
@@ -32,5 +32,13 @@ export interface INotification {
       createdAt: string
       updatedAt: string
     }
+  }
+  petTips?: {
+    title: string
+    desc: string
+  }
+  petInfo?: {
+    id: string
+    name: string
   }
 }

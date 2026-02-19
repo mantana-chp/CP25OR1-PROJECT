@@ -1,12 +1,29 @@
+import dayjs from 'dayjs'
 import { Link } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { IReminder } from '@/src/domain/reminder.domain'
+import { IPetProfile } from '@/src/domain/pet.domain'
+import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import {
+  addExcludedDate,
+  removeRuleExcludedDates
+} from '@/src/utils/excluded_dates_storage'
 
-import { Plus } from 'lucide-react-native'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import {
+  Bone,
+  LayoutGrid,
+  Pill,
+  Pipette,
+  Plus,
+  Scissors,
+  Stethoscope,
+  Syringe,
+  Tag
+} from 'lucide-react-native'
 import {
   Modal,
   ScrollView,
@@ -17,29 +34,57 @@ import {
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import ReminderDetailModal from '../pages/reminder_detail_modal'
-import RecurringReminderCard from './recurring_reminder_card'
+import RecurringReminderCard from './recurrence/recurring_reminder_card'
 import ReminderCard from './reminder_card'
 
-type TabType = 'to_do' | 'done'
+type TabType = 'to_do' | 'today' | 'done'
+
+const ICON_MAP: Record<string, any> = {
+  Tag,
+  Syringe,
+  Stethoscope,
+  Pill,
+  Pipette,
+  Scissors,
+  Bone
+}
 
 interface ReminderListProps {
-  reminders: IReminder[]
+  reminders: any[]
+  pets?: IPetProfile[]
   isLoading?: boolean
   onRefresh?: () => void
   initialReminderId?: string | null
+  selectedCategory?: string | null
+  onSelectedCategoryChange?: (category: string | null) => void
+  selectedPetId?: string | null
+  onSelectedPetIdChange?: (petId: string | null) => void
+  isToday?: boolean
+  allReminders?: any[]
 }
 
 export default function ReminderList({
   reminders,
+  pets = [],
   isLoading,
   onRefresh,
-  initialReminderId
+  initialReminderId,
+  selectedCategory = null,
+  onSelectedCategoryChange,
+  selectedPetId = null,
+  onSelectedPetIdChange,
+  isToday = true,
+  allReminders = []
 }: ReminderListProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('to_do')
+  const [activeTab, setActiveTab] = useState<TabType>('today')
+  const [petModalVisible, setPetModalVisible] = useState(false)
 
   const [tempDoneIds, setTempDoneIds] = useState<string[]>([])
   const [selectedReminderId, setSelectedReminderId] = useState<string | null>(
     initialReminderId || null
+  )
+  const [selectedReminder, setSelectedReminder] = useState<IReminder | null>(
+    null
   )
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
@@ -61,18 +106,95 @@ export default function ReminderList({
   useEffect(() => {
     if (initialReminderId) {
       setSelectedReminderId(initialReminderId)
+      const reminder = reminders.find((r) => r.id === initialReminderId)
+      setSelectedReminder(reminder || null)
     }
-  }, [initialReminderId])
+  }, [initialReminderId, reminders])
+
+  useEffect(() => {
+    if (!isToday && activeTab === 'today') {
+      setActiveTab('to_do')
+    }
+  }, [isToday, activeTab])
 
   const handleReminderDetail = (reminderId: string) => {
+    const reminder = reminders.find((r) => r.id === reminderId)
     setSelectedReminderId(reminderId)
+    setSelectedReminder(reminder || null)
   }
 
   const handleDeleteReminder = useCallback(
-    async (id: string) => {
-      await deleteReminderApi.execute(id)
+    async (
+      id: string,
+      deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+    ) => {
+      try {
+        // Find the reminder to check if it's virtual
+        const reminder = reminders.find((r) => r.id === id)
+
+        let deleteId = id
+        let excludeDate: string | undefined
+
+        // For recurring reminders (both real and virtual), we need to handle deletion properly
+        if (reminder?.recurrence && deleteScope === 'THIS_INSTANCE_ONLY') {
+          // Pass the date to add to excluded_dates array
+          excludeDate = reminder.reminderDate
+
+          console.log('[Recurring Deletion]', {
+            isVirtual: reminder.isVirtual,
+            reminderDate: reminder.reminderDate,
+            recurrenceId: reminder.recurrence.id,
+            reminderId: id,
+            excludeDateToSend: excludeDate
+          })
+
+          // For virtual reminders, use the rule ID instead of the reminder ID
+          if (reminder.isVirtual) {
+            deleteId = reminder.recurrence.id
+          }
+
+          // Store excluded date in AsyncStorage as a workaround for backend not persisting excluded_dates
+          if (excludeDate) {
+            await addExcludedDate(reminder.recurrence.id, excludeDate)
+            console.log('[AsyncStorage] Added excluded date:', {
+              ruleId: reminder.recurrence.id,
+              excludeDate
+            })
+          }
+        } else if (reminder?.isVirtual && deleteScope === 'ALL_INSTANCES') {
+          // For deleting all instances of virtual reminder, use the rule ID
+          deleteId = reminder.recurrence?.id || id
+        }
+
+        // Remove all AsyncStorage exclusions when deleting all instances
+        if (deleteScope === 'ALL_INSTANCES' && reminder?.recurrence?.id) {
+          await removeRuleExcludedDates(reminder.recurrence.id)
+          console.log(
+            '[AsyncStorage] Removed all excluded dates for rule:',
+            reminder.recurrence.id
+          )
+        }
+
+        console.log('[About to DELETE]', {
+          deleteId,
+          deleteScope,
+          excludeDate,
+          originalReminderId: id
+        })
+
+        await deleteReminderApi.execute(deleteId, deleteScope, excludeDate)
+
+        // Refresh the reminder list and calendar after successful deletion
+        setTimeout(() => {
+          if (onRefresh) {
+            onRefresh()
+          }
+        }, 200)
+      } catch (error) {
+        console.error('Failed to delete reminder', error)
+      }
     },
-    [deleteReminderApi]
+    [deleteReminderApi, onRefresh, reminders]
   )
 
   const handleToggleStatus = useCallback(
@@ -101,16 +223,42 @@ export default function ReminderList({
     [tempDoneIds, updateStatusApi, onRefresh]
   )
 
-  const filteredReminders = reminders.filter((reminder) => {
-    if (activeTab === 'to_do') {
-      return (
-        reminder.reminderStatus === 'to_do' ||
-        reminder.reminderStatus === 'overdue'
-      )
-    } else {
-      return reminder.reminderStatus === activeTab
-    }
-  })
+  const filteredReminders = (() => {
+    const sourceReminders =
+      activeTab === 'today'
+        ? Array.isArray(allReminders)
+          ? allReminders
+          : Array.isArray(reminders)
+            ? reminders
+            : []
+        : Array.isArray(reminders)
+          ? reminders
+          : []
+
+    return sourceReminders.filter((reminder) => {
+      let statusMatch = false
+      if (activeTab === 'to_do') {
+        statusMatch =
+          reminder.reminderStatus === 'to_do' ||
+          reminder.reminderStatus === 'overdue'
+      } else if (activeTab === 'today') {
+        statusMatch =
+          (reminder.reminderStatus === 'to_do' ||
+            reminder.reminderStatus === 'overdue') &&
+          dayjs(reminder.reminderDate).isSame(dayjs(), 'day')
+      } else {
+        statusMatch = reminder.reminderStatus === 'done'
+      }
+
+      const categoryMatch = selectedCategory
+        ? reminder.categoryName === selectedCategory
+        : true
+
+      const petMatch = selectedPetId ? reminder.petId === selectedPetId : true
+
+      return statusMatch && categoryMatch && petMatch
+    })
+  })()
 
   return (
     <View style={styles.container}>
@@ -126,10 +274,27 @@ export default function ReminderList({
               activeTab === 'to_do' && styles.activeTabText
             ]}
           >
-            เตือนความจำ
+            ทั้งหมด
           </Text>
           {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
+
+        {isToday && (
+          <TouchableOpacity
+            onPress={() => setActiveTab('today')}
+            style={styles.tabButton}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'today' && styles.activeTabText
+              ]}
+            >
+              วันนี้
+            </Text>
+            {activeTab === 'today' && <View style={styles.activeUnderline} />}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={() => setActiveTab('done')}
@@ -146,6 +311,96 @@ export default function ReminderList({
           {activeTab === 'done' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>
       </View>
+
+      {/* Filter Section */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryFilterContainer}
+        contentContainerStyle={styles.categoryFilterContent}
+      >
+        {/* Pet Filter Button */}
+        <TouchableOpacity
+          onPress={() => setPetModalVisible(true)}
+          style={[
+            styles.categoryTab,
+            selectedPetId && styles.activeCategoryTab
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="dog"
+            size={18}
+            color={selectedPetId ? '#fff' : '#6B7280'}
+          />
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedPetId && styles.activeCategoryTabText
+            ]}
+          >
+            {selectedPetId
+              ? pets.find((p) => p.id === selectedPetId)?.pet_name ||
+                'สัตว์เลี้ยง'
+              : 'สัตว์เลี้ยง'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Category Filter Tabs */}
+        <TouchableOpacity
+          onPress={() => onSelectedCategoryChange?.(null)}
+          style={[
+            styles.categoryTab,
+            selectedCategory === null && styles.activeCategoryTab
+          ]}
+        >
+          <LayoutGrid
+            size={18}
+            color={selectedCategory === null ? '#fff' : '#6B7280'}
+          />
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedCategory === null && styles.activeCategoryTabText
+            ]}
+          >
+            ทั้งหมด
+          </Text>
+        </TouchableOpacity>
+
+        {Object.entries(CATEGORY_MAP).map(([categoryKey, categoryInfo]) => {
+          const Icon = ICON_MAP[categoryInfo.icon]
+          return (
+            <TouchableOpacity
+              key={categoryKey}
+              onPress={() => onSelectedCategoryChange?.(categoryKey)}
+              style={[
+                styles.categoryTab,
+                selectedCategory === categoryKey && styles.activeCategoryTab
+              ]}
+            >
+              {Icon && (
+                <Icon
+                  size={18}
+                  color={
+                    selectedCategory === categoryKey
+                      ? '#fff'
+                      : categoryInfo.color
+                  }
+                />
+              )}
+              <Text
+                style={[
+                  styles.categoryTabText,
+                  selectedCategory === categoryKey &&
+                    styles.activeCategoryTabText
+                ]}
+              >
+                {categoryInfo.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
 
       {/* Reminder Content */}
       {isLoading ? (
@@ -173,7 +428,7 @@ export default function ReminderList({
                     reminder={reminder}
                     instances={reminder.children || []}
                     onPress={() => handleReminderDetail(reminder.id)}
-                    onDelete={(id) => handleDeleteReminder(id)}
+                    onDelete={handleDeleteReminder}
                     onRefresh={onRefresh}
                     canDelete={reminder.reminderStatus !== 'done'}
                   />
@@ -202,16 +457,110 @@ export default function ReminderList({
         </TouchableOpacity>
       </Link>
 
+      {/* Pet Selection Modal */}
+      <Modal
+        visible={petModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPetModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPetModalVisible(false)}
+        >
+          <View style={styles.petModalContent}>
+            <View style={styles.petModalHeader}>
+              <Text style={styles.petModalTitle}>เลือกสัตว์เลี้ยง</Text>
+              <TouchableOpacity onPress={() => setPetModalVisible(false)}>
+                <Text style={styles.petModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.petModalList}>
+              {/* All Pets Option */}
+              <TouchableOpacity
+                onPress={() => {
+                  onSelectedPetIdChange?.(null)
+                  setPetModalVisible(false)
+                }}
+                style={[
+                  styles.petModalItem,
+                  !selectedPetId && styles.petModalItemActive
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="dog"
+                  size={20}
+                  color={!selectedPetId ? '#fff' : '#6B7280'}
+                />
+                <Text
+                  style={[
+                    styles.petModalItemText,
+                    !selectedPetId && styles.petModalItemTextActive
+                  ]}
+                >
+                  สัตว์เลี้ยงทั้งหมด
+                </Text>
+                {!selectedPetId && <View style={styles.petModalCheckmark} />}
+              </TouchableOpacity>
+
+              {/* Individual Pets */}
+              {pets.map((pet) => (
+                <TouchableOpacity
+                  key={pet.id}
+                  onPress={() => {
+                    onSelectedPetIdChange?.(pet.id)
+                    setPetModalVisible(false)
+                  }}
+                  style={[
+                    styles.petModalItem,
+                    selectedPetId === pet.id && styles.petModalItemActive
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="dog"
+                    size={20}
+                    color={selectedPetId === pet.id ? '#fff' : '#6B7280'}
+                  />
+                  <Text
+                    style={[
+                      styles.petModalItemText,
+                      selectedPetId === pet.id && styles.petModalItemTextActive
+                    ]}
+                  >
+                    {pet.pet_name}
+                  </Text>
+                  {selectedPetId === pet.id && (
+                    <View style={styles.petModalCheckmark} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Reminder Detail Modal */}
       <Modal
         visible={!!selectedReminderId}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedReminderId(null)}
+        onRequestClose={() => {
+          setSelectedReminderId(null)
+          setSelectedReminder(null)
+        }}
       >
         <ReminderDetailModal
           id={selectedReminderId || ''}
-          onClose={() => setSelectedReminderId(null)}
+          onClose={() => {
+            setSelectedReminderId(null)
+            setSelectedReminder(null)
+          }}
+          isVirtual={selectedReminder?.isVirtual || false}
+          virtualReminderData={
+            selectedReminder?.isVirtual ? selectedReminder : undefined
+          }
         />
       </Modal>
     </View>
@@ -250,18 +599,18 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    gap: 24,
+    gap: 20,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: '#fff9f1'
   },
   tabButton: {
-    paddingBottom: 8
+    paddingBottom: 4
   },
   tabText: {
     color: '#C4C4C4',
-    fontSize: 20,
+    fontSize: 17,
     fontFamily: 'Prompt_400Regular'
   },
   activeTabText: {
@@ -280,7 +629,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
     paddingBottom: 100
   },
   emptyContainer: {
@@ -309,5 +658,102 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     overflow: 'visible'
+  },
+  categoryFilterContainer: {
+    backgroundColor: '#fff9f1',
+    paddingVertical: 4,
+    maxHeight: 50
+  },
+  categoryFilterContent: {
+    paddingHorizontal: 16,
+    gap: 8
+  },
+  categoryTab: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 28
+  },
+  activeCategoryTab: {
+    backgroundColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
+  },
+  categoryTabText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center'
+  },
+  activeCategoryTabText: {
+    color: '#fff',
+    fontFamily: 'Prompt_500Medium'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end'
+  },
+  petModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+    maxHeight: '80%'
+  },
+  petModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  petModalTitle: {
+    fontSize: 18,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#225877'
+  },
+  petModalClose: {
+    fontSize: 24,
+    color: '#6B7280',
+    fontWeight: 'bold'
+  },
+  petModalList: {
+    marginBottom: 10
+  },
+  petModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 10,
+    gap: 12
+  },
+  petModalItemActive: {
+    backgroundColor: '#5FA7D1'
+  },
+  petModalItemText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6B7280'
+  },
+  petModalItemTextActive: {
+    color: '#fff',
+    fontFamily: 'Prompt_600SemiBold'
+  },
+  petModalCheckmark: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff'
   }
 })

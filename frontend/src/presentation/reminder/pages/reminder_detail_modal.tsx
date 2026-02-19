@@ -1,17 +1,25 @@
-import { getCategoryInfo } from '@/src/domain/reminder.domain'
+import { getCategoryInfo, IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
+  convertFromBackendRecurrence,
+  formatRecurrenceText
+} from '@/src/utils/recurrence.utils'
+import { useRouter } from 'expo-router'
+import {
+  AlertCircle,
   Bone,
   CalendarDays,
   Check,
   ChevronDown,
   ChevronUp,
   Clock,
+  Edit2,
   Hourglass,
   PawPrint,
   Pill,
   Pipette,
+  Repeat,
   Scissors,
   SearchX,
   Stethoscope,
@@ -53,40 +61,58 @@ const parseApiTime = (timeString: string): Date => {
 interface ReminderDetailModalProps {
   id: string
   onClose: () => void
+  isVirtual?: boolean
+  virtualReminderData?: IReminder
 }
 
 export default function ReminderDetailModal({
   id,
-  onClose
+  onClose,
+  isVirtual = false,
+  virtualReminderData
 }: ReminderDetailModalProps) {
   // ------------------
   // STATE & CONST
   // ------------------
+  const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
-  const [isChildrenExpanded, setIsChildrenExpanded] = useState(false)
+  const [isChildrenExpanded, setIsChildrenExpanded] = useState(true)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
   })
 
-  const reminder = getReminderApi?.data?.data
+  // Use virtual reminder data if available, otherwise use API data
+  const reminder =
+    isVirtual && virtualReminderData
+      ? virtualReminderData
+      : getReminderApi?.data?.data
   const isOverdue = reminder?.reminderStatus === 'overdue'
   const categoryInfo = reminder?.categoryName
     ? getCategoryInfo(reminder.categoryName)
     : null
   const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
 
+  const handleEdit = () => {
+    onClose()
+    router.push({
+      pathname: '/(tabs)/add-reminder',
+      params: { reminderId: id }
+    })
+  }
+
   // ------------------
   // USE-EFFECTS
   // ------------------
   useEffect(() => {
-    if (id) {
+    // Only fetch from API if not a virtual reminder
+    if (id && !isVirtual) {
       getReminderApi.execute(id)
     }
-  }, [id])
+  }, [id, isVirtual])
 
   // Show not found message
-  if (!id || (!getReminderApi.loading && !reminder)) {
+  if (!id || (!getReminderApi.loading && !reminder && !isVirtual)) {
     return (
       <View style={styles.modalOverlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
@@ -142,28 +168,49 @@ export default function ReminderDetailModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
+          {!isVirtual && reminder?.reminderStatus !== 'done' && (
+            <Pressable onPress={handleEdit} style={styles.editButton}>
+              <Edit2 size={18} color="#5FA7D1" />
+            </Pressable>
+          )}
         </View>
 
         {/* Form Card */}
-        {getReminderApi.loading ? (
+        {getReminderApi.loading && !isVirtual ? (
           <LoadingComponent />
         ) : (
           <View style={styles.formCard}>
             {isOverdue && !reminder?.children && <OverdueAlert />}
+
+            {/* Virtual Reminder Alert */}
+            {isVirtual && (
+              <View style={styles.virtualAlert}>
+                <AlertCircle color="#F59E0B" size={16} />
+                <View style={styles.virtualAlertTextContainer}>
+                  <Text style={styles.virtualAlertTitle}>
+                    เตือนความจำคาดการณ์
+                  </Text>
+                  <Text style={styles.virtualAlertMessage}>
+                    นี่คือการแสดงผลล่วงหน้าจากรูปแบบการทำซ้ำ
+                    คุณสามารถดูรายละเอียดได้เท่านั้น
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <Text style={styles.reminderTitle}>
               {reminder?.reminderName || ''}
             </Text>
 
             <View style={styles.infoRow}>
-              <PawPrint size={20} color={'#2E759E'} />
+              <PawPrint size={16} color={'#225877'} />
               <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
             </View>
 
             {!reminder?.children && (
               <View style={styles.infoRow}>
                 <CalendarDays
-                  size={20}
+                  size={16}
                   color={isOverdue ? '#DC2626' : '#225877'}
                 />
                 <Text
@@ -181,7 +228,7 @@ export default function ReminderDetailModal({
                       )
                     : '-'}
                 </Text>
-                <Clock size={20} color={isOverdue ? '#DC2626' : '#225877'} />
+                <Clock size={16} color={isOverdue ? '#DC2626' : '#225877'} />
                 <Text
                   style={[styles.infoText, isOverdue && styles.overdueText]}
                 >
@@ -192,14 +239,31 @@ export default function ReminderDetailModal({
               </View>
             )}
 
-            {/* {reminder?.description && reminder.description !== '-' && ( */}
-            <View style={styles.descriptionSection}>
-              <Text style={styles.descriptionLabel}>รายละเอียด</Text>
-              <Text style={styles.descriptionText}>
-                {reminder?.description || '-'}
-              </Text>
-            </View>
-            {/* )} */}
+            {/* Recurring Information */}
+            {reminder?.recurrence && (
+              <View style={styles.recurringSection}>
+                <View style={styles.recurringInfo}>
+                  <Repeat size={16} color="#225877" />
+                  <Text style={styles.recurringText}>
+                    {formatRecurrenceText(
+                      convertFromBackendRecurrence(reminder.recurrence)
+                    )}
+                    {reminder.occurrenceNumber
+                      ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
+                      : ''}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {reminder?.description && (
+              <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionLabel}>รายละเอียด</Text>
+                <Text style={styles.descriptionText}>
+                  {reminder?.description}
+                </Text>
+              </View>
+            )}
 
             {/* Child Reminders Section */}
             {reminder?.children && reminder.children.length > 0 && (
@@ -212,9 +276,9 @@ export default function ReminderDetailModal({
                     วัคซีนทั้งหมด ({reminder.children.length} เข็ม)
                   </Text>
                   {isChildrenExpanded ? (
-                    <ChevronUp size={20} color="#225877" />
+                    <ChevronUp size={16} color="#225877" />
                   ) : (
-                    <ChevronDown size={20} color="#225877" />
+                    <ChevronDown size={16} color="#225877" />
                   )}
                 </Pressable>
 
@@ -234,7 +298,7 @@ export default function ReminderDetailModal({
                           <View key={child.id} style={styles.childReminderItem}>
                             <View style={styles.childReminderLeft}>
                               <Text style={styles.childReminderNumber}>
-                                เข็มที่ {index + 1}
+                                {child.reminderName}
                               </Text>
                               <View style={styles.childReminderInfo}>
                                 <CalendarDays
@@ -400,20 +464,31 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    borderBottomColor: '#e5e7eb',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   headerTitle: {
     color: '#225877',
     fontSize: 17,
     fontFamily: 'Prompt_400Regular',
-    textAlign: 'center'
+    textAlign: 'center',
+    flex: 1,
+    marginRight: 8
+  },
+  editButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0
   },
   formCard: {
     padding: 20,
-    gap: 16
+    gap: 12
   },
   reminderTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontFamily: 'Prompt_500Medium',
     color: '#225877'
   },
@@ -435,31 +510,15 @@ const styles = StyleSheet.create({
     gap: 2
   },
   descriptionLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#A6A6A6'
   },
   descriptionText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
     lineHeight: 24
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    minHeight: 48,
-    color: '#111827'
-  },
-  textarea: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingVertical: 12
   },
   infoRow: {
     flexDirection: 'row',
@@ -467,7 +526,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   infoText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877'
   },
@@ -550,5 +609,59 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center'
+  },
+  recurringSection: {
+    gap: 8
+  },
+  recurringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start'
+  },
+  recurringBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
+  },
+  recurringInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  recurringText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877',
+    flex: 1
+  },
+  virtualAlert: {
+    flexDirection: 'row',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 8,
+    padding: 8,
+    gap: 8,
+    alignItems: 'center'
+  },
+  virtualAlertTextContainer: {
+    flex: 1,
+    gap: 2
+  },
+  virtualAlertTitle: {
+    color: '#F59E0B',
+    fontSize: 14,
+    fontFamily: 'Prompt_700Bold'
+  },
+  virtualAlertMessage: {
+    color: '#92400E',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    lineHeight: 16
   }
 })

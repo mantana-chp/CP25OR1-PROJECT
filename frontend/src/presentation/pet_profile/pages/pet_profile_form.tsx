@@ -1,8 +1,9 @@
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import DatePicker from '../../components/date_picker'
+import DiscardChangesModal from '../../components/discard_changes_modal'
 import Dropdown from '../../components/dropdown'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
@@ -16,6 +17,7 @@ import {
   petProfileValidateSchema
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
+import { useLocalSearchParams } from 'expo-router'
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 
@@ -30,11 +32,20 @@ export default function PetProfileForm({
   // CONST
   // ------------------
   const router = useRouter()
+  const params = useLocalSearchParams()
+  const petId = (params?.petId || '') as string
+  const isEditMode = !!petId
+
   const { checkPetProfile, completeOnboarding } = useAuth()
   const { refreshPets } = usePets()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>('')
+  const [initialPetData, setInitialPetData] = useState<IPetProfileForm | null>(
+    null
+  )
+  const [showBackModal, setShowBackModal] = useState(false)
 
   // ------------------
   // FETCH
@@ -53,11 +64,52 @@ export default function PetProfileForm({
     fetchSpeciesAndBreeds()
   }, [])
 
+  const loadPetData = useCallback(async () => {
+    if (!petId) {
+      setInitialPetData(null)
+      return
+    }
+
+    if (speciesData.length === 0) return
+
+    try {
+      setIsLoading(true)
+      const response = await petProfileService.getPetProfileById(petId)
+
+      if (response) {
+        setInitialPetData(response.data)
+        // Set the species ID to populate breed dropdown
+        if (response.data.species_id) {
+          setSelectedSpeciesId(response.data.species_id)
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading pet data:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลสัตว์เลี้ยงได้')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [petId, speciesData])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (petId && speciesData.length > 0) {
+        loadPetData()
+      } else if (!petId) {
+        setInitialPetData(null)
+        setSelectedSpeciesId('')
+      }
+    }, [loadPetData, petId, speciesData])
+  )
+
   // ------------------
   // FORMIK
   // ------------------
   const formik = useFormik<IPetProfileForm>({
-    initialValues: petProfileInitValue({} as IPetProfileForm),
+    initialValues: petProfileInitValue(
+      initialPetData || ({} as IPetProfileForm)
+    ),
+    enableReinitialize: true,
     validationSchema: petProfileValidateSchema,
     validateOnChange: false,
     validateOnBlur: false,
@@ -65,7 +117,6 @@ export default function PetProfileForm({
     onSubmit: async (values) => {
       try {
         setIsSubmitting(true)
-        console.log('📝 Creating pet profile:', values)
 
         const { id, breed_id, weight, ...petData } = values
 
@@ -73,39 +124,42 @@ export default function PetProfileForm({
           ...petData
         }
 
-        // Only add breed_id if it has a value
-        if (breed_id) {
-          petDataToSend.breed_id = breed_id
+        if (breed_id) petDataToSend.breed_id = breed_id
+
+        if (weight) petDataToSend.weight = Number(weight)
+
+        if (isEditMode) {
+          await petProfileService.updatePetProfile(petId, petDataToSend)
+        } else {
+          await petProfileService.createPetProfile(petDataToSend)
         }
 
-        // Only add weight if it has a value
-        if (weight) {
-          petDataToSend.weight = Number(weight)
-        }
-
-        console.log(petDataToSend)
-
-        const response = await petProfileService.createPetProfile(petDataToSend)
-        console.log('✅ Pet profile created successfully:', response)
-
-        // Update pet profile status in auth context and refresh PetContext
         await checkPetProfile()
         await refreshPets()
 
-        // If in onboarding mode, complete onboarding now
         if (isOnboarding) {
           await completeOnboarding()
         }
 
-        Alert.alert('สำเร็จ!', 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
-          {
-            text: 'ตกลง',
-            onPress: () => {
-              formik.resetForm()
-              router.replace('/(tabs)')
+        router.push('/(tabs)/pet_profile')
+
+        Alert.alert(
+          'สำเร็จ!',
+          isEditMode
+            ? 'แก้ไขโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว'
+            : 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว',
+          [
+            {
+              text: 'ตกลง',
+              onPress: () => {
+                router.push('/(tabs)/pet_profile')
+              }
             }
-          }
-        ])
+          ]
+        )
+
+        formik.resetForm()
+        setSelectedSpeciesId('')
       } catch (error: any) {
         console.error('❌ Error creating pet profile:', error)
         Alert.alert(
@@ -136,8 +190,8 @@ export default function PetProfileForm({
       })) || []
 
   const genderOptions = [
-    { name: 'ผู้', id: 'male' },
-    { name: 'เมีย', id: 'female' }
+    { name: 'เพศผู้', id: 'male' },
+    { name: 'เพศเมีย', id: 'female' }
   ]
 
   // ------------------
@@ -149,12 +203,47 @@ export default function PetProfileForm({
     formik.setFieldValue('breed_id', '')
   }
 
+  const handleBackPress = () => {
+    if (formik.dirty) {
+      setShowBackModal(true)
+    } else {
+      router.push('/(tabs)/pet_profile')
+    }
+  }
+
+  const handleConfirmBack = () => {
+    formik.resetForm()
+    setShowBackModal(false)
+    router.push('/(tabs)/pet_profile')
+  }
+
+  const handleWeightChange = (value: string) => {
+    let cleaned = value.replace(/[^\d.]/g, '')
+
+    const parts = cleaned.split('.')
+    if (parts.length > 2) {
+      cleaned = parts[0] + '.' + parts.slice(1).join('')
+    }
+
+    if (parts[1] && parts[1].length > 2) {
+      cleaned = parts[0] + '.' + parts[1].substring(0, 2)
+    }
+
+    formik.setFieldValue('weight', cleaned)
+  }
+
   // ------------------
   // RENDER
   // ------------------
   return (
     <>
-      <Header title="สร้างโปรไฟล์สัตว์เลี้ยง" goBack={!isOnboarding} />
+      <Header
+        title={
+          isEditMode ? 'แก้ไขโปรไฟล์สัตว์เลี้ยง' : 'สร้างโปรไฟล์สัตว์เลี้ยง'
+        }
+        goBack={!isOnboarding}
+        onBackPress={handleBackPress}
+      />
 
       <ScrollView>
         <View style={styles.formContainer}>
@@ -183,6 +272,7 @@ export default function PetProfileForm({
             onSelect={(v) => formik.setFieldValue('gender', v)}
             value={formik.values?.gender}
             error={formik?.errors?.gender}
+            disable={isEditMode}
           />
 
           <View style={{ flexDirection: 'row', gap: 16 }}>
@@ -195,6 +285,7 @@ export default function PetProfileForm({
                 onSelect={handleSpeciesChange}
                 value={formik.values?.species_id}
                 error={formik?.errors?.species_id}
+                disable={isEditMode}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -217,29 +308,47 @@ export default function PetProfileForm({
                 ? new Date(formik.values.birth_date)
                 : undefined
             }
-            onChange={(v) => formik.setFieldValue('birth_date', v)}
+            onChange={(v) => {
+              const today = new Date()
+              today.setHours(23, 59, 59, 999) // Set to end of today
+              if (v && v <= today) {
+                formik.setFieldValue('birth_date', v)
+              }
+            }}
             error={formik?.errors?.birth_date}
             required={true}
+            maximumDate={new Date()}
           />
 
           <InputText
-            title="น้ำหนักสัตว์เลี้ยง (กก.)"
+            title="น้ำหนักสัตว์เลี้ยง (กิโลกรัม)"
             value={formik.values?.weight}
             placeholder="น้ำหนักสัตว์เลี้ยง"
             keyboardType="numeric"
-            onChangeText={(v) => formik.setFieldValue('weight', v)}
+            onChangeText={handleWeightChange}
             error={formik?.errors?.weight}
           />
 
           <PrimaryButton
             onPress={() => formik.handleSubmit()}
-            title="บันทึกโปรไฟล์"
-            disabled={isSubmitting}
+            title={isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกโปรไฟล์สัตว์เลี้ยง'}
+            disabled={
+              isSubmitting || isLoading || (isEditMode && !formik.dirty)
+            }
             isLoading={isSubmitting}
-            loadingText="กำลังบันทึก..."
+            loadingText={
+              isEditMode ? 'กำลังบันทึกการแก้ไข...' : 'กำลังบันทึก...'
+            }
           />
         </View>
       </ScrollView>
+
+      <DiscardChangesModal
+        visible={showBackModal}
+        onClose={() => setShowBackModal(false)}
+        onDiscard={handleConfirmBack}
+        variant="petProfile"
+      />
     </>
   )
 }

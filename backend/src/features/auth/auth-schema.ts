@@ -3,9 +3,9 @@ import { z } from 'zod';
 
 export const deviceLoginSchema = z.object({
   body: z.object({
-    installationId: z.string(),
+    installationId: z.uuid('Invalid installation ID'),
     platform: z.enum(['ios', 'android', 'other']),
-    platformDeviceId: z.string(),
+    platformDeviceId: z.uuid('Invalid platform device ID'),
     platformIdSource: z.enum(['ios_keychain', 'android_ssaid', 'unknown']),
   }),
 });

@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // just leave it like this (it is just a recommendaion)
 }
 
 model breeds {
@@ -23,12 +23,17 @@ model notifications {
   id          String              @id @db.Uuid
   user_id     String              @db.Uuid
   reminder_id String?             @db.Uuid
+  pet_id      String?             @db.Uuid
   sent_at     DateTime?           @db.Timestamptz(6)
   status      notification_status
   read_at     DateTime?           @db.Timestamptz(6)
   created_at  DateTime?           @default(now()) @db.Timestamptz(6)
+  tips_title  String?
+  tips_desc   String?
+  retry_count Int                 @default(0)
   reminders   reminders?          @relation(fields: [reminder_id], references: [id], onUpdate: NoAction)
   user        users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pet         pets?               @relation(fields: [pet_id], references: [id], onDelete: Cascade)
 }
 
 model pets {
@@ -46,6 +51,7 @@ model pets {
   species    species     @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user       users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reminders  reminders[]
+  notifications notifications[]
 }
 
 model push_tokens {
@@ -78,10 +84,44 @@ model reminders {
   pets               pets             @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user               users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  // Self-referencing relationship for parent-child reminders
+  // --- Recurrence (NEW: Links to recurrence template) ---
+  recurrence_id      String?          @db.Uuid
+  recurrence_template recurrence?     @relation(fields: [recurrence_id], references: [id], onDelete: SetNull)
+
+  // --- EXISTING relationship for vaccines ---
   parent_id          String?          @db.Uuid
   parent             reminders?       @relation("ReminderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
   children           reminders[]      @relation("ReminderHierarchy")
+}
+
+model recurrence {
+  id                  String                @id @default(uuid()) @db.Uuid
+  
+  // --- Series Metadata (NEW) ---
+  reminder_name       String?               @db.VarChar
+  description         String?
+  category_name       category_name?
+  recurrence_status   RecurrenceStatusEnum  @default(ACTIVE)
+
+  // Recurrence Pattern
+  frequency           RecurrenceFrequency
+  interval            Int                   @default(1)
+  reminder_time       DateTime?             @db.Time(6) @map("reminder_time")
+  daysOfWeek          Int?                  @map("days_of_week")
+  dayOfMonth          Int?                  @map("day_of_month")
+  template_start_date DateTime              @db.Date  @map("template_start_date")
+  
+  // End Condition
+  endDate             DateTime?             @db.Date  @map("end_date")
+  endAfterOccurrences Int?                  @map("end_after_occurrences")
+
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @updatedAt @db.Timestamptz(6)
+
+  // --- Relation to reminders instances ---
+  reminders           reminders[]
+
+  @@map("recurrences")
 }
 
 model sessions {
@@ -197,6 +237,19 @@ enum category_name {
   Deworming   @map("พยาธิ/เห็บหมัด")
   Grooming    @map("ความสะอาดและกรูมมิ่ง")
   Feeding     @map("ให้อาหาร")
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum RecurrenceStatusEnum {
+  ACTIVE
+  INACTIVE
+  CANCELLED
 }
 
 enum VaccineLogicType {

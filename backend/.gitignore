@@ -7,3 +7,5 @@
 
 /src/generated/
 .env
+.env.test
+DEVELOPMENT_SUMMARY.md

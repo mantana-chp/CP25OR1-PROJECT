@@ -42,31 +42,31 @@ export default function TodayRemindersModal({
       const today = dayjs().format('YYYY-MM-DD')
       const lastShown = await AsyncStorage.getItem(LAST_SHOWN_KEY)
 
-      // Only show once per day
       if (lastShown === today) {
         return
       }
 
-      // Fetch all reminders
       const response = await getRemindersApi.execute()
-      const allReminders = response?.data?.data || []
+      const allReminders = response?.data?.data?.reminders || []
 
-      // Filter reminders for today (including children)
+      if (!Array.isArray(allReminders)) {
+        console.warn('Reminders data is not an array:', allReminders)
+        return
+      }
+
       const remindersForToday: IReminder[] = []
 
       allReminders.forEach((reminder) => {
-        // Check if main reminder is for today
         const reminderDate = dayjs(reminder.reminderDate).format('YYYY-MM-DD')
         if (reminderDate === today && reminder.reminderStatus !== 'done') {
-          remindersForToday.push(reminder)
+          remindersForToday.push(reminder as IReminder)
         }
 
-        // Check children reminders
         if (reminder.children && reminder.children.length > 0) {
           reminder.children.forEach((child) => {
             const childDate = dayjs(child.reminderDate).format('YYYY-MM-DD')
             if (childDate === today && child.reminderStatus !== 'done') {
-              remindersForToday.push(child)
+              remindersForToday.push(child as IReminder)
             }
           })
         }
@@ -160,7 +160,7 @@ export default function TodayRemindersModal({
                           size={14}
                           color={
                             reminder?.reminderStatus.includes('overdue')
-                              ? '#ef4444'
+                              ? '#BF1737'
                               : '#FF9531'
                           }
                         />
@@ -168,7 +168,7 @@ export default function TodayRemindersModal({
                           style={[
                             styles.reminderTime,
                             reminder?.reminderStatus.includes('overdue') && {
-                              color: '#ef4444'
+                              color: '#BF1737'
                             }
                           ]}
                         >

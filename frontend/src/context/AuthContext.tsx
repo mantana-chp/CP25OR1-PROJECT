@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useState
+  useState,
 } from 'react'
 
 const ONBOARDING_KEY = '@app:hasCompletedOnboarding'
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Save tokens and installation ID
       await apiClient.setToken(
         response.accessToken,
-        response.refreshToken || ''
+        response.refreshToken || '',
       )
       await apiClient.setInstallationId(response.installationId)
       console.log('✅ Tokens and installation ID saved to storage')
@@ -100,6 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const hasSeenOnboarding = onboardingStatus === 'true'
       setHasCompletedOnboarding(hasSeenOnboarding)
 
+      // 401 Problem
+      // await apiClient.clearTokens()
+
       // Step 2: Check for existing token
       console.log('📝 Checking for existing token...')
       const existingToken = await apiClient.getAccessToken()
@@ -125,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error: any) {
           console.warn(
-            '⚠️ Token validation failed, clearing and re-authenticating...'
+            '⚠️ Token validation failed, clearing and re-authenticating...',
           )
           // Clear tokens and perform fresh device login
           await apiClient.clearTokens()
@@ -185,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('📤 Sending push token to backend:', pushToken)
         await userService.registerPushToken({
           token: pushToken,
-          provider: 'expo'
+          provider: 'expo',
         })
         console.log('✅ Push token registered successfully')
       }
@@ -223,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     hasToken: !!token,
     hasCompletedOnboarding,
-    error
+    error,
   })
 
   return (
@@ -237,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasPetProfile,
         completeOnboarding,
         refreshAuth,
-        checkPetProfile
+        checkPetProfile,
       }}
     >
       {children}

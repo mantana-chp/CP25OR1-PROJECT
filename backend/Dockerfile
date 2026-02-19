@@ -5,8 +5,8 @@ WORKDIR /app
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
 
-# 1) ติดตั้ง deps (รวม dev) แต่ต้องมี prisma + prisma.config.ts ให้พร้อมก่อน postinstall
-COPY package.json package-lock.json prisma.config.ts ./
+# 1) ติดตั้ง deps (รวม dev) แต่ต้องมี prisma ให้พร้อมก่อน postinstall
+COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
 
@@ -27,8 +27,8 @@ ENV NODE_ENV=production
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
 
-# 1) ต้องมี prisma + prisma.config.ts ก่อน เพราะ npm ci จะรัน postinstall (prisma generate)
-COPY package.json package-lock.json prisma.config.ts ./
+# 1) ต้องมี prisma ก่อน เพราะ npm ci จะรัน postinstall (prisma generate)
+COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev
 

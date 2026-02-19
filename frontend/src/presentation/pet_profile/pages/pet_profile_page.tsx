@@ -1,6 +1,8 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import _ from 'lodash'
+import { version } from '../../../../package.json'
 
+import { usePets } from '@/src/context/PetContext'
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
@@ -21,6 +23,8 @@ import LoadingComponent from '../../components/loading_component'
 import ReminderCard from '../../reminder/components/reminder_card'
 import HealthRecordCard from '../components/health_record_card'
 import PetInfoCard from '../components/pet_info_card'
+import PetSelector from '../components/pet_selector'
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
@@ -35,6 +39,17 @@ export default function PetProfilePage() {
   const router = useRouter()
   const flatListRef = useRef<FlatList>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+
+  const {
+    pets: contextPets,
+    selectedPetId,
+    setSelectedPetId,
+    refreshPets
+  } = usePets()
+
+  // Find the selected pet index
+  const selectedPetIndex = contextPets.findIndex((p) => p.id === selectedPetId)
+  const currentPetIndex = selectedPetIndex >= 0 ? selectedPetIndex : 0
 
   // ------------------
   // FETCH
@@ -63,19 +78,53 @@ export default function PetProfilePage() {
     getHealthRecordsApi.execute({})
   }, [])
 
+  const loadPets = useCallback(async () => {
+    await getPetsApi.execute()
+    await refreshPets()
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       loadReminders()
       loadHealthRecords()
-    }, [loadReminders, loadHealthRecords])
+      loadPets()
+    }, [loadReminders, loadHealthRecords, loadPets])
   )
 
-  const reminders = getRemindersApi.data?.data || []
+  const reminders = getRemindersApi.data?.data?.reminders || []
+  const recurringRules = getRemindersApi.data?.data?.recurringRules || []
   const pets = getPetsApi.data?.data || []
-  const firstPet = pets.length > 0 ? pets[0] : null
+
+  const safeReminders = Array.isArray(reminders) ? reminders : []
+
+  const remindersWithRecurrence = safeReminders.map((reminder) => {
+    const recurringRule = Array.isArray(recurringRules)
+      ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
+      : null
+
+    if (recurringRule) {
+      return {
+        ...reminder,
+        recurrence: recurringRule
+      }
+    }
+
+    return reminder
+  })
+
+  const displayPets = contextPets.length > 0 ? contextPets : pets
+  const currentPet =
+    displayPets.length > 0 ? displayPets[currentPetIndex] : null
   const healthRecords = getHealthRecordsApi.data?.data || []
 
-  const upcomingReminders = _.filter(reminders, (reminder) => {
+  const petReminders = currentPet
+    ? _.filter(
+        remindersWithRecurrence,
+        (reminder) => reminder.petId === currentPet.id
+      )
+    : remindersWithRecurrence
+
+  const upcomingReminders = _.filter(petReminders, (reminder) => {
     return reminder.reminderStatus === 'to_do'
   })
     .sort((a, b) => {
@@ -83,15 +132,14 @@ export default function PetProfilePage() {
       const dateB = new Date(b.reminderDate).getTime()
       return dateA - dateB
     })
-    .slice(0, 5) // Show only 5 upcoming reminders
+    .slice(0, 5)
 
-  // Filter & Sort Health Records by latest Date and Time
   const healthHistoryList = _.filter(healthRecords, (record) => {
     const isCategoryMatch = HEALTH_CATEGORIES.includes(record.categoryName)
     const isDone = record.reminderStatus === 'done'
-    return isCategoryMatch && isDone
+    const isPetMatch = currentPet ? record.petId === currentPet.id : true
+    return isCategoryMatch && isDone && isPetMatch
   }).sort((a, b) => {
-    // combine date and time string to milliseconds
     const getTimestamp = (dateStr: string, timeStr: string) => {
       const d = new Date(dateStr)
       if (timeStr) {
@@ -123,6 +171,13 @@ export default function PetProfilePage() {
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50
   }).current
+
+  const handlePetSelect = (index: number) => {
+    const pet = displayPets[index]
+    if (pet) {
+      setSelectedPetId(pet.id)
+    }
+  }
 
   const renderReminderCard = ({ item }: { item: any }) => {
     return (
@@ -164,39 +219,23 @@ export default function PetProfilePage() {
           <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
           {getPetsApi.loading ? (
             <LoadingComponent />
-          ) : firstPet ? (
-            <PetInfoCard data={firstPet} />
-          ) : (
+          ) : displayPets.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
             </View>
+          ) : (
+            <>
+              <PetSelector
+                pets={displayPets}
+                selectedIndex={currentPetIndex}
+                onSelect={handlePetSelect}
+                maxPets={10}
+              />
+
+              {/* Selected Pet Info */}
+              {currentPet && <PetInfoCard data={currentPet} />}
+            </>
           )}
-        </View>
-
-        {/* Health History Section*/}
-        <View style={styles.section}>
-          <View style={styles.healthSectionContainer}>
-            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
-
-            {getHealthRecordsApi.loading ? (
-              <LoadingComponent />
-            ) : healthHistoryList.length > 0 ? (
-              <View style={styles.healthListContainer}>
-                <ScrollView
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={true}
-                >
-                  {healthHistoryList.map((item) => (
-                    <HealthRecordCard key={item.id} reminder={item} />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>ไม่มีประวัติสุขภาพ</Text>
-              </View>
-            )}
-          </View>
         </View>
 
         {/* Appointments Section */}
@@ -208,7 +247,7 @@ export default function PetProfilePage() {
             <LoadingComponent />
           ) : upcomingReminders.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>ไม่มีกิจกรรมที่กำลังจะมาถึง</Text>
+              <Text style={styles.emptyText}>ไม่มีกิจกรรมที่ใกล้เข้ามา</Text>
             </View>
           ) : (
             <>
@@ -231,6 +270,34 @@ export default function PetProfilePage() {
             </>
           )}
         </View>
+
+        {/* Health History Section*/}
+        <View style={styles.section}>
+          <View style={styles.healthSectionContainer}>
+            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
+
+            {getHealthRecordsApi.loading ? (
+              <LoadingComponent />
+            ) : healthHistoryList.length > 0 ? (
+              <View style={styles.healthListContainer}>
+                <ScrollView
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={true}
+                >
+                  {_.map(healthHistoryList, (item) => (
+                    <HealthRecordCard key={item.id} reminder={item} />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>ไม่มีประวัติสุขภาพ</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <Text style={styles.versionText}>v.{version}</Text>
       </ScrollView>
     </View>
   )
@@ -249,14 +316,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#225877',
-    marginBottom: 16,
+    marginBottom: 8,
     fontFamily: 'Prompt_500Medium'
   },
   healthSectionContainer: {
     backgroundColor: '#FDF0DD',
     borderRadius: 16,
     padding: 16,
-    paddingBottom: 4
+    paddingBottom: 8
   },
   healthListContainer: {
     maxHeight: 300 // Approx 3 items
@@ -297,5 +364,12 @@ const styles = StyleSheet.create({
   activeDot: {
     backgroundColor: '#5FA7D1',
     width: 24
+  },
+  versionText: {
+    color: '#C4C4C4',
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center',
+    marginBottom: 4
   }
 })

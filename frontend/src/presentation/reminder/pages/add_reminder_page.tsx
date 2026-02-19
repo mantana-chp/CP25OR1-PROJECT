@@ -1,24 +1,27 @@
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useFormik } from 'formik'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  IRecurrenceRule,
   IReminder,
   reminderInitValue,
   reminderValidationSchema
 } from '@/src/domain/reminder.domain'
-import { ICalculatedDose, IDose, IVaccine } from '@/src/domain/vaccine.domain'
+import { IDose } from '@/src/domain/vaccine.domain'
 import { useError } from '@/src/presentation/components/error_context'
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
-import { vaccineService } from '@/src/utils/api/services/vaccine_service'
 import { useApi } from '@/src/utils/api/use_api'
+import {
+  convertFromBackendRecurrence,
+  convertToBackendRecurrence
+} from '@/src/utils/recurrence.utils'
 
 import { usePets } from '@/src/context/PetContext'
 import { useLocalSearchParams } from 'expo-router'
-import { Check, ChevronDown, X } from 'lucide-react-native'
 import {
-  ActivityIndicator,
+  BackHandler,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -26,55 +29,151 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View
 } from 'react-native'
 import DatePicker from '../../components/date_picker'
+import DiscardChangesModal from '../../components/discard_changes_modal'
 import Header from '../../components/header_component'
+import PetSelector from '../../components/pet_selector'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
+import EndRepeatSelector from '../components/recurrence/end_repeat_selector'
+import RecurrencePicker from '../components/recurrence/recurrence_picker'
+import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
+import ReminderSuggestions from '../components/reminder_suggestions'
 
 export default function AddReminderPage() {
   const router = useRouter()
   const params = useLocalSearchParams()
   const { showError } = useError()
   const petIdFromParams = (params?.petId || '') as string
+  const reminderId =
+    typeof params?.reminderId === 'string'
+      ? params.reminderId
+      : Array.isArray(params?.reminderId)
+        ? params.reminderId[0]
+        : ''
+  const isEditMode = !!reminderId
 
-  // Form states
-  const [vaccineList, setVaccineList] = useState<IVaccine[]>([])
-  const [selectedVaccineId, setSelectedVaccineId] = useState<number | null>(
+  const [doses, setDoses] = useState<IDose[]>([])
+  const [customVaccineName, setCustomVaccineName] = useState<string>('')
+  const [vaccineResetKey, setVaccineResetKey] = useState<number>(0)
+  const [initialReminderData, setInitialReminderData] =
+    useState<IReminder | null>(null)
+  const [loadingReminder, setLoadingReminder] = useState(isEditMode)
+  const [loadedVaccineIsCustom, setLoadedVaccineIsCustom] =
+    useState<boolean>(false)
+  const [initialChildReminders, setInitialChildReminders] = useState<any[]>([])
+  const [recurrenceRule, setRecurrenceRule] = useState<IRecurrenceRule | null>(
     null
   )
-  const [showVaccineDropdown, setShowVaccineDropdown] = useState(false)
-  const [doses, setDoses] = useState<IDose[]>([])
-  const [loadingVaccines, setLoadingVaccines] = useState(false)
-  const [loadingCalculate, setLoadingCalculate] = useState(false)
-  const [selectedTime, setSelectedTime] = useState<string>('')
-  const [pets, setPets] = useState<any[]>([])
-  const [userEditedTime, setUserEditedTime] = useState(false)
-  const [isSyncingDose1, setIsSyncingDose1] = useState(false)
+  const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
+  const [suggestions, setSuggestions] = useState<IReminder[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [hasUserStartedCreateMode, setHasUserStartedCreateMode] =
+    useState(false)
+  const [originalPetSpecies, setOriginalPetSpecies] = useState<string | null>(
+    null
+  )
+  const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
+  const [showDiscardModal, setShowDiscardModal] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  const apiSuccessRef = useRef(false)
 
-  const { getFirstPetId } = usePets()
+  const doneChildReminderIds = new Set(
+    initialChildReminders
+      .filter((child) => child.reminderStatus === 'done')
+      .map((child) => child.id)
+  )
+  const hasDoneChildren = doneChildReminderIds.size > 0
+
+  const isDose1Done = (() => {
+    const dose1 = doses.find((d) => d.doseNumber === 1)
+    return !!(
+      dose1?.childReminderId && doneChildReminderIds.has(dose1.childReminderId)
+    )
+  })()
+
+  const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
+
+  const getRemindersApi = useApi(reminderService.getReminders, {
+    showErrorAlert: false
+  })
 
   const createReminderApi = useApi(reminderService.createReminder, {
+    showErrorAlert: false,
     onSuccess: () => {
+      apiSuccessRef.current = true
+      setDuplicateError(null)
       router.push('/(tabs)')
+    },
+    onError: (error) => {
+      apiSuccessRef.current = false
+      if (error.statusCode === 409) {
+        setDuplicateError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
+      } else {
+        showError(error.message || 'ไม่สามารถสร้างเตือนความจำได้')
+      }
+    }
+  })
+
+  const updateReminderApi = useApi(reminderService.updateReminder, {
+    showErrorAlert: false,
+    onSuccess: () => {
+      apiSuccessRef.current = true
+      setDuplicateError(null)
+      router.push('/(tabs)')
+    },
+    onError: (error) => {
+      apiSuccessRef.current = false
+      if (error.statusCode === 409) {
+        setDuplicateError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
+      } else {
+        showError(error.message || 'ไม่สามารถแก้ไขเตือนความจำได้')
+      }
     }
   })
 
   const formik = useFormik<IReminder>({
-    initialValues: {
-      ...reminderInitValue({} as IReminder),
-      petId: getFirstPetId()
-    },
+    initialValues: initialReminderData
+      ? {
+          id: initialReminderData.id || '',
+          userId: initialReminderData.userId || '',
+          petId: initialReminderData.petId || getFirstPetId(),
+          pet_name: initialReminderData.pet_name || '',
+          categoryName: initialReminderData.categoryName || 'General',
+          reminderName: initialReminderData.reminderName || '',
+          description: initialReminderData.description || '',
+          reminderDate: initialReminderData.reminderDate || '',
+          reminderTime: initialReminderData.reminderTime || '',
+          reminderStatus: initialReminderData.reminderStatus || 'to_do',
+          statusUpdatedAt: initialReminderData.statusUpdatedAt || '',
+          createdAt: initialReminderData.createdAt || '',
+          updatedAt: initialReminderData.updatedAt || '',
+          children: initialReminderData.children || []
+        }
+      : {
+          ...reminderInitValue({} as IReminder),
+          petId: getFirstPetId()
+        },
+    enableReinitialize: true,
     validationSchema: reminderValidationSchema,
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      // Only require vaccine data if pet can use vaccine scheduling
+      const errors = await formik.validateForm()
+
+      if (Object.keys(errors).length > 0) {
+        const errorMessages = Object.entries(errors)
+          .map(([field, error]) => error)
+          .join('\n')
+        showError(errorMessages || 'กรุณากรอกข้อมูลให้ครบถ้วน')
+        return
+      }
+
       if (values.categoryName === 'Vaccination' && canUseVaccineSchedule) {
-        if (!selectedVaccineId || doses.length === 0 || !doses[0].date) {
+        if (doses.length === 0 || !doses[0].date) {
           showError('กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน')
           return
         }
@@ -89,6 +188,15 @@ export default function AddReminderPage() {
         petId: values.petId
       }
 
+      if (recurrenceRule && recurrenceRule.type !== 'none') {
+        const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
+        if (backendRecurrence) {
+          submitData.recurrence = backendRecurrence
+        }
+      } else if (isEditMode && initialReminderData?.recurrence) {
+        submitData.recurrence = null
+      }
+
       if (
         values.categoryName === 'Vaccination' &&
         canUseVaccineSchedule &&
@@ -97,24 +205,286 @@ export default function AddReminderPage() {
         const syncedDoses = doses.map((dose) =>
           dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
         )
-        const children: any[] = syncedDoses.map((dose, index) => ({
-          reminderName: `${
-            selectedVaccine?.vaccine_name_th || 'วัคซีน'
-          } เข็มที่ ${dose.doseNumber}`,
-          description: values.description,
-          reminderDate: dose.date,
-          reminderTime: dose.time || '',
-          categoryName: 'Vaccination'
-        }))
+        const children: any[] = syncedDoses
+          .filter((dose) => {
+            if (
+              dose.childReminderId &&
+              doneChildReminderIds.has(dose.childReminderId)
+            ) {
+              return false
+            }
+            return true
+          })
+          .map((dose, index) => {
+            const childData: any = {
+              reminderName: customVaccineName
+                ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
+                : `วัคซีน เข็มที่ ${dose.doseNumber}`,
+              description: values.description,
+              reminderDate: dose.date,
+              reminderTime: dose.time || '',
+              categoryName: 'Vaccination'
+            }
+            if (dose.childReminderId) {
+              childData.id = dose.childReminderId
+            }
+            return childData
+          })
         submitData.children = children
+
+        if (isEditMode && initialChildReminders.length > 0) {
+          const currentChildIds = syncedDoses
+            .map((dose) => dose.childReminderId)
+            .filter((id) => !!id)
+          const calculatedChildrenToDelete = initialChildReminders
+            .filter((child) => !currentChildIds.includes(child.id))
+            .map((child) => child.id)
+
+          const allChildrenToDelete = [
+            ...new Set([...calculatedChildrenToDelete, ...childrenToDelete])
+          ]
+
+          if (allChildrenToDelete.length > 0) {
+            submitData.childrenToDelete = allChildrenToDelete
+          }
+        } else if (childrenToDelete.length > 0) {
+          submitData.childrenToDelete = childrenToDelete
+        }
+      } else if (isEditMode && childrenToDelete.length > 0) {
+        submitData.childrenToDelete = childrenToDelete
       }
 
-      await createReminderApi.execute(submitData)
-      formik.resetForm()
+      apiSuccessRef.current = false
+      if (isEditMode && reminderId) {
+        await updateReminderApi.execute(reminderId, submitData)
+      } else {
+        await createReminderApi.execute(submitData)
+      }
+
+      // Only reset form state on success
+      if (apiSuccessRef.current) {
+        setDoses([])
+        setCustomVaccineName('')
+        setInitialChildReminders([])
+        setInitialReminderData(null)
+        setLoadedVaccineIsCustom(false)
+        setVaccineResetKey((prev) => prev + 1)
+        setRecurrenceRule(null)
+        setHasUserStartedCreateMode(false)
+        setChildrenToDelete([])
+        setOriginalPetSpecies(null)
+        if (!isEditMode) {
+          formik.resetForm()
+        }
+      }
     }
   })
 
-  const isSubmitting = createReminderApi.loading
+  const isSubmitting = createReminderApi.loading || updateReminderApi.loading
+
+  const loadReminderData = useCallback(async () => {
+    if (isEditMode && reminderId) {
+      setLoadingReminder(true)
+      try {
+        const response = await reminderService.getReminderById(reminderId)
+        const reminderData = response.data
+        if (reminderData) {
+          const formattedReminderData = {
+            ...reminderData,
+            reminderTime: (reminderData.reminderTime || '').substring(0, 5)
+          }
+          setInitialReminderData(formattedReminderData)
+
+          if (reminderData.recurrence) {
+            const convertedRecurrence = convertFromBackendRecurrence(
+              reminderData.recurrence
+            )
+            setRecurrenceRule(convertedRecurrence)
+          }
+
+          if (reminderData.petId) {
+            const originalPet = pets.find((p) => p.id === reminderData.petId)
+            if (originalPet) {
+              setOriginalPetSpecies(originalPet.species)
+            }
+          }
+
+          if (reminderData.children && reminderData.children.length > 0) {
+            setInitialChildReminders(reminderData.children)
+
+            const childrenWithDoseNumbers = reminderData.children.map(
+              (child: any) => {
+                const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
+                const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
+                return { ...child, extractedDoseNumber: doseNumber }
+              }
+            )
+
+            const sortedChildren = childrenWithDoseNumbers.sort(
+              (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
+            )
+
+            const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
+              doseNumber: child.extractedDoseNumber,
+              date: child.reminderDate || '',
+              time: (child.reminderTime || '').substring(0, 5),
+              isAutoCalculated: child.extractedDoseNumber > 1,
+              isEdited: child.extractedDoseNumber > 1,
+              childReminderId: child.id
+            }))
+            setDoses(childrenDoses)
+            const firstChildName = reminderData.children[0]?.reminderName || ''
+            const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+            if (nameMatch) {
+              const vaccineName = nameMatch[1]
+              setCustomVaccineName(vaccineName)
+              setLoadedVaccineIsCustom(true)
+            }
+          }
+        }
+      } catch (error) {
+        showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
+      } finally {
+        setLoadingReminder(false)
+      }
+    } else if (!hasUserStartedCreateMode) {
+      setInitialReminderData(null)
+      setLoadingReminder(false)
+      setLoadedVaccineIsCustom(false)
+      setInitialChildReminders([])
+      setDoses([])
+      setCustomVaccineName('')
+      setRecurrenceRule(null)
+    }
+  }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
+
+  useEffect(() => {
+    if (isEditMode && reminderId) {
+      loadReminderData()
+    } else if (!isEditMode && !hasUserStartedCreateMode) {
+      setInitialReminderData(null)
+      setLoadingReminder(false)
+      setLoadedVaccineIsCustom(false)
+      setInitialChildReminders([])
+      setDoses([])
+      setCustomVaccineName('')
+      setRecurrenceRule(null)
+    }
+  }, [reminderId, isEditMode])
+
+  useEffect(() => {
+    if (!isEditMode && doses.length > 0) {
+      setHasUserStartedCreateMode(true)
+    }
+  }, [doses, isEditMode])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        isEditMode &&
+        reminderId &&
+        !initialReminderData &&
+        !hasUserStartedCreateMode
+      ) {
+        setLoadingReminder(true)
+        reminderService
+          .getReminderById(reminderId)
+          .then((response) => {
+            const reminderData = response.data
+            if (reminderData) {
+              const formattedReminderData = {
+                ...reminderData,
+                reminderTime: (reminderData.reminderTime || '').substring(0, 5)
+              }
+              setInitialReminderData(formattedReminderData)
+
+              if (reminderData.petId) {
+                const originalPet = pets.find(
+                  (p) => p.id === reminderData.petId
+                )
+                if (originalPet) {
+                  setOriginalPetSpecies(originalPet.species)
+                }
+              }
+
+              if (reminderData.recurrence) {
+                const convertedRecurrence = convertFromBackendRecurrence(
+                  reminderData.recurrence
+                )
+                setRecurrenceRule(convertedRecurrence)
+              }
+
+              if (reminderData.children && reminderData.children.length > 0) {
+                setInitialChildReminders(reminderData.children)
+
+                const childrenWithDoseNumbers = reminderData.children.map(
+                  (child: any) => {
+                    const doseMatch =
+                      child.reminderName.match(/เข็มที่\s*(\d+)/)
+                    const doseNumber = doseMatch
+                      ? parseInt(doseMatch[1], 10)
+                      : 0
+                    return { ...child, extractedDoseNumber: doseNumber }
+                  }
+                )
+
+                const sortedChildren = childrenWithDoseNumbers.sort(
+                  (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
+                )
+
+                const childrenDoses: IDose[] = sortedChildren.map(
+                  (child: any) => ({
+                    doseNumber: child.extractedDoseNumber,
+                    date: child.reminderDate || '',
+                    time: (child.reminderTime || '').substring(0, 5),
+                    isAutoCalculated: child.extractedDoseNumber > 1,
+                    isEdited: child.extractedDoseNumber > 1,
+                    childReminderId: child.id
+                  })
+                )
+                setDoses(childrenDoses)
+                const firstChildName =
+                  reminderData.children[0]?.reminderName || ''
+                const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+                if (nameMatch) {
+                  const vaccineName = nameMatch[1]
+                  setCustomVaccineName(vaccineName)
+                  setLoadedVaccineIsCustom(true)
+                }
+              }
+            }
+          })
+          .catch((error) => {
+            showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
+          })
+          .finally(() => {
+            setLoadingReminder(false)
+          })
+      }
+    }, [
+      isEditMode,
+      reminderId,
+      showError,
+      initialReminderData,
+      hasUserStartedCreateMode
+    ])
+  )
+
+  // Fetch existing reminders for suggestions - refresh on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      const fetchReminders = async () => {
+        try {
+          const response = await getRemindersApi.execute({})
+          const reminders = response?.data?.data?.reminders || []
+          setExistingReminders(Array.isArray(reminders) ? reminders : [])
+        } catch (error) {
+          console.error('Error fetching reminders:', error)
+        }
+      }
+      fetchReminders()
+    }, [])
+  )
 
   useEffect(() => {
     if (petIdFromParams) {
@@ -123,32 +493,33 @@ export default function AddReminderPage() {
   }, [petIdFromParams])
 
   useEffect(() => {
-    const loadPets = async () => {
-      try {
-        const response = await petProfileService.getMyPets()
-        const petsList = Array.isArray(response)
-          ? response
-          : response?.data || response
-        setPets(petsList)
+    if (petIdFromParams) {
+      formik.setFieldValue('petId', petIdFromParams)
+    } else if (selectedPetId) {
+      formik.setFieldValue('petId', selectedPetId)
+    } else if (pets.length > 0) {
+      formik.setFieldValue('petId', pets[0].id)
+    }
+  }, [petIdFromParams, selectedPetId, pets])
 
-        if (!petIdFromParams && petsList && petsList.length > 0) {
-          const firstPetId = petsList[0].id
-          formik.setFieldValue('petId', firstPetId)
-        }
-      } catch (error) {
-        showError('ไม่สามารถโหลดรายชื่อสัตว์ของคุณ')
+  const currentPet = pets.find((p) => p.id === formik.values.petId)
+
+  const isSamePetType = (
+    species1: string | null,
+    species2: string | null
+  ): boolean => {
+    if (!species1 || !species2) return false
+
+    const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
+
+    for (const type of petTypes) {
+      if (species1.includes(type) && species2.includes(type)) {
+        return true
       }
     }
-    loadPets()
-  }, [])
 
-  const selectedVaccine =
-    vaccineList && Array.isArray(vaccineList)
-      ? vaccineList.find((v) => v.id === selectedVaccineId)
-      : undefined
-
-  // Check if current pet can use vaccine scheduling
-  const currentPet = pets.find((p) => p.id === formik.values.petId)
+    return false
+  }
 
   const canUseVaccineSchedule =
     currentPet &&
@@ -157,243 +528,47 @@ export default function AddReminderPage() {
     !!currentPet.age
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
+  const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
+  const canSubmit =
+    formik.values.reminderName &&
+    formik.values.reminderDate &&
+    (isVaccinationCategory && canUseVaccineSchedule ? allDosesHaveDates : true)
 
-  const hasReminderDate = !!formik.values.reminderDate
-  const isVaccineDropdownDisabled = isVaccinationCategory && !hasReminderDate
-  const canSubmit = formik.values.reminderName && formik.values.reminderDate
-
-  useEffect(() => {
-    if (
-      formik.values.categoryName === 'Vaccination' &&
-      formik.values.petId &&
-      canUseVaccineSchedule
-    ) {
-      fetchVaccineList()
-    } else if (
-      formik.values.categoryName === 'Vaccination' &&
-      !canUseVaccineSchedule
-    ) {
-      // Clear vaccine data if pet doesn't qualify
-      setVaccineList([])
-      setSelectedVaccineId(null)
-      setDoses([])
-    }
-  }, [formik.values.categoryName, formik.values.petId, canUseVaccineSchedule])
-
-  useEffect(() => {
-    if (
-      selectedVaccineId &&
-      formik.values.petId &&
-      formik.values.reminderDate
-    ) {
-      calculateVaccineSchedule(formik.values.reminderDate)
-    }
-  }, [selectedVaccineId, formik.values.petId])
-
-  useEffect(() => {
-    if (!isSyncingDose1 && doses.length > 0) {
-      const dose1 = doses.find((d) => d.doseNumber === 1)
-      if (dose1 && dose1.date !== formik.values.reminderDate) {
-        formik.setFieldValue('reminderDate', dose1.date)
-      }
-    }
-  }, [doses])
-
-  useEffect(() => {
-    if (doses.length > 0 && formik.values.reminderDate) {
-      const dose1 = doses.find((d) => d.doseNumber === 1)
-      if (dose1 && dose1.date !== formik.values.reminderDate) {
-        setDoses((prev) =>
-          prev.map((dose) =>
-            dose.doseNumber === 1
-              ? { ...dose, date: formik.values.reminderDate }
-              : dose
-          )
-        )
-      }
-    }
-  }, [formik.values.reminderDate])
-
-  const fetchVaccineList = async () => {
-    setLoadingVaccines(true)
-    try {
-      const response = await vaccineService.getVaccineList(formik.values.petId)
-
-      const vaccineArray = Array.isArray(response)
-        ? response
-        : (response as any)?.data || []
-
-      setVaccineList(vaccineArray)
-      if (!vaccineArray || vaccineArray.length === 0) {
-        console.log('⚠️ No vaccines found for this pet')
-      }
-    } catch (error) {
-      showError('ไม่สามารถโหลดข้อมูลวัคซีน')
-      setVaccineList([])
-    } finally {
-      setLoadingVaccines(false)
-    }
-  }
-
-  const calculateVaccineSchedule = async (customStartDate?: string) => {
-    const startDate =
-      customStartDate ||
-      doses.find((d) => d.doseNumber === 1)?.date ||
-      formik.values.reminderDate
-
-    if (!selectedVaccineId || !startDate || !formik.values.petId) {
-      return
-    }
-
-    setLoadingCalculate(true)
-    try {
-      const response = await vaccineService.calculateVaccineSchedule({
-        petId: formik.values.petId,
-        vaccineId: selectedVaccineId,
-        startDate: startDate
-      })
-
-      const doseArray = Array.isArray(response)
-        ? response
-        : (response as any)?.data || (response as any)?.doses || []
-
-      const calculatedDoses: IDose[] = (doseArray || []).map(
-        (calculatedDose: ICalculatedDose, index: number) => {
-          const existingDose = doses.find(
-            (d) => d.doseNumber === calculatedDose.doseNumber
-          )
-          const wasEdited = existingDose?.isEdited || false
-
-          const doseDate =
-            calculatedDose.doseNumber === 1
-              ? startDate
-              : wasEdited && existingDose
-              ? existingDose.date
-              : calculatedDose.date
-
-          return {
-            doseNumber: calculatedDose.doseNumber,
-            date: doseDate,
-            time: selectedTime || '',
-            type: calculatedDose.type,
-            ageInDays: calculatedDose.ageInDays,
-            isAutoCalculated: index > 0,
-            isEdited: wasEdited
-          }
-        }
-      )
-
-      setDoses(calculatedDoses)
-      setIsSyncingDose1(false)
-    } catch (error) {
-      showError('ไม่สามารถคำนวณตารางวัคซีนได้ เนื่องจากมีข้อผิดพลาด')
-      setDoses([])
-    } finally {
-      setLoadingCalculate(false)
-    }
-  }
-
-  const handleBack = () => {
-    // Clear all state except pet
-    // const petId = formik.values.petId
+  const confirmBack = () => {
+    setShowDiscardModal(false)
     setDoses([])
-    setSelectedVaccineId(null)
-    setShowVaccineDropdown(false)
-    setVaccineList([])
-    setLoadingVaccines(false)
-    setLoadingCalculate(false)
-    setSelectedTime('')
-    setUserEditedTime(false)
-    setIsSyncingDose1(false)
+    setCustomVaccineName('')
+    setVaccineResetKey((prev) => prev + 1)
+    setRecurrenceRule(null)
+    setHasUserStartedCreateMode(false)
+    setInitialReminderData(null)
+    setInitialChildReminders([])
+    setLoadedVaccineIsCustom(false)
+    setChildrenToDelete([])
+    setOriginalPetSpecies(null)
     formik.resetForm()
-    // Restore petId after reset
-    // formik.setFieldValue('petId', petId)
     router.back()
   }
 
-  const handleDateChange = (doseNumber: number, date: Date) => {
-    const dateString = convertDateToString(date)
-
-    if (doseNumber === 1) {
-      setIsSyncingDose1(true)
-      formik.setFieldValue('reminderDate', dateString)
-
-      if (selectedVaccineId && formik.values.petId) {
-        calculateVaccineSchedule(dateString)
-      }
-
-      return
+  const handleBack = () => {
+    if (formik.dirty) {
+      setShowDiscardModal(true)
     } else {
-      setDoses((prev) =>
-        prev.map((dose) =>
-          dose.doseNumber === doseNumber
-            ? { ...dose, date: dateString, isEdited: true }
-            : dose
-        )
-      )
+      confirmBack()
     }
   }
 
-  const handleTimeChange = (doseNumber: number, time: string) => {
-    if (userEditedTime) {
-      setDoses((prev) =>
-        prev.map((dose) =>
-          dose.doseNumber === doseNumber ? { ...dose, time: time } : dose
-        )
-      )
-      return
-    }
-
-    if (selectedTime !== time) {
-      setSelectedTime(time)
-      setDoses((prev) =>
-        prev.map((dose) => ({
-          ...dose,
-          time: time
-        }))
-      )
-      setUserEditedTime(true)
-
-      if (doseNumber === 1) {
-        formik.setFieldValue('reminderTime', time)
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        handleBack()
+        return true
       }
-    }
-  }
+    )
 
-  const handleVaccineSelect = (vaccineId: number) => {
-    setSelectedVaccineId(vaccineId)
-    setShowVaccineDropdown(false)
-  }
-
-  const handleDeleteDose = (doseNumber: number) => {
-    setDoses((prev) => prev.filter((dose) => dose.doseNumber !== doseNumber))
-  }
-
-  const formatDateForDisplay = (dateString: string): string => {
-    try {
-      const date = new Date(dateString + 'T00:00:00')
-      if (isNaN(date.getTime())) {
-        return 'Invalid Date'
-      }
-      return date.toLocaleDateString('th-TH', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      })
-    } catch (e) {
-      return 'Invalid Date'
-    }
-  }
-
-  const parseStringToDate = (dateString: string): Date => {
-    try {
-      const [year, month, day] = dateString.split('-').map(Number)
-      const date = new Date(year, month - 1, day)
-      return date
-    } catch (e) {
-      return new Date()
-    }
-  }
+    return () => backHandler.remove()
+  }, [formik.dirty])
 
   const convertDateToString = (date: Date): string => {
     try {
@@ -406,315 +581,325 @@ export default function AddReminderPage() {
     }
   }
 
-  const getAutocalculatedText = (dateString: string): string => {
-    const date = new Date(dateString + 'T00:00:00')
-    const formattedDate = date.toLocaleDateString('th-TH', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
-    return `คำนวนอัตโนมัติ: ${formattedDate}`
+  const handleReminderNameChange = (value: string) => {
+    formik.setFieldValue('reminderName', value)
+
+    // Clear duplicate error when user changes the name
+    if (duplicateError) {
+      setDuplicateError(null)
+    }
+
+    if (value.trim().length >= 2) {
+      const filtered = existingReminders
+        .filter((reminder) =>
+          reminder.reminderName.toLowerCase().includes(value.toLowerCase())
+        )
+        .slice(0, 5)
+
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionSelect = (reminder: IReminder) => {
+    // Auto-fill all form fields from selected reminder
+    formik.setFieldValue('reminderName', reminder.reminderName)
+    formik.setFieldValue('description', reminder.description)
+    formik.setFieldValue('categoryName', reminder.categoryName || 'General')
+    formik.setFieldValue('reminderTime', reminder.reminderTime || '')
+    formik.setFieldValue('reminderDate', reminder.reminderDate || '')
+
+    // Set pet if exists and is valid
+    if (reminder.petId && pets.some((p) => p.id === reminder.petId)) {
+      formik.setFieldValue('petId', reminder.petId)
+      setSelectedPetId(reminder.petId)
+    }
+
+    // Set recurrence if exists
+    if (reminder.recurrence) {
+      const convertedRecurrence = convertFromBackendRecurrence(
+        reminder.recurrence
+      )
+      setRecurrenceRule(convertedRecurrence)
+    } else {
+      setRecurrenceRule(null)
+    }
+
+    // Handle vaccination category with doses
+    if (
+      reminder.categoryName === 'Vaccination' &&
+      reminder.children &&
+      reminder.children.length > 0
+    ) {
+      // Reset vaccine section to force reinitialize with new data
+      setVaccineResetKey((prev) => prev + 1)
+
+      const childrenWithDoseNumbers = reminder.children.map((child: any) => {
+        const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
+        const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
+        return { ...child, extractedDoseNumber: doseNumber }
+      })
+
+      const sortedChildren = childrenWithDoseNumbers.sort(
+        (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
+      )
+
+      const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
+        doseNumber: child.extractedDoseNumber,
+        date: child.reminderDate || '',
+        time: child.reminderTime || '',
+        isAutoCalculated: child.extractedDoseNumber > 1,
+        isEdited: false,
+        childReminderId: undefined // New reminder, so no existing child IDs
+      }))
+      setDoses(childrenDoses)
+
+      const firstChildName = reminder.children[0]?.reminderName || ''
+      const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+      if (nameMatch) {
+        const vaccineName = nameMatch[1]
+        setCustomVaccineName(vaccineName)
+      }
+      setHasUserStartedCreateMode(true)
+    }
+
+    // Close suggestions
+    setShowSuggestions(false)
+    setSuggestions([])
   }
 
   return (
     <View style={styles.screen}>
-      <View style={styles.safeArea}>
-        <Header
-          title="เพิ่มเตือนความจำ"
-          goBack={!isSubmitting}
-          onBackPress={handleBack}
-        />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        <View style={styles.safeArea}>
+          <Header
+            title={isEditMode ? 'แก้ไขเตือนความจำ' : 'เพิ่มเตือนความจำ'}
+            goBack={!isSubmitting}
+            onBackPress={handleBack}
+          />
 
-        <ScrollView style={styles.scrollView} nestedScrollEnabled={true}>
-          <View style={styles.formCard}>
-            <View style={styles.cardHeader}>
-              <Pressable onPress={handleBack} disabled={isSubmitting}>
-                <Text style={styles.cancelText}>ยกเลิก</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => formik.handleSubmit()}
-                disabled={!canSubmit || isSubmitting}
-              >
-                <Text
-                  style={[
-                    styles.addText,
-                    (!canSubmit || isSubmitting) && styles.submittingText
-                  ]}
+          <ScrollView
+            style={styles.scrollView}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            <View style={styles.formCard}>
+              <View style={styles.cardHeader}>
+                <Pressable onPress={handleBack} disabled={isSubmitting}>
+                  <Text style={styles.cancelText}>ยกเลิก</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => formik.handleSubmit()}
+                  disabled={!canSubmit || isSubmitting}
                 >
-                  {isSubmitting ? 'กำลังเพิ่ม...' : 'เพิ่ม'}
-                </Text>
-              </Pressable>
-            </View>
-
-            <InputText
-              value={formik.values.reminderName}
-              onChangeText={(v) => formik.setFieldValue('reminderName', v)}
-              placeholder="หัวข้อเตือนความจำ"
-              title="หัวข้อ"
-              required={true}
-              error={formik.errors.reminderName}
-            />
-
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <DatePicker
-                  title="วันที่เตือนความจำ"
-                  placeholder="วัน/เดือน/ปี"
-                  value={
-                    formik.values.reminderDate
-                      ? new Date(formik.values.reminderDate)
-                      : undefined
-                  }
-                  onChange={(v) => {
-                    const dateString = convertDateToString(v)
-                    formik.setFieldValue('reminderDate', dateString)
-                    // Sync dose 1 with reminderDate
-                    if (isVaccinationCategory) {
-                      handleDateChange(1, v)
-                    }
-                  }}
-                  error={formik.errors.reminderDate}
-                  required={true}
-                />
+                  <Text
+                    style={[
+                      styles.addText,
+                      (!canSubmit || isSubmitting) && styles.submittingText
+                    ]}
+                  >
+                    {isSubmitting
+                      ? isEditMode
+                        ? 'กำลังแก้ไข...'
+                        : 'กำลังเพิ่ม...'
+                      : isEditMode
+                        ? 'แก้ไข'
+                        : 'เพิ่ม'}
+                  </Text>
+                </Pressable>
               </View>
-              <View style={{ flex: 1 }}>
-                <TimePicker
-                  title="เวลาที่เตือนความจำ"
-                  placeholder="เลือกเวลา"
-                  value={formik.values.reminderTime}
-                  onChange={(v) => formik.setFieldValue('reminderTime', v)}
-                />
-              </View>
-            </View>
 
-            <CategorySelector
-              value={formik.values.categoryName}
-              onChange={(v) => formik.setFieldValue('categoryName', v)}
-              error={formik.errors.categoryName}
-              required={true}
-            />
-
-            {/* Vaccine Schedule Section */}
-            {isVaccinationCategory && canUseVaccineSchedule && (
-              <View style={styles.vaccineSection}>
-                {!hasReminderDate && canUseVaccineSchedule && (
-                  <View style={styles.warningBox}>
-                    <Text style={styles.warningText}>
-                      กรุณาเลือกวันที่เตือนความจำก่อนเลือกวัคซีน
-                    </Text>
-                  </View>
-                )}
-
-                {/* Vaccine Type Selector - Only show if pet can use vaccine scheduling */}
-                {canUseVaccineSchedule && (
-                  <View style={styles.vaccineSubsection}>
-                    <Text style={styles.vaccineLabel}>วัคซีน</Text>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.vaccineDropdown,
-                        isVaccineDropdownDisabled &&
-                          styles.vaccineDropdownDisabled
-                      ]}
-                      onPress={() => {
-                        if (!isVaccineDropdownDisabled) {
-                          setShowVaccineDropdown(!showVaccineDropdown)
-                        }
-                      }}
-                      disabled={isVaccineDropdownDisabled}
-                    >
-                      {loadingVaccines ? (
-                        <ActivityIndicator size="small" color="#5FA7D1" />
-                      ) : (
-                        <>
-                          <Text style={styles.vaccineDropdownValue}>
-                            {selectedVaccine?.vaccine_name_th || 'เลือกวัคซีน'}
-                          </Text>
-                          <ChevronDown size={20} color="#6b7280" />
-                        </>
-                      )}
-                    </TouchableOpacity>
-
-                    {showVaccineDropdown && !isVaccineDropdownDisabled && (
-                      <View style={styles.vaccineDropdownMenu}>
-                        {(() => {
-                          return null
-                        })()}
-                        {Array.isArray(vaccineList) &&
-                          vaccineList.length === 0 && (
-                            <Text style={styles.vaccineDropdownItemText}>
-                              ไม่พบวัคซีน
-                            </Text>
-                          )}
-                        {Array.isArray(vaccineList) &&
-                          vaccineList.map((vaccine) => (
-                            <Pressable
-                              key={vaccine.id}
-                              style={[
-                                styles.vaccineDropdownItem,
-                                selectedVaccineId === vaccine.id &&
-                                  styles.vaccineDropdownItemSelected
-                              ]}
-                              onPress={() => handleVaccineSelect(vaccine.id)}
-                            >
-                              <Text
-                                style={[
-                                  styles.vaccineDropdownItemText,
-                                  selectedVaccineId === vaccine.id &&
-                                    styles.vaccineDropdownItemTextSelected
-                                ]}
-                              >
-                                {vaccine.vaccine_name_th ||
-                                  vaccine.vaccine_name}
-                              </Text>
-                            </Pressable>
-                          ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Loading Calculate */}
-                {canUseVaccineSchedule && loadingCalculate && (
-                  <View style={styles.vaccineSubsection}>
-                    <ActivityIndicator size="large" color="#5FA7D1" />
-                  </View>
-                )}
-
-                {/* Doses */}
-                {canUseVaccineSchedule &&
-                  !loadingCalculate &&
-                  doses.length > 0 && (
-                    <View style={styles.vaccineSubsection}>
-                      {doses.map((dose, index) => (
-                        <View key={dose.doseNumber}>
-                          <View style={styles.doseCard}>
-                            {/* Dose Header */}
-                            <View style={styles.doseHeader}>
-                              <View
-                                style={[
-                                  styles.doseCircle,
-                                  dose.doseNumber === 1 &&
-                                    styles.doseCircleCompleted
-                                ]}
-                              >
-                                {dose.doseNumber === 1 && (
-                                  <Check
-                                    size={20}
-                                    color="#fff"
-                                    strokeWidth={3}
-                                  />
-                                )}
-                              </View>
-
-                              <View style={styles.doseTextBlock}>
-                                <Text style={styles.doseNumber}>
-                                  {selectedVaccine?.vaccine_name_th || 'วัคซีน'}{' '}
-                                  เข็มที่ {dose.doseNumber}
-                                </Text>
-                                {dose.isAutoCalculated && (
-                                  <Text style={styles.autocalculatedText}>
-                                    {getAutocalculatedText(dose.date)}
-                                  </Text>
-                                )}
-                                {dose.doseNumber === 1 && (
-                                  <Text style={styles.completedDate}>
-                                    {formatDateForDisplay(dose.date)}
-                                  </Text>
-                                )}
-                              </View>
-
-                              {/* Delete Button */}
-                              {dose.doseNumber > 1 && (
-                                <Pressable
-                                  style={styles.deleteButton}
-                                  onPress={() =>
-                                    handleDeleteDose(dose.doseNumber)
-                                  }
-                                >
-                                  <X size={18} color="#ef4444" />
-                                </Pressable>
-                              )}
-                            </View>
-
-                            {/* Editable Inputs */}
-                            <View style={styles.doseInputsRow}>
-                              <View style={{ flex: 1 }}>
-                                <View style={styles.doseInputContainer}>
-                                  <Text style={styles.doseInputLabel}>
-                                    วันที่เตือนความจำ{' '}
-                                    {dose.doseNumber === 1 && (
-                                      <Text style={styles.required}>*</Text>
-                                    )}
-                                  </Text>
-                                  <DatePicker
-                                    title=""
-                                    placeholder="วัน/เดือน/ปี"
-                                    value={
-                                      dose.date
-                                        ? parseStringToDate(dose.date)
-                                        : formik.values.reminderDate
-                                        ? new Date(formik.values.reminderDate)
-                                        : undefined
-                                    }
-                                    onChange={(date) =>
-                                      handleDateChange(dose.doseNumber, date)
-                                    }
-                                    required={false}
-                                    small={true}
-                                  />
-                                </View>
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <View style={styles.doseInputContainer}>
-                                  <Text style={styles.doseInputLabel}>
-                                    เวลาที่เตือนความจำ
-                                  </Text>
-                                  <TimePicker
-                                    title=""
-                                    placeholder="เลือกเวลา"
-                                    value={dose.time}
-                                    onChange={(time) =>
-                                      handleTimeChange(dose.doseNumber, time)
-                                    }
-                                    small={true}
-                                  />
-                                </View>
-                              </View>
-                            </View>
-                          </View>
-
-                          {/* Divider */}
-                          {index < doses.length - 1 && (
-                            <View style={styles.doseDivider} />
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                  )}
-              </View>
-            )}
-
-            <View>
-              <TextInput
-                style={[styles.input, styles.textarea]}
-                placeholder="รายละเอียดอื่นๆ"
-                multiline
-                numberOfLines={4}
-                value={formik.values.description}
-                onChangeText={formik.handleChange('description')}
-                onBlur={formik.handleBlur('description')}
-                editable={!isSubmitting}
-              />
-              {formik.touched.description && formik.errors.description && (
-                <Text style={styles.errorText}>
-                  {formik.errors.description}
-                </Text>
+              {/* Duplicate Error Toast */}
+              {duplicateError && (
+                <View style={styles.duplicateErrorToast}>
+                  <Text style={styles.duplicateErrorText}>
+                    {duplicateError}
+                  </Text>
+                  <Pressable onPress={() => setDuplicateError(null)}>
+                    <Text style={styles.duplicateErrorDismiss}>✕</Text>
+                  </Pressable>
+                </View>
               )}
+
+              <InputText
+                value={formik.values.reminderName}
+                onChangeText={handleReminderNameChange}
+                placeholder="หัวข้อเตือนความจำ"
+                title="หัวข้อ"
+                required={true}
+                error={formik.errors.reminderName}
+              />
+
+              <ReminderSuggestions
+                suggestions={suggestions}
+                onSelect={handleSuggestionSelect}
+                visible={showSuggestions}
+              />
+
+              <PetSelector
+                pets={pets}
+                selectedPetId={formik.values.petId}
+                onSelectPet={(petId: string) => {
+                  const newPet = pets.find((p) => p.id === petId)
+                  const oldPetSpecies =
+                    originalPetSpecies || currentPet?.species
+                  const newPetSpecies = newPet?.species
+
+                  formik.setFieldValue('petId', petId)
+                  setSelectedPetId(petId)
+
+                  if (
+                    isEditMode &&
+                    !isSamePetType(oldPetSpecies || null, newPetSpecies || null)
+                  ) {
+                    const currentChildIds = initialChildReminders.map(
+                      (child) => child.id
+                    )
+                    setChildrenToDelete(currentChildIds)
+
+                    setDoses([])
+                    setCustomVaccineName('')
+                    setLoadedVaccineIsCustom(false)
+                    setVaccineResetKey((prev) => prev + 1)
+                    setInitialChildReminders([])
+                  }
+                }}
+                label="สัตว์เลี้ยง"
+                required={true}
+                disabled={isSubmitting}
+              />
+
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <DatePicker
+                    title="วันที่เตือนความจำ"
+                    placeholder="วัน/เดือน/ปี"
+                    value={
+                      formik.values.reminderDate
+                        ? new Date(formik.values.reminderDate)
+                        : undefined
+                    }
+                    onChange={(v) => {
+                      const dateString = convertDateToString(v)
+                      formik.setFieldValue('reminderDate', dateString)
+                    }}
+                    error={formik.errors.reminderDate}
+                    required={true}
+                    disabled={isDose1Done || isSubmitting}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <TimePicker
+                    title="เวลาที่เตือนความจำ"
+                    placeholder="เลือกเวลา"
+                    value={formik.values.reminderTime}
+                    onChange={(v) => formik.setFieldValue('reminderTime', v)}
+                  />
+                </View>
+              </View>
+
+              <CategorySelector
+                value={formik.values.categoryName}
+                onChange={(v) => formik.setFieldValue('categoryName', v)}
+                error={formik.errors.categoryName}
+                required={true}
+                disabled={hasDoneChildren || isSubmitting}
+              />
+
+              {/* Hide recurrence picker if no date selected or if category is Vaccination */}
+              {formik.values.reminderDate &&
+                formik.values.categoryName !== 'Vaccination' && (
+                  <>
+                    <RecurrencePicker
+                      value={
+                        recurrenceRule || {
+                          type: 'none',
+                          interval: 1,
+                          endType: 'never'
+                        }
+                      }
+                      onChange={setRecurrenceRule}
+                      reminderDate={
+                        formik.values.reminderDate
+                          ? new Date(formik.values.reminderDate)
+                          : undefined
+                      }
+                    />
+
+                    {/* End Repeat Section */}
+                    {recurrenceRule && recurrenceRule.type !== 'none' && (
+                      <EndRepeatSelector
+                        recurrenceRule={recurrenceRule}
+                        onChange={setRecurrenceRule}
+                      />
+                    )}
+                  </>
+                )}
+
+              {/* Vaccine Schedule Section */}
+              <VaccineScheduleSection
+                key={vaccineResetKey}
+                isVaccinationCategory={isVaccinationCategory}
+                canUseVaccineSchedule={canUseVaccineSchedule || false}
+                petId={formik.values.petId}
+                reminderDate={formik.values.reminderDate}
+                doses={doses}
+                setDoses={setDoses}
+                onDose1DateChange={(dateString) => {
+                  formik.setFieldValue('reminderDate', dateString)
+                }}
+                onDose1TimeChange={(time) => {
+                  formik.setFieldValue('reminderTime', time)
+                }}
+                onCustomVaccineNameChange={setCustomVaccineName}
+                initialVaccineId={null}
+                initialVaccineName={
+                  customVaccineName ? customVaccineName : undefined
+                }
+                isEditMode={isEditMode}
+                initialCustomDoseCount={
+                  isEditMode && doses.length > 0 ? doses.length : undefined
+                }
+                doneChildReminderIds={doneChildReminderIds}
+                onCustomDosesGenerated={() => setHasUserStartedCreateMode(true)}
+              />
+
+              <View>
+                <TextInput
+                  style={[styles.input, styles.textarea]}
+                  placeholder="รายละเอียดอื่นๆ"
+                  multiline
+                  numberOfLines={4}
+                  value={formik.values.description}
+                  onChangeText={formik.handleChange('description')}
+                  onBlur={formik.handleBlur('description')}
+                  editable={!isSubmitting}
+                />
+                {formik.touched.description && formik.errors.description && (
+                  <Text style={styles.errorText}>
+                    {formik.errors.description}
+                  </Text>
+                )}
+              </View>
             </View>
-          </View>
-        </ScrollView>
-      </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+
+      <DiscardChangesModal
+        visible={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onDiscard={confirmBack}
+        variant="reminder"
+      />
     </View>
   )
 }
@@ -722,6 +907,12 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: '#e5e7eb'
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#e5e7eb'
   },
   safeArea: {
@@ -772,7 +963,7 @@ const styles = StyleSheet.create({
     minHeight: 48
   },
   errorText: {
-    color: '#ef4444',
+    color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
@@ -786,153 +977,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 8
-  },
-  vaccineSection: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 16,
-    backgroundColor: '#f9fafb'
-  },
-  warningBox: {
-    backgroundColor: '#fef3c7',
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16
-  },
-  warningText: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#92400e'
-  },
-  vaccineSubsection: {
-    marginBottom: 16
-  },
-  vaccineLabel: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877',
-    marginBottom: 10
-  },
-  vaccineDropdown: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: '#fff'
-  },
-  vaccineDropdownDisabled: {
-    backgroundColor: '#f3f4f6',
-    borderColor: '#e5e7eb',
-    opacity: 0.6
-  },
-  vaccineDropdownValue: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  vaccineDropdownMenu: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    backgroundColor: '#fff',
-    marginTop: -1,
-    overflow: 'hidden',
-    zIndex: 10
-  },
-  vaccineDropdownItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
-  },
-  vaccineDropdownItemSelected: {
-    backgroundColor: '#e3f2fd'
-  },
-  vaccineDropdownItemText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6b7280'
-  },
-  vaccineDropdownItemTextSelected: {
-    color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium'
-  },
-  doseCard: {
-    marginBottom: 12
-  },
-  doseHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 12
-  },
-  doseCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-    marginTop: 2
-  },
-  doseCircleCompleted: {
-    backgroundColor: '#5FA7D1',
-    borderColor: '#5FA7D1'
-  },
-  doseTextBlock: {
-    flex: 1
-  },
-  doseNumber: {
-    fontSize: 15,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877',
-    marginBottom: 4
-  },
-  autocalculatedText: {
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
-    fontStyle: 'italic'
-  },
-  completedDate: {
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af'
-  },
-  doseInputsRow: {
-    flexDirection: 'row',
-    gap: 8
-  },
-  doseInputContainer: {
-    gap: 4
-  },
-  doseInputLabel: {
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877',
-    marginLeft: 4
-  },
-  doseDivider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 16
-  },
-  deleteButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center'
   },
   label: {
     fontSize: 14,
@@ -996,5 +1040,28 @@ const styles = StyleSheet.create({
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
     fontFamily: 'Prompt_500Medium'
+  },
+  duplicateErrorToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12
+  },
+  duplicateErrorText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#B91C1C',
+    flex: 1
+  },
+  duplicateErrorDismiss: {
+    fontSize: 16,
+    color: '#B91C1C',
+    paddingLeft: 8
   }
 })

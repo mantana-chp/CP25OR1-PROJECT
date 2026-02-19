@@ -1,5 +1,11 @@
 import { IReminder } from '@/src/domain/reminder.domain'
-import { useState } from 'react'
+import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
+import {
+  generateAllVirtualReminders,
+  IVirtualReminder,
+  mergeRealAndVirtualReminders
+} from '@/src/utils/recurring_reminder_generator'
+import { useEffect, useMemo, useState } from 'react'
 import { LayoutAnimation } from 'react-native'
 
 interface DayInfo {
@@ -8,13 +14,55 @@ interface DayInfo {
   isToday: boolean
   hasEvents?: boolean
   reminderCount?: number
-  reminders?: IReminder[]
+  reminders?: Array<IReminder | IVirtualReminder>
   date: Date
+  hasVirtualReminders?: boolean
+  hasRealReminders?: boolean
 }
 
-export const useCalendar = (reminders: IReminder[] = []) => {
+interface SimplePet {
+  id: string
+  pet_name: string
+}
+
+export const useCalendar = (
+  reminders: IReminder[] = [],
+  recurringRules: IRecurringRule[] = [],
+  pets: SimplePet[] = []
+) => {
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [virtualReminders, setVirtualReminders] = useState<IVirtualReminder[]>(
+    []
+  )
   const today = new Date()
+
+  // Generate virtual reminders asynchronously (AsyncStorage requires async)
+  useEffect(() => {
+    const loadVirtualReminders = async () => {
+      const virtuals = await generateAllVirtualReminders(
+        recurringRules,
+        {
+          monthsForward: 6,
+          monthsBackward: 1,
+          maxOccurrences: 100
+        },
+        reminders, // Pass real reminders to copy pet_name
+        pets // Pass pets array for direct pet_name lookup
+      )
+      setVirtualReminders(virtuals)
+    }
+
+    if (recurringRules.length > 0) {
+      loadVirtualReminders()
+    } else {
+      setVirtualReminders([])
+    }
+  }, [reminders, recurringRules, pets])
+
+  // Merge virtual reminders with real ones
+  const allReminders = useMemo(() => {
+    return mergeRealAndVirtualReminders(reminders, virtualReminders)
+  }, [reminders, virtualReminders])
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -29,7 +77,8 @@ export const useCalendar = (reminders: IReminder[] = []) => {
   }
 
   const hasReminders = (date: Date) => {
-    return reminders.some((reminder) => {
+    if (!Array.isArray(allReminders)) return false
+    return allReminders.some((reminder) => {
       const reminderDate = new Date(reminder.reminderDate)
       return (
         reminderDate.getDate() === date.getDate() &&
@@ -40,7 +89,8 @@ export const useCalendar = (reminders: IReminder[] = []) => {
   }
 
   const getReminderCount = (date: Date) => {
-    return reminders.filter((reminder) => {
+    if (!Array.isArray(allReminders)) return 0
+    return allReminders.filter((reminder) => {
       const reminderDate = new Date(reminder.reminderDate)
       return (
         reminderDate.getDate() === date.getDate() &&
@@ -51,7 +101,8 @@ export const useCalendar = (reminders: IReminder[] = []) => {
   }
 
   const getRemindersForDate = (date: Date) => {
-    return reminders.filter((reminder) => {
+    if (!Array.isArray(allReminders)) return []
+    return allReminders.filter((reminder) => {
       const reminderDate = new Date(reminder.reminderDate)
       return (
         reminderDate.getDate() === date.getDate() &&
@@ -59,6 +110,19 @@ export const useCalendar = (reminders: IReminder[] = []) => {
         reminderDate.getFullYear() === date.getFullYear()
       )
     })
+  }
+
+  const getRemindersInfoForDate = (date: Date) => {
+    const remindersForDate = getRemindersForDate(date)
+    const hasVirtual = remindersForDate.some((r) => r.isVirtual === true)
+    const hasReal = remindersForDate.some((r) => !r.isVirtual)
+
+    return {
+      reminders: remindersForDate,
+      hasVirtualReminders: hasVirtual,
+      hasRealReminders: hasReal,
+      count: remindersForDate.length
+    }
   }
 
   const renderCalendar = (): DayInfo[] => {
@@ -95,13 +159,17 @@ export const useCalendar = (reminders: IReminder[] = []) => {
         currentDate.getMonth() === today.getMonth() &&
         currentDate.getFullYear() === today.getFullYear()
 
+      const remindersInfo = getRemindersInfoForDate(date)
+
       days.push({
         day,
         isCurrentMonth: true,
         isToday,
-        hasEvents: hasReminders(date),
-        reminderCount: getReminderCount(date),
-        reminders: getRemindersForDate(date),
+        hasEvents: remindersInfo.count > 0,
+        reminderCount: remindersInfo.count,
+        reminders: remindersInfo.reminders,
+        hasVirtualReminders: remindersInfo.hasVirtualReminders,
+        hasRealReminders: remindersInfo.hasRealReminders,
         date
       })
     }
@@ -154,6 +222,7 @@ export const useCalendar = (reminders: IReminder[] = []) => {
     getCurrentWeekDays,
     previousMonth,
     nextMonth,
-    goToToday
+    goToToday,
+    allReminders // Export merged reminders for use in other components
   }
 }

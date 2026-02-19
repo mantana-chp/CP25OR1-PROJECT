@@ -2,9 +2,10 @@ import _ from 'lodash'
 import React from 'react'
 
 import { IReminder } from '@/src/domain/reminder.domain'
+import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 
 import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
-import { ChevronDown, ChevronUp } from 'lucide-react-native'
+import { ChevronDown } from 'lucide-react-native'
 import {
   Animated,
   LayoutAnimation,
@@ -15,9 +16,9 @@ import {
   View
 } from 'react-native'
 import { useCalendar } from '../../../hooks/useCalendar'
-import CalendarDay from './calendar/CalendarDay'
-import CalendarHeader from './calendar/CalendarHeader'
-import WeekDaysRow from './calendar/WeekDaysRow'
+import CalendarDay from './calendar/calendar_day'
+import CalendarHeader from './calendar/calendar_header'
+import WeekDaysRow from './calendar/week_days_row'
 
 if (
   Platform.OS === 'android' &&
@@ -26,16 +27,39 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
+interface SimplePet {
+  id: string
+  pet_name: string
+}
+
 interface CalendarProps {
   isExpanded: boolean
   onToggle: () => void
   reminders?: IReminder[]
+  recurringRules?: IRecurringRule[]
+  pets?: SimplePet[]
+  onDateSelect: (date: Date) => void
+  selectedDate: Date | null
+  onReset: () => void
+  hasUserSelectedDate: boolean
+  onResetFilters?: () => void
+  isPetFilterActive?: boolean
+  isCategoryFilterActive?: boolean
 }
 
 export default function Calendar({
   isExpanded,
   onToggle,
-  reminders = []
+  reminders = [],
+  recurringRules = [],
+  pets = [],
+  onDateSelect,
+  selectedDate,
+  onReset,
+  hasUserSelectedDate,
+  onResetFilters,
+  isPetFilterActive,
+  isCategoryFilterActive
 }: CalendarProps) {
   // ------------------
   // CONST
@@ -47,8 +71,9 @@ export default function Calendar({
     getCurrentWeekDays,
     previousMonth,
     nextMonth,
-    goToToday
-  } = useCalendar(reminders)
+    goToToday,
+    allReminders
+  } = useCalendar(reminders, recurringRules, pets)
 
   const chevronRotation = useChevronAnimation(isExpanded)
 
@@ -61,10 +86,16 @@ export default function Calendar({
   }
 
   const handleDatePress = (date: Date) => {
-    console.log('Selected date:', date)
+    onDateSelect(date)
+  }
+
+  const handleHeaderReset = () => {
+    goToToday()
+    onReset()
   }
 
   const days = isExpanded ? renderCalendar() : getCurrentWeekDays()
+  const showReset = hasUserSelectedDate || !isCurrentMonth
 
   // ------------------
   // RENDER
@@ -73,10 +104,13 @@ export default function Calendar({
     <View style={styles.container}>
       <CalendarHeader
         currentDate={currentDate}
-        isCurrentMonth={isCurrentMonth}
         onPreviousMonth={previousMonth}
         onNextMonth={nextMonth}
-        onGoToToday={goToToday}
+        onReset={handleHeaderReset}
+        showReset={showReset}
+        onResetFilters={onResetFilters}
+        isPetFilterActive={isPetFilterActive}
+        isCategoryFilterActive={isCategoryFilterActive}
       />
 
       <WeekDaysRow />
@@ -93,6 +127,9 @@ export default function Calendar({
             reminders={item.reminders}
             date={item.date}
             onPress={handleDatePress}
+            selectedDate={selectedDate}
+            hasVirtualReminders={item.hasVirtualReminders}
+            hasRealReminders={item.hasRealReminders}
           />
         ))}
       </View>
@@ -103,7 +140,7 @@ export default function Calendar({
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronUp size={24} color="#225877" />
+          <ChevronDown size={24} color="#225877" />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -128,11 +165,12 @@ const styles = StyleSheet.create({
   },
   toggleButton: {
     alignSelf: 'center',
-    paddingVertical: 2,
+    paddingBottom: 2,
     paddingHorizontal: 24,
-    marginTop: 0
+    marginTop: 0,
+    marginBottom: 8
   },
   toggleButtonExpanded: {
-    marginTop: -64
+    marginTop: -32
   }
 })

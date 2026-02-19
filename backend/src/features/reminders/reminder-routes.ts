@@ -3,6 +3,7 @@ import {
   getReminders,
   createReminder,
   getReminderById,
+  updateReminder,
   deleteReminder,
   toggleReminderStatus,
 } from './reminder-controller';
@@ -94,6 +95,45 @@ router.get('/:id', authGuard, getReminderById);
  *         description: Unauthorized.
  */
 router.post('/', authGuard, createReminder);
+
+/**
+ * @openapi
+ * /reminders/{id}:
+ *   patch:
+ *     tags: [Reminders]
+ *     summary: Update a reminder
+ *     description: Updates a reminder's details.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateReminderBody'
+ *     responses:
+ *       200:
+ *         description: Reminder updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Reminder'
+ *       400:
+ *         description: Bad Request - Validation error.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Reminder not found.
+ */
+router.patch('/:id', authGuard, updateReminder);
 
 /**
  * @openapi
