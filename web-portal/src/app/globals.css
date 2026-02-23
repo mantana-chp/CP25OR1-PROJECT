@@ -153,4 +153,114 @@
   .container-custom {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
+
+  /* Typography Classes */
+
+  /* Heading Styles */
+  .heading-1 {
+    @apply text-5xl font-bold leading-tight tracking-tight;
+  }
+
+  .heading-2 {
+    @apply text-4xl font-bold leading-tight tracking-tight;
+  }
+
+  .heading-3 {
+    @apply text-3xl font-semibold leading-snug tracking-normal;
+  }
+
+  .heading-4 {
+    @apply text-2xl font-semibold leading-snug tracking-normal;
+  }
+
+  .heading-5 {
+    @apply text-xl font-semibold leading-normal tracking-normal;
+  }
+
+  .heading-6 {
+    @apply text-lg font-semibold leading-normal tracking-normal;
+  }
+
+  /* Body Text Styles */
+  .normal-text {
+    @apply text-base font-normal leading-relaxed tracking-normal;
+  }
+
+  .large-text {
+    @apply text-lg font-normal leading-relaxed tracking-normal;
+  }
+
+  .small-text {
+    @apply text-sm font-normal leading-relaxed tracking-normal;
+  }
+
+  .tiny-text {
+    @apply text-xs font-normal leading-normal tracking-normal;
+  }
+
+  /* Special Text Styles */
+  .lead-text {
+    @apply text-xl font-normal leading-relaxed tracking-normal text-gray-700;
+  }
+
+  .caption-text {
+    @apply text-sm font-normal leading-normal tracking-normal text-gray-600;
+  }
+
+  .label-text {
+    @apply text-sm font-medium leading-normal tracking-normal text-gray-700;
+  }
+
+  .overline-text {
+    @apply text-xs font-semibold leading-normal tracking-wider uppercase text-gray-600;
+  }
+
+  /* Link Styles */
+  .link-text {
+    @apply text-base font-normal leading-relaxed tracking-normal text-primary-600 hover:text-primary-700 underline cursor-pointer;
+  }
+
+  /* Emphasis Styles */
+  .bold-text {
+    @apply font-bold;
+  }
+
+  .semibold-text {
+    @apply font-semibold;
+  }
+
+  .medium-text {
+    @apply font-medium;
+  }
+
+  .italic-text {
+    @apply italic;
+  }
+
+  /* Code/Monospace Text */
+  .code-text {
+    @apply font-mono text-sm bg-gray-100 px-1.5 py-0.5 rounded;
+  }
+
+  /* Muted Text */
+  .muted-text {
+    @apply text-gray-500;
+  }
+
+  /* Error/Success/Warning Text */
+  .error-text {
+    @apply text-danger-600;
+  }
+
+  .success-text {
+    @apply text-success-600;
+  }
+
+  .warning-text {
+    @apply text-warning-600;
+  }
+
+  .info-text {
+    @apply text-info-600;
+  }
 }

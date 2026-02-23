@@ -219,6 +219,124 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* Typography Classes Demo */}
+          <div className="bg-white rounded-xl shadow-md p-8 border-2 border-light-grey mt-6">
+            <h3 className="text-2xl font-semibold mb-6 text-dark-grey">
+              Typography Style Classes
+            </h3>
+
+            {/* Headings */}
+            <div className="mb-8">
+              <h4 className="text-lg font-medium mb-4 text-dark-grey">
+                Heading Styles
+              </h4>
+              <div className="space-y-3">
+                <h1 className="heading-1">Heading 1 - heading-1</h1>
+                <h2 className="heading-2">Heading 2 - heading-2</h2>
+                <h3 className="heading-3">Heading 3 - heading-3</h3>
+                <h4 className="heading-4">Heading 4 - heading-4</h4>
+                <h5 className="heading-5">Heading 5 - heading-5</h5>
+                <h6 className="heading-6">Heading 6 - heading-6</h6>
+              </div>
+            </div>
+
+            {/* Body Text */}
+            <div className="mb-8">
+              <h4 className="text-lg font-medium mb-4 text-dark-grey">
+                Body Text Styles
+              </h4>
+              <div className="space-y-3">
+                <p className="lead-text">
+                  Lead text - Used for introductory paragraphs and important
+                  content (lead-text)
+                </p>
+                <p className="large-text">
+                  Large text - Slightly larger than normal for emphasis
+                  (large-text)
+                </p>
+                <p className="normal-text">
+                  Normal text - Standard body text for most content
+                  (normal-text)
+                </p>
+                <p className="small-text">
+                  Small text - For secondary information and captions
+                  (small-text)
+                </p>
+                <p className="tiny-text">
+                  Tiny text - For footnotes and legal text (tiny-text)
+                </p>
+              </div>
+            </div>
+
+            {/* Special Styles */}
+            <div className="mb-8">
+              <h4 className="text-lg font-medium mb-4 text-dark-grey">
+                Special Text Styles
+              </h4>
+              <div className="space-y-3">
+                <p className="caption-text">
+                  Caption text - For image captions and annotations
+                  (caption-text)
+                </p>
+                <p className="label-text">
+                  Label text - For form labels and identifiers (label-text)
+                </p>
+                <p className="overline-text">
+                  Overline text - For section headers (overline-text)
+                </p>
+                <p className="link-text">
+                  Link text - For hyperlinks with hover effects (link-text)
+                </p>
+                <p className="code-text">
+                  const codeText = "For inline code snippets";
+                </p>
+              </div>
+            </div>
+
+            {/* Text Emphasis */}
+            <div className="mb-8">
+              <h4 className="text-lg font-medium mb-4 text-dark-grey">
+                Text Emphasis
+              </h4>
+              <div className="space-y-3">
+                <p className="normal-text bold-text">Bold text (bold-text)</p>
+                <p className="normal-text semibold-text">
+                  Semibold text (semibold-text)
+                </p>
+                <p className="normal-text medium-text">
+                  Medium text (medium-text)
+                </p>
+                <p className="normal-text italic-text">
+                  Italic text (italic-text)
+                </p>
+                <p className="normal-text muted-text">
+                  Muted text (muted-text)
+                </p>
+              </div>
+            </div>
+
+            {/* Contextual Colors */}
+            <div>
+              <h4 className="text-lg font-medium mb-4 text-dark-grey">
+                Contextual Text Colors
+              </h4>
+              <div className="space-y-3">
+                <p className="normal-text error-text">
+                  Error text - For error messages (error-text)
+                </p>
+                <p className="normal-text success-text">
+                  Success text - For success messages (success-text)
+                </p>
+                <p className="normal-text warning-text">
+                  Warning text - For warning messages (warning-text)
+                </p>
+                <p className="normal-text info-text">
+                  Info text - For informational messages (info-text)
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
