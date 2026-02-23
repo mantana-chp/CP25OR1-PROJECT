@@ -1,7 +1,9 @@
+import MainLayout from '@/presentation/components/main-layout'
 import Link from 'next/link'
 
 export default function Dashboard() {
   return (
+    <MainLayout pageTitle="แดชบอร์ด">
     <div className="min-h-screen bg-linear-to-br from-primary-50 to-secondary">
       <div className="container-custom py-12">
         <div className="max-w-4xl mx-auto">
@@ -340,5 +342,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </MainLayout>
   )
 }
