@@ -90,6 +90,7 @@ export default function PetInfoCard({
               )}
             </View>
             {!isDeceased && (
+          
               <View style={styles.actionButtons}>
                 {onMarkDeceased && (
                   <TouchableOpacity

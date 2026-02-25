@@ -53,7 +53,6 @@ export default function PetProfilePage() {
     selectedPetId,
     setSelectedPetId,
     refreshPets,
-    refreshDeletedPets,
     softDeletePet,
     hardDeletePet,
     restorePet,
@@ -298,7 +297,16 @@ export default function PetProfilePage() {
   )
 
   // --- Deceased handlers ---
-  const handleMarkDeceasedPress = useCallback(() => {
+  const openDeceasedModalFromDelete = useCallback(() => {
+    if (!petToDelete) return
+    setPetToMarkDeceased({
+      id: petToDelete.id,
+      name: petToDelete.name
+    })
+    setShowDeceasedModal(true)
+  }, [petToDelete])
+
+  const openDeceasedModalFromCard = useCallback(() => {
     if (!currentPet) return
     setPetToMarkDeceased({
       id: currentPet.id,
@@ -307,9 +315,8 @@ export default function PetProfilePage() {
     setShowDeceasedModal(true)
   }, [currentPet])
 
-  const handleDeceasedConfirm = useCallback(async () => {
+  const handleConfirmMarkDeceased = useCallback(async () => {
     if (!petToMarkDeceased) return
-
     setIsMarkingDeceased(true)
     try {
       await markPetDeceased(petToMarkDeceased.id)
@@ -319,8 +326,9 @@ export default function PetProfilePage() {
       )
       setShowDeceasedModal(false)
       setPetToMarkDeceased(null)
-      // Switch to active tab after marking deceased
-      setActiveTab('active')
+      // Switch to past tab to show deceased pets
+      setActiveTab('past')
+      setPetToDelete(null)
     } catch (error) {
       console.error('Error marking pet as deceased:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายได้')
@@ -475,7 +483,7 @@ export default function PetProfilePage() {
                   canDelete={!isViewingDeceased && canDeletePet}
                   onDelete={!isViewingDeceased ? handleDeletePress : undefined}
                   onMarkDeceased={
-                    !isViewingDeceased ? handleMarkDeceasedPress : undefined
+                    !isViewingDeceased ? openDeceasedModalFromCard : undefined
                   }
                   isDeceased={isViewingDeceased}
                 />
@@ -562,6 +570,7 @@ export default function PetProfilePage() {
           setPetToDelete(null)
         }}
         onDelete={handleDeleteConfirm}
+        onDeceased={openDeceasedModalFromDelete}
         isLoading={isDeleting}
       />
 
@@ -573,7 +582,7 @@ export default function PetProfilePage() {
           setShowDeceasedModal(false)
           setPetToMarkDeceased(null)
         }}
-        onConfirm={handleDeceasedConfirm}
+        onConfirm={handleConfirmMarkDeceased}
         isLoading={isMarkingDeceased}
       />
 
