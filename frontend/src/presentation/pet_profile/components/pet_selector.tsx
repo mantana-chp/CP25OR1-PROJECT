@@ -21,14 +21,14 @@ interface PetSelectorProps {
   pets: Pet[]
   selectedIndex: number
   onSelect: (index: number) => void
-  maxPets?: number
+  maxPets: number
 }
 
 export default function PetSelector({
   pets,
   selectedIndex,
   onSelect,
-  maxPets = 10
+  maxPets
 }: PetSelectorProps) {
   const router = useRouter()
 

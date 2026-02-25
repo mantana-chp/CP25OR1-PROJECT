@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState
 } from 'react'
 import { IDeletedPet, IPetProfile } from '../domain/pet.domain'
@@ -11,6 +12,8 @@ import { useAuth } from './AuthContext'
 
 interface PetContextType {
   pets: IPetProfile[]
+  activePets: IPetProfile[]
+  deceasedPets: IPetProfile[]
   deletedPets: IDeletedPet[]
   loading: boolean
   refreshPets: () => Promise<void>
@@ -22,6 +25,7 @@ interface PetContextType {
   softDeletePet: (petId: string) => Promise<void>
   hardDeletePet: (petId: string) => Promise<void>
   restorePet: (petId: string) => Promise<void>
+  markPetDeceased: (petId: string) => Promise<void>
 }
 
 const PetContext = createContext<PetContextType | undefined>(undefined)
@@ -117,6 +121,42 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     [deletedPets]
   )
 
+  // MOCK: Mark pet as deceased (local state only)
+  const markPetDeceased = useCallback(
+    async (petId: string) => {
+      setPets((prev) =>
+        prev.map((p) =>
+          p.id === petId
+            ? {
+                ...p,
+                status: 'DECEASED' as const,
+                deceased_date: new Date().toISOString()
+              }
+            : p
+        )
+      )
+      // If the deceased pet is currently selected, switch to first active pet
+      if (selectedPetId === petId) {
+        const remaining = pets.filter(
+          (p) => p.id !== petId && p.status !== 'DECEASED'
+        )
+        setSelectedPetId(remaining.length > 0 ? remaining[0].id : null)
+      }
+    },
+    [pets, selectedPetId]
+  )
+
+  // Computed: split pets into active and deceased
+  const activePets = useMemo(
+    () => pets.filter((p) => p.status !== 'DECEASED'),
+    [pets]
+  )
+
+  const deceasedPets_ = useMemo(
+    () => pets.filter((p) => p.status === 'DECEASED'),
+    [pets]
+  )
+
   useEffect(() => {
     // Only fetch pets when authentication is complete and user is authenticated
     if (!authLoading && isAuthenticated) {
@@ -129,6 +169,8 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     <PetContext.Provider
       value={{
         pets,
+        activePets,
+        deceasedPets: deceasedPets_,
         deletedPets,
         loading,
         refreshPets,
@@ -139,7 +181,8 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         getSelectedPet,
         softDeletePet,
         hardDeletePet,
-        restorePet
+        restorePet,
+        markPetDeceased
       }}
     >
       {children}
