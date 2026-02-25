@@ -8,13 +8,19 @@ import {
   Ionicons,
   MaterialCommunityIcons
 } from '@expo/vector-icons'
-import { Cake, Edit2, VenusAndMars } from 'lucide-react-native'
+import { Cake, Edit2, Trash2, VenusAndMars } from 'lucide-react-native'
 
 interface PetInfoCardProps {
   data: IPetProfile
+  canDelete?: boolean
+  onDelete?: () => void
 }
 
-export default function PetInfoCard(props: PetInfoCardProps) {
+export default function PetInfoCard({
+  data,
+  canDelete = false,
+  onDelete
+}: PetInfoCardProps) {
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
 
@@ -68,17 +74,23 @@ export default function PetInfoCard(props: PetInfoCardProps) {
         <View style={styles.cardHeaderText}>
           <View style={styles.nameRow}>
             <Text style={styles.petName} numberOfLines={1}>
-              {props.data.pet_name}
+              {data.pet_name}
             </Text>
-            <Link
-              href={`/(tabs)/add_pet_form?petId=${props.data.id}`}
-              push
-              asChild
-            >
-              <TouchableOpacity style={styles.editButton}>
-                <Edit2 size={16} color="#5FA7D1" />
-              </TouchableOpacity>
-            </Link>
+            <View style={styles.actionButtons}>
+              <Link href={`/(tabs)/add_pet_form?petId=${data.id}`} push asChild>
+                <TouchableOpacity style={styles.editButton}>
+                  <Edit2 size={16} color="#5FA7D1" />
+                </TouchableOpacity>
+              </Link>
+              {canDelete && onDelete && (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={onDelete}
+                >
+                  <Trash2 size={16} color="#BF1737" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -92,27 +104,25 @@ export default function PetInfoCard(props: PetInfoCardProps) {
         <View style={styles.infoItem}>
           <Ionicons name="paw-outline" size={12} color="#5BA3D0" />
           <Text style={styles.infoText} numberOfLines={1}>
-            {props.data.species} {props.data.breed}
+            {data.species} {data.breed}
           </Text>
         </View>
         <View style={styles.infoItem}>
           <Cake size={12} color="#5BA3D0" />
           <Text style={styles.infoText} numberOfLines={1}>
-            {convertDaysToThaiAge(props.data.age)}
+            {convertDaysToThaiAge(data.age)}
           </Text>
         </View>
         <View style={styles.infoItem}>
           <VenusAndMars size={12} color="#5BA3D0" />
           <Text style={styles.infoText} numberOfLines={1}>
-            เพศ {getThaiGender(props.data.gender)}
+            เพศ {getThaiGender(data.gender)}
           </Text>
         </View>
         <View style={styles.infoItem}>
           <FontAwesome6 name="weight-scale" size={12} color="#5BA3D0" />
           <Text style={styles.infoText} numberOfLines={1}>
-            {props.data.weight
-              ? `${formatWeight(parseFloat(props.data.weight))} กก.`
-              : '-'}
+            {data.weight ? `${formatWeight(parseFloat(data.weight))} กก.` : '-'}
           </Text>
         </View>
       </View>
@@ -182,9 +192,18 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontFamily: 'Prompt_400Regular'
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8
+  },
   editButton: {
     padding: 6,
     borderRadius: 6,
     backgroundColor: '#E8F4F8'
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#FEF2F2'
   }
 })

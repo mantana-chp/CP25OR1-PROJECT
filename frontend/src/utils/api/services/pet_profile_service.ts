@@ -7,7 +7,7 @@ import { apiClient } from '../api_client'
 
 export const petProfileService = {
   /**
-   * Get all pets for the authenticated user
+   * Get all active pets for the authenticated user
    */
   getMyPets: async () => {
     return apiClient.get<{
@@ -16,7 +16,7 @@ export const petProfileService = {
   },
 
   getPetProfileById: async (id: string) => {
-    return apiClient.get<{data: IPetProfileForm}>(`/v1/pets/me/${id}`)
+    return apiClient.get<{ data: IPetProfileForm }>(`/v1/pets/me/${id}`)
   },
 
   createPetProfile: async (data: Omit<IPetProfileForm, 'id'>) => {
@@ -29,5 +29,17 @@ export const petProfileService = {
 
   getSpeciesAndBreeds: async () => {
     return apiClient.get<ISpeciesAndBreeds>('/v1/meta/species-and-breeds')
+  },
+  deletePet: async (
+    id: string,
+    isDeleted: boolean,
+    permanent: boolean = false
+  ) => {
+    if (permanent) {
+      return apiClient.delete<{ message: string }>(`/v1/pets/me/${id}`)
+    }
+    return apiClient.patch<{ message: string }>(`/v1/pets/me/${id}`, {
+      is_deleted: isDeleted
+    })
   }
 }

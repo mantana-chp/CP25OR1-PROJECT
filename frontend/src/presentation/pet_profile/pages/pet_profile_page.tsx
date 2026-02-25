@@ -10,21 +10,25 @@ import { useApi } from '@/src/utils/api/use_api'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Alert,
   Dimensions,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View
 } from 'react-native'
 
+import { Trash2 } from 'lucide-react-native'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import ReminderCard from '../../reminder/components/reminder_card'
+import DeletePetModal from '../components/delete_pet_modal'
 import HealthRecordCard from '../components/health_record_card'
 import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
-
+import RecentlyDeletedModal from '../components/recently_deleted_modal'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
@@ -42,10 +46,26 @@ export default function PetProfilePage() {
 
   const {
     pets: contextPets,
+    deletedPets,
     selectedPetId,
     setSelectedPetId,
-    refreshPets
+    refreshPets,
+    refreshDeletedPets,
+    softDeletePet,
+    hardDeletePet,
+    restorePet
   } = usePets()
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showRecentlyDeletedModal, setShowRecentlyDeletedModal] =
+    useState(false)
+  const [petToDelete, setPetToDelete] = useState<{
+    id: string
+    name: string
+    hasRelations: boolean
+  } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Find the selected pet index
   const selectedPetIndex = contextPets.findIndex((p) => p.id === selectedPetId)
@@ -179,6 +199,85 @@ export default function PetProfilePage() {
     }
   }
 
+  // Check if pet has any reminders or health records
+  const checkPetHasRelations = useCallback(
+    (petId: string): boolean => {
+      const hasReminders = remindersWithRecurrence.some(
+        (r) => r.petId === petId
+      )
+      const hasHealthRecords = healthRecords.some((r) => r.petId === petId)
+      return hasReminders || hasHealthRecords
+    },
+    [remindersWithRecurrence, healthRecords]
+  )
+
+  const handleDeletePress = useCallback(() => {
+    if (!currentPet) return
+
+    const hasRelations = checkPetHasRelations(currentPet.id)
+    setPetToDelete({
+      id: currentPet.id,
+      name: currentPet.pet_name,
+      hasRelations
+    })
+    setShowDeleteModal(true)
+  }, [currentPet, checkPetHasRelations])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!petToDelete) return
+
+    setIsDeleting(true)
+    try {
+      if (petToDelete.hasRelations) {
+        // Soft delete for pets with relations
+        await softDeletePet(petToDelete.id)
+        Alert.alert('สำเร็จ', `"${petToDelete.name}" ถูกย้ายไปยังเพิ่งลบล่าสุด`)
+      } else {
+        // Hard delete for pets without relations
+        await hardDeletePet(petToDelete.id)
+        Alert.alert('สำเร็จ', `"${petToDelete.name}" ถูกลบเรียบร้อยแล้ว`)
+      }
+      setShowDeleteModal(false)
+      setPetToDelete(null)
+      // Note: Don't call loadPets() here for mock flow - state is managed locally
+      // When API is ready, uncomment: await loadPets()
+    } catch (error) {
+      console.error('Error deleting pet:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบสัตว์เลี้ยงได้')
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [petToDelete, softDeletePet, hardDeletePet])
+
+  const handleRestorePet = useCallback(
+    async (petId: string) => {
+      try {
+        await restorePet(petId)
+        Alert.alert('สำเร็จ', 'กู้คืนสัตว์เลี้ยงเรียบร้อยแล้ว')
+      } catch (error) {
+        console.error('Error restoring pet:', error)
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนสัตว์เลี้ยงได้')
+      }
+    },
+    [restorePet]
+  )
+
+  const handlePermanentDeletePet = useCallback(
+    async (petId: string) => {
+      try {
+        await hardDeletePet(petId)
+        Alert.alert('สำเร็จ', 'ลบสัตว์เลี้ยงถาวรเรียบร้อยแล้ว')
+      } catch (error) {
+        console.error('Error permanently deleting pet:', error)
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบสัตว์เลี้ยงถาวรได้')
+      }
+    },
+    [hardDeletePet]
+  )
+
+  // Can delete only if more than 1 pet
+  const canDeletePet = displayPets.length > 1
+
   const renderReminderCard = ({ item }: { item: any }) => {
     return (
       <View style={styles.cardWrapper}>
@@ -206,6 +305,7 @@ export default function PetProfilePage() {
       </View>
     )
   }
+  console.log('Deleted Pets:', deletedPets)
 
   // ------------------
   // REDER
@@ -216,7 +316,22 @@ export default function PetProfilePage() {
 
       <ScrollView>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
+            {deletedPets.length > 0 && (
+              <Pressable
+                style={styles.recentlyDeletedButton}
+                onPress={() => setShowRecentlyDeletedModal(true)}
+              >
+                <Trash2 size={14} color="#BF1737" />
+                <View style={styles.deletedBadge}>
+                  <Text style={styles.deletedBadgeText}>
+                    {deletedPets.length}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
           {getPetsApi.loading ? (
             <LoadingComponent />
           ) : displayPets.length === 0 ? (
@@ -233,7 +348,13 @@ export default function PetProfilePage() {
               />
 
               {/* Selected Pet Info */}
-              {currentPet && <PetInfoCard data={currentPet} />}
+              {currentPet && (
+                <PetInfoCard
+                  data={currentPet}
+                  canDelete={canDeletePet}
+                  onDelete={handleDeletePress}
+                />
+              )}
             </>
           )}
         </View>
@@ -299,6 +420,28 @@ export default function PetProfilePage() {
 
         <Text style={styles.versionText}>v.{version}</Text>
       </ScrollView>
+
+      {/* Delete Pet Modal */}
+      <DeletePetModal
+        visible={showDeleteModal}
+        petName={petToDelete?.name || ''}
+        hasRelations={petToDelete?.hasRelations || false}
+        onClose={() => {
+          setShowDeleteModal(false)
+          setPetToDelete(null)
+        }}
+        onDelete={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
+
+      {/* Recently Deleted Modal */}
+      <RecentlyDeletedModal
+        visible={showRecentlyDeletedModal}
+        deletedPets={deletedPets}
+        onClose={() => setShowRecentlyDeletedModal(false)}
+        onRestore={handleRestorePet}
+        onPermanentDelete={handlePermanentDeletePet}
+      />
     </View>
   )
 }
@@ -312,12 +455,40 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8
+  },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: '#225877',
-    marginBottom: 8,
     fontFamily: 'Prompt_500Medium'
+  },
+  recentlyDeletedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4
+  },
+  deletedBadge: {
+    backgroundColor: '#BF1737',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+  deletedBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#fff'
   },
   healthSectionContainer: {
     backgroundColor: '#FDF0DD',

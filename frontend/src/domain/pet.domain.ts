@@ -81,3 +81,7 @@ export interface IPetProfile {
   weight: string
   imageUrl?: string
 }
+
+export interface IDeletedPet extends IPetProfile {
+  deleted_at: string
+}
