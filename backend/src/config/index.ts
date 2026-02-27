@@ -19,4 +19,13 @@ export const config = {
     apiKey: process.env.PINECONE_API_KEY || '',
     indexName: process.env.PINECONE_INDEX_NAME || '',
   },
+  minio: {
+    endpoint: process.env.MINIO_ENDPOINT || 'minio',
+    port: parseInt(process.env.MINIO_PORT || '9000', 10),
+    useSSL: process.env.MINIO_USE_SSL === 'true',
+    accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
+    secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin123',
+    bucketName: process.env.MINIO_BUCKET_NAME || 'pet-attachments',
+    publicUrl: process.env.MINIO_PUBLIC_URL || 'http://localhost:9000',
+  },
 };

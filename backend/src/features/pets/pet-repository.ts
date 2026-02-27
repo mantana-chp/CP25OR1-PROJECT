@@ -9,6 +9,7 @@ const petProfileSelect = {
   weight: true,
   species_id: true,
   breed_id: true,
+  profile_image_key: true,
   species: {
     select: {
       name_th: true,
