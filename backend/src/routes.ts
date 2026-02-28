@@ -8,6 +8,7 @@ import metaRoutes from './features/meta/meta-routes';
 import healthRecordRoutes from './features/health-record/health-record-routes';
 import vaccineScheduleRoutes from './features/vaccine-schedule/vaccine-schedule-routes';
 import aiChatRoutes from './features/ai-chat/ai-chat-routes';
+import uploadRoutes from './features/file-uploads/upload-routes';
 
 const v1Router = Router();
 
@@ -21,6 +22,7 @@ v1Router.use('/meta', metaRoutes);
 v1Router.use('/health-records', healthRecordRoutes);
 v1Router.use('/vaccines', vaccineScheduleRoutes);
 v1Router.use('/ai-chat', aiChatRoutes);
+v1Router.use('/uploads', uploadRoutes);
 
 export default v1Router;
 

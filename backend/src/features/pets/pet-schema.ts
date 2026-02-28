@@ -32,3 +32,18 @@ export const updatePetSchema = z.object({
 });
 
 export type PetUpdatePayload = z.infer<typeof updatePetSchema.shape.body>;
+
+export const updatePetProfileImageSchema = z.object({
+  params: z.object({
+    id: z.uuid({ message: 'Invalid pet ID format' }),
+  }),
+  body: z.object({
+    objectKey: z.string().min(1, 'Object key is required'),
+  }),
+});
+
+export const deletePetProfileImageSchema = z.object({
+  params: z.object({
+    id: z.uuid({ message: 'Invalid pet ID format' }),
+  }),
+});

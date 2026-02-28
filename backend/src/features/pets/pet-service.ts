@@ -3,6 +3,7 @@ import { NotFoundError, ConflictError, BadRequestError } from '../../shared/erro
 import { Prisma } from '../../generated/prisma/client';
 import { type PetUpdatePayload } from './pet-schema';
 import { formatAgeFromBirthDate } from '../../shared/utils';
+import { generateDownloadUrl, deleteFile } from '../file-uploads/upload-service';
 
 export type PetCreationData = {
   pet_name: string;
@@ -13,8 +14,19 @@ export type PetCreationData = {
   birth_date?: string | null;
 };
 
-const formatPetProfile = (pet: any) => {
+const formatPetProfile = async (pet: any) => {
   if (!pet) return null;
+
+  // Generate presigned URL for profile image if it exists
+  let profileImageUrl = null;
+  if (pet.profile_image_key) {
+    try {
+      profileImageUrl = await generateDownloadUrl(pet.profile_image_key, 3600);
+    } catch (error) {
+      // If image is missing, set to null
+      profileImageUrl = null;
+    }
+  }
 
   return {
     id: pet.id,
@@ -26,7 +38,8 @@ const formatPetProfile = (pet: any) => {
     species: pet.species?.name_th || null,
     breed_id: pet.breed_id,
     breed: pet.breeds?.name_th || null,
-    age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null
+    age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null,
+    profile_image_url: profileImageUrl,
   };
 };
 
@@ -92,7 +105,7 @@ export const getAllPetProfilesForUser = async (userId: string) => {
     return [];
   }
 
-  return pets.map(formatPetProfile);
+  return Promise.all(pets.map(formatPetProfile));
 };
 
 export const getPetProfileById = async (petId: string, userId: string) => {
@@ -103,4 +116,68 @@ export const getPetProfileById = async (petId: string, userId: string) => {
   }
 
   return formatPetProfile(pet);
+};
+
+/**
+ * Update pet profile picture
+ * @param petId - Pet ID
+ * @param userId - User ID (for authorization)
+ * @param objectKey - MinIO object key for the new profile image
+ */
+export const updatePetProfileImage = async (
+  petId: string,
+  userId: string,
+  objectKey: string
+) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.');
+  }
+
+  // Delete old profile image if it exists
+  if (existingPet.profile_image_key) {
+    try {
+      await deleteFile(existingPet.profile_image_key);
+    } catch (error) {
+      // Log but don't fail if old image deletion fails
+      console.error('Failed to delete old profile image:', error);
+    }
+  }
+
+  // Update with new profile image key
+  const updateData: Prisma.petsUpdateInput = {
+    profile_image_key: objectKey,
+  };
+
+  await petRepository.update(petId, userId, updateData);
+
+  return getPetProfileById(petId, userId);
+};
+
+/**
+ * Delete pet profile picture
+ * @param petId - Pet ID
+ * @param userId - User ID (for authorization)
+ */
+export const deletePetProfileImage = async (petId: string, userId: string) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.');
+  }
+
+  if (!existingPet.profile_image_key) {
+    throw new BadRequestError('Pet does not have a profile image.');
+  }
+
+  // Delete from MinIO
+  await deleteFile(existingPet.profile_image_key);
+
+  // Remove from database
+  const updateData: Prisma.petsUpdateInput = {
+    profile_image_key: null,
+  };
+
+  await petRepository.update(petId, userId, updateData);
+
+  return getPetProfileById(petId, userId);
 };

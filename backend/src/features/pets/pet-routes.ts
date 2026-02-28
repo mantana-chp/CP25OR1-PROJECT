@@ -4,10 +4,18 @@ import {
   getAllPetProfilesController,
   getPetProfileByIdController,
   updatePetController,
+  updatePetProfileImageController,
+  deletePetProfileImageController,
 } from './pet-controller';
 import { authGuard } from '../../middlewares/authGuard';
 import { validate } from '../../middlewares/validate';
-import { createPetSchema, getPetByIdSchema, updatePetSchema } from './pet-schema';
+import {
+  createPetSchema,
+  getPetByIdSchema,
+  updatePetSchema,
+  updatePetProfileImageSchema,
+  deletePetProfileImageSchema,
+} from './pet-schema';
 
 const petRoutes = Router();
 
@@ -132,5 +140,71 @@ petRoutes.get('/me/:id', authGuard, validate(getPetByIdSchema), getPetProfileByI
  *         description: Pet not found.
  */
 petRoutes.patch('/me/:id', authGuard, validate(updatePetSchema), updatePetController);
+
+/**
+ * @openapi
+ * /pets/me/{id}/profile-image:
+ *   put:
+ *     tags: [Pets]
+ *     summary: Update pet profile picture
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - objectKey
+ *             properties:
+ *               objectKey:
+ *                 type: string
+ *                 description: MinIO object key from upload
+ *     responses:
+ *       200:
+ *         description: Profile picture updated successfully
+ */
+petRoutes.put(
+  '/me/:id/profile-image',
+  authGuard,
+  validate(updatePetProfileImageSchema),
+  updatePetProfileImageController
+);
+
+/**
+ * @openapi
+ * /pets/me/{id}/profile-image:
+ *   delete:
+ *     tags: [Pets]
+ *     summary: Delete pet profile picture
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Profile picture deleted successfully
+ */
+petRoutes.delete(
+  '/me/:id/profile-image',
+  authGuard,
+  validate(deletePetProfileImageSchema),
+  deletePetProfileImageController
+);
 
 export default petRoutes;
