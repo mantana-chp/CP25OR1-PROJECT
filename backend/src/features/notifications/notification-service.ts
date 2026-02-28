@@ -74,6 +74,7 @@ export const processAndSendNotifications = async () => {
         gte: todayUTC,
         lt: dayAfterTomorrowUTC,
       },
+      pets: { status: 'ACTIVE' }, // Only process reminders for active pets
       OR: [
         // Reminders with no notifications yet
         { notifications: { none: {} } },

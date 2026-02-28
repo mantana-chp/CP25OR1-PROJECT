@@ -3,6 +3,7 @@ import { logger } from './libs/logger';
 import { minioClient } from './libs/minio-client';
 import { startSchedulers as startReminderScheduler } from './jobs/reminder-scheduler';
 import { startNotificationScheduler } from './jobs/notification-scheduler';
+import { startPetCleanupScheduler } from './jobs/pet-cleanup-scheduler';
 
 const PORT = process.env.PORT || 3000;
 
@@ -21,4 +22,5 @@ app.listen(PORT, () => {
   // Start the background jobs
   startReminderScheduler();
   startNotificationScheduler();
+  startPetCleanupScheduler();
 });
