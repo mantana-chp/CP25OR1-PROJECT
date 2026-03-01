@@ -10,7 +10,7 @@ export interface IPetProfileForm {
   weight: string
   created_at: string
   updated_at: string
-  profileImage?: string | null // Base64 or file URI for image
+  profileImage?: string | null
 }
 
 export interface IProfileImageUploadResponse {
@@ -88,5 +88,5 @@ export interface IPetProfile {
   weight: string
   imageUrl?: string
   profile_image_url?: string | null
-  profile_image_key?: string | null // Backend may return this field
+  profile_image_key?: string | null
 }

@@ -12,7 +12,7 @@ import { IPetProfile } from '@/src/domain/pet.domain'
 
 interface PetAvatarProps {
   pet: IPetProfile
-  onImageUpdated: () => void // callback to refresh pet data
+  onImageUpdated: () => void
 }
 
 export default function PetAvatar({ pet, onImageUpdated }: PetAvatarProps) {

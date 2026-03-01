@@ -150,15 +150,12 @@ export default function PetProfileForm({
           console.log('🆔 Pet Created with ID:', newPetId)
         }
 
-        // Handle image upload for new pets after pet is created (only in create mode)
         if (!isEditMode && selectedImageUri && newPetId) {
           console.log('🎬 Starting image upload process...')
           try {
             setIsUploadingImage(true)
 
-            // Get file info
             const fileName = `pet_${newPetId}_${Date.now()}.jpg`
-            // We need to get the file size - let's fetch it from the URI
             const fileResponse = await fetch(selectedImageUri)
             const blob = await fileResponse.blob()
             const fileType = 'image/jpeg'
@@ -186,7 +183,6 @@ export default function PetProfileForm({
 
             console.log('🔑 Object Key received:', objectKey)
 
-            // Upload file directly to MinIO
             await uploadService.uploadFileToMinIO(
               uploadUrl,
               selectedImageUri,
@@ -198,7 +194,7 @@ export default function PetProfileForm({
               bucket: 'dev-pet-attachments',
               objectKey,
               fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
-              uploadUrl: uploadUrl.split('?')[0], // Show URL without signature
+              uploadUrl: uploadUrl.split('?')[0],
             })
 
             // Save object key to pet profile in backend
@@ -209,7 +205,6 @@ export default function PetProfileForm({
             console.log('💾 Pet profile image saved:', updateResponse)
           } catch (error) {
             console.error('❌ Image upload failed:', error)
-            // Don't fail the entire request if image upload fails
             Alert.alert(
               'บันทึกรูปไม่สำเร็จ',
               'โปรไฟล์สัตว์เลี้ยงถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง',
