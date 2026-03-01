@@ -52,6 +52,10 @@ export default function PetProfileForm({
     undefined,
   )
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [originalImageKey, setOriginalImageKey] = useState<string | undefined>(
+    undefined,
+  )
+  const [isDeletingImage, setIsDeletingImage] = useState(false)
 
   // ------------------
   // FETCH
@@ -88,6 +92,11 @@ export default function PetProfileForm({
         if (response.data.species_id) {
           setSelectedSpeciesId(response.data.species_id)
         }
+        // Load existing profile image in edit mode
+        if (response.data.profile_image_url) {
+          setSelectedImageUri(response.data.profile_image_url)
+          setOriginalImageKey(response.data.profile_image_key || undefined)
+        }
       }
     } catch (error) {
       console.error('❌ Error loading pet data:', error)
@@ -118,9 +127,49 @@ export default function PetProfileForm({
   }
 
   const handleImageDeleted = () => {
-    console.log('🗑️ Image Deleted')
-    setSelectedImageUri(undefined)
-    formik.setFieldValue('profileImage', null)
+    if (isEditMode) {
+      // In edit mode, delete from storage immediately with confirmation
+      Alert.alert(
+        'ลบรูปภาพ',
+        'คุณแน่ใจว่าต้องการลบรูปภาพประจำตัวสัตว์เลี้ยงหรือไม่?',
+        [
+          {
+            text: 'ยกเลิก',
+            style: 'cancel',
+          },
+          {
+            text: 'ลบ',
+            onPress: async () => {
+              try {
+                setIsDeletingImage(true)
+                await petProfileService.deleteProfileImage(petId)
+                console.log('✅ Profile image deleted successfully')
+
+                setSelectedImageUri(undefined)
+                setOriginalImageKey(undefined)
+                formik.setFieldValue('profileImage', null)
+
+                Alert.alert('สำเร็จ', 'ลบรูปภาพเรียบร้อยแล้ว')
+              } catch (error) {
+                console.error('❌ Error deleting profile image:', error)
+                Alert.alert(
+                  'เกิดข้อผิดพลาด',
+                  'ไม่สามารถลบรูปภาพได้ กรุณาลองใหม่อีกครั้ง',
+                )
+              } finally {
+                setIsDeletingImage(false)
+              }
+            },
+            style: 'destructive',
+          },
+        ],
+      )
+    } else {
+      // In create mode, just clear local state
+      console.log('🗑️ Image Deleted')
+      setSelectedImageUri(undefined)
+      formik.setFieldValue('profileImage', null)
+    }
   }
   const formik = useFormik<IPetProfileForm>({
     initialValues: petProfileInitValue(
@@ -156,7 +205,16 @@ export default function PetProfileForm({
           console.log('🆔 Pet Created with ID:', newPetId)
         }
 
-        if (!isEditMode && selectedImageUri && newPetId) {
+        // Handle image upload/change
+        const isImageChanged =
+          isEditMode &&
+          selectedImageUri &&
+          selectedImageUri !== initialPetData?.profile_image_url
+
+        if (
+          (isEditMode && isImageChanged) ||
+          (!isEditMode && selectedImageUri && newPetId)
+        ) {
           console.log('🎬 Starting image upload process...')
           try {
             setIsUploadingImage(true)
@@ -209,11 +267,31 @@ export default function PetProfileForm({
               objectKey,
             )
             console.log('💾 Pet profile image saved:', updateResponse)
+
+            // Delete old image from storage if in edit mode and image changed
+            if (isEditMode && isImageChanged && originalImageKey) {
+              console.log(
+                '🗑️ Deleting old image from storage:',
+                originalImageKey,
+              )
+              try {
+                await uploadService.deleteFileFromMinIO(originalImageKey)
+                console.log('📦 Old image deleted from storage successfully')
+              } catch (deleteError) {
+                console.warn('⚠️ Failed to delete old image:', deleteError)
+                // Don't fail the update if deletion fails
+              }
+            }
+
+            // Update originalImageKey to prevent re-deletion
+            setOriginalImageKey(objectKey)
           } catch (error) {
             console.error('❌ Image upload failed:', error)
             Alert.alert(
               'บันทึกรูปไม่สำเร็จ',
-              'โปรไฟล์สัตว์เลี้ยงถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง',
+              isEditMode
+                ? 'แก้ไขข้อมูลสัตว์เลี้ยง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง'
+                : 'โปรไฟล์สัตว์เลี้ยงถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง',
             )
           } finally {
             setIsUploadingImage(false)
@@ -310,6 +388,9 @@ export default function PetProfileForm({
   const handleConfirmBack = () => {
     formik.resetForm()
     setShowBackModal(false)
+    setSelectedImageUri(undefined)
+    setOriginalImageKey(undefined)
+    setIsDeletingImage(false)
     router.push('/(tabs)/pet_profile')
   }
 
@@ -345,9 +426,9 @@ export default function PetProfileForm({
         <View style={styles.formContainer}>
           <ImagePickerButton
             onImageSelected={handleImageSelected}
-            onImageDeleted={!isEditMode ? handleImageDeleted : undefined}
+            onImageDeleted={handleImageDeleted}
             imageUri={selectedImageUri}
-            disabled={isSubmitting || isUploadingImage}
+            disabled={isSubmitting || isUploadingImage || isDeletingImage}
             placeholder='เลือกรูปภาพสัตว์เลี้ยง'
           />
           <InputText
@@ -430,15 +511,20 @@ export default function PetProfileForm({
               isSubmitting ||
               isLoading ||
               isUploadingImage ||
-              (isEditMode && !formik.dirty)
+              isDeletingImage ||
+              (isEditMode &&
+                !formik.dirty &&
+                selectedImageUri === initialPetData?.profile_image_url)
             }
-            isLoading={isSubmitting || isUploadingImage}
+            isLoading={isSubmitting || isUploadingImage || isDeletingImage}
             loadingText={
-              isUploadingImage
-                ? 'กำลังอัปโหลดรูปภาพ...'
-                : isEditMode
-                  ? 'กำลังบันทึกการแก้ไข...'
-                  : 'กำลังบันทึก...'
+              isDeletingImage
+                ? 'กำลังลบรูปภาพ...'
+                : isUploadingImage
+                  ? 'กำลังอัปโหลดรูปภาพ...'
+                  : isEditMode
+                    ? 'กำลังบันทึกการแก้ไข...'
+                    : 'กำลังบันทึก...'
             }
           />
         </View>

@@ -11,6 +11,8 @@ export interface IPetProfileForm {
   created_at: string
   updated_at: string
   profileImage?: string | null
+  profile_image_url?: string | null
+  profile_image_key?: string | null
 }
 
 export interface IProfileImageUploadResponse {

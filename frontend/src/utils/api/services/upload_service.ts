@@ -70,4 +70,14 @@ export const uploadService = {
       throw error
     }
   },
+
+  /**
+   * Delete file from MinIO storage
+   * @param objectKey - The object key of the file to delete
+   */
+  deleteFileFromMinIO: async (objectKey: string): Promise<void> => {
+    return apiClient.delete<void>('/v1/uploads/delete', {
+      data: { objectKey },
+    })
+  },
 }
