@@ -31,16 +31,43 @@ export const uploadService = {
     fileUri: string,
     contentType: string,
   ): Promise<void> => {
-    const response = await fetch(presignedUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': contentType,
-      },
-      body: await fetch(fileUri).then((r) => r.blob()),
-    })
+    try {
+      console.log('🚀 Starting MinIO upload...')
+      console.log('📍 Upload URL:', presignedUrl.split('?')[0])
 
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`)
+      // Fetch the file from URI
+      const fileResponse = await fetch(fileUri)
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to read file: ${fileResponse.status}`)
+      }
+      const blob = await fileResponse.blob()
+      console.log(`📦 File blob created: ${(blob.size / 1024).toFixed(2)} KB`)
+
+      // Upload to MinIO
+      const uploadResponse = await fetch(presignedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': contentType,
+        },
+        body: blob,
+      })
+
+      console.log(
+        `📤 MinIO response status: ${uploadResponse.status} ${uploadResponse.statusText}`,
+      )
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text()
+        console.error('❌ MinIO error response:', errorText)
+        throw new Error(
+          `MinIO upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`,
+        )
+      }
+
+      console.log('✅ File successfully uploaded to MinIO')
+    } catch (error) {
+      console.error('❌ MinIO upload error:', error)
+      throw error
     }
   },
 }

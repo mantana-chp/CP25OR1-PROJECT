@@ -194,6 +194,12 @@ export default function PetProfileForm({
             )
 
             console.log('✅ File uploaded to MinIO successfully')
+            console.log('📦 MinIO Upload Details:', {
+              bucket: 'dev-pet-attachments',
+              objectKey,
+              fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
+              uploadUrl: uploadUrl.split('?')[0], // Show URL without signature
+            })
 
             // Save object key to pet profile in backend
             const updateResponse = await petProfileService.updateProfileImage(
