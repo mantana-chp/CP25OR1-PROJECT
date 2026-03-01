@@ -1,9 +1,10 @@
 import * as petRepository from './pet-repository';
 import { NotFoundError, ConflictError, BadRequestError } from '../../shared/errors';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, pet_status, reminder_status, notification_status, RecurrenceStatusEnum } from '../../generated/prisma/client';
 import { type PetUpdatePayload } from './pet-schema';
 import { formatAgeFromBirthDate } from '../../shared/utils';
 import { generateDownloadUrl, deleteFile } from '../file-uploads/upload-service';
+import prisma from '../../libs/db';
 
 export type PetCreationData = {
   pet_name: string;
@@ -40,6 +41,10 @@ const formatPetProfile = async (pet: any) => {
     breed: pet.breeds?.name_th || null,
     age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null,
     profile_image_url: profileImageUrl,
+    status: pet.status,
+    deceased_date: pet.deceased_date ?? null,
+    deleted_at: pet.deleted_at ?? null,
+    deletion_reason: pet.deletion_reason ?? null,
   };
 };
 
@@ -66,6 +71,16 @@ export const updatePet = async (petId: string, userId: string, petData: PetUpdat
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
   if (!existingPet) {
     throw new NotFoundError('Pet not found or does not belong to this user.');
+  }
+
+  // Block updates for deleted pets
+  if (existingPet.status === pet_status.DELETED) {
+    throw new BadRequestError('Cannot update a deleted pet.');
+  }
+
+  // Block updates for deceased pets
+  if (existingPet.status === pet_status.DECEASED) {
+    throw new BadRequestError('Cannot update a deceased pet.');
   }
 
   const updateData: Prisma.petsUpdateInput = {};
@@ -98,8 +113,8 @@ export const updatePet = async (petId: string, userId: string, petData: PetUpdat
   // return await getPetProfileById(petId, userId);
 };
 
-export const getAllPetProfilesForUser = async (userId: string) => {
-  const pets = await petRepository.findAllPetProfilesByUserId(userId);
+export const getAllPetProfilesForUser = async (userId: string, status?: pet_status) => {
+  const pets = await petRepository.findAllPetProfilesByUserId(userId, status ?? pet_status.ACTIVE);
 
   if (!pets || pets.length === 0) {
     return [];
@@ -180,4 +195,138 @@ export const deletePetProfileImage = async (petId: string, userId: string) => {
   await petRepository.update(petId, userId, updateData);
 
   return getPetProfileById(petId, userId);
+};
+
+// ==========================================
+// Pet Deletion & Deceased Logic
+// ==========================================
+
+/**
+ * Cancel all active reminders, recurrence templates, and pending notifications for a pet.
+ * Used by both soft-delete and mark-as-deceased flows.
+ */
+const cancelAllRemindersForPet = async (petId: string) => {
+  await prisma.$transaction(async (tx) => {
+    // 1. Cancel all to_do and overdue reminders for this pet
+    await tx.reminders.updateMany({
+      where: {
+        pet_id: petId,
+        reminder_status: { in: [reminder_status.to_do, reminder_status.overdue] },
+      },
+      data: {
+        reminder_status: reminder_status.cancelled,
+      },
+    });
+
+    // 2. Cancel all active recurrence templates linked to this pet's reminders
+    const recurrenceIds = await tx.reminders.findMany({
+      where: { pet_id: petId, recurrence_id: { not: null } },
+      select: { recurrence_id: true },
+      distinct: ['recurrence_id'],
+    });
+
+    const uniqueRecurrenceIds = recurrenceIds
+      .map((r) => r.recurrence_id)
+      .filter((id): id is string => id !== null);
+
+    if (uniqueRecurrenceIds.length > 0) {
+      await tx.recurrence.updateMany({
+        where: {
+          id: { in: uniqueRecurrenceIds },
+          recurrence_status: RecurrenceStatusEnum.ACTIVE,
+        },
+        data: {
+          recurrence_status: RecurrenceStatusEnum.CANCELLED,
+        },
+      });
+    }
+
+    // 3. Cancel all pending notifications for this pet's reminders
+    const reminderIds = await tx.reminders.findMany({
+      where: { pet_id: petId },
+      select: { id: true },
+    });
+
+    const reminderIdList = reminderIds.map((r) => r.id);
+
+    if (reminderIdList.length > 0) {
+      await tx.notifications.updateMany({
+        where: {
+          reminder_id: { in: reminderIdList },
+          status: notification_status.pending,
+        },
+        data: {
+          status: notification_status.failed,
+        },
+      });
+    }
+
+    // 4. Also cancel pending notifications directly linked to this pet
+    await tx.notifications.updateMany({
+      where: {
+        pet_id: petId,
+        status: notification_status.pending,
+      },
+      data: {
+        status: notification_status.failed,
+      },
+    });
+  });
+};
+
+/**
+ * Soft-delete or mark-as-deceased based on the reason.
+ * - JUST_DELETE: blocked if last active pet, sets status to DELETED
+ * - DECEASED: always allowed, sets status to DECEASED
+ */
+export const softDeletePet = async (
+  petId: string,
+  userId: string,
+  reason: 'JUST_DELETE' | 'DECEASED',
+  deceasedDate?: string | null
+) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.');
+  }
+
+  if (existingPet.status !== pet_status.ACTIVE) {
+    throw new BadRequestError('Only active pets can be deleted or marked as deceased.');
+  }
+
+  if (reason === 'DECEASED') {
+    // Mark as deceased — always allowed even for last pet
+    const parsedDate = deceasedDate ? new Date(deceasedDate) : new Date();
+    await petRepository.markAsDeceased(petId, userId, parsedDate);
+    await cancelAllRemindersForPet(petId);
+    return { message: 'Pet has been marked as deceased.', status: 'DECEASED' };
+  }
+
+  // JUST_DELETE — block if last active pet
+  const activePetCount = await petRepository.countActivePetsByUserId(userId);
+  if (activePetCount <= 1) {
+    throw new BadRequestError('Cannot delete your last active pet. You must have at least one active pet.');
+  }
+
+  await petRepository.softDeletePet(petId, userId, reason);
+  await cancelAllRemindersForPet(petId);
+  return { message: 'Pet has been deleted. It will be permanently removed after 30 days.', status: 'DELETED' };
+};
+
+/**
+ * Get past (deceased) pets for a user.
+ */
+export const getPastPets = async (userId: string) => {
+  const pets = await petRepository.findAllPetProfilesByUserId(userId, pet_status.DECEASED);
+  if (!pets || pets.length === 0) return [];
+  return Promise.all(pets.map(formatPetProfile));
+};
+
+/**
+ * Get recently deleted pets (within 30 days) for a user.
+ */
+export const getRecentlyDeletedPets = async (userId: string) => {
+  const pets = await petRepository.findRecentlyDeletedPets(userId);
+  if (!pets || pets.length === 0) return [];
+  return Promise.all(pets.map(formatPetProfile));
 };

@@ -8,6 +8,8 @@ import {
   updatePetSchema,
   updatePetProfileImageSchema,
   deletePetProfileImageSchema,
+  softDeletePetSchema,
+  getPetsQuerySchema,
 } from './pet-schema';
 
 export const createPet = asyncHandler(async (req: Request, res: Response) => {
@@ -21,7 +23,8 @@ export const createPet = asyncHandler(async (req: Request, res: Response) => {
 
 export const getAllPetProfilesController = asyncHandler(async (req: Request, res: Response) => {
   const { id: userId } = req.user!;
-  const petProfiles = await petService.getAllPetProfilesForUser(userId);
+  const { status } = getPetsQuerySchema.parse(req).query;
+  const petProfiles = await petService.getAllPetProfilesForUser(userId, status as any);
   sendSuccess(res, petProfiles);
 });
 
@@ -57,4 +60,26 @@ export const deletePetProfileImageController = asyncHandler(async (req: Request,
 
   const updatedPet = await petService.deletePetProfileImage(petId, userId);
   sendSuccess(res, updatedPet);
+});
+
+export const softDeletePetController = asyncHandler(async (req: Request, res: Response) => {
+  const { params, body } = softDeletePetSchema.parse(req);
+  const { id: petId } = params;
+  const { reason, deceased_date } = body;
+  const { id: userId } = req.user!;
+
+  const result = await petService.softDeletePet(petId, userId, reason, deceased_date);
+  sendSuccess(res, result);
+});
+
+export const getPastPetsController = asyncHandler(async (req: Request, res: Response) => {
+  const { id: userId } = req.user!;
+  const pastPets = await petService.getPastPets(userId);
+  sendSuccess(res, pastPets);
+});
+
+export const getRecentlyDeletedPetsController = asyncHandler(async (req: Request, res: Response) => {
+  const { id: userId } = req.user!;
+  const deletedPets = await petService.getRecentlyDeletedPets(userId);
+  sendSuccess(res, deletedPets);
 });

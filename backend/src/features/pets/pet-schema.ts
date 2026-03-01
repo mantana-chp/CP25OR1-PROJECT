@@ -47,3 +47,23 @@ export const deletePetProfileImageSchema = z.object({
     id: z.uuid({ message: 'Invalid pet ID format' }),
   }),
 });
+
+export const softDeletePetSchema = z.object({
+  params: z.object({
+    id: z.uuid({ message: 'Invalid pet ID format' }),
+  }),
+  body: z.object({
+    reason: z.enum(['JUST_DELETE', 'DECEASED'], {
+      message: 'Reason must be either JUST_DELETE or DECEASED',
+    }),
+    deceased_date: z.iso.datetime({ message: 'Invalid date format' }).optional().nullable(),
+  }),
+});
+
+export type SoftDeletePetPayload = z.infer<typeof softDeletePetSchema.shape.body>;
+
+export const getPetsQuerySchema = z.object({
+  query: z.object({
+    status: z.enum(['ACTIVE', 'DECEASED', 'DELETED']).optional(),
+  }),
+});

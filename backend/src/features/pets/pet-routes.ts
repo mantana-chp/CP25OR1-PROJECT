@@ -6,6 +6,9 @@ import {
   updatePetController,
   updatePetProfileImageController,
   deletePetProfileImageController,
+  softDeletePetController,
+  getPastPetsController,
+  getRecentlyDeletedPetsController,
 } from './pet-controller';
 import { authGuard } from '../../middlewares/authGuard';
 import { validate } from '../../middlewares/validate';
@@ -15,6 +18,7 @@ import {
   updatePetSchema,
   updatePetProfileImageSchema,
   deletePetProfileImageSchema,
+  softDeletePetSchema,
 } from './pet-schema';
 
 const petRoutes = Router();
@@ -70,6 +74,42 @@ petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
  *         description: Unauthorized.
  */
 petRoutes.get('/me', authGuard, getAllPetProfilesController);
+
+/**
+ * @openapi
+ * /pets/me/past:
+ *   get:
+ *     tags: [Pets]
+ *     summary: Get deceased pets for the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     responses:
+ *       200:
+ *         description: An array of deceased pets.
+ *       401:
+ *         description: Unauthorized.
+ */
+petRoutes.get('/me/past', authGuard, getPastPetsController);
+
+/**
+ * @openapi
+ * /pets/me/recently-deleted:
+ *   get:
+ *     tags: [Pets]
+ *     summary: Get recently deleted pets (within 30 days)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     responses:
+ *       200:
+ *         description: An array of recently deleted pets.
+ *       401:
+ *         description: Unauthorized.
+ */
+petRoutes.get('/me/recently-deleted', authGuard, getRecentlyDeletedPetsController);
 
 /**
  * @openapi
@@ -205,6 +245,60 @@ petRoutes.delete(
   authGuard,
   validate(deletePetProfileImageSchema),
   deletePetProfileImageController
+);
+
+/**
+ * @openapi
+ * /pets/me/{id}:
+ *   delete:
+ *     tags: [Pets]
+ *     summary: Soft-delete a pet or mark as deceased
+ *     description: |
+ *       Delete a pet profile. Requires a reason:
+ *       - JUST_DELETE: Soft-deletes the pet (blocked if last active pet)
+ *       - DECEASED: Marks the pet as deceased (always allowed)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 enum: [JUST_DELETE, DECEASED]
+ *               deceased_date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Optional date of death (only used when reason is DECEASED)
+ *     responses:
+ *       200:
+ *         description: Pet deleted or marked as deceased successfully.
+ *       400:
+ *         description: Bad Request - Cannot delete last active pet.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+petRoutes.delete(
+  '/me/:id',
+  authGuard,
+  validate(softDeletePetSchema),
+  softDeletePetController
 );
 
 export default petRoutes;

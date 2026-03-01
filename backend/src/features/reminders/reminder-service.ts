@@ -130,6 +130,13 @@ const generateNextInstance = async (
 
   if (!rule) return
 
+  // Check if the pet is still active before generating next instance
+  const pet = await tx.pets.findUnique({
+    where: { id: currentReminder.pet_id },
+    select: { status: true },
+  })
+  if (!pet || pet.status !== 'ACTIVE') return
+
   // Use template_start_date as the anchor for calculation
   const templateStartDate = new Date(rule.template_start_date)
   const now = new Date()
@@ -951,7 +958,11 @@ export const updateReminder = async (
 export const updateOverdueReminders = async (): Promise<void> => {
   const now = new Date()
   const remindersToCheck = await prisma.reminders.findMany({
-    where: { reminder_status: 'to_do', reminder_date: { lte: now } },
+    where: {
+      reminder_status: 'to_do',
+      reminder_date: { lte: now },
+      pets: { status: 'ACTIVE' }, // Only check reminders for active pets
+    },
   })
   const remindersToUpdate = remindersToCheck.filter((r) =>
     isReminderOverdue(r, now),
