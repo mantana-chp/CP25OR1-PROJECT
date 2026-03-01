@@ -8,21 +8,30 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons'
-import { Cake, Edit2, VenusAndMars } from 'lucide-react-native'
+import { Cake, Edit2, Ribbon, Trash2, VenusAndMars } from 'lucide-react-native'
 
 interface PetInfoCardProps {
   data: IPetProfile
+  canDelete?: boolean
+  onDelete?: () => void
+  onMarkDeceased?: () => void
+  isDeceased?: boolean
 }
 
-export default function PetInfoCard(props: PetInfoCardProps) {
+export default function PetInfoCard({
+  data,
+  canDelete = false,
+  onDelete,
+  onMarkDeceased,
+  isDeceased = false,
+}: PetInfoCardProps) {
   // Debug: Log pet data when received
   useEffect(() => {
     console.log('🎯 PetInfoCard received pet:', {
-      name: props.data.pet_name,
-      profile_image_url: props.data.profile_image_url,
+      name: data.pet_name,
+      profile_image_url: data.profile_image_url,
     })
-  }, [props.data.id])
-
+  }, [data.id])
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
 
@@ -68,12 +77,14 @@ export default function PetInfoCard(props: PetInfoCardProps) {
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isDeceased && styles.deceasedCard]}>
       <View style={styles.cardHeader}>
-        <View style={styles.petAvatar}>
-          {props.data.profile_image_url ? (
+        <View
+          style={[styles.petAvatar, isDeceased && styles.deceasedPetAvatar]}
+        >
+          {data.profile_image_url ? (
             <Image
-              source={{ uri: props.data.profile_image_url }}
+              source={{ uri: data.profile_image_url }}
               style={styles.avatarImage}
             />
           ) : (
@@ -82,18 +93,45 @@ export default function PetInfoCard(props: PetInfoCardProps) {
         </View>
         <View style={styles.cardHeaderText}>
           <View style={styles.nameRow}>
-            <Text style={styles.petName} numberOfLines={1}>
-              {props.data.pet_name}
-            </Text>
-            <Link
-              href={`/(tabs)/add_pet_form?petId=${props.data.id}`}
-              push
-              asChild
-            >
-              <TouchableOpacity style={styles.editButton}>
-                <Edit2 size={16} color='#5FA7D1' />
-              </TouchableOpacity>
-            </Link>
+            <View style={styles.nameAndBadge}>
+              <Text style={styles.petName} numberOfLines={1}>
+                {data.pet_name}
+              </Text>
+              {isDeceased && (
+                <View style={styles.deceasedBadge}>
+                  <Text style={styles.deceasedBadgeText}>🕊️ เสียชีวิต</Text>
+                </View>
+              )}
+            </View>
+            {!isDeceased && (
+              <View style={styles.actionButtons}>
+                {onMarkDeceased && (
+                  <TouchableOpacity
+                    style={styles.deceasedButton}
+                    onPress={onMarkDeceased}
+                  >
+                    <Ribbon size={16} color='#6b7280' />
+                  </TouchableOpacity>
+                )}
+                <Link
+                  href={`/(tabs)/add_pet_form?petId=${data.id}`}
+                  push
+                  asChild
+                >
+                  <TouchableOpacity style={styles.editButton}>
+                    <Edit2 size={16} color='#5FA7D1' />
+                  </TouchableOpacity>
+                </Link>
+                {canDelete && onDelete && (
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={onDelete}
+                  >
+                    <Trash2 size={16} color='#BF1737' />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -107,27 +145,25 @@ export default function PetInfoCard(props: PetInfoCardProps) {
         <View style={styles.infoItem}>
           <Ionicons name='paw-outline' size={12} color='#5BA3D0' />
           <Text style={styles.infoText} numberOfLines={1}>
-            {props.data.species} {props.data.breed}
+            {data.species} {data.breed}
           </Text>
         </View>
         <View style={styles.infoItem}>
           <Cake size={12} color='#5BA3D0' />
           <Text style={styles.infoText} numberOfLines={1}>
-            {convertDaysToThaiAge(props.data.age)}
+            {convertDaysToThaiAge(data.age)}
           </Text>
         </View>
         <View style={styles.infoItem}>
           <VenusAndMars size={12} color='#5BA3D0' />
           <Text style={styles.infoText} numberOfLines={1}>
-            เพศ {getThaiGender(props.data.gender)}
+            เพศ {getThaiGender(data.gender)}
           </Text>
         </View>
         <View style={styles.infoItem}>
           <FontAwesome6 name='weight-scale' size={12} color='#5BA3D0' />
           <Text style={styles.infoText} numberOfLines={1}>
-            {props.data.weight
-              ? `${formatWeight(parseFloat(props.data.weight))} กก.`
-              : '-'}
+            {data.weight ? `${formatWeight(parseFloat(data.weight))} กก.` : '-'}
           </Text>
         </View>
       </View>
@@ -142,6 +178,10 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#5FA7D1',
+  },
+  deceasedCard: {
+    borderColor: '#9ca3af',
+    backgroundColor: '#f9fafb',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -161,6 +201,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  deceasedPetAvatar: {
+    backgroundColor: '#9ca3af',
+  },
   cardHeaderText: {
     flex: 1,
     minWidth: 0,
@@ -170,13 +213,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  nameAndBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    gap: 6,
+  },
   petName: {
     fontSize: 17,
     color: '#225877',
     marginBottom: 2,
     fontFamily: 'Prompt_500Medium',
-    flex: 1,
-    marginRight: 8,
+    flexShrink: 1,
+  },
+  deceasedBadge: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  deceasedBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280',
   },
   infoGrid: {
     flexDirection: 'row',
@@ -202,9 +264,23 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontFamily: 'Prompt_400Regular',
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   editButton: {
     padding: 6,
     borderRadius: 6,
     backgroundColor: '#E8F4F8',
+  },
+  deceasedButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#f3f4f6',
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#FEF2F2',
   },
 })

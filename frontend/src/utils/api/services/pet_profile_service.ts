@@ -7,7 +7,7 @@ import { apiClient } from '../api_client'
 
 export const petProfileService = {
   /**
-   * Get all pets for the authenticated user
+   * Get all active pets for the authenticated user
    */
   getMyPets: async () => {
     return apiClient.get<{
@@ -52,5 +52,17 @@ export const petProfileService = {
     return apiClient.delete<{ data: IPetProfile }>(
       `/v1/pets/me/${petId}/profile-image`,
     )
+  },
+  deletePet: async (
+    id: string,
+    isDeleted: boolean,
+    permanent: boolean = false,
+  ) => {
+    if (permanent) {
+      return apiClient.delete<{ message: string }>(`/v1/pets/me/${id}`)
+    }
+    return apiClient.patch<{ message: string }>(`/v1/pets/me/${id}`, {
+      is_deleted: isDeleted,
+    })
   },
 }

@@ -78,6 +78,8 @@ export interface ISpeciesAndBreeds {
   data: ISpecies[]
 }
 
+export type PetStatus = 'ACTIVE' | 'DECEASED'
+
 export interface IPetProfile {
   id: string
   pet_name: string
@@ -91,4 +93,10 @@ export interface IPetProfile {
   imageUrl?: string
   profile_image_url?: string | null
   profile_image_key?: string | null
+  status?: PetStatus
+  deceased_date?: string
+}
+
+export interface IDeletedPet extends IPetProfile {
+  deleted_at: string
 }
