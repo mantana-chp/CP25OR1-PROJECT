@@ -116,6 +116,12 @@ export default function PetProfileForm({
     setSelectedImageUri(imageUri)
     formik.setFieldValue('profileImage', imageUri)
   }
+
+  const handleImageDeleted = () => {
+    console.log('🗑️ Image Deleted')
+    setSelectedImageUri(undefined)
+    formik.setFieldValue('profileImage', null)
+  }
   const formik = useFormik<IPetProfileForm>({
     initialValues: petProfileInitValue(
       initialPetData || ({} as IPetProfileForm),
@@ -337,24 +343,13 @@ export default function PetProfileForm({
 
       <ScrollView>
         <View style={styles.formContainer}>
-          {!isEditMode ? (
-            <ImagePickerButton
-              onImageSelected={handleImageSelected}
-              imageUri={selectedImageUri}
-              disabled={isSubmitting || isUploadingImage}
-              placeholder='เลือกรูปภาพสัตว์เลี้ยง'
-            />
-          ) : (
-            <Image
-              source={require('../../../../assets/images/pet_profile.png')}
-              style={{
-                width: 100,
-                height: 100,
-                alignSelf: 'center',
-                marginBottom: 16,
-              }}
-            />
-          )}
+          <ImagePickerButton
+            onImageSelected={handleImageSelected}
+            onImageDeleted={!isEditMode ? handleImageDeleted : undefined}
+            imageUri={selectedImageUri}
+            disabled={isSubmitting || isUploadingImage}
+            placeholder='เลือกรูปภาพสัตว์เลี้ยง'
+          />
           <InputText
             title='ชื่อสัตว์เลี้ยง'
             value={formik.values?.pet_name}

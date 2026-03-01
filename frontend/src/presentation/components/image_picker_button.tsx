@@ -13,6 +13,7 @@ import {
 
 interface ImagePickerButtonProps {
   onImageSelected: (imageUri: string) => void
+  onImageDeleted?: () => void
   imageUri?: string
   disabled?: boolean
   placeholder?: string
@@ -20,6 +21,7 @@ interface ImagePickerButtonProps {
 
 export default function ImagePickerButton({
   onImageSelected,
+  onImageDeleted,
   imageUri,
   disabled = false,
   placeholder = 'เลือกรูปภาพสัตว์เลี้ยง',
@@ -83,10 +85,29 @@ export default function ImagePickerButton({
     }
   }
 
+  // const handleButtonPress = () => {
+  //   if (disabled) return
+
+  //   Alert.alert('เลือกรูปภาพ', 'เลือกที่มาของรูปภาพ', [
+  //     {
+  //       text: 'ถ่ายรูป',
+  //       onPress: () => handlePickImage('camera'),
+  //     },
+  //     {
+  //       text: 'เลือกจากคลังรูป',
+  //       onPress: () => handlePickImage('library'),
+  //     },
+  //     {
+  //       text: 'ยกเลิก',
+  //       style: 'cancel',
+  //     },
+  //   ])
+  // }
+
   const handleButtonPress = () => {
     if (disabled) return
 
-    Alert.alert('เลือกรูปภาพ', 'เลือกที่มาของรูปภาพ', [
+    const options: any[] = [
       {
         text: 'ถ่ายรูป',
         onPress: () => handlePickImage('camera'),
@@ -95,9 +116,26 @@ export default function ImagePickerButton({
         text: 'เลือกจากคลังรูป',
         onPress: () => handlePickImage('library'),
       },
+    ]
+
+    options.push({
+      text: 'ยกเลิก',
+      style: 'cancel',
+    })
+
+    Alert.alert('จัดการรูปภาพ', 'เลือกการกระทำที่ต้องการ', options)
+  }
+
+  const handleDeleteImage = () => {
+    Alert.alert('ลบรูปภาพ', 'คุณแน่ใจว่าต้องการลบรูปภาพนี้หรือไม่?', [
       {
         text: 'ยกเลิก',
         style: 'cancel',
+      },
+      {
+        text: 'ลบ',
+        onPress: onImageDeleted,
+        style: 'destructive',
       },
     ])
   }
@@ -122,6 +160,19 @@ export default function ImagePickerButton({
                 <MaterialCommunityIcons name='pencil' size={24} color='white' />
               )}
             </View>
+            {onImageDeleted && !isLoading && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDeleteImage}
+                disabled={disabled}
+              >
+                <MaterialCommunityIcons
+                  name='trash-can'
+                  size={20}
+                  color='white'
+                />
+              </TouchableOpacity>
+            )}
           </>
         ) : (
           <View style={styles.placeholderContainer}>
@@ -174,6 +225,16 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#d32f2f',
+    borderRadius: 50,
+    padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
