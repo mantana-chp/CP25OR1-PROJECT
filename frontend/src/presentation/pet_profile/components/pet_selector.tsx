@@ -1,20 +1,21 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import _ from 'lodash'
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
   Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 
 interface Pet {
   id: string
   pet_name: string
   imageUrl?: string
+  profile_image_url?: string | null
 }
 
 interface PetSelectorProps {
@@ -28,9 +29,22 @@ export default function PetSelector({
   pets,
   selectedIndex,
   onSelect,
-  maxPets = 10
+  maxPets = 10,
 }: PetSelectorProps) {
   const router = useRouter()
+
+  // Debug: Log pets with image URLs
+  useEffect(() => {
+    if (pets && pets.length > 0) {
+      console.log(
+        '🐕 PetSelector received pets:',
+        pets.map((p) => ({
+          name: p.pet_name,
+          profile_image_url: p.profile_image_url,
+        })),
+      )
+    }
+  }, [pets])
 
   return (
     <ScrollView
@@ -47,21 +61,24 @@ export default function PetSelector({
           <View
             style={[
               styles.imageWrapper,
-              selectedIndex === index && styles.selectedImageWrapper
+              selectedIndex === index && styles.selectedImageWrapper,
             ]}
           >
-            {pet.imageUrl ? (
-              <Image source={{ uri: pet.imageUrl }} style={styles.image} />
+            {pet.profile_image_url ? (
+              <Image
+                source={{ uri: pet.profile_image_url }}
+                style={styles.image}
+              />
             ) : (
               <View style={[styles.image, styles.placeholderImage]}>
-                <MaterialCommunityIcons name="dog" size={36} color="white" />
+                <MaterialCommunityIcons name='dog' size={36} color='white' />
               </View>
             )}
           </View>
           <Text
             style={[
               styles.petName,
-              selectedIndex === index && styles.selectedPetName
+              selectedIndex === index && styles.selectedPetName,
             ]}
           >
             {pet.pet_name}
@@ -90,11 +107,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 8,
     paddingBottom: 16,
-    gap: 12
+    gap: 12,
   },
   petItem: {
     alignItems: 'center',
-    width: 80
+    width: 80,
   },
   imageWrapper: {
     width: 72,
@@ -103,30 +120,30 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'transparent',
     padding: 2,
-    marginBottom: 8
+    marginBottom: 8,
   },
   selectedImageWrapper: {
-    borderColor: '#5FA7D1'
+    borderColor: '#5FA7D1',
   },
   image: {
     width: '100%',
     height: '100%',
     borderRadius: 33,
-    backgroundColor: '#5FA7D1'
+    backgroundColor: '#5FA7D1',
   },
   placeholderImage: {
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   petName: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#666',
-    textAlign: 'center'
+    textAlign: 'center',
   },
   selectedPetName: {
     color: '#225877',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   addPetWrapper: {
     width: 72,
@@ -138,11 +155,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F0F8FF',
-    marginBottom: 8
+    marginBottom: 8,
   },
   addPetIcon: {
     fontSize: 32,
     color: '#5FA7D1',
-    fontWeight: '300'
-  }
+    fontWeight: '300',
+  },
 })

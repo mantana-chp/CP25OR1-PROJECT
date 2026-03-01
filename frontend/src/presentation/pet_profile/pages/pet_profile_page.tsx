@@ -15,7 +15,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 
 import Header from '../../components/header_component'
@@ -24,7 +24,6 @@ import ReminderCard from '../../reminder/components/reminder_card'
 import HealthRecordCard from '../components/health_record_card'
 import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
-
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
@@ -44,7 +43,7 @@ export default function PetProfilePage() {
     pets: contextPets,
     selectedPetId,
     setSelectedPetId,
-    refreshPets
+    refreshPets,
   } = usePets()
 
   // Find the selected pet index
@@ -55,18 +54,19 @@ export default function PetProfilePage() {
   // FETCH
   // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const getPetsApi = useApi(petProfileService.getMyPets, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const getHealthRecordsApi = useApi(healthRecordService.getHealthRecords, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   useEffect(() => {
+    console.log('📡 Initial mount - Loading pets on component mount')
     getPetsApi.execute()
   }, [])
 
@@ -79,21 +79,39 @@ export default function PetProfilePage() {
   }, [])
 
   const loadPets = useCallback(async () => {
+    console.log('📡 Loading pets from API...')
     await getPetsApi.execute()
     await refreshPets()
   }, [])
 
   useFocusEffect(
     useCallback(() => {
+      console.log('🔄 Pet Profile Page Focused - Reloading data')
       loadReminders()
       loadHealthRecords()
       loadPets()
-    }, [loadReminders, loadHealthRecords, loadPets])
+    }, [loadReminders, loadHealthRecords, loadPets]),
   )
 
   const reminders = getRemindersApi.data?.data?.reminders || []
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
   const pets = getPetsApi.data?.data || []
+
+  // Debug: Log pet data to check if profile_image_url is being returned
+  useEffect(() => {
+    if (pets && pets.length > 0) {
+      console.log(
+        '🐕 Pets loaded from API:',
+        pets.map((p: any) => ({
+          id: p.id,
+          name: p.pet_name,
+          profile_image_url: p.profile_image_url,
+        })),
+      )
+    } else {
+      console.log('⚠️ No pets in array - pets:', pets)
+    }
+  }, [pets])
 
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
@@ -105,7 +123,7 @@ export default function PetProfilePage() {
     if (recurringRule) {
       return {
         ...reminder,
-        recurrence: recurringRule
+        recurrence: recurringRule,
       }
     }
 
@@ -120,7 +138,7 @@ export default function PetProfilePage() {
   const petReminders = currentPet
     ? _.filter(
         remindersWithRecurrence,
-        (reminder) => reminder.petId === currentPet.id
+        (reminder) => reminder.petId === currentPet.id,
       )
     : remindersWithRecurrence
 
@@ -169,7 +187,7 @@ export default function PetProfilePage() {
   }).current
 
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50
+    itemVisiblePercentThreshold: 50,
   }).current
 
   const handlePetSelect = (index: number) => {
@@ -212,7 +230,7 @@ export default function PetProfilePage() {
   // ------------------
   return (
     <View style={styles.container}>
-      <Header title="โปรไฟล์สัตว์เลี้ยง" />
+      <Header title='โปรไฟล์สัตว์เลี้ยง' />
 
       <ScrollView>
         <View style={styles.section}>
@@ -260,8 +278,8 @@ export default function PetProfilePage() {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={CARD_WIDTH + CARD_SPACING}
-                snapToAlignment="center"
-                decelerationRate="fast"
+                snapToAlignment='center'
+                decelerationRate='fast'
                 contentContainerStyle={styles.flatListContent}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
@@ -306,70 +324,70 @@ export default function PetProfilePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F1'
+    backgroundColor: '#FFF9F1',
   },
   section: {
     paddingVertical: 12,
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: '#225877',
     marginBottom: 8,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   healthSectionContainer: {
     backgroundColor: '#FDF0DD',
     borderRadius: 16,
     padding: 16,
-    paddingBottom: 8
+    paddingBottom: 8,
   },
   healthListContainer: {
-    maxHeight: 300 // Approx 3 items
+    maxHeight: 300, // Approx 3 items
   },
   cardWrapper: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_SPACING / 2,
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
   },
   flatListContent: {
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
   },
   emptyText: {
     fontSize: 15,
     color: '#999',
     fontFamily: 'Prompt_400Regular',
-    textAlign: 'center'
+    textAlign: 'center',
   },
   dotContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,
-    gap: 8
+    gap: 8,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#D9D9D9'
+    backgroundColor: '#D9D9D9',
   },
   activeDot: {
     backgroundColor: '#5FA7D1',
-    width: 24
+    width: 24,
   },
   versionText: {
     color: '#C4C4C4',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
-    marginBottom: 4
-  }
+    marginBottom: 4,
+  },
 })

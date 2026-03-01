@@ -10,6 +10,12 @@ export interface IPetProfileForm {
   weight: string
   created_at: string
   updated_at: string
+  profileImage?: string | null // Base64 or file URI for image
+}
+
+export interface IProfileImageUploadResponse {
+  imageUrl: string
+  imagePath?: string
 }
 
 export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
@@ -22,7 +28,8 @@ export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
     birth_date: v?.birth_date ? parseDate(v.birth_date) : null,
     weight: v.weight || '',
     created_at: v.created_at || '',
-    updated_at: v.updated_at || ''
+    updated_at: v.updated_at || '',
+    profileImage: v?.profileImage || null,
   }
 }
 
@@ -38,7 +45,7 @@ export const petProfileValidateSchema = yup.object().shape({
   birth_date: yup
     .date()
     .required('กรุณากรอกวันเกิดสัตว์เลี้ยง')
-    .max(new Date(), 'วันเกิดต้องไม่เกินวันปัจจุบัน')
+    .max(new Date(), 'วันเกิดต้องไม่เกินวันปัจจุบัน'),
 })
 
 const parseDate = (dateValue: any): Date => {
@@ -80,4 +87,6 @@ export interface IPetProfile {
   age: number
   weight: string
   imageUrl?: string
+  profile_image_url?: string | null
+  profile_image_key?: string | null // Backend may return this field
 }

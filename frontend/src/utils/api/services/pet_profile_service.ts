@@ -1,7 +1,7 @@
 import {
   IPetProfile,
   IPetProfileForm,
-  ISpeciesAndBreeds
+  ISpeciesAndBreeds,
 } from '@/src/domain/pet.domain'
 import { apiClient } from '../api_client'
 
@@ -16,7 +16,7 @@ export const petProfileService = {
   },
 
   getPetProfileById: async (id: string) => {
-    return apiClient.get<{data: IPetProfileForm}>(`/v1/pets/me/${id}`)
+    return apiClient.get<{ data: IPetProfileForm }>(`/v1/pets/me/${id}`)
   },
 
   createPetProfile: async (data: Omit<IPetProfileForm, 'id'>) => {
@@ -29,5 +29,28 @@ export const petProfileService = {
 
   getSpeciesAndBreeds: async () => {
     return apiClient.get<ISpeciesAndBreeds>('/v1/meta/species-and-breeds')
-  }
+  },
+
+  /**
+   * Update pet profile picture
+   * Call this after successfully uploading image to MinIO
+   * @param petId - Pet ID
+   * @param objectKey - The object key returned from upload request
+   */
+  updateProfileImage: async (petId: string, objectKey: string) => {
+    return apiClient.put<{ data: IPetProfile }>(
+      `/v1/pets/me/${petId}/profile-image`,
+      { objectKey },
+    )
+  },
+
+  /**
+   * Delete pet profile picture
+   * @param petId - Pet ID
+   */
+  deleteProfileImage: async (petId: string) => {
+    return apiClient.delete<{ data: IPetProfile }>(
+      `/v1/pets/me/${petId}/profile-image`,
+    )
+  },
 }

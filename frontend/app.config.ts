@@ -18,7 +18,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const { name, bundleIdentifier, icon, adaptiveIcon, packageName, scheme } =
     getDynamicAppConfig(
       (process.env.APP_ENV as 'development' | 'preview' | 'production') ||
-        'development'
+        'development',
     )
 
   return {
@@ -33,33 +33,33 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     scheme: scheme,
     ios: {
       supportsTablet: true,
-      bundleIdentifier: bundleIdentifier
+      bundleIdentifier: bundleIdentifier,
     },
     android: {
       adaptiveIcon: {
         foregroundImage: adaptiveIcon,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
       },
       googleServicesFile:
         process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
       package: packageName,
-      permissions: ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'VIBRATE']
+      permissions: ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'VIBRATE'],
     },
     updates: {
-      url: `https://u.expo.dev/${EAS_PROJECT_ID}`
+      url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
     },
     runtimeVersion: {
-      policy: 'appVersion'
+      policy: 'appVersion',
     },
     extra: {
       eas: {
-        projectId: EAS_PROJECT_ID
-      }
+        projectId: EAS_PROJECT_ID,
+      },
     },
     web: {
       bundler: 'metro',
       output: 'static',
-      favicon: './assets/images/favicon.png'
+      favicon: './assets/images/favicon.png',
     },
     plugins: [
       'expo-router',
@@ -69,8 +69,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           image: './assets/images/splash-icon.png',
           imageWidth: 200,
           resizeMode: 'contain',
-          backgroundColor: '#ffffff'
-        }
+          backgroundColor: '#ffffff',
+        },
       ],
       [
         'expo-notifications',
@@ -78,23 +78,30 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           icon: './assets/images/icon.png',
           color: '#ffffff',
           sounds: [],
-          defaultChannel: 'default'
-        }
+          defaultChannel: 'default',
+        },
       ],
       'expo-secure-store',
-      'expo-web-browser'
+      'expo-web-browser',
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'Allow $(PRODUCT_NAME) to access your photos.',
+          cameraPermission: 'Allow $(PRODUCT_NAME) to access your camera.',
+        },
+      ],
     ],
     experiments: {
-      typedRoutes: true
+      typedRoutes: true,
     },
-    owner: OWNER
+    owner: OWNER,
   }
 }
 
 // Dynamically configure the app based on the environment.
 // Update these placeholders with your actual values.
 export const getDynamicAppConfig = (
-  environment: 'development' | 'preview' | 'production'
+  environment: 'development' | 'preview' | 'production',
 ) => {
   if (environment === 'production') {
     return {
@@ -103,7 +110,7 @@ export const getDynamicAppConfig = (
       packageName: PACKAGE_NAME,
       icon: ICON,
       adaptiveIcon: ADAPTIVE_ICON,
-      scheme: SCHEME
+      scheme: SCHEME,
     }
   }
 
@@ -114,7 +121,7 @@ export const getDynamicAppConfig = (
       packageName: `${PACKAGE_NAME}.preview`,
       icon: './assets/images/icons/iOS-Prev.png',
       adaptiveIcon: './assets/images/icons/Android-Prev.png',
-      scheme: `${SCHEME}-prev`
+      scheme: `${SCHEME}-prev`,
     }
   }
 
@@ -124,6 +131,6 @@ export const getDynamicAppConfig = (
     packageName: `${PACKAGE_NAME}.dev`,
     icon: './assets/images/icons/iOS-Dev.png',
     adaptiveIcon: './assets/images/icons/Android-Dev.png',
-    scheme: `${SCHEME}-dev`
+    scheme: `${SCHEME}-dev`,
   }
 }
