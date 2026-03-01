@@ -95,6 +95,7 @@ export interface IPetProfile {
   profile_image_key?: string | null
   status?: PetStatus
   deceased_date?: string
+  deleted_at?: string
 }
 
 export interface IDeletedPet extends IPetProfile {

@@ -65,4 +65,39 @@ export const petProfileService = {
       is_deleted: isDeleted,
     })
   },
+
+  /**
+   * Mark a pet as deceased
+   * @param petId - Pet ID
+   * @param deceasedDate - Optional date when pet passed away (defaults to today)
+   */
+  markPetAsDeceased: async (petId: string, deceasedDate?: string) => {
+    return apiClient.delete<{ message: string; status: string }>(
+      `/v1/pets/me/${petId}`,
+      {
+        data: {
+          reason: 'DECEASED',
+          deceased_date: deceasedDate,
+        },
+      },
+    )
+  },
+
+  /**
+   * Get past (deceased) pets for the authenticated user
+   */
+  getPastPets: async () => {
+    return apiClient.get<{
+      data: IPetProfile[]
+    }>('/v1/pets/me/past')
+  },
+
+  /**
+   * Get recently deleted pets (within 30 days)
+   */
+  getRecentlyDeletedPets: async () => {
+    return apiClient.get<{
+      data: IPetProfile[]
+    }>('/v1/pets/me/recently-deleted')
+  },
 }

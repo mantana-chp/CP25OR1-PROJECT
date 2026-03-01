@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from 'express'
 import {
   createPet,
   getAllPetProfilesController,
@@ -9,9 +9,9 @@ import {
   softDeletePetController,
   getPastPetsController,
   getRecentlyDeletedPetsController,
-} from './pet-controller';
-import { authGuard } from '../../middlewares/authGuard';
-import { validate } from '../../middlewares/validate';
+} from './pet-controller'
+import { authGuard } from '../../middlewares/authGuard'
+import { validate } from '../../middlewares/validate'
 import {
   createPetSchema,
   getPetByIdSchema,
@@ -19,9 +19,9 @@ import {
   updatePetProfileImageSchema,
   deletePetProfileImageSchema,
   softDeletePetSchema,
-} from './pet-schema';
+} from './pet-schema'
 
-const petRoutes = Router();
+const petRoutes = Router()
 
 /**
  * @openapi
@@ -49,7 +49,7 @@ const petRoutes = Router();
  *       409:
  *         description: Conflict - User has reached the pet limit.
  */
-petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
+petRoutes.post('/', authGuard, validate(createPetSchema), createPet)
 
 /**
  * @openapi
@@ -73,7 +73,7 @@ petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
  *       401:
  *         description: Unauthorized.
  */
-petRoutes.get('/me', authGuard, getAllPetProfilesController);
+petRoutes.get('/me', authGuard, getAllPetProfilesController)
 
 /**
  * @openapi
@@ -91,7 +91,7 @@ petRoutes.get('/me', authGuard, getAllPetProfilesController);
  *       401:
  *         description: Unauthorized.
  */
-petRoutes.get('/me/past', authGuard, getPastPetsController);
+petRoutes.get('/me/past', authGuard, getPastPetsController)
 
 /**
  * @openapi
@@ -109,7 +109,11 @@ petRoutes.get('/me/past', authGuard, getPastPetsController);
  *       401:
  *         description: Unauthorized.
  */
-petRoutes.get('/me/recently-deleted', authGuard, getRecentlyDeletedPetsController);
+petRoutes.get(
+  '/me/recently-deleted',
+  authGuard,
+  getRecentlyDeletedPetsController,
+)
 
 /**
  * @openapi
@@ -140,7 +144,12 @@ petRoutes.get('/me/recently-deleted', authGuard, getRecentlyDeletedPetsControlle
  *       404:
  *         description: Pet not found.
  */
-petRoutes.get('/me/:id', authGuard, validate(getPetByIdSchema), getPetProfileByIdController);
+petRoutes.get(
+  '/me/:id',
+  authGuard,
+  validate(getPetByIdSchema),
+  getPetProfileByIdController,
+)
 
 /**
  * @openapi
@@ -179,7 +188,12 @@ petRoutes.get('/me/:id', authGuard, validate(getPetByIdSchema), getPetProfileByI
  *       404:
  *         description: Pet not found.
  */
-petRoutes.patch('/me/:id', authGuard, validate(updatePetSchema), updatePetController);
+petRoutes.patch(
+  '/me/:id',
+  authGuard,
+  validate(updatePetSchema),
+  updatePetController,
+)
 
 /**
  * @openapi
@@ -217,8 +231,8 @@ petRoutes.put(
   '/me/:id/profile-image',
   authGuard,
   validate(updatePetProfileImageSchema),
-  updatePetProfileImageController
-);
+  updatePetProfileImageController,
+)
 
 /**
  * @openapi
@@ -244,8 +258,8 @@ petRoutes.delete(
   '/me/:id/profile-image',
   authGuard,
   validate(deletePetProfileImageSchema),
-  deletePetProfileImageController
-);
+  deletePetProfileImageController,
+)
 
 /**
  * @openapi
@@ -298,7 +312,7 @@ petRoutes.delete(
   '/me/:id',
   authGuard,
   validate(softDeletePetSchema),
-  softDeletePetController
-);
+  softDeletePetController,
+)
 
-export default petRoutes;
+export default petRoutes

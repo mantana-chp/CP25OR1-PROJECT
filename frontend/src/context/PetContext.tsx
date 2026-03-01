@@ -5,7 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState
+  useState,
 } from 'react'
 import { IDeletedPet, IPetProfile } from '../domain/pet.domain'
 import { useAuth } from './AuthContext'
@@ -31,75 +31,103 @@ interface PetContextType {
 const PetContext = createContext<PetContextType | undefined>(undefined)
 
 export function PetProvider({ children }: { children: React.ReactNode }) {
-  const [pets, setPets] = useState<IPetProfile[]>([])
+  const [activePetsData, setActivePetsData] = useState<IPetProfile[]>([])
+  const [deceasedPetsData, setDeceasedPetsData] = useState<IPetProfile[]>([])
   const [deletedPets, setDeletedPets] = useState<IDeletedPet[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
 
+  // Fetch active pets
   const refreshPets = useCallback(async () => {
     try {
       setLoading(true)
       const response = await petProfileService.getMyPets()
       const petsData = response?.data || []
+      setActivePetsData(petsData)
 
-      // MOCK: Filter out pets that are in deletedPets (since API still returns them)
-      const deletedIds = new Set(deletedPets.map((p) => p.id))
-      const activePets = petsData.filter((p) => !deletedIds.has(p.id))
-      setPets(activePets)
+      // Update selection state after fetching, using the current selectedPetId
+      // This is a closure over selectedPetId, not a dependency
+      setSelectedPetId((currentId) => {
+        // Auto-select first pet if none selected
+        if (!currentId && petsData.length > 0) {
+          return petsData[0].id
+        }
 
-      // Auto-select first pet if none selected
-      if (activePets.length > 0 && !selectedPetId) {
-        setSelectedPetId(activePets[0].id)
-      }
+        // Clear selection if selected pet no longer exists
+        if (currentId && !petsData.find((p) => p.id === currentId)) {
+          return petsData.length > 0 ? petsData[0].id : null
+        }
 
-      // Clear selection if selected pet no longer exists
-      if (selectedPetId && !activePets.find((p) => p.id === selectedPetId)) {
-        setSelectedPetId(activePets.length > 0 ? activePets[0].id : null)
-      }
+        return currentId
+      })
     } catch (error) {
-      console.error('Error fetching pets:', error)
-      setPets([])
+      console.error('Error fetching active pets:', error)
+      setActivePetsData([])
     } finally {
       setLoading(false)
     }
-  }, [selectedPetId, deletedPets])
-
-  const getFirstPetId = useCallback(() => {
-    return pets[0]?.id || ''
-  }, [pets])
-
-  const getSelectedPet = useCallback(() => {
-    return pets.find((p) => p.id === selectedPetId) || null
-  }, [pets, selectedPetId])
-
-  const refreshDeletedPets = useCallback(async () => {
-    // Mock: deletedPets is managed locally, no API call needed
   }, [])
 
-  // MOCK: Soft delete - move pet from pets to deletedPets (local state only)
+  // Fetch deceased pets
+  const refreshPastPets = useCallback(async () => {
+    try {
+      const response = await petProfileService.getPastPets()
+      const pastPetsData = response?.data || []
+      setDeceasedPetsData(pastPetsData)
+    } catch (error) {
+      console.error('Error fetching past pets:', error)
+      setDeceasedPetsData([])
+    }
+  }, [])
+
+  const getFirstPetId = useCallback(() => {
+    return activePetsData[0]?.id || ''
+  }, [activePetsData])
+
+  const getSelectedPet = useCallback(() => {
+    return activePetsData.find((p) => p.id === selectedPetId) || null
+  }, [activePetsData, selectedPetId])
+
+  const refreshDeletedPets = useCallback(async () => {
+    try {
+      const response = await petProfileService.getRecentlyDeletedPets()
+      const deletedPetsData = response?.data || []
+      // Convert to IDeletedPet format
+      const formattedDeleted: IDeletedPet[] = deletedPetsData.map((pet) => ({
+        ...pet,
+        deleted_at: pet.deceased_date || new Date().toISOString(),
+      }))
+      setDeletedPets(formattedDeleted)
+    } catch (error) {
+      console.error('Error fetching deleted pets:', error)
+      setDeletedPets([])
+    }
+  }, [])
+
+  // MOCK: Soft delete - move pet from activePets to deletedPets (local state only)
   const softDeletePet = useCallback(
     async (petId: string) => {
-      const petToDelete = pets.find((p) => p.id === petId)
+      const petToDelete = activePetsData.find((p) => p.id === petId)
       if (petToDelete) {
         // Remove from active pets
-        setPets((prev) => prev.filter((p) => p.id !== petId))
+        setActivePetsData((prev) => prev.filter((p) => p.id !== petId))
         // Add to deleted pets with deleted_at timestamp
         const deletedPet: IDeletedPet = {
           ...petToDelete,
-          deleted_at: new Date().toISOString()
+          deleted_at: new Date().toISOString(),
         }
         setDeletedPets((prev) => [deletedPet, ...prev])
         // Update selected pet if needed
         if (selectedPetId === petId) {
-          const remainingPets = pets.filter((p) => p.id !== petId)
+          const remainingPets = activePetsData.filter((p) => p.id !== petId)
           setSelectedPetId(
-            remainingPets.length > 0 ? remainingPets[0].id : null
+            remainingPets.length > 0 ? remainingPets[0].id : null,
           )
         }
       }
     },
-    [pets, selectedPetId]
+    [activePetsData, selectedPetId],
   )
 
   // MOCK: Hard delete - permanently remove from deletedPets (local state only)
@@ -107,70 +135,63 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     setDeletedPets((prev) => prev.filter((p) => p.id !== petId))
   }, [])
 
-  // MOCK: Restore - move pet from deletedPets back to pets (local state only)
+  // MOCK: Restore - move pet from deletedPets back to activePets (local state only)
   const restorePet = useCallback(
     async (petId: string) => {
       const petToRestore = deletedPets.find((p) => p.id === petId)
       if (petToRestore) {
         // Remove deleted_at and add back to active pets
         const { deleted_at, ...restoredPet } = petToRestore
-        setPets((prev) => [...prev, restoredPet])
+        setActivePetsData((prev) => [...prev, restoredPet])
         setDeletedPets((prev) => prev.filter((p) => p.id !== petId))
       }
     },
-    [deletedPets]
+    [deletedPets],
   )
 
-  // MOCK: Mark pet as deceased (local state only)
+  // Mark pet as deceased - call backend API
   const markPetDeceased = useCallback(
     async (petId: string) => {
-      setPets((prev) =>
-        prev.map((p) =>
-          p.id === petId
-            ? {
-                ...p,
-                status: 'DECEASED' as const,
-                deceased_date: new Date().toISOString()
-              }
-            : p
-        )
-      )
-      // If the deceased pet is currently selected, switch to first active pet
-      if (selectedPetId === petId) {
-        const remaining = pets.filter(
-          (p) => p.id !== petId && p.status !== 'DECEASED'
-        )
-        setSelectedPetId(remaining.length > 0 ? remaining[0].id : null)
+      try {
+        // Call backend API to mark as deceased
+        await petProfileService.markPetAsDeceased(petId)
+
+        // Refresh data from both APIs
+        // This will automatically update selection if the deceased pet was selected
+        await refreshPets()
+        await refreshPastPets()
+      } catch (error) {
+        console.error('Error marking pet as deceased:', error)
+        throw error
       }
     },
-    [pets, selectedPetId]
-  )
-
-  // Computed: split pets into active and deceased
-  const activePets = useMemo(
-    () => pets.filter((p) => p.status !== 'DECEASED'),
-    [pets]
-  )
-
-  const deceasedPets_ = useMemo(
-    () => pets.filter((p) => p.status === 'DECEASED'),
-    [pets]
+    [refreshPets, refreshPastPets],
   )
 
   useEffect(() => {
     // Only fetch pets when authentication is complete and user is authenticated
     if (!authLoading && isAuthenticated) {
       refreshPets()
+      refreshPastPets()
       refreshDeletedPets()
     }
-  }, [authLoading, isAuthenticated, refreshPets, refreshDeletedPets])
+  }, [
+    authLoading,
+    isAuthenticated,
+    refreshPets,
+    refreshPastPets,
+    refreshDeletedPets,
+  ])
+
+  // Combine all pets for the provider value
+  const allPets = [...activePetsData, ...deceasedPetsData]
 
   return (
     <PetContext.Provider
       value={{
-        pets,
-        activePets,
-        deceasedPets: deceasedPets_,
+        pets: allPets,
+        activePets: activePetsData,
+        deceasedPets: deceasedPetsData,
         deletedPets,
         loading,
         refreshPets,
@@ -182,7 +203,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         softDeletePet,
         hardDeletePet,
         restorePet,
-        markPetDeceased
+        markPetDeceased,
       }}
     >
       {children}
