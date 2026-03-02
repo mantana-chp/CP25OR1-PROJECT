@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,7 +18,7 @@ import {
 } from 'react-native'
 
 const SHOWN_REMINDERS_KEY = '@realtime_shown_reminders'
-const CHECK_INTERVAL = 30000 // Check every 30 seconds
+const CHECK_INTERVAL = 30000 // Check every 30 seconds (catches reminders within 1-minute window)
 
 interface RealtimeReminderNotificationProps {
   onReminderShown?: (reminder: IReminder) => void
@@ -29,7 +30,8 @@ export default function RealtimeReminderNotification({
   onReminderCompleted
 }: RealtimeReminderNotificationProps) {
   const [visible, setVisible] = useState(false)
-  const [currentReminder, setCurrentReminder] = useState<IReminder | null>(null)
+  const [currentReminders, setCurrentReminders] = useState<IReminder[]>([])
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [shownReminderIds, setShownReminderIds] = useState<Set<string>>(
     new Set()
   )
@@ -151,11 +153,11 @@ export default function RealtimeReminderNotification({
 
       // Show the first due reminder that hasn't been shown yet
       if (dueReminders.length > 0) {
-        const reminderToShow = dueReminders.find(
+        const remindersToShow = dueReminders.filter(
           (r) => !shownReminderIds.has(r.id)
         )
-        if (reminderToShow) {
-          showNotification(reminderToShow)
+        if (remindersToShow.length > 0) {
+          showNotifications(remindersToShow)
         }
       }
     } catch (error) {
@@ -191,21 +193,26 @@ export default function RealtimeReminderNotification({
       return false
     }
 
-    // Check if reminder time is now or within the last 5 minutes
+    // Check if reminder time matches current time (within 1-minute window)
     const reminderDateTime = dayjs(`${reminderDate} ${reminderTime}`)
     const now = dayjs()
     const minutesDiff = now.diff(reminderDateTime, 'minute')
 
-    // Show if it's within 5 minutes past the reminder time (including overdue)
-    // -1 minute means we show it up to 1 minute before the scheduled time
-    return minutesDiff >= -1 && minutesDiff <= 5
+    // Show notification right at reminder time (0 to 1 minute after scheduled time)
+    // This gives a small window to catch the notification even if check runs between intervals
+    return minutesDiff >= 0 && minutesDiff <= 1
   }
 
-  const showNotification = (reminder: IReminder) => {
-    setCurrentReminder(reminder)
+  const showNotifications = (reminders: IReminder[]) => {
+    setCurrentReminders(reminders)
+    setCompletedIds(new Set())
     setVisible(true)
-    saveShownReminder(reminder.id)
-    onReminderShown?.(reminder)
+    
+    // Save all shown reminders
+    reminders.forEach((reminder) => {
+      saveShownReminder(reminder.id)
+      onReminderShown?.(reminder)
+    })
 
     // Animate slide in
     Animated.spring(slideAnim, {
@@ -223,29 +230,82 @@ export default function RealtimeReminderNotification({
       useNativeDriver: true
     }).start(() => {
       setVisible(false)
-      setCurrentReminder(null)
+      setCurrentReminders([])
+      setCompletedIds(new Set())
       slideAnim.setValue(0)
     })
   }
 
+  const handleToggleReminder = (reminderId: string) => {
+    setCompletedIds((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(reminderId)) {
+        newSet.delete(reminderId)
+      } else {
+        newSet.add(reminderId)
+      }
+      return newSet
+    })
+  }
+
   const handleMarkDone = async () => {
-    if (!currentReminder || isMarkingDone) return
+    if (currentReminders.length === 0 || isMarkingDone) return
+
+    const idsToComplete = Array.from(completedIds)
+    if (idsToComplete.length === 0) {
+      Alert.alert('กรุณาเลือกรายการ', 'โปรดเลือกอย่างน้อย 1 รายการที่ต้องการทำเครื่องหมายเสร็จ')
+      return
+    }
 
     try {
       setIsMarkingDone(true)
-      await updateStatusApi.execute(currentReminder.id)
+      
+      // Mark all selected reminders as done
+      await Promise.all(
+        idsToComplete.map((id) => updateStatusApi.execute(id))
+      )
 
-      Alert.alert('สำเร็จ', 'ทำเครื่องหมายเสร็จเรียบร้อยแล้ว', [
-        {
-          text: 'ตกลง',
-          onPress: () => {
-            onReminderCompleted?.(currentReminder.id)
-            handleAcknowledge()
-          }
-        }
-      ])
+      // Notify parent for each completed reminder
+      idsToComplete.forEach((id) => {
+        onReminderCompleted?.(id)
+      })
+
+      // Refetch data
+      await getRemindersApi.execute()
+
+      handleAcknowledge()
     } catch (error) {
-      console.error('Error marking reminder as done:', error)
+      console.error('Error marking reminders as done:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายเสร็จได้')
+    } finally {
+      setIsMarkingDone(false)
+    }
+  }
+
+  const handleMarkAllDone = async () => {
+    if (currentReminders.length === 0 || isMarkingDone) return
+
+    try {
+      setIsMarkingDone(true)
+      
+      const allIds = currentReminders.map((r) => r.id)
+      
+      // Mark all reminders as done
+      await Promise.all(
+        allIds.map((id) => updateStatusApi.execute(id))
+      )
+
+      // Notify parent for each completed reminder
+      allIds.forEach((id) => {
+        onReminderCompleted?.(id)
+      })
+
+      // Refetch data
+      await getRemindersApi.execute()
+
+      handleAcknowledge()
+    } catch (error) {
+      console.error('Error marking all reminders as done:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายเสร็จได้')
     } finally {
       setIsMarkingDone(false)
@@ -257,26 +317,31 @@ export default function RealtimeReminderNotification({
     return timeString.substring(0, 5) + ' น.'
   }
 
-  const getStatusText = (reminder: IReminder) => {
-    if (reminder.reminderStatus === 'overdue') {
-      return 'เกินกำหนดเวลาแล้ว'
+  const getStatusText = (reminders: IReminder[]) => {
+    const overdueCount = reminders.filter(
+      (r) => r.reminderStatus === 'overdue'
+    ).length
+    if (overdueCount > 0) {
+      return `${overdueCount} รายการเกินกำหนด`
     }
     return 'ถึงเวลาแล้ว'
   }
 
-  const getStatusColor = (reminder: IReminder) => {
-    if (reminder.reminderStatus === 'overdue') {
-      return '#BF1737'
-    }
-    return '#F59E0B'
+  const getStatusColor = (reminders: IReminder[]) => {
+    const hasOverdue = reminders.some(
+      (r) => r.reminderStatus === 'overdue'
+    )
+    return hasOverdue ? '#BF1737' : '#F59E0B'
   }
 
-  if (!visible || !currentReminder) {
+  if (!visible || currentReminders.length === 0) {
     return null
   }
 
-  const isOverdue = currentReminder.reminderStatus === 'overdue'
-  const statusColor = getStatusColor(currentReminder)
+  const isOverdue = currentReminders.some(
+    (r) => r.reminderStatus === 'overdue'
+  )
+  const statusColor = getStatusColor(currentReminders)
 
   return (
     <Modal
@@ -320,44 +385,89 @@ export default function RealtimeReminderNotification({
             </View>
             <View style={styles.headerTextContainer}>
               <Text style={[styles.statusText, { color: statusColor }]}>
-                {getStatusText(currentReminder)}
+                {getStatusText(currentReminders)}
               </Text>
-              <Text style={styles.headerTitle}>เตือนความจำ</Text>
+              <Text style={styles.headerTitle}>
+                {currentReminders.length} เตือนความจำ
+              </Text>
             </View>
           </View>
 
-          {/* Content */}
-          <View style={styles.content}>
-            <Text style={styles.reminderTitle}>
-              {currentReminder.reminderName}
-            </Text>
-
-            {currentReminder.pet_name && (
-              <View style={styles.infoRow}>
-                <PawPrint size={16} color="#2E759E" />
-                <Text style={styles.infoText}>{currentReminder.pet_name}</Text>
-              </View>
-            )}
-
-            {currentReminder.reminderTime && (
-              <View style={styles.infoRow}>
-                <Clock size={16} color={statusColor} />
-                <Text style={[styles.infoText, { color: statusColor }]}>
-                  {formatTime(currentReminder.reminderTime)}
-                </Text>
-              </View>
-            )}
-
-            {currentReminder.description &&
-              currentReminder.description !== '-' && (
-                <View style={styles.descriptionContainer}>
-                  <Text style={styles.descriptionLabel}>รายละเอียด:</Text>
-                  <Text style={styles.descriptionText}>
-                    {currentReminder.description}
-                  </Text>
+          {/* Content - List of Reminders */}
+          <ScrollView
+            style={styles.scrollContent}
+            contentContainerStyle={styles.scrollContentContainer}
+          >
+            {currentReminders.map((reminder, index) => (
+              <TouchableOpacity
+                key={reminder.id}
+                style={[
+                  styles.reminderItem,
+                  index === currentReminders.length - 1 &&
+                    styles.reminderItemLast
+                ]}
+                onPress={() => handleToggleReminder(reminder.id)}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    completedIds.has(reminder.id) && styles.checkboxChecked
+                  ]}
+                >
+                  {completedIds.has(reminder.id) && (
+                    <Check size={14} color="#fff" />
+                  )}
                 </View>
-              )}
-          </View>
+
+                <View style={styles.reminderContent}>
+                  <Text
+                    style={[
+                      styles.reminderTitle,
+                      reminder.reminderStatus === 'overdue' &&
+                        styles.overdueTitle
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {reminder.reminderName}
+                  </Text>
+
+                  <View style={styles.reminderDetails}>
+                    {reminder.pet_name && (
+                      <View style={styles.detailRow}>
+                        <PawPrint size={12} color="#6B7280" />
+                        <Text style={styles.detailText} numberOfLines={1}>
+                          {reminder.pet_name}
+                        </Text>
+                      </View>
+                    )}
+
+                    {reminder.reminderTime && (
+                      <View style={styles.detailRow}>
+                        <Clock
+                          size={12}
+                          color={
+                            reminder.reminderStatus === 'overdue'
+                              ? '#BF1737'
+                              : '#6B7280'
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.detailText,
+                            reminder.reminderStatus === 'overdue' &&
+                              styles.overdueText
+                          ]}
+                        >
+                          {formatTime(reminder.reminderTime)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* Actions */}
           <View style={styles.actions}>
@@ -367,24 +477,46 @@ export default function RealtimeReminderNotification({
               activeOpacity={0.7}
               disabled={isMarkingDone}
             >
-              <Text style={styles.acknowledgeButtonText}>เข้าใจแล้ว</Text>
+              <Text style={styles.acknowledgeButtonText}>ปิด</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.doneButton]}
-              onPress={handleMarkDone}
-              activeOpacity={0.7}
-              disabled={isMarkingDone}
-            >
-              {isMarkingDone ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Check size={18} color="#fff" />
-                  <Text style={styles.doneButtonText}>ทำเสร็จแล้ว</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {currentReminders.length > 1 && completedIds.size === 0 && (
+              <TouchableOpacity
+                style={[styles.button, styles.allDoneButton]}
+                onPress={handleMarkAllDone}
+                activeOpacity={0.7}
+                disabled={isMarkingDone}
+              >
+                {isMarkingDone ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Check size={18} color="#fff" />
+                    <Text style={styles.doneButtonText}>ทำเสร็จทั้งหมด</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {completedIds.size > 0 && (
+              <TouchableOpacity
+                style={[styles.button, styles.doneButton]}
+                onPress={handleMarkDone}
+                activeOpacity={0.7}
+                disabled={isMarkingDone}
+              >
+                {isMarkingDone ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Check size={18} color="#fff" />
+                    <Text style={styles.doneButtonText}>
+                      เสร็จแล้ว ({completedIds.size})
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       </View>
@@ -445,78 +577,109 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_700Bold',
     color: '#1F2937'
   },
-  content: {
-    padding: 16,
-    gap: 10
+  scrollContent: {
+    maxHeight: 320
+  },
+  scrollContentContainer: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4
+  },
+  reminderItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    gap: 12
+  },
+  reminderItemLast: {
+    borderBottomWidth: 0
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#5FA7D1',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2
+  },
+  checkboxChecked: {
+    backgroundColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
+  },
+  reminderContent: {
+    flex: 1,
+    gap: 4
   },
   reminderTitle: {
-    fontSize: 17,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877',
-    marginBottom: 6
+    fontFamily: 'Prompt_500Medium',
+    fontSize: 14,
+    color: '#111827'
   },
-  infoRow: {
+  overdueTitle: {
+    color: '#BF1737'
+  },
+  reminderDetails: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 10,
+    flexWrap: 'wrap'
   },
-  infoText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
   },
-  descriptionContainer: {
-    marginTop: 6,
-    padding: 10,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#5FA7D1'
-  },
-  descriptionLabel: {
-    fontSize: 12,
-    fontFamily: 'Prompt_500Medium',
-    color: '#6B7280',
-    marginBottom: 3
-  },
-  descriptionText: {
-    fontSize: 13,
+  detailText: {
     fontFamily: 'Prompt_400Regular',
-    color: '#1F2937',
-    lineHeight: 18
+    fontSize: 12,
+    color: '#6B7280'
+  },
+  overdueText: {
+    color: '#BF1737'
   },
   actions: {
     flexDirection: 'row',
-    padding: 14,
     gap: 10,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb'
+    borderTopColor: '#E5E7EB'
   },
   button: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 10,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 5
+    flexDirection: 'row',
+    gap: 6
   },
   acknowledgeButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1.5,
-    borderColor: '#d1d5db'
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    maxWidth: 100
   },
   acknowledgeButtonText: {
-    fontSize: 14,
     fontFamily: 'Prompt_500Medium',
-    color: '#4b5563'
+    fontSize: 14,
+    color: '#374151'
   },
   doneButton: {
-    backgroundColor: '#4CAF50'
+    backgroundColor: '#16A34A'
+  },
+  allDoneButton: {
+    backgroundColor: '#16A34A'
   },
   doneButtonText: {
+    fontFamily: 'Prompt_500Medium',
     fontSize: 14,
-    fontFamily: 'Prompt_700Bold',
     color: '#fff'
   }
 })
