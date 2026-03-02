@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import Modal from '../../components/modal'
+import Button from '../../components/button'
 
 type DeleteReason = 'delete' | 'deceased' | null
 
@@ -41,131 +43,101 @@ export default function DeletePetModal({
   return (
     <Modal
       visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={handleClose}
+      onClose={handleClose}
+      variant="default"
+      title="เหตุผลที่ต้องการลบ"
+      maxWidth={360}
     >
-      <Pressable style={styles.overlay} onPress={handleClose}>
+      <View style={styles.content}>
+        <Text style={styles.subtitle}>
+          คุณต้องการลบ <Text style={styles.petName}>"{petName}"</Text>{' '}
+          เพราะอะไร?
+        </Text>
+
+        {/* Option: Just delete */}
         <Pressable
-          style={styles.container}
-          onPress={(e) => e.stopPropagation()}
+          style={[
+            styles.optionCard,
+            reason === 'delete' && styles.optionCardSelected
+          ]}
+          onPress={() => setReason('delete')}
         >
-          <Text style={styles.title}>เหตุผลที่ต้องการลบ</Text>
-          <Text style={styles.subtitle}>
-            คุณต้องการลบ <Text style={styles.petName}>"{petName}"</Text>{' '}
-            เพราะอะไร?
-          </Text>
-
-          {/* Option: Just delete */}
-          <Pressable
-            style={[
-              styles.optionCard,
-              reason === 'delete' && styles.optionCardSelected
-            ]}
-            onPress={() => setReason('delete')}
-          >
-            <View style={styles.optionRadio}>
-              {reason === 'delete' && <View style={styles.optionRadioInner} />}
-            </View>
-            <View style={styles.optionContent}>
-              <Text
-                style={[
-                  styles.optionTitle,
-                  reason === 'delete' && styles.optionTitleSelected
-                ]}
-              >
-                ต้องการลบออก
-              </Text>
-              <Text style={styles.optionDesc}>
-                ย้ายไปยัง "เพิ่งลบล่าสุด" สามารถกู้คืนได้ภายใน 30 วัน
-              </Text>
-            </View>
-          </Pressable>
-
-          {/* Option: Pet passed away */}
-          <Pressable
-            style={[
-              styles.optionCard,
-              reason === 'deceased' && styles.optionCardDeceasedSelected
-            ]}
-            onPress={() => setReason('deceased')}
-          >
-            <View
+          <View style={styles.optionRadio}>
+            {reason === 'delete' && <View style={styles.optionRadioInner} />}
+          </View>
+          <View style={styles.optionContent}>
+            <Text
               style={[
-                styles.optionRadio,
-                reason === 'deceased' && styles.optionRadioDeceased
+                styles.optionTitle,
+                reason === 'delete' && styles.optionTitleSelected
               ]}
             >
-              {reason === 'deceased' && (
-                <View style={styles.optionRadioInnerDeceased} />
-              )}
-            </View>
-            <View style={styles.optionContent}>
-              <Text
-                style={[
-                  styles.optionTitle,
-                  reason === 'deceased' && styles.optionTitleDeceased
-                ]}
-              >
-                🕊️ น้องเสียชีวิตแล้ว
-              </Text>
-              <Text style={styles.optionDesc}>
-                บันทึกเป็น "สัตว์เลี้ยงในความทรงจำ" ยังดูประวัติได้
-              </Text>
-            </View>
-          </Pressable>
-
-          <View style={styles.buttons}>
-            <Pressable
-              style={[styles.button, styles.cancelButton]}
-              onPress={handleClose}
-              disabled={isLoading}
-            >
-              <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.button,
-                reason === 'deceased'
-                  ? styles.confirmDeceasedButton
-                  : styles.confirmDeleteButton,
-                (!reason || isLoading) && styles.disabledButton
-              ]}
-              onPress={handleConfirm}
-              disabled={!reason || isLoading}
-            >
-              <Text style={styles.confirmButtonText}>
-                {isLoading ? 'กำลังดำเนินการ...' : 'ยืนยัน'}
-              </Text>
-            </Pressable>
+              ต้องการลบออก
+            </Text>
+            <Text style={styles.optionDesc}>
+              ย้ายไปยัง "เพิ่งลบล่าสุด" สามารถกู้คืนได้ภายใน 30 วัน
+            </Text>
           </View>
         </Pressable>
-      </Pressable>
+
+        {/* Option: Pet passed away */}
+        <Pressable
+          style={[
+            styles.optionCard,
+            reason === 'deceased' && styles.optionCardDeceasedSelected
+          ]}
+          onPress={() => setReason('deceased')}
+        >
+          <View
+            style={[
+              styles.optionRadio,
+              reason === 'deceased' && styles.optionRadioDeceased
+            ]}
+          >
+            {reason === 'deceased' && (
+              <View style={styles.optionRadioInnerDeceased} />
+            )}
+          </View>
+          <View style={styles.optionContent}>
+            <Text
+              style={[
+                styles.optionTitle,
+                reason === 'deceased' && styles.optionTitleDeceased
+              ]}
+            >
+              🕊️ น้องเสียชีวิตแล้ว
+            </Text>
+            <Text style={styles.optionDesc}>
+              บันทึกเป็น "สัตว์เลี้ยงในความทรงจำ" ยังดูประวัติได้
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={styles.buttons}>
+          <Button
+            title="ยกเลิก"
+            onPress={handleClose}
+            variant="ghost"
+            disabled={isLoading}
+            style={styles.buttonHalf}
+          />
+          <Button
+            title={isLoading ? 'กำลังดำเนินการ...' : 'ยืนยัน'}
+            onPress={handleConfirm}
+            variant={reason === 'deceased' ? 'base' : 'error'}
+            disabled={!reason}
+            loading={isLoading}
+            style={styles.buttonHalf}
+          />
+        </View>
+      </View>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    marginHorizontal: 24,
-    width: '90%',
-    maxWidth: 360
-  },
-  title: {
-    fontSize: 18,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877',
-    textAlign: 'center',
-    marginBottom: 6
+  content: {
+    width: '100%'
   },
   subtitle: {
     fontSize: 13,
@@ -246,34 +218,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 8
   },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 40,
-    alignItems: 'center'
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db'
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#4b5563'
-  },
-  confirmDeleteButton: {
-    backgroundColor: '#BF1737'
-  },
-  confirmDeceasedButton: {
-    backgroundColor: '#6b7280'
-  },
-  confirmButtonText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#fff'
-  },
-  disabledButton: {
-    opacity: 0.4
+  buttonHalf: {
+    flex: 1
   }
 })

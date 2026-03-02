@@ -4,14 +4,13 @@ import _ from 'lodash'
 import React, { useEffect, useState } from 'react'
 import {
   Image,
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native'
+import ActionSheet from '../../components/action-sheet'
 
 interface Pet {
   id: string
@@ -61,24 +60,34 @@ export default function PetSelector({
     setActionMenuVisible(true)
   }
 
-  const handleEdit = () => {
-    setActionMenuVisible(false)
-    if (selectedPetForAction && onEditPet) {
-      onEditPet(selectedPetForAction.id)
-    }
-  }
-
-  const handleDelete = () => {
-    setActionMenuVisible(false)
-    if (selectedPetForAction && onDeletePet) {
-      onDeletePet(selectedPetForAction.id)
-    }
-  }
-
   const handleCloseMenu = () => {
     setActionMenuVisible(false)
     setSelectedPetForAction(null)
   }
+
+  const actions = [
+    {
+      icon: 'pencil' as const,
+      label: 'แก้ไขข้อมูล',
+      onPress: () => {
+        if (selectedPetForAction && onEditPet) {
+          onEditPet(selectedPetForAction.id)
+        }
+      },
+      disabled: !onEditPet
+    },
+    {
+      icon: 'delete-outline' as const,
+      label: 'ลบสัตว์เลี้ยง',
+      onPress: () => {
+        if (selectedPetForAction && onDeletePet) {
+          onDeletePet(selectedPetForAction.id)
+        }
+      },
+      variant: 'error' as const,
+      disabled: !onDeletePet
+    }
+  ]
 
   return (
     <>
@@ -137,52 +146,13 @@ export default function PetSelector({
         )}
       </ScrollView>
 
-      {/* Action Menu Modal */}
-      <Modal
+      {/* Action Menu */}
+      <ActionSheet
         visible={actionMenuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseMenu}
-      >
-        <Pressable style={styles.modalOverlay} onPress={handleCloseMenu}>
-          <View style={styles.actionMenuContainer}>
-            <Text style={styles.actionMenuTitle}>
-              {selectedPetForAction?.pet_name}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleEdit}
-              disabled={!onEditPet}
-            >
-              <MaterialCommunityIcons name="pencil" size={24} color="#225877" />
-              <Text style={styles.actionButtonText}>แก้ไขข้อมูล</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
-              onPress={handleDelete}
-              disabled={!onDeletePet}
-            >
-              <MaterialCommunityIcons
-                name="delete-outline"
-                size={24}
-                color="#E53935"
-              />
-              <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
-                ลบสัตว์เลี้ยง
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton]}
-              onPress={handleCloseMenu}
-            >
-              <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-            </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
+        onClose={handleCloseMenu}
+        title={selectedPetForAction?.pet_name}
+        actions={actions}
+      />
     </>
   )
 }
@@ -246,64 +216,5 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#5FA7D1',
     fontWeight: '300'
-  },
-  // Action Menu Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  actionMenuContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 320,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5
-  },
-  actionMenuTitle: {
-    fontSize: 18,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877',
-    textAlign: 'center',
-    marginBottom: 20
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#F5F5F5',
-    marginBottom: 12,
-    gap: 12
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  deleteButton: {
-    backgroundColor: '#FFEBEE'
-  },
-  deleteButtonText: {
-    color: '#E53935'
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    justifyContent: 'center'
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#666',
-    textAlign: 'center'
   }
 })
