@@ -317,83 +317,135 @@ export default function RecurringReminderCard({
                   { backgroundColor: categoryInfo.color + '20' }
                 ]}
               >
-                <CategoryIcon size={20} color={categoryInfo.color} />
+                <CategoryIcon size={16} color={categoryInfo.color} />
               </View>
-              <Text style={styles.title}>{reminder.reminderName}</Text>
+              <Text style={styles.title} numberOfLines={1}>
+                {reminder.reminderName}
+              </Text>
+              {/* Progress Badge */}
+              <View
+                style={[
+                  styles.progressBadge,
+                  {
+                    backgroundColor:
+                      completedCount === totalCount ? '#E6FFFA' : '#FFF4E6'
+                  }
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.progressText,
+                    {
+                      color:
+                        completedCount === totalCount ? '#15AD90' : '#FF9531'
+                    }
+                  ]}
+                >
+                  {completedCount}/{totalCount}
+                </Text>
+              </View>
             </View>
             <TouchableOpacity
               onPress={() => setIsExpanded(!isExpanded)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               {isExpanded ? (
-                <ChevronUp size={24} color="#A6A6A6" />
+                <ChevronUp size={18} color="#A6A6A6" />
               ) : (
-                <ChevronDown size={24} color="#A6A6A6" />
+                <ChevronDown size={18} color="#A6A6A6" />
               )}
             </TouchableOpacity>
           </View>
 
-          {/* Info Row */}
-          <View style={styles.infoRow}>
-            <PawPrint size={14} color="#2E759E" />
-            <Text style={styles.petName}>{reminder.pet_name}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <BriefcaseMedical size={14} color="#2E759E" />
-            <Text style={styles.countText}>
-              {`${reminder?.children[0].reminderName.slice(
-                0,
-                -10
-              )} (${totalCount} เข็ม)`}
+          {/* Combined Info Row */}
+          <View style={styles.detailsRow}>
+            <PawPrint size={11} color="#6B7280" />
+            <Text style={styles.detailText} numberOfLines={1}>
+              {reminder.pet_name}
+            </Text>
+            <View style={styles.separator} />
+            <BriefcaseMedical size={11} color="#6B7280" />
+            <Text style={styles.detailText} numberOfLines={1}>
+              {totalCount} เข็ม
             </Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Calendar
-              size={14}
-              color={
-                completedCount === totalCount
-                  ? '#15AD90'
-                  : (() => {
+          {/* Status Row */}
+          <View style={styles.statusRow}>
+            {completedCount === totalCount ? (
+              <View style={styles.statusBadge}>
+                <Check size={13} color="#15AD90" />
+                <Text style={[styles.statusText, { color: '#15AD90' }]}>
+                  ฉีดครบแล้ว
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor: (() => {
+                        const diffDays = nextInstance
+                          ? dayjs(nextInstance.reminderDate).diff(
+                              dayjs(),
+                              'day'
+                            )
+                          : 0
+                        return diffDays < 0 ? '#FEE2E2' : '#FEF3C7'
+                      })()
+                    }
+                  ]}
+                >
+                  <Calendar
+                    size={13}
+                    color={(() => {
                       const diffDays = nextInstance
                         ? dayjs(nextInstance.reminderDate).diff(dayjs(), 'day')
                         : 0
-                      return diffDays < 0 ? '#BF1737' : '#FF9531'
-                    })()
-              }
-            />
-            <Text
-              style={[
-                styles.nextDueText,
-                {
-                  color:
-                    completedCount === totalCount
-                      ? '#15AD90'
-                      : (() => {
+                      return diffDays < 0 ? '#BF1737' : '#F59E0B'
+                    })()}
+                  />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color: (() => {
                           const diffDays = nextInstance
                             ? dayjs(nextInstance.reminderDate).diff(
                                 dayjs(),
                                 'day'
                               )
                             : 0
-                          return diffDays < 0 ? '#BF1737' : '#FF9531'
+                          return diffDays < 0 ? '#BF1737' : '#F59E0B'
                         })()
-                }
-              ]}
-            >
-              {completedCount === totalCount
-                ? 'ฉีดวัคซีนครบตามกำหนด'
-                : (() => {
-                    const diffDays = nextInstance
-                      ? dayjs(nextInstance.reminderDate).diff(dayjs(), 'day')
-                      : 0
+                      }
+                    ]}
+                  >
+                    {(() => {
+                      const diffDays = nextInstance
+                        ? dayjs(nextInstance.reminderDate).diff(dayjs(), 'day')
+                        : 0
 
-                    return diffDays < 0
-                      ? `เลยกำหนดมาแล้ว ${Math.abs(diffDays)} วัน`
-                      : `ครั้งถัดไปอีก ${diffDays} วัน`
-                  })()}
-            </Text>
+                      return diffDays < 0
+                        ? `เลยกำหนด ${Math.abs(diffDays)} วัน`
+                        : diffDays === 0
+                          ? 'วันนี้'
+                          : `อีก ${diffDays} วัน`
+                    })()}
+                  </Text>
+                </View>
+                {nextInstance && nextInstance.reminderTime && (
+                  <>
+                    <View style={styles.separator} />
+                    <Clock size={11} color="#6B7280" />
+                    <Text style={styles.detailText}>
+                      {formatTime(nextInstance.reminderTime)}
+                    </Text>
+                  </>
+                )}
+              </>
+            )}
           </View>
         </TouchableOpacity>
 
@@ -447,7 +499,7 @@ export default function RecurringReminderCard({
                     </Text>
                     <View style={styles.infoRow}>
                       <Clock
-                        size={12}
+                        size={11}
                         color={
                           instance.reminderStatus === 'overdue'
                             ? '#BF1737'
@@ -486,9 +538,9 @@ export default function RecurringReminderCard({
                 >
                   {instance.reminderStatus === 'done' ||
                   tempDoneIds.includes(instance.id) ? (
-                    <Check size={20} color="#15AD90" />
+                    <Check size={18} color="#15AD90" />
                   ) : (
-                    <Hourglass size={20} color="#FF9531" />
+                    <Hourglass size={18} color="#FF9531" />
                   )}
                 </View>
               </View>
@@ -560,58 +612,94 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 6,
+    padding: 10,
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    gap: 8
+    gap: 3
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4
+    marginBottom: 6
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flex: 1
+    gap: 6,
+    flex: 1,
+    minWidth: 0
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 6,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexShrink: 0
   },
   title: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877',
-    flex: 1
+    color: '#1F2937',
+    flex: 1,
+    minWidth: 0
+  },
+  progressBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    flexShrink: 0
+  },
+  progressText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_700Bold'
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+    flexWrap: 'wrap'
+  },
+  detailText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6B7280'
+  },
+  separator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#D1D5DB'
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flexWrap: 'wrap'
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#E6FFFA'
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_500Medium'
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
-  },
-  petName: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  countText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  nextDueText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium'
+    gap: 4
   },
   instancesContainer: {
     backgroundColor: '#fff',
@@ -623,7 +711,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    paddingTop: 8,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
     zIndex: -1
@@ -632,8 +720,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6'
   },
@@ -643,21 +731,21 @@ const styles = StyleSheet.create({
   instanceLeft: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 8,
     flex: 1,
-    paddingLeft: 16
+    paddingLeft: 10
   },
   iconTimeContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center'
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#A6A6A6',
     justifyContent: 'center',
@@ -665,26 +753,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff'
   },
   checkboxCompleted: {
-    borderColor: '#D4B5F5'
+    borderColor: '#5FA7D1'
   },
   checkboxInner: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#D4B5F5'
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#5FA7D1'
   },
   instanceInfo: {
     flex: 1,
-    gap: 4
+    gap: 3
   },
   instanceDate: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#6B7280'
   },
   instanceLabel: {
-    fontSize: 14,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877'
+    fontSize: 12,
+    fontFamily: 'Prompt_500Medium',
+    color: '#1F2937'
   }
 })
