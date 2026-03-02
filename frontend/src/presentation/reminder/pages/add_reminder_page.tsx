@@ -95,7 +95,7 @@ export default function AddReminderPage() {
     )
   })()
 
-  const { pets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
+  const { pets, activePets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
@@ -497,10 +497,10 @@ export default function AddReminderPage() {
       formik.setFieldValue('petId', petIdFromParams)
     } else if (selectedPetId) {
       formik.setFieldValue('petId', selectedPetId)
-    } else if (pets.length > 0) {
-      formik.setFieldValue('petId', pets[0].id)
+    } else if (activePets.length > 0) {
+      formik.setFieldValue('petId', activePets[0].id)
     }
-  }, [petIdFromParams, selectedPetId, pets])
+  }, [petIdFromParams, selectedPetId, activePets])
 
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
@@ -745,10 +745,10 @@ export default function AddReminderPage() {
               />
 
               <PetSelector
-                pets={pets}
+                pets={activePets}
                 selectedPetId={formik.values.petId}
                 onSelectPet={(petId: string) => {
-                  const newPet = pets.find((p) => p.id === petId)
+                  const newPet = activePets.find((p) => p.id === petId)
                   const oldPetSpecies =
                     originalPetSpecies || currentPet?.species
                   const newPetSpecies = newPet?.species

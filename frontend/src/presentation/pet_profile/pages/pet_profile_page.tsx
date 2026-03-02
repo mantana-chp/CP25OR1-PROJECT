@@ -499,7 +499,7 @@ export default function PetProfilePage() {
                 selectedIndex={currentPetIndex}
                 onSelect={handlePetSelect}
                 maxPets={30}
-                onEditPet={handleEditPetFromSelector}
+                onEditPet={!isViewingDeceased ? handleEditPetFromSelector : undefined}
                 onDeletePet={
                   !isViewingDeceased ? handleDeletePetFromSelector : undefined
                 }
