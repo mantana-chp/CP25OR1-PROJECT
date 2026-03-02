@@ -6,7 +6,6 @@ type DeleteReason = 'delete' | 'deceased' | null
 interface DeletePetModalProps {
   visible: boolean
   petName: string
-  hasRelations: boolean
   onClose: () => void
   onDelete: () => void
   onDeceased: () => void
@@ -16,7 +15,6 @@ interface DeletePetModalProps {
 export default function DeletePetModal({
   visible,
   petName,
-  hasRelations,
   onClose,
   onDelete,
   onDeceased,
@@ -79,9 +77,7 @@ export default function DeletePetModal({
                 ต้องการลบออก
               </Text>
               <Text style={styles.optionDesc}>
-                {hasRelations
-                  ? 'ย้ายไปยัง "เพิ่งลบล่าสุด" สามารถกู้คืนได้'
-                  : 'ลบข้อมูลออกจากระบบถาวร'}
+                ย้ายไปยัง "เพิ่งลบล่าสุด" สามารถกู้คืนได้ภายใน 30 วัน
               </Text>
             </View>
           </Pressable>

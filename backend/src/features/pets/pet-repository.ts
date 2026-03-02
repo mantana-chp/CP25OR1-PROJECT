@@ -145,3 +145,25 @@ export const hardDeletePet = async (petId: string) => {
     where: { id: petId },
   });
 };
+
+/** Restore a deleted pet back to active status */
+export const restorePet = async (petId: string, userId: string) => {
+  return await prisma.pets.update({
+    where: { id: petId, user_id: userId },
+    data: {
+      status: pet_status.ACTIVE,
+      deleted_at: null,
+      deletion_reason: null,
+    },
+  });
+};
+
+/** Permanent delete - for user-initiated permanent deletion */
+export const permanentDeletePet = async (petId: string, userId: string) => {
+  return await prisma.pets.delete({
+    where: { 
+      id: petId,
+      user_id: userId,
+    },
+  });
+};

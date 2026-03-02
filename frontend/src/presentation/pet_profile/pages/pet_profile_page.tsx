@@ -70,7 +70,6 @@ export default function PetProfilePage() {
   const [petToDelete, setPetToDelete] = useState<{
     id: string
     name: string
-    hasRelations: boolean
   } | null>(null)
   const [petToMarkDeceased, setPetToMarkDeceased] = useState<{
     id: string
@@ -239,55 +238,41 @@ export default function PetProfilePage() {
     }
   }
 
-  // Check if pet has any reminders or health records
-  const checkPetHasRelations = useCallback(
-    (petId: string): boolean => {
-      const hasReminders = remindersWithRecurrence.some(
-        (r) => r.petId === petId,
-      )
-      const hasHealthRecords = healthRecords.some((r) => r.petId === petId)
-      return hasReminders || hasHealthRecords
-    },
-    [remindersWithRecurrence, healthRecords],
-  )
-
   const handleDeletePress = useCallback(() => {
     if (!currentPet) return
 
-    const hasRelations = checkPetHasRelations(currentPet.id)
     setPetToDelete({
       id: currentPet.id,
       name: currentPet.pet_name,
-      hasRelations,
     })
     setShowDeleteModal(true)
-  }, [currentPet, checkPetHasRelations])
+  }, [currentPet])
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!petToDelete) return
 
     setIsDeleting(true)
     try {
-      if (petToDelete.hasRelations) {
-        // Soft delete for pets with relations
-        await softDeletePet(petToDelete.id)
-        Alert.alert('สำเร็จ', `"${petToDelete.name}" ถูกย้ายไปยังเพิ่งลบล่าสุด`)
-      } else {
-        // Hard delete for pets without relations
-        await hardDeletePet(petToDelete.id)
-        Alert.alert('สำเร็จ', `"${petToDelete.name}" ถูกลบเรียบร้อยแล้ว`)
-      }
+      // Always use soft delete API - backend handles everything
+      await softDeletePet(petToDelete.id)
+      Alert.alert(
+        'สำเร็จ',
+        `"${petToDelete.name}" ถูกย้ายไปยังเพิ่งลบล่าสุด\n\nสามารถกู้คืนได้ภายใน 30 วัน`,
+      )
       setShowDeleteModal(false)
       setPetToDelete(null)
-      // Note: Don't call loadPets() here for mock flow - state is managed locally
-      // When API is ready, uncomment: await loadPets()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting pet:', error)
-      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบสัตว์เลี้ยงได้')
+      // Check if it's the last active pet error
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'ไม่สามารถลบสัตว์เลี้ยงได้'
+      Alert.alert('เกิดข้อผิดพลาด', errorMessage)
     } finally {
       setIsDeleting(false)
     }
-  }, [petToDelete, softDeletePet, hardDeletePet])
+  }, [petToDelete, softDeletePet])
 
   const handleRestorePet = useCallback(
     async (petId: string) => {
@@ -583,7 +568,6 @@ export default function PetProfilePage() {
       <DeletePetModal
         visible={showDeleteModal}
         petName={petToDelete?.name || ''}
-        hasRelations={petToDelete?.hasRelations || false}
         onClose={() => {
           setShowDeleteModal(false)
           setPetToDelete(null)

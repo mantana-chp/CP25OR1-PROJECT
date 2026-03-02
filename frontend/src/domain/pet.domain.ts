@@ -31,7 +31,7 @@ export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
     weight: v.weight || '',
     created_at: v.created_at || '',
     updated_at: v.updated_at || '',
-    profileImage: v?.profileImage || null,
+    profileImage: v?.profileImage || null
   }
 }
 
@@ -47,7 +47,7 @@ export const petProfileValidateSchema = yup.object().shape({
   birth_date: yup
     .date()
     .required('กรุณากรอกวันเกิดสัตว์เลี้ยง')
-    .max(new Date(), 'วันเกิดต้องไม่เกินวันปัจจุบัน'),
+    .max(new Date(), 'วันเกิดต้องไม่เกินวันปัจจุบัน')
 })
 
 const parseDate = (dateValue: any): Date => {
@@ -78,7 +78,8 @@ export interface ISpeciesAndBreeds {
   data: ISpecies[]
 }
 
-export type PetStatus = 'ACTIVE' | 'DECEASED'
+export type TPetStatus = 'ACTIVE' | 'DECEASED' | 'DELETED'
+export type TDeletionReason = 'JUST_DELETE' | 'DECEASED'
 
 export interface IPetProfile {
   id: string
@@ -93,11 +94,23 @@ export interface IPetProfile {
   imageUrl?: string
   profile_image_url?: string | null
   profile_image_key?: string | null
-  status?: PetStatus
-  deceased_date?: string
-  deleted_at?: string
+  status: TPetStatus
+  deceased_date: string | null
+  deleted_at: string | null
+  deletion_reason: TDeletionReason | null
 }
 
 export interface IDeletedPet extends IPetProfile {
   deleted_at: string
+  status: 'DELETED'
+}
+
+export interface DeletePetRequest {
+  reason: TDeletionReason
+  deceased_date?: string
+}
+
+export interface DeletePetResponse {
+  message: string
+  status: TPetStatus
 }

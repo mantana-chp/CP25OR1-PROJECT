@@ -5,7 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useState
 } from 'react'
 import { IDeletedPet, IPetProfile } from '../domain/pet.domain'
 import { useAuth } from './AuthContext'
@@ -91,43 +91,46 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
 
   const refreshDeletedPets = useCallback(async () => {
     try {
+      console.log('🔄 Fetching recently deleted pets...')
       const response = await petProfileService.getRecentlyDeletedPets()
+      console.log('📦 Deleted pets response:', response)
       const deletedPetsData = response?.data || []
-      // Convert to IDeletedPet format
-      const formattedDeleted: IDeletedPet[] = deletedPetsData.map((pet) => ({
-        ...pet,
-        deleted_at: pet.deceased_date || new Date().toISOString(),
-      }))
+      console.log('📊 Deleted pets data:', deletedPetsData)
+      // Filter only deleted pets (not deceased)
+      const formattedDeleted: IDeletedPet[] = deletedPetsData
+        .filter((pet) => pet.status === 'DELETED' && pet.deleted_at)
+        .map((pet) => ({
+          ...pet,
+          deleted_at: pet.deleted_at!,
+          status: 'DELETED' as const
+        }))
+      console.log('✅ Formatted deleted pets:', formattedDeleted.length, 'pets')
       setDeletedPets(formattedDeleted)
     } catch (error) {
-      console.error('Error fetching deleted pets:', error)
+      console.error('❌ Error fetching deleted pets:', error)
       setDeletedPets([])
     }
   }, [])
 
-  // MOCK: Soft delete - move pet from activePets to deletedPets (local state only)
+  // Soft delete - call backend API with JUST_DELETE reason
   const softDeletePet = useCallback(
     async (petId: string) => {
-      const petToDelete = activePetsData.find((p) => p.id === petId)
-      if (petToDelete) {
-        // Remove from active pets
-        setActivePetsData((prev) => prev.filter((p) => p.id !== petId))
-        // Add to deleted pets with deleted_at timestamp
-        const deletedPet: IDeletedPet = {
-          ...petToDelete,
-          deleted_at: new Date().toISOString(),
-        }
-        setDeletedPets((prev) => [deletedPet, ...prev])
-        // Update selected pet if needed
-        if (selectedPetId === petId) {
-          const remainingPets = activePetsData.filter((p) => p.id !== petId)
-          setSelectedPetId(
-            remainingPets.length > 0 ? remainingPets[0].id : null,
-          )
-        }
+      try {
+        console.log('🗑️ Soft deleting pet:', petId)
+        // Call backend API to soft delete
+        const response = await petProfileService.softDeletePet(petId)
+        console.log('✅ Soft delete response:', response)
+
+        // Refresh data from all APIs
+        // This will automatically update selection if the deleted pet was selected
+        await Promise.all([refreshPets(), refreshDeletedPets()])
+        console.log('✅ Pets and deleted pets refreshed after delete')
+      } catch (error) {
+        console.error('❌ Error soft deleting pet:', error)
+        throw error
       }
     },
-    [activePetsData, selectedPetId],
+    [refreshPets, refreshDeletedPets]
   )
 
   // MOCK: Hard delete - permanently remove from deletedPets (local state only)
@@ -142,11 +145,11 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
       if (petToRestore) {
         // Remove deleted_at and add back to active pets
         const { deleted_at, ...restoredPet } = petToRestore
-        setActivePetsData((prev) => [...prev, restoredPet])
+        setActivePetsData((prev) => [...prev, restoredPet as IPetProfile])
         setDeletedPets((prev) => prev.filter((p) => p.id !== petId))
       }
     },
-    [deletedPets],
+    [deletedPets]
   )
 
   // Mark pet as deceased - call backend API
@@ -165,7 +168,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshPets, refreshPastPets],
+    [refreshPets, refreshPastPets]
   )
 
   useEffect(() => {
@@ -180,7 +183,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     refreshPets,
     refreshPastPets,
-    refreshDeletedPets,
+    refreshDeletedPets
   ])
 
   // Combine all pets for the provider value
@@ -203,7 +206,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         softDeletePet,
         hardDeletePet,
         restorePet,
-        markPetDeceased,
+        markPetDeceased
       }}
     >
       {children}
