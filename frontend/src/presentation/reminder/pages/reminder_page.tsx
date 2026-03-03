@@ -22,7 +22,7 @@ export default function ReminderPage() {
   // CONST
   // ------------------
   const params = useLocalSearchParams<{ reminderId?: string }>()
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)

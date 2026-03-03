@@ -140,13 +140,13 @@ export default function ReminderList({
           // Pass the date to add to excluded_dates array
           excludeDate = reminder.reminderDate
 
-          console.log('[Recurring Deletion]', {
-            isVirtual: reminder.isVirtual,
-            reminderDate: reminder.reminderDate,
-            recurrenceId: reminder.recurrence.id,
-            reminderId: id,
-            excludeDateToSend: excludeDate
-          })
+          // console.log('[Recurring Deletion]', {
+          //   isVirtual: reminder.isVirtual,
+          //   reminderDate: reminder.reminderDate,
+          //   recurrenceId: reminder.recurrence.id,
+          //   reminderId: id,
+          //   excludeDateToSend: excludeDate
+          // })
 
           // For virtual reminders, use the rule ID instead of the reminder ID
           if (reminder.isVirtual) {
@@ -175,12 +175,12 @@ export default function ReminderList({
           )
         }
 
-        console.log('[About to DELETE]', {
-          deleteId,
-          deleteScope,
-          excludeDate,
-          originalReminderId: id
-        })
+        // console.log('[About to DELETE]', {
+        //   deleteId,
+        //   deleteScope,
+        //   excludeDate,
+        //   originalReminderId: id
+        // })
 
         await deleteReminderApi.execute(deleteId, deleteScope, excludeDate)
 
@@ -264,21 +264,6 @@ export default function ReminderList({
     <View style={styles.container}>
       {/* Tab Header */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveTab('to_do')}
-          style={[styles.tabButton, { alignItems: 'center' }]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'to_do' && styles.activeTabText
-            ]}
-          >
-            ทั้งหมด
-          </Text>
-          {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
-        </TouchableOpacity>
-
         {isToday && (
           <TouchableOpacity
             onPress={() => setActiveTab('today')}
@@ -297,6 +282,22 @@ export default function ReminderList({
         )}
 
         <TouchableOpacity
+          onPress={() => setActiveTab('to_do')}
+          style={[styles.tabButton, { alignItems: 'center' }]}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'to_do' && styles.activeTabText
+            ]}
+          >
+            ทั้งหมด{' '}
+            {reminders.filter((r) => r.reminderStatus === 'to_do').length > 0 &&
+              `(${reminders.filter((r) => r.reminderStatus === 'to_do').length})`}
+          </Text>
+          {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
+        </TouchableOpacity>
+        <TouchableOpacity
           onPress={() => setActiveTab('done')}
           style={styles.tabButton}
         >
@@ -306,7 +307,9 @@ export default function ReminderList({
               activeTab === 'done' && styles.activeTabText
             ]}
           >
-            เสร็จสิ้น
+            เสร็จสิ้น{' '}
+            {reminders.filter((r) => r.reminderStatus === 'done').length > 0 &&
+              `(${reminders.filter((r) => r.reminderStatus === 'done').length})`}
           </Text>
           {activeTab === 'done' && <View style={styles.activeUnderline} />}
         </TouchableOpacity>

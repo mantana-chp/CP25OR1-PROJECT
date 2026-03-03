@@ -292,8 +292,7 @@ export default function RecurringReminderCard({
             onPress={handleDeletePress}
             activeOpacity={0.8}
           >
-            <Trash2 size={24} color="#fff" />
-            <Text style={styles.deleteText}>ลบ</Text>
+            <Trash2 size={24} color="#fff" strokeWidth={1.5} />
           </TouchableOpacity>
         </View>
       )}
@@ -598,8 +597,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    gap: 4
+    borderBottomRightRadius: 16
   },
   deleteText: {
     color: '#fff',

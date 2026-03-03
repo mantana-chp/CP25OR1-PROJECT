@@ -234,8 +234,7 @@ export default function ReminderCard(props: ReminderCardProps) {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Trash2 size={24} color="#fff" />
-                <Text style={styles.deleteText}>ลบ</Text>
+                <Trash2 size={24} color="#fff" strokeWidth={1.5} />
               </>
             )}
           </TouchableOpacity>
@@ -471,8 +470,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    gap: 4
+    borderBottomRightRadius: 12
   },
   deleteText: {
     color: '#fff',
