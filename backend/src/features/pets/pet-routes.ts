@@ -1,15 +1,29 @@
-import { Router } from 'express';
+import { Router } from 'express'
 import {
   createPet,
   getAllPetProfilesController,
   getPetProfileByIdController,
   updatePetController,
-} from './pet-controller';
-import { authGuard } from '../../middlewares/authGuard';
-import { validate } from '../../middlewares/validate';
-import { createPetSchema, getPetByIdSchema, updatePetSchema } from './pet-schema';
+  updatePetProfileImageController,
+  deletePetProfileImageController,
+  softDeletePetController,
+  getPastPetsController,
+  getRecentlyDeletedPetsController,
+  permanentDeletePetController,
+} from './pet-controller'
+import { authGuard } from '../../middlewares/authGuard'
+import { validate } from '../../middlewares/validate'
+import {
+  createPetSchema,
+  getPetByIdSchema,
+  updatePetSchema,
+  updatePetProfileImageSchema,
+  deletePetProfileImageSchema,
+  softDeletePetSchema,
+  permanentDeletePetSchema,
+} from './pet-schema'
 
-const petRoutes = Router();
+const petRoutes = Router()
 
 /**
  * @openapi
@@ -37,7 +51,7 @@ const petRoutes = Router();
  *       409:
  *         description: Conflict - User has reached the pet limit.
  */
-petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
+petRoutes.post('/', authGuard, validate(createPetSchema), createPet)
 
 /**
  * @openapi
@@ -61,7 +75,47 @@ petRoutes.post('/', authGuard, validate(createPetSchema), createPet);
  *       401:
  *         description: Unauthorized.
  */
-petRoutes.get('/me', authGuard, getAllPetProfilesController);
+petRoutes.get('/me', authGuard, getAllPetProfilesController)
+
+/**
+ * @openapi
+ * /pets/me/past:
+ *   get:
+ *     tags: [Pets]
+ *     summary: Get deceased pets for the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     responses:
+ *       200:
+ *         description: An array of deceased pets.
+ *       401:
+ *         description: Unauthorized.
+ */
+petRoutes.get('/me/past', authGuard, getPastPetsController)
+
+/**
+ * @openapi
+ * /pets/me/recently-deleted:
+ *   get:
+ *     tags: [Pets]
+ *     summary: Get recently deleted pets (within 30 days)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     responses:
+ *       200:
+ *         description: An array of recently deleted pets.
+ *       401:
+ *         description: Unauthorized.
+ */
+petRoutes.get(
+  '/me/recently-deleted',
+  authGuard,
+  getRecentlyDeletedPetsController,
+)
 
 /**
  * @openapi
@@ -92,7 +146,12 @@ petRoutes.get('/me', authGuard, getAllPetProfilesController);
  *       404:
  *         description: Pet not found.
  */
-petRoutes.get('/me/:id', authGuard, validate(getPetByIdSchema), getPetProfileByIdController);
+petRoutes.get(
+  '/me/:id',
+  authGuard,
+  validate(getPetByIdSchema),
+  getPetProfileByIdController,
+)
 
 /**
  * @openapi
@@ -131,6 +190,169 @@ petRoutes.get('/me/:id', authGuard, validate(getPetByIdSchema), getPetProfileByI
  *       404:
  *         description: Pet not found.
  */
-petRoutes.patch('/me/:id', authGuard, validate(updatePetSchema), updatePetController);
+petRoutes.patch(
+  '/me/:id',
+  authGuard,
+  validate(updatePetSchema),
+  updatePetController,
+)
 
-export default petRoutes;
+/**
+ * @openapi
+ * /pets/me/{id}/profile-image:
+ *   put:
+ *     tags: [Pets]
+ *     summary: Update pet profile picture
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - objectKey
+ *             properties:
+ *               objectKey:
+ *                 type: string
+ *                 description: MinIO object key from upload
+ *     responses:
+ *       200:
+ *         description: Profile picture updated successfully
+ */
+petRoutes.put(
+  '/me/:id/profile-image',
+  authGuard,
+  validate(updatePetProfileImageSchema),
+  updatePetProfileImageController,
+)
+
+/**
+ * @openapi
+ * /pets/me/{id}/profile-image:
+ *   delete:
+ *     tags: [Pets]
+ *     summary: Delete pet profile picture
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Profile picture deleted successfully
+ */
+petRoutes.delete(
+  '/me/:id/profile-image',
+  authGuard,
+  validate(deletePetProfileImageSchema),
+  deletePetProfileImageController,
+)
+
+/**
+ * @openapi
+ * /pets/me/{id}:
+ *   delete:
+ *     tags: [Pets]
+ *     summary: Soft-delete a pet or mark as deceased
+ *     description: |
+ *       Delete a pet profile. Requires a reason:
+ *       - JUST_DELETE: Soft-deletes the pet (blocked if last active pet)
+ *       - DECEASED: Marks the pet as deceased (always allowed)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 enum: [JUST_DELETE, DECEASED]
+ *               deceased_date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Optional date of death (only used when reason is DECEASED)
+ *     responses:
+ *       200:
+ *         description: Pet deleted or marked as deceased successfully.
+ *       400:
+ *         description: Bad Request - Cannot delete last active pet.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+petRoutes.delete(
+  '/me/:id',
+  authGuard,
+  validate(softDeletePetSchema),
+  softDeletePetController,
+)
+
+/**
+ * @openapi
+ * /pets/me/{id}/permanent:
+ *   delete:
+ *     tags: [Pets]
+ *     summary: Permanently delete a soft-deleted pet
+ *     description: |
+ *       Immediately and permanently removes a pet that was previously soft-deleted.
+ *       Only pets with status DELETED can be permanently deleted.
+ *       This action cannot be undone.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the soft-deleted pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Pet permanently deleted.
+ *       400:
+ *         description: Bad Request - Pet is not in DELETED status.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+petRoutes.delete(
+  '/me/:id/permanent',
+  authGuard,
+  validate(permanentDeletePetSchema),
+  permanentDeletePetController,
+)
+
+export default petRoutes

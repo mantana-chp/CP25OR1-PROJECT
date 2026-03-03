@@ -7,6 +7,7 @@ import DiscardChangesModal from '../../components/discard_changes_modal'
 import Dropdown from '../../components/dropdown'
 import Header from '../../components/header_component'
 import InputText from '../../components/text_input'
+import ImagePickerButton from '../../components/image_picker_button'
 
 import { useAuth } from '@/src/context/AuthContext'
 import { usePets } from '@/src/context/PetContext'
@@ -14,9 +15,10 @@ import {
   IPetProfileForm,
   ISpecies,
   petProfileInitValue,
-  petProfileValidateSchema
+  petProfileValidateSchema,
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
+import { uploadService } from '@/src/utils/api/services/upload_service'
 import { useLocalSearchParams } from 'expo-router'
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
@@ -26,7 +28,7 @@ interface PetProfileFormProps {
 }
 
 export default function PetProfileForm({
-  isOnboarding = false
+  isOnboarding = false,
 }: PetProfileFormProps) {
   // ------------------
   // CONST
@@ -43,9 +45,17 @@ export default function PetProfileForm({
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>('')
   const [initialPetData, setInitialPetData] = useState<IPetProfileForm | null>(
-    null
+    null,
   )
   const [showBackModal, setShowBackModal] = useState(false)
+  const [selectedImageUri, setSelectedImageUri] = useState<string | undefined>(
+    undefined,
+  )
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [originalImageKey, setOriginalImageKey] = useState<string | undefined>(
+    undefined,
+  )
+  const [isDeletingImage, setIsDeletingImage] = useState(false)
 
   // ------------------
   // FETCH
@@ -82,6 +92,11 @@ export default function PetProfileForm({
         if (response.data.species_id) {
           setSelectedSpeciesId(response.data.species_id)
         }
+        // Load existing profile image in edit mode
+        if (response.data.profile_image_url) {
+          setSelectedImageUri(response.data.profile_image_url)
+          setOriginalImageKey(response.data.profile_image_key || undefined)
+        }
       }
     } catch (error) {
       console.error('❌ Error loading pet data:', error)
@@ -99,15 +114,66 @@ export default function PetProfileForm({
         setInitialPetData(null)
         setSelectedSpeciesId('')
       }
-    }, [loadPetData, petId, speciesData])
+    }, [loadPetData, petId, speciesData]),
   )
 
   // ------------------
-  // FORMIK
+  // HANDLERS
   // ------------------
+  const handleImageSelected = (imageUri: string) => {
+    console.log('🖼️ Image Selected:', imageUri)
+    setSelectedImageUri(imageUri)
+    formik.setFieldValue('profileImage', imageUri)
+  }
+
+  const handleImageDeleted = () => {
+    if (isEditMode) {
+      // In edit mode, delete from storage immediately with confirmation
+      Alert.alert(
+        'ลบรูปภาพ',
+        'คุณแน่ใจว่าต้องการลบรูปภาพประจำตัวสัตว์เลี้ยงหรือไม่?',
+        [
+          {
+            text: 'ยกเลิก',
+            style: 'cancel',
+          },
+          {
+            text: 'ลบ',
+            onPress: async () => {
+              try {
+                setIsDeletingImage(true)
+                await petProfileService.deleteProfileImage(petId)
+                console.log('✅ Profile image deleted successfully')
+
+                setSelectedImageUri(undefined)
+                setOriginalImageKey(undefined)
+                formik.setFieldValue('profileImage', null)
+
+                Alert.alert('สำเร็จ', 'ลบรูปภาพเรียบร้อยแล้ว')
+              } catch (error) {
+                console.error('❌ Error deleting profile image:', error)
+                Alert.alert(
+                  'เกิดข้อผิดพลาด',
+                  'ไม่สามารถลบรูปภาพได้ กรุณาลองใหม่อีกครั้ง',
+                )
+              } finally {
+                setIsDeletingImage(false)
+              }
+            },
+            style: 'destructive',
+          },
+        ],
+      )
+    } else {
+      // In create mode, just clear local state
+      console.log('🗑️ Image Deleted')
+      setSelectedImageUri(undefined)
+      formik.setFieldValue('profileImage', null)
+    }
+  }
   const formik = useFormik<IPetProfileForm>({
     initialValues: petProfileInitValue(
-      initialPetData || ({} as IPetProfileForm)
+      initialPetData || ({} as IPetProfileForm),
     ),
     enableReinitialize: true,
     validationSchema: petProfileValidateSchema,
@@ -118,24 +184,130 @@ export default function PetProfileForm({
       try {
         setIsSubmitting(true)
 
-        const { id, breed_id, weight, ...petData } = values
+        const { id, breed_id, weight, profileImage, ...petData } = values
 
         const petDataToSend: any = {
-          ...petData
+          ...petData,
         }
 
         if (breed_id) petDataToSend.breed_id = breed_id
 
         if (weight) petDataToSend.weight = Number(weight)
 
+        // Create/update pet profile first
+        let newPetId = petId
         if (isEditMode) {
           await petProfileService.updatePetProfile(petId, petDataToSend)
         } else {
-          await petProfileService.createPetProfile(petDataToSend)
+          const createResponse =
+            await petProfileService.createPetProfile(petDataToSend)
+          newPetId = createResponse.data?.id || petId
+          console.log('🆔 Pet Created with ID:', newPetId)
+        }
+
+        // Handle image upload/change
+        const isImageChanged =
+          isEditMode &&
+          selectedImageUri &&
+          selectedImageUri !== initialPetData?.profile_image_url
+
+        if (
+          (isEditMode && isImageChanged) ||
+          (!isEditMode && selectedImageUri && newPetId)
+        ) {
+          console.log('🎬 Starting image upload process...')
+          try {
+            setIsUploadingImage(true)
+
+            const fileName = `pet_${newPetId}_${Date.now()}.jpg`
+            const fileResponse = await fetch(selectedImageUri)
+            const blob = await fileResponse.blob()
+            const fileType = 'image/jpeg'
+            const fileSize = blob.size
+
+            console.log('📸 Image Upload Debug:', {
+              petId: newPetId,
+              fileName,
+              fileType,
+              fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
+            })
+
+            // Request presigned upload URL from backend
+            const uploadUrlResponse = await uploadService.requestUploadUrl({
+              fileName,
+              fileType,
+              fileSize,
+              category: 'pet-profile',
+              entityId: newPetId,
+            })
+
+            console.log('⬆️ Upload URL Response:', uploadUrlResponse)
+
+            const { uploadUrl, objectKey } = uploadUrlResponse.data
+
+            console.log('🔑 Object Key received:', objectKey)
+
+            await uploadService.uploadFileToMinIO(
+              uploadUrl,
+              selectedImageUri,
+              fileType,
+            )
+
+            console.log('✅ File uploaded to MinIO successfully')
+            console.log('📦 MinIO Upload Details:', {
+              bucket: 'dev-pet-attachments',
+              objectKey,
+              fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
+              uploadUrl: uploadUrl.split('?')[0],
+            })
+
+            // Save object key to pet profile in backend
+            const updateResponse = await petProfileService.updateProfileImage(
+              newPetId,
+              objectKey,
+            )
+            console.log('💾 Pet profile image saved:', updateResponse)
+
+            // Delete old image from storage if in edit mode and image changed
+            if (isEditMode && isImageChanged && originalImageKey) {
+              console.log(
+                '🗑️ Deleting old image from storage:',
+                originalImageKey,
+              )
+              try {
+                await uploadService.deleteFileFromMinIO(originalImageKey)
+                console.log('📦 Old image deleted from storage successfully')
+              } catch (deleteError) {
+                console.warn('⚠️ Failed to delete old image:', deleteError)
+                // Don't fail the update if deletion fails
+              }
+            }
+
+            // Update originalImageKey to prevent re-deletion
+            setOriginalImageKey(objectKey)
+          } catch (error) {
+            console.error('❌ Image upload failed:', error)
+            Alert.alert(
+              'บันทึกรูปไม่สำเร็จ',
+              isEditMode
+                ? 'แก้ไขข้อมูลสัตว์เลี้ยง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง'
+                : 'โปรไฟล์สัตว์เลี้ยงถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง',
+            )
+          } finally {
+            setIsUploadingImage(false)
+          }
         }
 
         await checkPetProfile()
         await refreshPets()
+
+        console.log('✅ Pet creation completed, navigating to pet_profile page')
+        console.log('Debug - Image Upload Check:', {
+          isEditMode,
+          selectedImageUri,
+          newPetId,
+          shouldUploadImage: !isEditMode && selectedImageUri && newPetId,
+        })
 
         if (isOnboarding) {
           await completeOnboarding()
@@ -153,24 +325,26 @@ export default function PetProfileForm({
               text: 'ตกลง',
               onPress: () => {
                 router.push('/(tabs)/pet_profile')
-              }
-            }
-          ]
+              },
+            },
+          ],
         )
 
         formik.resetForm()
         setSelectedSpeciesId('')
+        setSelectedImageUri(undefined)
       } catch (error: any) {
         console.error('❌ Error creating pet profile:', error)
         Alert.alert(
           'เกิดข้อผิดพลาด',
           error?.message ||
-            'ไม่สามารถบันทึกโปรไฟล์สัตว์เลี้ยงได้ กรุณาลองใหม่อีกครั้ง'
+            'ไม่สามารถบันทึกโปรไฟล์สัตว์เลี้ยงได้ กรุณาลองใหม่อีกครั้ง',
         )
       } finally {
         setIsSubmitting(false)
+        setIsUploadingImage(false)
       }
-    }
+    },
   })
 
   // ------------------
@@ -178,7 +352,7 @@ export default function PetProfileForm({
   // ------------------
   const petTypeOptions = speciesData.map((species) => ({
     id: species.id,
-    name: species.name
+    name: species.name,
   }))
 
   const breedOptions =
@@ -186,12 +360,12 @@ export default function PetProfileForm({
       .find((species) => species.id === selectedSpeciesId)
       ?.breeds.map((breed) => ({
         id: breed.id,
-        name: breed.name
+        name: breed.name,
       })) || []
 
   const genderOptions = [
     { name: 'เพศผู้', id: 'male' },
-    { name: 'เพศเมีย', id: 'female' }
+    { name: 'เพศเมีย', id: 'female' },
   ]
 
   // ------------------
@@ -214,6 +388,9 @@ export default function PetProfileForm({
   const handleConfirmBack = () => {
     formik.resetForm()
     setShowBackModal(false)
+    setSelectedImageUri(undefined)
+    setOriginalImageKey(undefined)
+    setIsDeletingImage(false)
     router.push('/(tabs)/pet_profile')
   }
 
@@ -247,27 +424,25 @@ export default function PetProfileForm({
 
       <ScrollView>
         <View style={styles.formContainer}>
-          <Image
-            source={require('../../../../assets/images/pet_profile.png')}
-            style={{
-              width: 100,
-              height: 100,
-              alignSelf: 'center',
-              marginBottom: 16
-            }}
+          <ImagePickerButton
+            onImageSelected={handleImageSelected}
+            onImageDeleted={handleImageDeleted}
+            imageUri={selectedImageUri}
+            disabled={isSubmitting || isUploadingImage || isDeletingImage}
+            placeholder='เลือกรูปภาพสัตว์เลี้ยง'
           />
           <InputText
-            title="ชื่อสัตว์เลี้ยง"
+            title='ชื่อสัตว์เลี้ยง'
             value={formik.values?.pet_name}
-            placeholder="ชื่อสัตว์เลี้ยง เช่น มะลิ, โบ้, Lucky"
+            placeholder='ชื่อสัตว์เลี้ยง เช่น มะลิ, โบ้, Lucky'
             required={true}
             onChangeText={(v) => formik.setFieldValue('pet_name', v)}
             error={formik?.errors?.pet_name}
           />
           <Dropdown
-            title="เพศสัตว์เลี้ยง"
+            title='เพศสัตว์เลี้ยง'
             options={genderOptions}
-            placeholder="เลือกเพศสัตว์เลี้ยง"
+            placeholder='เลือกเพศสัตว์เลี้ยง'
             required={true}
             onSelect={(v) => formik.setFieldValue('gender', v)}
             value={formik.values?.gender}
@@ -278,9 +453,9 @@ export default function PetProfileForm({
           <View style={{ flexDirection: 'row', gap: 16 }}>
             <View style={{ flex: 1 }}>
               <Dropdown
-                title="ประเภทสัตว์เลี้ยง"
+                title='ประเภทสัตว์เลี้ยง'
                 options={petTypeOptions}
-                placeholder="เลือกประเภทสัตว์เลี้ยง"
+                placeholder='เลือกประเภทสัตว์เลี้ยง'
                 required={true}
                 onSelect={handleSpeciesChange}
                 value={formik.values?.species_id}
@@ -290,9 +465,9 @@ export default function PetProfileForm({
             </View>
             <View style={{ flex: 1 }}>
               <Dropdown
-                title="สายพันธุ์สัตว์เลี้ยง"
+                title='สายพันธุ์สัตว์เลี้ยง'
                 options={breedOptions}
-                placeholder="เลือกสายพันธุ์สัตว์เลี้ยง"
+                placeholder='เลือกสายพันธุ์สัตว์เลี้ยง'
                 onSelect={(v) => formik.setFieldValue('breed_id', v)}
                 value={formik.values?.breed_id}
                 disable={!selectedSpeciesId || breedOptions.length === 0}
@@ -301,8 +476,8 @@ export default function PetProfileForm({
           </View>
 
           <DatePicker
-            title="วันเกิด"
-            placeholder="วัน/เดือน/ปีเกิด"
+            title='วันเกิด'
+            placeholder='วัน/เดือน/ปีเกิด'
             value={
               formik.values.birth_date
                 ? new Date(formik.values.birth_date)
@@ -321,10 +496,10 @@ export default function PetProfileForm({
           />
 
           <InputText
-            title="น้ำหนักสัตว์เลี้ยง (กิโลกรัม)"
+            title='น้ำหนักสัตว์เลี้ยง (กิโลกรัม)'
             value={formik.values?.weight}
-            placeholder="น้ำหนักสัตว์เลี้ยง"
-            keyboardType="numeric"
+            placeholder='น้ำหนักสัตว์เลี้ยง'
+            keyboardType='numeric'
             onChangeText={handleWeightChange}
             error={formik?.errors?.weight}
           />
@@ -333,11 +508,23 @@ export default function PetProfileForm({
             onPress={() => formik.handleSubmit()}
             title={isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกโปรไฟล์สัตว์เลี้ยง'}
             disabled={
-              isSubmitting || isLoading || (isEditMode && !formik.dirty)
+              isSubmitting ||
+              isLoading ||
+              isUploadingImage ||
+              isDeletingImage ||
+              (isEditMode &&
+                !formik.dirty &&
+                selectedImageUri === initialPetData?.profile_image_url)
             }
-            isLoading={isSubmitting}
+            isLoading={isSubmitting || isUploadingImage || isDeletingImage}
             loadingText={
-              isEditMode ? 'กำลังบันทึกการแก้ไข...' : 'กำลังบันทึก...'
+              isDeletingImage
+                ? 'กำลังลบรูปภาพ...'
+                : isUploadingImage
+                  ? 'กำลังอัปโหลดรูปภาพ...'
+                  : isEditMode
+                    ? 'กำลังบันทึกการแก้ไข...'
+                    : 'กำลังบันทึก...'
             }
           />
         </View>
@@ -347,7 +534,7 @@ export default function PetProfileForm({
         visible={showBackModal}
         onClose={() => setShowBackModal(false)}
         onDiscard={handleConfirmBack}
-        variant="petProfile"
+        variant='petProfile'
       />
     </>
   )
@@ -364,11 +551,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    margin: 16
+    margin: 16,
   },
   saveText: {
     color: '#ffffff',
     fontSize: 16,
-    fontFamily: 'Prompt_700Bold'
-  }
+    fontFamily: 'Prompt_700Bold',
+  },
 })

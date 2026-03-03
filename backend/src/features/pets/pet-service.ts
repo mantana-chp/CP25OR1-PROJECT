@@ -1,20 +1,43 @@
-import * as petRepository from './pet-repository';
-import { NotFoundError, ConflictError, BadRequestError } from '../../shared/errors';
-import { Prisma } from '../../generated/prisma/client';
-import { type PetUpdatePayload } from './pet-schema';
-import { formatAgeFromBirthDate } from '../../shared/utils';
+import * as petRepository from './pet-repository'
+import {
+  NotFoundError,
+  ConflictError,
+  BadRequestError,
+} from '../../shared/errors'
+import {
+  Prisma,
+  pet_status,
+  reminder_status,
+  notification_status,
+  RecurrenceStatusEnum,
+} from '../../generated/prisma/client'
+import { type PetUpdatePayload } from './pet-schema'
+import { formatAgeFromBirthDate } from '../../shared/utils'
+import { generateDownloadUrl, deleteFile } from '../file-uploads/upload-service'
+import prisma from '../../libs/db'
 
 export type PetCreationData = {
-  pet_name: string;
-  species_id: string;
-  breed_id?: string | null;
-  gender: 'male' | 'female' | 'unknown';
-  weight?: number | null;
-  birth_date?: string | null;
-};
+  pet_name: string
+  species_id: string
+  breed_id?: string | null
+  gender: 'male' | 'female' | 'unknown'
+  weight?: number | null
+  birth_date?: string | null
+}
 
-const formatPetProfile = (pet: any) => {
-  if (!pet) return null;
+const formatPetProfile = async (pet: any) => {
+  if (!pet) return null
+
+  // Generate presigned URL for profile image if it exists
+  let profileImageUrl = null
+  if (pet.profile_image_key) {
+    try {
+      profileImageUrl = await generateDownloadUrl(pet.profile_image_key, 3600)
+    } catch (error) {
+      // If image is missing, set to null
+      profileImageUrl = null
+    }
+  }
 
   return {
     id: pet.id,
@@ -26,14 +49,19 @@ const formatPetProfile = (pet: any) => {
     species: pet.species?.name_th || null,
     breed_id: pet.breed_id,
     breed: pet.breeds?.name_th || null,
-    age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null
-  };
-};
+    age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null,
+    profile_image_url: profileImageUrl,
+    status: pet.status,
+    deceased_date: pet.deceased_date ?? null,
+    deleted_at: pet.deleted_at ?? null,
+    deletion_reason: pet.deletion_reason ?? null,
+  }
+}
 
 export const createPet = async (userId: string, petData: PetCreationData) => {
-  const petCount = await petRepository.countByUserId(userId);
+  const petCount = await petRepository.countByUserId(userId)
   if (petCount >= 10) {
-    throw new ConflictError('You have reached the maximum limit of 10 pets.');
+    throw new ConflictError('You have reached the maximum limit of 10 pets.')
   }
 
   const data: Prisma.petsCreateInput = {
@@ -44,63 +72,328 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
     user: { connect: { id: userId } },
     species: { connect: { id: petData.species_id } },
     ...(petData.breed_id && { breeds: { connect: { id: petData.breed_id } } }),
-  };
-
-  return await petRepository.create(data);
-};
-
-export const updatePet = async (petId: string, userId: string, petData: PetUpdatePayload) => {
-  const existingPet = await petRepository.findPetProfileByPetId(petId, userId);
-  if (!existingPet) {
-    throw new NotFoundError('Pet not found or does not belong to this user.');
   }
 
-  const updateData: Prisma.petsUpdateInput = {};
+  return await petRepository.create(data)
+}
+
+export const updatePet = async (
+  petId: string,
+  userId: string,
+  petData: PetUpdatePayload,
+) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  // Block updates for deleted pets
+  if (existingPet.status === pet_status.DELETED) {
+    throw new BadRequestError('Cannot update a deleted pet.')
+  }
+
+  // Block updates for deceased pets
+  if (existingPet.status === pet_status.DECEASED) {
+    throw new BadRequestError('Cannot update a deceased pet.')
+  }
+
+  const updateData: Prisma.petsUpdateInput = {}
 
   if (petData.pet_name != null) {
-    updateData.pet_name = petData.pet_name;
+    updateData.pet_name = petData.pet_name
   }
   if (petData.gender != null) {
-    updateData.gender = petData.gender;
+    updateData.gender = petData.gender
   }
   if (petData.weight != null) {
-    updateData.weight = petData.weight;
+    updateData.weight = petData.weight
   }
   if (petData.birth_date != null) {
-    updateData.birth_date = petData.birth_date ? new Date(petData.birth_date) : null;
+    updateData.birth_date = petData.birth_date
+      ? new Date(petData.birth_date)
+      : null
   }
   if (petData.species_id != null) {
-    updateData.species = { connect: { id: petData.species_id } };
+    updateData.species = { connect: { id: petData.species_id } }
   }
   if (petData.breed_id != null) {
-    updateData.breeds = { connect: { id: petData.breed_id } };
+    updateData.breeds = { connect: { id: petData.breed_id } }
   }
 
   if (Object.keys(updateData).length === 0) {
-    throw new BadRequestError('Request body must contain at least one valid field to update.');
+    throw new BadRequestError(
+      'Request body must contain at least one valid field to update.',
+    )
   }
 
-  return await petRepository.update(petId, userId, updateData);
+  return await petRepository.update(petId, userId, updateData)
 
   // return await getPetProfileById(petId, userId);
-};
+}
 
-export const getAllPetProfilesForUser = async (userId: string) => {
-  const pets = await petRepository.findAllPetProfilesByUserId(userId);
+export const getAllPetProfilesForUser = async (
+  userId: string,
+  status?: pet_status,
+) => {
+  const pets = await petRepository.findAllPetProfilesByUserId(
+    userId,
+    status ?? pet_status.ACTIVE,
+  )
 
   if (!pets || pets.length === 0) {
-    return [];
+    return []
   }
 
-  return pets.map(formatPetProfile);
-};
+  return Promise.all(pets.map(formatPetProfile))
+}
 
 export const getPetProfileById = async (petId: string, userId: string) => {
-  const pet = await petRepository.findPetProfileByPetId(petId, userId);
+  const pet = await petRepository.findPetProfileByPetId(petId, userId)
 
   if (!pet) {
-    throw new NotFoundError('Pet not found or does not belong to this user.');
+    throw new NotFoundError('Pet not found or does not belong to this user.')
   }
 
-  return formatPetProfile(pet);
-};
+  return formatPetProfile(pet)
+}
+
+/**
+ * Update pet profile picture
+ * @param petId - Pet ID
+ * @param userId - User ID (for authorization)
+ * @param objectKey - MinIO object key for the new profile image
+ */
+export const updatePetProfileImage = async (
+  petId: string,
+  userId: string,
+  objectKey: string,
+) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  // Delete old profile image if it exists
+  if (existingPet.profile_image_key) {
+    try {
+      await deleteFile(existingPet.profile_image_key)
+    } catch (error) {
+      // Log but don't fail if old image deletion fails
+      console.error('Failed to delete old profile image:', error)
+    }
+  }
+
+  // Update with new profile image key
+  const updateData: Prisma.petsUpdateInput = {
+    profile_image_key: objectKey,
+  }
+
+  await petRepository.update(petId, userId, updateData)
+
+  return getPetProfileById(petId, userId)
+}
+
+/**
+ * Delete pet profile picture
+ * @param petId - Pet ID
+ * @param userId - User ID (for authorization)
+ */
+export const deletePetProfileImage = async (petId: string, userId: string) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  if (!existingPet.profile_image_key) {
+    throw new BadRequestError('Pet does not have a profile image.')
+  }
+
+  // Delete from MinIO
+  await deleteFile(existingPet.profile_image_key)
+
+  // Remove from database
+  const updateData: Prisma.petsUpdateInput = {
+    profile_image_key: null,
+  }
+
+  await petRepository.update(petId, userId, updateData)
+
+  return getPetProfileById(petId, userId)
+}
+
+// ==========================================
+// Pet Deletion & Deceased Logic
+// ==========================================
+
+/**
+ * Cancel all active reminders, recurrence templates, and pending notifications for a pet.
+ * Used by both soft-delete and mark-as-deceased flows.
+ */
+const cancelAllRemindersForPet = async (petId: string) => {
+  await prisma.$transaction(async (tx) => {
+    // 1. Cancel all to_do and overdue reminders for this pet
+    await tx.reminders.updateMany({
+      where: {
+        pet_id: petId,
+        reminder_status: {
+          in: [reminder_status.to_do, reminder_status.overdue],
+        },
+      },
+      data: {
+        reminder_status: reminder_status.cancelled,
+      },
+    })
+
+    // 2. Cancel all active recurrence templates linked to this pet's reminders
+    const recurrenceIds = await tx.reminders.findMany({
+      where: { pet_id: petId, recurrence_id: { not: null } },
+      select: { recurrence_id: true },
+      distinct: ['recurrence_id'],
+    })
+
+    const uniqueRecurrenceIds = recurrenceIds
+      .map((r) => r.recurrence_id)
+      .filter((id): id is string => id !== null)
+
+    if (uniqueRecurrenceIds.length > 0) {
+      await tx.recurrence.updateMany({
+        where: {
+          id: { in: uniqueRecurrenceIds },
+          recurrence_status: RecurrenceStatusEnum.ACTIVE,
+        },
+        data: {
+          recurrence_status: RecurrenceStatusEnum.CANCELLED,
+        },
+      })
+    }
+
+    // 3. Cancel all pending notifications for this pet's reminders
+    const reminderIds = await tx.reminders.findMany({
+      where: { pet_id: petId },
+      select: { id: true },
+    })
+
+    const reminderIdList = reminderIds.map((r) => r.id)
+
+    if (reminderIdList.length > 0) {
+      await tx.notifications.updateMany({
+        where: {
+          reminder_id: { in: reminderIdList },
+          status: notification_status.pending,
+        },
+        data: {
+          status: notification_status.failed,
+        },
+      })
+    }
+
+    // 4. Also cancel pending notifications directly linked to this pet
+    await tx.notifications.updateMany({
+      where: {
+        pet_id: petId,
+        status: notification_status.pending,
+      },
+      data: {
+        status: notification_status.failed,
+      },
+    })
+  })
+}
+
+/**
+ * Soft-delete or mark-as-deceased based on the reason.
+ * - JUST_DELETE: blocked if last active pet, sets status to DELETED
+ * - DECEASED: always allowed, sets status to DECEASED
+ */
+export const softDeletePet = async (
+  petId: string,
+  userId: string,
+  reason: 'JUST_DELETE' | 'DECEASED',
+  deceasedDate?: string | null,
+) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  if (existingPet.status !== pet_status.ACTIVE) {
+    throw new BadRequestError(
+      'Only active pets can be deleted or marked as deceased.',
+    )
+  }
+
+  if (reason === 'DECEASED') {
+    // Mark as deceased — always allowed even for last pet
+    const parsedDate = deceasedDate ? new Date(deceasedDate) : new Date()
+    await petRepository.markAsDeceased(petId, userId, parsedDate)
+    await cancelAllRemindersForPet(petId)
+    return { message: 'Pet has been marked as deceased.', status: 'DECEASED' }
+  }
+
+  // JUST_DELETE — block if last active pet
+  const activePetCount = await petRepository.countActivePetsByUserId(userId)
+  if (activePetCount <= 1) {
+    throw new BadRequestError(
+      'Cannot delete your last active pet. You must have at least one active pet.',
+    )
+  }
+
+  await petRepository.softDeletePet(petId, userId, reason)
+  await cancelAllRemindersForPet(petId)
+  return {
+    message:
+      'Pet has been deleted. It will be permanently removed after 30 days.',
+    status: 'DELETED',
+  }
+}
+
+/**
+ * Get past (deceased) pets for a user.
+ */
+export const getPastPets = async (userId: string) => {
+  const pets = await petRepository.findAllPetProfilesByUserId(
+    userId,
+    pet_status.DECEASED,
+  )
+  if (!pets || pets.length === 0) return []
+  return Promise.all(pets.map(formatPetProfile))
+}
+
+/**
+ * Get recently deleted pets (within 30 days) for a user.
+ */
+export const getRecentlyDeletedPets = async (userId: string) => {
+  const pets = await petRepository.findRecentlyDeletedPets(userId)
+  if (!pets || pets.length === 0) return []
+  return Promise.all(pets.map(formatPetProfile))
+}
+
+/**
+ * Permanently delete a soft-deleted pet immediately (skip 30-day wait).
+ * Only works on pets with status = DELETED.
+ */
+export const permanentDeletePet = async (petId: string, userId: string) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  if (existingPet.status !== pet_status.DELETED) {
+    throw new BadRequestError(
+      'Only soft-deleted pets can be permanently deleted.',
+    )
+  }
+
+  // Delete profile image from MinIO if it exists
+  if (existingPet.profile_image_key) {
+    try {
+      await deleteFile(existingPet.profile_image_key)
+    } catch (error) {
+      console.error('Failed to delete profile image during permanent delete:', error)
+    }
+  }
+
+  // Hard delete (cascade removes reminders & notifications)
+  await petRepository.hardDeletePet(petId)
+  return { message: 'Pet has been permanently deleted.' }
+}

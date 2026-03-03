@@ -120,13 +120,13 @@ export async function generateVirtualOccurrencesForRule(
   const excludedDatesSet = new Set<string>(allExcludedDates)
 
   // Debug: Log if there are excluded dates
-  if (excludedDatesSet.size > 0) {
-    console.log(
-      `[${rule.reminder_name}] Excluding dates:`,
-      Array.from(excludedDatesSet),
-      `(backend: ${backendExcludedDates.length}, localStorage: ${localStorageExcludedDates.length})`
-    )
-  }
+  // if (excludedDatesSet.size > 0) {
+  //   console.log(
+  //     `[${rule.reminder_name}] Excluding dates:`,
+  //     Array.from(excludedDatesSet),
+  //     `(backend: ${backendExcludedDates.length}, localStorage: ${localStorageExcludedDates.length})`
+  //   )
+  // }
 
   // Determine end date from rule
   let effectiveEndDate = rangeEnd

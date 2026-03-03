@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext'
 import { TokenRefreshProvider } from '../context/TokenRefreshContext'
 import { ErrorProvider } from '../presentation/components/error_context'
 import PushNotificationInitializer from '../presentation/components/push_notification_initializer'
+import RealtimeReminderNotification from '../presentation/notification/components/realtime_reminder_notification'
 
 import {
   Prompt_400Regular,
@@ -68,6 +69,7 @@ export default function RootLayout() {
               <UnreadNotificationProvider>
                 <PetProvider>
                   <PushNotificationInitializer />
+                  <RealtimeReminderNotification />
                   <StatusBar style="auto" />
                   <Stack>
                     <Stack.Screen

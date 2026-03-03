@@ -21,6 +21,7 @@ import {
 } from '@/src/utils/recurrence.utils'
 import {
   Bone,
+  ChevronRight,
   Clock,
   PawPrint,
   Pill,
@@ -233,8 +234,7 @@ export default function ReminderCard(props: ReminderCardProps) {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Trash2 size={24} color="#fff" />
-                <Text style={styles.deleteText}>ลบ</Text>
+                <Trash2 size={24} color="#fff" strokeWidth={1.5} />
               </>
             )}
           </TouchableOpacity>
@@ -285,63 +285,59 @@ export default function ReminderCard(props: ReminderCardProps) {
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <View style={styles.titleRow}>
+            <View style={styles.headerRow}>
               <Text
                 style={[
                   styles.reminderTitle,
                   reminder?.reminderStatus === 'overdue' &&
                     styles.overdueTitleText,
-                  isVirtual && styles.virtualText
+                  isVirtual && styles.virtualText,
+                  isDone && styles.lineThroughText
                 ]}
+                numberOfLines={1}
               >
                 {reminder?.reminderName}
               </Text>
-              {/* Show recurring badge for non-virtual reminders */}
               {!isVirtual && reminder?.recurrence && (
                 <View style={styles.recurringBadge}>
-                  <Repeat size={12} color="#5FA7D1" />
+                  <Repeat size={10} color="#5FA7D1" />
                 </View>
               )}
             </View>
 
-            <View style={styles.infoRow}>
-              <PawPrint
-                size={14}
-                color={
-                  isVirtual
-                    ? '#9CA3AF'
-                    : reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#2E759E'
-                }
-              />
+            <View style={styles.detailsRow}>
+              <View
+                style={[
+                  styles.categoryBadge,
+                  { backgroundColor: categoryInfo.color + '20' }
+                ]}
+              >
+                <CategoryIcon size={10} color={categoryInfo.color} />
+                <Text
+                  style={[styles.categoryText, { color: categoryInfo.color }]}
+                >
+                  {categoryInfo.label}
+                </Text>
+              </View>
+              <View style={styles.separator} />
               <Text
                 style={[
                   styles.petNameText,
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
-                  isVirtual && styles.virtualText
+                  isVirtual && styles.virtualText,
+                  isDone && styles.doneText
                 ]}
+                numberOfLines={1}
               >
                 {reminder?.pet_name || '-'}
               </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Clock
-                size={14}
-                color={
-                  isVirtual
-                    ? '#9CA3AF'
-                    : reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#2E759E'
-                }
-              />
+              <View style={styles.separator} />
               <Text
                 style={[
                   styles.dateTimeText,
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
-                  isVirtual && styles.virtualText
+                  isVirtual && styles.virtualText,
+                  isDone && styles.doneText
                 ]}
               >
                 {formattedTime
@@ -349,54 +345,56 @@ export default function ReminderCard(props: ReminderCardProps) {
                   : formattedDate}
               </Text>
             </View>
+
             {/* Recurrence info if recurring */}
             {reminder?.recurrence && (
-              <View style={styles.infoRow}>
+              <View style={styles.recurrenceRow}>
                 <Repeat
-                  size={14}
+                  size={11}
                   color={
-                    reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#5FA7D1'
+                    isDone
+                      ? '#9CA3AF'
+                      : reminder?.reminderStatus === 'overdue'
+                        ? '#BF1737'
+                        : '#5FA7D1'
                   }
                 />
                 <Text
                   style={[
                     styles.recurrenceText,
-                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                    reminder?.reminderStatus === 'overdue' &&
+                      styles.overdueText,
+                    ,
+                    isDone && styles.doneText
                   ]}
+                  numberOfLines={1}
                 >
                   {formatRecurrenceText(
                     convertFromBackendRecurrence(reminder.recurrence),
                     'th'
                   )}
                   {reminder.occurrenceNumber &&
-                    reminder.occurrenceNumber > 1 && (
-                      <Text style={styles.occurrenceNumber}>
-                        {' '}
-                        (ครั้งที่ {reminder.occurrenceNumber})
-                      </Text>
-                    )}
+                    reminder.occurrenceNumber > 1 &&
+                    ` (ครั้งที่ ${reminder.occurrenceNumber})`}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Right side - Category tag */}
-          <View
-            style={[
-              styles.categoryTag,
-              {
-                backgroundColor: categoryInfo.color + '20',
-                borderColor: categoryInfo.color
-              }
-            ]}
-          >
-            <CategoryIcon size={12} color={categoryInfo.color} />
-            <Text style={[styles.categoryText, { color: categoryInfo.color }]}>
-              {categoryInfo.label}
-            </Text>
-          </View>
+          {/* Right side - Chevron */}
+          <ChevronRight
+            size={16}
+            color={
+              isVirtual
+                ? '#D1D5DB'
+                : isDone
+                  ? '#9CA3AF'
+                  : reminder?.reminderStatus === 'overdue'
+                    ? '#BF1737'
+                    : '#2E759E'
+            }
+            style={styles.chevron}
+          />
         </TouchableOpacity>
       </Animated.View>
 
@@ -453,7 +451,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: 8,
     position: 'relative'
   },
   deleteButtonContainer: {
@@ -471,9 +469,8 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    gap: 4
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12
   },
   deleteText: {
     color: '#fff',
@@ -486,25 +483,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderLeftWidth: 6
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    borderLeftWidth: 3
   },
   cardTouchable: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12
+    padding: 10,
+    gap: 10
   },
   leftSection: {
-    marginRight: 14
+    paddingRight: 0
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 18,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#A6A6A6',
     justifyContent: 'center',
@@ -520,78 +518,94 @@ const styles = StyleSheet.create({
   checkboxInner: {
     width: 12,
     height: 12,
-    borderRadius: 12,
+    borderRadius: 6,
     backgroundColor: '#5FA7D1'
   },
   middleSection: {
     flex: 1,
-    gap: 2
+    gap: 3
   },
-  titleRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 6
   },
   recurringBadge: {
-    backgroundColor: '#E8F4F8',
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: '#E0F2FE',
+    borderRadius: 10,
+    padding: 3,
     justifyContent: 'center',
     alignItems: 'center'
   },
   virtualText: {
-    color: '#6B7280'
+    color: '#9CA3AF'
   },
-  recurrenceText: {
-    fontSize: 12,
-    color: '#5FA7D1',
-    fontFamily: 'Prompt_400Regular'
+  lineThroughText: {
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through'
   },
-  occurrenceNumber: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontFamily: 'Prompt_400Regular'
+  doneText: {
+    color: '#9CA3AF'
   },
-  categoryTag: {
+  detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    flexWrap: 'wrap'
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 0.5
+    borderRadius: 8
   },
   categoryText: {
     fontSize: 10,
     fontFamily: 'Prompt_400Regular'
   },
-  reminderTitle: {
-    fontSize: 16,
-    color: '#225877',
-    fontFamily: 'Prompt_700Bold'
+  separator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#D1D5DB'
   },
-  overdueTitleText: {
-    color: '#BF1737',
-    fontFamily: 'Prompt_700Bold'
-  },
-  infoRow: {
+  recurrenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 4
+  },
+  recurrenceText: {
+    fontSize: 11,
+    color: '#5FA7D1',
+    fontFamily: 'Prompt_400Regular',
+    flex: 1
+  },
+  reminderTitle: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontFamily: 'Prompt_500Medium',
+    flex: 1
+  },
+  overdueTitleText: {
+    color: '#BF1737'
   },
   petNameText: {
-    fontSize: 13,
-    color: '#225877',
+    fontSize: 12,
+    color: '#6B7280',
     fontFamily: 'Prompt_400Regular'
   },
   dateTimeText: {
-    fontSize: 13,
-    color: '#225877',
+    fontSize: 12,
+    color: '#6B7280',
     fontFamily: 'Prompt_400Regular'
   },
   overdueText: {
-    color: '#BF1737',
-    fontFamily: 'Prompt_700Bold'
+    color: '#BF1737'
+  },
+  chevron: {
+    marginLeft: 4
   },
   modalOverlay: {
     flex: 1,

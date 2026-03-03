@@ -10,6 +10,14 @@ export interface IPetProfileForm {
   weight: string
   created_at: string
   updated_at: string
+  profileImage?: string | null
+  profile_image_url?: string | null
+  profile_image_key?: string | null
+}
+
+export interface IProfileImageUploadResponse {
+  imageUrl: string
+  imagePath?: string
 }
 
 export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
@@ -22,7 +30,8 @@ export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
     birth_date: v?.birth_date ? parseDate(v.birth_date) : null,
     weight: v.weight || '',
     created_at: v.created_at || '',
-    updated_at: v.updated_at || ''
+    updated_at: v.updated_at || '',
+    profileImage: v?.profileImage || null
   }
 }
 
@@ -69,6 +78,9 @@ export interface ISpeciesAndBreeds {
   data: ISpecies[]
 }
 
+export type TPetStatus = 'ACTIVE' | 'DECEASED' | 'DELETED'
+export type TDeletionReason = 'JUST_DELETE' | 'DECEASED'
+
 export interface IPetProfile {
   id: string
   pet_name: string
@@ -80,4 +92,25 @@ export interface IPetProfile {
   age: number
   weight: string
   imageUrl?: string
+  profile_image_url?: string | null
+  profile_image_key?: string | null
+  status: TPetStatus
+  deceased_date: string | null
+  deleted_at: string | null
+  deletion_reason: TDeletionReason | null
+}
+
+export interface IDeletedPet extends IPetProfile {
+  deleted_at: string
+  status: 'DELETED'
+}
+
+export interface DeletePetRequest {
+  reason: TDeletionReason
+  deceased_date?: string
+}
+
+export interface DeletePetResponse {
+  message: string
+  status: TPetStatus
 }
