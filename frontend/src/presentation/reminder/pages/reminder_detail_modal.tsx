@@ -1,3 +1,7 @@
+import React, { useEffect, useState } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
+
 import { getCategoryInfo, IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
@@ -5,7 +9,6 @@ import {
   convertFromBackendRecurrence,
   formatRecurrenceText
 } from '@/src/utils/recurrence.utils'
-import { useRouter } from 'expo-router'
 import {
   AlertCircle,
   Bone,
@@ -26,8 +29,6 @@ import {
   X,
   XCircle
 } from 'lucide-react-native'
-import React, { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import VaccineListSection from '../components/vaccine_list_section'
 
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     width: '90%',
     maxWidth: 500,
     maxHeight: '80%',
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
   },
   notFoundContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     width: '90%',
     maxWidth: 400,
     paddingVertical: 40,
