@@ -116,10 +116,12 @@ export default function ReminderPage() {
   })
 
   // Generate virtual reminders and merge with real ones
+  // Use requirePreviousDone: true for the list to only show virtual reminders when previous instances are done
   const allReminders = useMemo(() => {
     return mergeRealAndVirtualReminders(
       remindersWithRecurrence,
-      virtualReminders
+      virtualReminders,
+      { requirePreviousDone: true }
     )
   }, [remindersWithRecurrence, virtualReminders])
 
