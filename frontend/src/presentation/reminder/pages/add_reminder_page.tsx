@@ -42,6 +42,8 @@ import EndRepeatSelector from '../components/recurrence/end_repeat_selector'
 import RecurrencePicker from '../components/recurrence/recurrence_picker'
 import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
 import ReminderSuggestions from '../components/reminder_suggestions'
+import AttachmentManager from '../components/attachment_manager'
+import { useReminderAttachments } from '@/src/hooks/useReminderAttachments'
 
 export default function AddReminderPage() {
   const router = useRouter()
@@ -86,6 +88,25 @@ export default function AddReminderPage() {
       .filter((child) => child.reminderStatus === 'done')
       .map((child) => child.id)
   )
+
+  // Attachment management hook
+  const {
+    attachments,
+    pendingAttachments,
+    isLoading: isLoadingAttachments,
+    isUploading: isUploadingAttachment,
+    isCreateMode,
+    loadAttachments,
+    addAttachment,
+    deleteAttachment,
+    downloadAttachment
+  } = useReminderAttachments({
+    reminderId: reminderId || '',
+    onAttachmentsChange: () => {
+      // Optionally refresh data if needed
+      console.log('✅ Attachments updated')
+    }
+  })
   const hasDoneChildren = doneChildReminderIds.size > 0
 
   const isDose1Done = (() => {
@@ -95,7 +116,8 @@ export default function AddReminderPage() {
     )
   })()
 
-  const { pets, activePets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
+  const { pets, activePets, getFirstPetId, selectedPetId, setSelectedPetId } =
+    usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
@@ -377,6 +399,13 @@ export default function AddReminderPage() {
       setHasUserStartedCreateMode(true)
     }
   }, [doses, isEditMode])
+
+  // Load attachments when in edit mode
+  useEffect(() => {
+    if (isEditMode && reminderId) {
+      loadAttachments()
+    }
+  }, [isEditMode, reminderId])
 
   useFocusEffect(
     useCallback(() => {
@@ -889,6 +918,20 @@ export default function AddReminderPage() {
                   </Text>
                 )}
               </View>
+
+              {/* Attachment Manager */}
+              <AttachmentManager
+                attachments={attachments}
+                pendingAttachments={pendingAttachments}
+                onAddAttachment={addAttachment}
+                onDeleteAttachment={deleteAttachment}
+                onDownloadAttachment={downloadAttachment}
+                maxFiles={5}
+                maxFileSize={10}
+                allowedTypes={['application/pdf', 'image/jpeg', 'image/png']}
+                disabled={isSubmitting}
+                isUploading={isUploadingAttachment}
+              />
             </View>
           </ScrollView>
         </View>
@@ -972,7 +1015,8 @@ const styles = StyleSheet.create({
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12
+    paddingVertical: 12,
+    marginBottom: 12
   },
   row: {
     flexDirection: 'row',

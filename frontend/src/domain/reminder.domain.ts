@@ -56,6 +56,17 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
   )
 }
 
+export interface IAttachment {
+  id: string
+  reminderId: string
+  fileName: string
+  fileSize: number
+  fileType: string
+  objectKey: string
+  downloadUrl?: string
+  createdAt: string
+}
+
 export interface IChildReminder {
   id: string
   userId: string
@@ -86,6 +97,7 @@ export interface IReminder {
   createdAt: string
   updatedAt: string
   children: IReminder[]
+  attachments?: IAttachment[] // File attachments
   // Recurrence fields
   recurrenceId?: string // ID of the recurring rule (if this reminder is part of a series)
   recurrence?: {
