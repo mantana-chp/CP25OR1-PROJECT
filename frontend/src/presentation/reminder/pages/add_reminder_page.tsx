@@ -27,6 +27,7 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View
@@ -82,6 +83,9 @@ export default function AddReminderPage() {
   const [showDiscardModal, setShowDiscardModal] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const apiSuccessRef = useRef(false)
+
+  // Pet selection state (supports single or multiple pets)
+  const [selectedPetIds, setSelectedPetIds] = useState<string[]>([])
 
   const doneChildReminderIds = new Set(
     initialChildReminders
@@ -157,6 +161,83 @@ export default function AddReminderPage() {
     }
   })
 
+  // Handle multi-pet submission
+  const handleMultiPetSubmit = async (values: IReminder) => {
+    let successCount = 0
+    let failCount = 0
+    const totalPets = selectedPetIds.length
+
+    apiSuccessRef.current = false
+
+    try {
+      for (const petId of selectedPetIds) {
+        try {
+          let submitData: any = {
+            reminderName: values.reminderName,
+            description: values.description,
+            reminderDate: values.reminderDate,
+            reminderTime: values.reminderTime || '',
+            categoryName: values.categoryName || 'General',
+            petId: petId
+          }
+
+          if (recurrenceRule && recurrenceRule.type !== 'none') {
+            const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
+            if (backendRecurrence) {
+              submitData.recurrence = backendRecurrence
+            }
+          }
+
+          // Note: Multi-pet mode doesn't support vaccine schedules or attachments
+          // as they require per-pet configuration
+
+          await reminderService.createReminder(submitData)
+          successCount++
+        } catch (error: any) {
+          console.error(`Failed to create reminder for pet ${petId}:`, error)
+          failCount++
+        }
+      }
+
+      if (successCount > 0) {
+        apiSuccessRef.current = true
+        setDuplicateError(null)
+
+        // Show success message
+        if (failCount === 0) {
+          // All succeeded
+          router.push('/(tabs)')
+        } else {
+          // Partial success
+          showError(
+            `สร้างเตือนความจำสำเร็จ ${successCount} ตัว, ล้มเหลว ${failCount} ตัว`
+          )
+          setTimeout(() => router.push('/(tabs)'), 2000)
+        }
+
+        // Reset form state
+        setDoses([])
+        setCustomVaccineName('')
+        setInitialChildReminders([])
+        setInitialReminderData(null)
+        setLoadedVaccineIsCustom(false)
+        setVaccineResetKey((prev) => prev + 1)
+        setRecurrenceRule(null)
+        setHasUserStartedCreateMode(false)
+        setChildrenToDelete([])
+        setOriginalPetSpecies(null)
+        setSelectedPetIds([])
+        formik.resetForm()
+      } else {
+        // All failed
+        showError('ไม่สามารถสร้างเตือนความจำได้')
+      }
+    } catch (error) {
+      console.error('Multi-pet submission error:', error)
+      showError('เกิดข้อผิดพลาดในการสร้างเตือนความจำ')
+    }
+  }
+
   const formik = useFormik<IReminder>({
     initialValues: initialReminderData
       ? {
@@ -194,6 +275,12 @@ export default function AddReminderPage() {
         return
       }
 
+      // Validate pet selection
+      if (!isEditMode && selectedPetIds.length === 0) {
+        showError('กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว')
+        return
+      }
+
       if (values.categoryName === 'Vaccination' && canUseVaccineSchedule) {
         if (doses.length === 0 || !doses[0].date) {
           showError('กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน')
@@ -201,6 +288,13 @@ export default function AddReminderPage() {
         }
       }
 
+      // Handle multi-pet creation (when more than 1 pet selected)
+      if (!isEditMode && selectedPetIds.length > 1) {
+        await handleMultiPetSubmit(values)
+        return
+      }
+
+      // Single pet creation/edit
       let submitData: any = {
         reminderName: values.reminderName,
         description: values.description,
@@ -531,6 +625,13 @@ export default function AddReminderPage() {
     }
   }, [petIdFromParams, selectedPetId, activePets])
 
+  // Initialize selectedPetIds for create mode
+  useEffect(() => {
+    if (!isEditMode && selectedPetIds.length === 0 && formik.values.petId) {
+      setSelectedPetIds([formik.values.petId])
+    }
+  }, [isEditMode, formik.values.petId])
+
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
   const isSamePetType = (
@@ -558,9 +659,16 @@ export default function AddReminderPage() {
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
   const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
+
+  // Validation: Check pet selection (use selectedPetIds for create, petId for edit)
+  const hasPetSelected = isEditMode
+    ? !!formik.values.petId
+    : selectedPetIds.length > 0
+
   const canSubmit =
     formik.values.reminderName &&
     formik.values.reminderDate &&
+    hasPetSelected &&
     (isVaccinationCategory && canUseVaccineSchedule ? allDosesHaveDates : true)
 
   const confirmBack = () => {
@@ -575,6 +683,7 @@ export default function AddReminderPage() {
     setLoadedVaccineIsCustom(false)
     setChildrenToDelete([])
     setOriginalPetSpecies(null)
+    setSelectedPetIds([])
     formik.resetForm()
     router.back()
   }
@@ -775,35 +884,32 @@ export default function AddReminderPage() {
 
               <PetSelector
                 pets={activePets}
-                selectedPetId={formik.values.petId}
-                onSelectPet={(petId: string) => {
-                  const newPet = activePets.find((p) => p.id === petId)
-                  const oldPetSpecies =
-                    originalPetSpecies || currentPet?.species
-                  const newPetSpecies = newPet?.species
-
-                  formik.setFieldValue('petId', petId)
-                  setSelectedPetId(petId)
-
-                  if (
-                    isEditMode &&
-                    !isSamePetType(oldPetSpecies || null, newPetSpecies || null)
-                  ) {
-                    const currentChildIds = initialChildReminders.map(
-                      (child) => child.id
-                    )
-                    setChildrenToDelete(currentChildIds)
-
-                    setDoses([])
-                    setCustomVaccineName('')
-                    setLoadedVaccineIsCustom(false)
-                    setVaccineResetKey((prev) => prev + 1)
-                    setInitialChildReminders([])
-                  }
-                }}
+                selectedPetIds={
+                  isEditMode ? [formik.values.petId] : selectedPetIds
+                }
+                onSelectPets={
+                  isEditMode
+                    ? undefined // Disable selection in edit mode
+                    : (petIds: string[]) => {
+                        setSelectedPetIds(petIds)
+                        // Update formik petId to first selected pet for validation
+                        if (petIds.length > 0) {
+                          formik.setFieldValue('petId', petIds[0])
+                        }
+                        // Clear vaccine schedules if multiple pets selected
+                        if (
+                          petIds.length > 1 &&
+                          formik.values.categoryName === 'Vaccination'
+                        ) {
+                          formik.setFieldValue('categoryName', 'General')
+                          setDoses([])
+                          setCustomVaccineName('')
+                        }
+                      }
+                }
                 label="สัตว์เลี้ยง"
                 required={true}
-                disabled={isSubmitting}
+                disabled={isEditMode || isSubmitting}
               />
 
               <View style={styles.row}>
@@ -877,7 +983,9 @@ export default function AddReminderPage() {
               <VaccineScheduleSection
                 key={vaccineResetKey}
                 isVaccinationCategory={isVaccinationCategory}
-                canUseVaccineSchedule={canUseVaccineSchedule || false}
+                canUseVaccineSchedule={
+                  (canUseVaccineSchedule || false) && selectedPetIds.length <= 1
+                }
                 petId={formik.values.petId}
                 reminderDate={formik.values.reminderDate}
                 doses={doses}

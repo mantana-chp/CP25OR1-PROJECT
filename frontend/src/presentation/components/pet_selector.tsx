@@ -1,6 +1,8 @@
 import { IPetProfile } from '@/src/domain/pet.domain'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import React, { useState } from 'react'
 import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -12,8 +14,8 @@ import {
 
 interface PetSelectorProps {
   pets: IPetProfile[]
-  selectedPetId: string
-  onSelectPet: (petId: string) => void
+  selectedPetIds?: string[]
+  onSelectPets?: (petIds: string[]) => void
   label?: string
   required?: boolean
   error?: string
@@ -22,20 +24,47 @@ interface PetSelectorProps {
 
 export default function PetSelector({
   pets,
-  selectedPetId,
-  onSelectPet,
+  selectedPetIds = [],
+  onSelectPets,
   label = 'เลือกสัตว์เลี้ยง',
   required = false,
   error,
   disabled = false
 }: PetSelectorProps) {
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [tempSelectedIds, setTempSelectedIds] =
+    useState<string[]>(selectedPetIds)
 
-  const selectedPet = pets.find((p) => p.id === selectedPetId)
+  const selectedPets = pets.filter((p) => selectedPetIds.includes(p.id))
 
   const handleSelectPet = (petId: string) => {
-    onSelectPet(petId)
+    // Toggle selection
+    const isSelected = tempSelectedIds.includes(petId)
+    if (isSelected) {
+      setTempSelectedIds(tempSelectedIds.filter((id) => id !== petId))
+    } else {
+      setTempSelectedIds([...tempSelectedIds, petId])
+    }
+  }
+
+  const handleConfirmSelection = () => {
+    if (onSelectPets) {
+      onSelectPets(tempSelectedIds)
+    }
     setIsModalVisible(false)
+  }
+
+  const handleOpenModal = () => {
+    if (!disabled) {
+      setTempSelectedIds(selectedPetIds)
+      setIsModalVisible(true)
+    }
+  }
+
+  const handleRemovePet = (petId: string) => {
+    if (!disabled && onSelectPets) {
+      onSelectPets(selectedPetIds.filter((id) => id !== petId))
+    }
   }
 
   return (
@@ -47,76 +76,132 @@ export default function PetSelector({
         </Text>
       )}
 
-      <TouchableOpacity
-        style={[
-          styles.selector,
-          error && styles.selectorError,
-          disabled && styles.selectorDisabled
-        ]}
-        onPress={() => !disabled && setIsModalVisible(true)}
-        disabled={disabled}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.petListContainer}
       >
-        <Text
-          style={[
-            styles.selectorText,
-            !selectedPet && styles.placeholderText,
-            disabled && styles.disabledText
-          ]}
-        >
-          {selectedPet ? selectedPet.pet_name : 'เลือกสัตว์เลี้ยง'}
-        </Text>
-      </TouchableOpacity>
+        {/* Selected Pets */}
+        {selectedPets.map((pet) => (
+          <View key={pet.id} style={styles.selectedPetItem}>
+            <View style={styles.petAvatarWrapper}>
+              {pet.profile_image_url ? (
+                <Image
+                  source={{ uri: pet.profile_image_url }}
+                  style={styles.petAvatar}
+                />
+              ) : (
+                <View style={[styles.petAvatar, styles.placeholderAvatar]}>
+                  <MaterialCommunityIcons name="dog" size={32} color="white" />
+                </View>
+              )}
+              {!disabled && (
+                <TouchableOpacity
+                  style={styles.removePetButton}
+                  onPress={() => handleRemovePet(pet.id)}
+                >
+                  <MaterialCommunityIcons
+                    name="close"
+                    size={14}
+                    color="white"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.selectedPetName} numberOfLines={1}>
+              {pet.pet_name}
+            </Text>
+          </View>
+        ))}
+
+        {/* Add Pet Button */}
+        {!disabled && (
+          <TouchableOpacity
+            style={styles.selectedPetItem}
+            onPress={handleOpenModal}
+          >
+            <View style={styles.addPetWrapper}>
+              <Text style={styles.addPetIcon}>+</Text>
+            </View>
+            <Text style={styles.addPetText}>เพิ่มสัตว์เลี้ยง</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       {/* Pet Selection Modal */}
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
+      <Modal visible={isModalVisible} transparent={true} animationType="fade">
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setIsModalVisible(false)}
         >
-          <View style={styles.modalContent}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>เลือกสัตว์เลี้ยง</Text>
+              <Text style={styles.modalTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <Text style={styles.closeButton}>✕</Text>
+                <Text style={styles.closeButton}>×</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.petList}>
-              {pets.map((pet) => (
-                <TouchableOpacity
-                  key={pet.id}
-                  style={[
-                    styles.petItem,
-                    selectedPetId === pet.id && styles.petItemSelected
-                  ]}
-                  onPress={() => handleSelectPet(pet.id)}
-                >
-                  <View>
-                    <Text
+              {pets.map((pet) => {
+                const isSelected = tempSelectedIds.includes(pet.id)
+
+                return (
+                  <TouchableOpacity
+                    key={pet.id}
+                    style={[
+                      styles.petItem,
+                      isSelected && styles.petItemSelected
+                    ]}
+                    onPress={() => handleSelectPet(pet.id)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.petName,
+                          isSelected && styles.petNameSelected
+                        ]}
+                      >
+                        {pet.pet_name}
+                      </Text>
+                      <Text style={styles.petInfo}>
+                        {pet.species} • {pet.breed}
+                      </Text>
+                    </View>
+                    <View
                       style={[
-                        styles.petName,
-                        selectedPetId === pet.id && styles.petNameSelected
+                        styles.checkbox,
+                        isSelected && styles.checkboxSelected
                       ]}
                     >
-                      {pet.pet_name}
-                    </Text>
-                    <Text style={styles.petInfo}>
-                      {pet.species} • {pet.breed}
-                    </Text>
-                  </View>
-                  {selectedPetId === pet.id && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+                      {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
             </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setIsModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleConfirmSelection}
+              >
+                <Text style={styles.confirmButtonText}>
+                  ยืนยัน ({tempSelectedIds.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -137,31 +222,74 @@ const styles = StyleSheet.create({
   required: {
     color: '#dc2626'
   },
-  selector: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#fff'
+  petListContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8
   },
-  selectorError: {
-    borderColor: '#BF1737'
+  selectedPetItem: {
+    alignItems: 'center',
+    width: 72
   },
-  selectorDisabled: {
-    backgroundColor: '#f3f4f6',
-    opacity: 0.6
+  petAvatarWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 6,
+    position: 'relative'
   },
-  selectorText: {
-    fontSize: 16,
+  petAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    backgroundColor: '#5FA7D1'
+  },
+  placeholderAvatar: {
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  removePetButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff'
+  },
+  selectedPetName: {
+    fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
+    textAlign: 'center'
   },
-  placeholderText: {
-    color: '#9ca3af'
+  addPetWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: '#5FA7D1',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    marginBottom: 6
   },
-  disabledText: {
-    color: '#6b7280'
+  addPetIcon: {
+    fontSize: 28,
+    color: '#5FA7D1',
+    fontWeight: '300'
+  },
+  addPetText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#5FA7D1',
+    textAlign: 'center'
   },
   errorText: {
     color: '#BF1737',
@@ -202,6 +330,54 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#6b7280',
     fontFamily: 'Prompt_400Regular'
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12
+  },
+  checkboxSelected: {
+    backgroundColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb'
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    alignItems: 'center'
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280'
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#5FA7D1',
+    alignItems: 'center'
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+    color: '#fff'
   },
   petList: {
     maxHeight: 400
