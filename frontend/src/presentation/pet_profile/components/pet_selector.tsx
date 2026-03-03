@@ -26,6 +26,7 @@ interface PetSelectorProps {
   maxPets: number
   onEditPet?: (petId: string) => void
   onDeletePet?: (petId: string) => void
+  isViewingDeceased?: boolean
 }
 
 export default function PetSelector({
@@ -34,7 +35,8 @@ export default function PetSelector({
   onSelect,
   maxPets,
   onEditPet,
-  onDeletePet
+  onDeletePet,
+  isViewingDeceased
 }: PetSelectorProps) {
   const router = useRouter()
   const [actionMenuVisible, setActionMenuVisible] = useState(false)
@@ -133,7 +135,7 @@ export default function PetSelector({
         ))}
 
         {/* Add Pet Button */}
-        {pets.length < maxPets && (
+        {pets.length < maxPets && !isViewingDeceased && (
           <TouchableOpacity
             style={styles.petItem}
             onPress={() => router.push('/(tabs)/add_pet_form')}
