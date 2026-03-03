@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_500Medium',
     color: '#374151'
   },
   badge: {
