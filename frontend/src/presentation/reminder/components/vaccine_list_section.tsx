@@ -42,9 +42,7 @@ export default function VaccineListSection({
         style={styles.header}
         onPress={() => setIsExpanded(!isExpanded)}
       >
-        <Text style={styles.title}>
-          วัคซีนทั้งหมด ({children.length} เข็ม)
-        </Text>
+        <Text style={styles.title}>วัคซีนทั้งหมด ({children.length} เข็ม)</Text>
         {isExpanded ? (
           <ChevronUp size={16} color="#225877" />
         ) : (
@@ -67,8 +65,8 @@ export default function VaccineListSection({
                 const statusColor = isCompleted
                   ? '#15AD90'
                   : isOverdueChild
-                  ? '#DC2626'
-                  : '#FF9531'
+                    ? '#DC2626'
+                    : '#FF9531'
 
                 return (
                   <View
@@ -87,8 +85,8 @@ export default function VaccineListSection({
                               backgroundColor: isCompleted
                                 ? '#E6FFFA'
                                 : isOverdueChild
-                                ? '#FEE2E2'
-                                : '#FFF4E6'
+                                  ? '#FEE2E2'
+                                  : '#FFF4E6'
                             }
                           ]}
                         >
