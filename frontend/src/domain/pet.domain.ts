@@ -47,7 +47,10 @@ export const petProfileValidateSchema = yup.object().shape({
   birth_date: yup
     .date()
     .required('กรุณากรอกวันเกิดสัตว์เลี้ยง')
-    .max(new Date(), 'วันเกิดต้องไม่เกินวันปัจจุบัน')
+    .max(
+      new Date(new Date().setHours(23, 59, 59, 999)),
+      'วันเกิดต้องไม่เกินวันปัจจุบัน'
+    )
 })
 
 const parseDate = (dateValue: any): Date => {
