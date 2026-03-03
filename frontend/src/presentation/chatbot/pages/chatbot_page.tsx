@@ -28,11 +28,16 @@ import ChatInput from '../components/chat_input'
 import { InfoButton } from '../components/info_button'
 import PetDropdown from '../components/pet_dropdown'
 import TryAgainHandler from '../components/try_again_handler'
+import SeverityScaleWidget from '../components/severity_scale_widget'
+import { SeverityLevel } from '@/src/domain/chatbot.domain'
 
 interface Message {
   id: string
   text: string
   isUser: boolean
+  requiresSeverityInput?: boolean
+  severityPrompt?: string
+  awaitingSeverity?: boolean
 }
 
 export default function ChatbotPage() {
@@ -171,11 +176,19 @@ export default function ChatbotPage() {
       // Call the API with query and optional petId
       const response = await chatbotService.sendMessage(text, selectedPet?.id)
 
+      // Check if AI requires severity input
+      const requiresSeverity = 
+        response.data.requires_user_input === true && 
+        response.data.input_type === 'severity_scale'
+
       // Add AI response
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response.data.answer,
-        isUser: false
+        isUser: false,
+        requiresSeverityInput: requiresSeverity,
+        severityPrompt: response.data.metadata?.prompt,
+        awaitingSeverity: requiresSeverity
       }
       setMessages((prev) => [...prev, aiMessage])
 
@@ -190,6 +203,63 @@ export default function ChatbotPage() {
       showError(
         error.message || 'เกิดข้อผิดพลาดในการส่งข้อความ กรุณาลองใหม่อีกครั้ง'
       )
+    } finally {
+      setIsTyping(false)
+    }
+  }
+
+  const handleSeveritySelect = async (
+    messageId: string,
+    level: SeverityLevel,
+    label: string
+  ) => {
+    // Mark the message as no longer awaiting severity
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, awaitingSeverity: false } : msg
+      )
+    )
+
+    // Send severity context as a hidden message to AI
+    const severityText = `[ระดับความรุนแรงของอาการ: ${level}/5 - ${label}]`
+    
+    // Show the severity selection as user message
+    const userSeverityMessage: Message = {
+      id: Date.now().toString(),
+      text: `เลือกระดับความรุนแรง: ${label} (${level}/5)`,
+      isUser: true
+    }
+    setMessages((prev) => [...prev, userSeverityMessage])
+
+    setIsTyping(true)
+
+    // Scroll to bottom
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true })
+    }, 100)
+
+    try {
+      // Send the severity context back to AI
+      const response = await chatbotService.sendMessage(
+        severityText,
+        selectedPet?.id
+      )
+
+      // Add AI's follow-up response
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: response.data.answer,
+        isUser: false
+      }
+      setMessages((prev) => [...prev, aiMessage])
+
+      // Scroll to bottom
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    } catch (error: any) {
+      console.error('Error sending severity context:', error)
+      showError('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง')
     } finally {
       setIsTyping(false)
     }
@@ -228,11 +298,23 @@ export default function ChatbotPage() {
           showsVerticalScrollIndicator={true}
         >
           {_.map(messages, (message) => (
-            <ChatBubble
-              key={message.id}
-              message={message.text}
-              isUser={message.isUser}
-            />
+            <React.Fragment key={message.id}>
+              <ChatBubble
+                message={message.text}
+                isUser={message.isUser}
+              />
+              
+              {/* Show severity scale widget if needed */}
+              {message.requiresSeverityInput && message.awaitingSeverity && (
+                <SeverityScaleWidget
+                  onSelect={(level, label) =>
+                    handleSeveritySelect(message.id, level, label)
+                  }
+                  disabled={isTyping}
+                  prompt={message.severityPrompt}
+                />
+              )}
+            </React.Fragment>
           ))}
 
           {isTyping && <ChatBubble message="" isUser={false} isTyping={true} />}
