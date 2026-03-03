@@ -10,7 +10,10 @@ interface UseReminderAttachmentsProps {
 }
 
 // Temporary attachment type for files pending upload (during reminder creation)
-interface IPendingAttachment extends Omit<IAttachment, 'id' | 'reminderId' | 'createdAt'> {
+interface IPendingAttachment extends Omit<
+  IAttachment,
+  'id' | 'reminderId' | 'createdAt'
+> {
   id: string // Temporary local ID
   uri: string // Local file URI
   isPending: true
@@ -18,13 +21,15 @@ interface IPendingAttachment extends Omit<IAttachment, 'id' | 'reminderId' | 'cr
 
 export function useReminderAttachments({
   reminderId,
-  onAttachmentsChange,
+  onAttachmentsChange
 }: UseReminderAttachmentsProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [attachments, setAttachments] = useState<IAttachment[]>([])
-  const [pendingAttachments, setPendingAttachments] = useState<IPendingAttachment[]>([])
+  const [pendingAttachments, setPendingAttachments] = useState<
+    IPendingAttachment[]
+  >([])
   const [isLoading, setIsLoading] = useState(false)
-  
+
   // Mode: create or edit
   const isCreateMode = !reminderId || reminderId === ''
 
@@ -61,9 +66,9 @@ export function useReminderAttachments({
         fileType: file.mimeType,
         objectKey: '', // Will be set after upload
         uri: file.uri,
-        isPending: true,
+        isPending: true
       }
-      
+
       setPendingAttachments((prev) => [...prev, pendingFile])
       onAttachmentsChange?.()
       return
@@ -77,7 +82,7 @@ export function useReminderAttachments({
       console.log('📄 File details:', {
         name: file.name,
         size: `${(file.size / 1024).toFixed(2)} KB`,
-        type: file.mimeType,
+        type: file.mimeType
       })
 
       // Step 1: Request presigned upload URL from backend
@@ -86,7 +91,7 @@ export function useReminderAttachments({
         fileType: file.mimeType,
         fileSize: file.size,
         category: 'reminder-attachment',
-        entityId: reminderId!,
+        entityId: reminderId!
       })
 
       const { uploadUrl, objectKey } = urlResponse.data
@@ -104,7 +109,7 @@ export function useReminderAttachments({
           fileName: file.name,
           fileSize: file.size,
           fileType: file.mimeType,
-          objectKey,
+          objectKey
         }
       )
 
@@ -119,20 +124,17 @@ export function useReminderAttachments({
       Alert.alert('สำเร็จ', 'เพิ่มไฟล์แนบเรียบร้อยแล้ว')
     } catch (error: any) {
       console.error('❌ Error uploading attachment:', error)
-      
+
       // Check if this is because API doesn't exist yet
       if (error?.response?.status === 404) {
-        Alert.alert(
-          'ยังไม่พร้อมใช้งาน',
-          'ฟีเจอร์แนบไฟล์จะพร้อมใช้งานในอนาคต'
-        )
+        Alert.alert('ยังไม่พร้อมใช้งาน', 'ฟีเจอร์แนบไฟล์จะพร้อมใช้งานในอนาคต')
       } else {
         Alert.alert(
           'เกิดข้อผิดพลาด',
           error?.message || 'ไม่สามารถอัปโหลดไฟล์ได้'
         )
       }
-      
+
       throw error
     } finally {
       setIsUploading(false)
@@ -166,20 +168,14 @@ export function useReminderAttachments({
       Alert.alert('สำเร็จ', 'ลบไฟล์แนบเรียบร้อยแล้ว')
     } catch (error: any) {
       console.error('❌ Error deleting attachment:', error)
-      
+
       // Check if this is because API doesn't exist yet
       if (error?.response?.status === 404) {
-        Alert.alert(
-          'ยังไม่พร้อมใช้งาน',
-          'ฟีเจอร์แนบไฟล์จะพร้อมใช้งานในอนาคต'
-        )
+        Alert.alert('ยังไม่พร้อมใช้งาน', 'ฟีเจอร์แนบไฟล์จะพร้อมใช้งานในอนาคต')
       } else {
-        Alert.alert(
-          'เกิดข้อผิดพลาด',
-          error?.message || 'ไม่สามารถลบไฟล์ได้'
-        )
+        Alert.alert('เกิดข้อผิดพลาด', error?.message || 'ไม่สามารถลบไฟล์ได้')
       }
-      
+
       throw error
     }
   }
@@ -188,7 +184,10 @@ export function useReminderAttachments({
   const downloadAttachment = async (attachment: IAttachment): Promise<void> => {
     // Can only download in edit mode with reminderId
     if (isCreateMode || !reminderId) {
-      Alert.alert('ไม่สามารถดาวน์โหลดได้', 'กรุณาบันทึกการเตือนก่อนดาวน์โหลดไฟล์')
+      Alert.alert(
+        'ไม่สามารถดาวน์โหลดได้',
+        'กรุณาบันทึกการเตือนก่อนดาวน์โหลดไฟล์'
+      )
       return
     }
 
@@ -211,20 +210,17 @@ export function useReminderAttachments({
       }
     } catch (error: any) {
       console.error('❌ Error downloading attachment:', error)
-      
+
       // Check if this is because API doesn't exist yet
       if (error?.response?.status === 404) {
-        Alert.alert(
-          'ยังไม่พร้อมใช้งาน',
-          'ฟีเจอร์แนบไฟล์จะพร้อมใช้งานในอนาคต'
-        )
+        Alert.alert('ยังไม่พร้อมใช้งาน', 'ฟีเจอร์แนบไฟล์จะพร้อมใช้งานในอนาคต')
       } else {
         Alert.alert(
           'เกิดข้อผิดพลาด',
           error?.message || 'ไม่สามารถดาวน์โหลดไฟล์ได้'
         )
       }
-      
+
       throw error
     }
   }
@@ -238,6 +234,6 @@ export function useReminderAttachments({
     loadAttachments,
     addAttachment,
     deleteAttachment,
-    downloadAttachment,
+    downloadAttachment
   }
 }

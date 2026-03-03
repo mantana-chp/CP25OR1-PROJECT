@@ -7,13 +7,16 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
-  Linking,
+  Linking
 } from 'react-native'
 import { File, Plus, Trash2, Download, X } from 'lucide-react-native'
 import { IAttachment } from '@/src/domain/reminder.domain'
 
 // Type for pending attachments in create mode
-export interface IPendingAttachment extends Omit<IAttachment, 'id' | 'reminderId' | 'createdAt'> {
+export interface IPendingAttachment extends Omit<
+  IAttachment,
+  'id' | 'reminderId' | 'createdAt'
+> {
   id: string
   uri: string
   isPending: true
@@ -50,19 +53,22 @@ export default function AttachmentManager({
   maxFileSize = 10,
   allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'],
   disabled = false,
-  isUploading = false,
+  isUploading = false
 }: AttachmentManagerProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Merge attachments and pending attachments for display
-  const allAttachments: DisplayAttachment[] = [...attachments, ...pendingAttachments]
+  const allAttachments: DisplayAttachment[] = [
+    ...attachments,
+    ...pendingAttachments
+  ]
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
   }
 
   const getFileIcon = (fileType: string) => {
@@ -76,10 +82,7 @@ export default function AttachmentManager({
     if (disabled || isUploading) return
 
     if (allAttachments.length >= maxFiles) {
-      Alert.alert(
-        'ถึงขีดจำกัด',
-        `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`,
-      )
+      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
       return
     }
 
@@ -88,7 +91,7 @@ export default function AttachmentManager({
       const DocumentPicker = await import('expo-document-picker')
       const result = await DocumentPicker.getDocumentAsync({
         type: allowedTypes,
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: true
       })
 
       if (result.canceled) return
@@ -103,10 +106,7 @@ export default function AttachmentManager({
 
       const fileSizeInMB = file.size / (1024 * 1024)
       if (fileSizeInMB > maxFileSize) {
-        Alert.alert(
-          'ไฟล์ใหญ่เกินไป',
-          `ขนาดไฟล์ต้องไม่เกิน ${maxFileSize} MB`,
-        )
+        Alert.alert('ไฟล์ใหญ่เกินไป', `ขนาดไฟล์ต้องไม่เกิน ${maxFileSize} MB`)
         return
       }
 
@@ -114,7 +114,7 @@ export default function AttachmentManager({
       if (!allowedTypes.includes(file.mimeType || '')) {
         Alert.alert(
           'ประเภทไฟล์ไม่รองรับ',
-          'กรุณาเลือกไฟล์ PDF หรือรูปภาพ (JPG, PNG)',
+          'กรุณาเลือกไฟล์ PDF หรือรูปภาพ (JPG, PNG)'
         )
         return
       }
@@ -123,7 +123,7 @@ export default function AttachmentManager({
         uri: file.uri,
         name: file.name,
         size: file.size,
-        mimeType: file.mimeType || 'application/octet-stream',
+        mimeType: file.mimeType || 'application/octet-stream'
       })
     } catch (error) {
       console.error('Error picking document:', error)
@@ -132,28 +132,24 @@ export default function AttachmentManager({
   }
 
   const handleDeleteAttachment = (attachment: DisplayAttachment) => {
-    Alert.alert(
-      'ลบไฟล์แนบ',
-      `คุณต้องการลบ "${attachment.fileName}" หรือไม่?`,
-      [
-        { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'ลบ',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setDeletingId(attachment.id)
-              await onDeleteAttachment(attachment.id)
-            } catch (error) {
-              console.error('Error deleting attachment:', error)
-              Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบไฟล์ได้')
-            } finally {
-              setDeletingId(null)
-            }
-          },
-        },
-      ],
-    )
+    Alert.alert('ลบไฟล์แนบ', `คุณต้องการลบ "${attachment.fileName}" หรือไม่?`, [
+      { text: 'ยกเลิก', style: 'cancel' },
+      {
+        text: 'ลบ',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setDeletingId(attachment.id)
+            await onDeleteAttachment(attachment.id)
+          } catch (error) {
+            console.error('Error deleting attachment:', error)
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบไฟล์ได้')
+          } finally {
+            setDeletingId(null)
+          }
+        }
+      }
+    ])
   }
 
   const handleDownloadAttachment = async (attachment: IAttachment) => {
@@ -187,7 +183,7 @@ export default function AttachmentManager({
         >
           {allAttachments.map((attachment) => {
             const isPending = 'isPending' in attachment && attachment.isPending
-            
+
             return (
               <View key={attachment.id} style={styles.attachmentItem}>
                 <View style={styles.fileInfo}>
@@ -195,15 +191,16 @@ export default function AttachmentManager({
                     {getFileIcon(attachment.fileType)}
                   </View>
                   <View style={styles.fileDetails}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                    >
                       <Text style={styles.fileName} numberOfLines={1}>
                         {attachment.fileName}
                       </Text>
-                      {isPending && (
-                        <View style={styles.pendingBadge}>
-                          <Text style={styles.pendingText}>รอบันทึก</Text>
-                        </View>
-                      )}
                     </View>
                     <Text style={styles.fileSize}>
                       {formatFileSize(attachment.fileSize)}
@@ -212,15 +209,19 @@ export default function AttachmentManager({
                 </View>
 
                 <View style={styles.actionButtons}>
-                  {!isPending && 'downloadUrl' in attachment && attachment.downloadUrl && (
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleDownloadAttachment(attachment as IAttachment)}
-                      disabled={disabled}
-                    >
-                      <Download size={16} color="#5FA7D1" />
-                    </TouchableOpacity>
-                  )}
+                  {!isPending &&
+                    'downloadUrl' in attachment &&
+                    attachment.downloadUrl && (
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() =>
+                          handleDownloadAttachment(attachment as IAttachment)
+                        }
+                        disabled={disabled}
+                      >
+                        <Download size={16} color="#5FA7D1" />
+                      </TouchableOpacity>
+                    )}
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => handleDeleteAttachment(attachment)}
@@ -243,7 +244,7 @@ export default function AttachmentManager({
         style={[
           styles.addButton,
           (disabled || isUploading || allAttachments.length >= maxFiles) &&
-            styles.addButtonDisabled,
+            styles.addButtonDisabled
         ]}
         onPress={handlePickDocument}
         disabled={disabled || isUploading || allAttachments.length >= maxFiles}
@@ -270,27 +271,27 @@ export default function AttachmentManager({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 12
   },
   label: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877',
+    color: '#225877'
   },
   fileCount: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   attachmentList: {
     maxHeight: 200,
-    marginBottom: 12,
+    marginBottom: 12
   },
   attachmentItem: {
     flexDirection: 'row',
@@ -301,13 +302,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    marginBottom: 8,
+    marginBottom: 8
   },
   fileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
+    marginRight: 8
   },
   fileIcon: {
     width: 36,
@@ -316,32 +317,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F4F8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 12
   },
   fileDetails: {
-    flex: 1,
+    flex: 1
   },
   fileName: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    marginBottom: 2,
+    marginBottom: 2
   },
   fileSize: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 8
   },
   actionButton: {
     padding: 6,
     borderRadius: 6,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e5e7eb'
   },
   addButton: {
     flexDirection: 'row',
@@ -353,33 +354,33 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#5FA7D1',
     borderStyle: 'dashed',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#ffffff'
   },
   addButtonDisabled: {
     opacity: 0.5,
-    borderColor: '#d1d5db',
+    borderColor: '#d1d5db'
   },
   addButtonText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#5FA7D1',
+    color: '#5FA7D1'
   },
   hint: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
     marginTop: 8,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   pendingBadge: {
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 4
   },
   pendingText: {
     fontSize: 10,
     fontFamily: 'Prompt_400Regular',
-    color: '#92400E',
-  },
+    color: '#92400E'
+  }
 })
