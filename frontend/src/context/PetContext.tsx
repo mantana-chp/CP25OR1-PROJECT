@@ -133,10 +133,22 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     [refreshPets, refreshDeletedPets]
   )
 
-  // MOCK: Hard delete - permanently remove from deletedPets (local state only)
-  const hardDeletePet = useCallback(async (petId: string) => {
-    setDeletedPets((prev) => prev.filter((p) => p.id !== petId))
-  }, [])
+  // Hard delete - permanently remove pet via backend API
+  const hardDeletePet = useCallback(
+    async (petId: string) => {
+      try {
+        console.log('🗑️ Permanently deleting pet:', petId)
+        await petProfileService.permanentDeletePet(petId)
+        console.log('✅ Pet permanently deleted')
+
+        await refreshDeletedPets()
+      } catch (error) {
+        console.error('❌ Error permanently deleting pet:', error)
+        throw error
+      }
+    },
+    [refreshDeletedPets]
+  )
 
   // MOCK: Restore - move pet from deletedPets back to activePets (local state only)
   const restorePet = useCallback(

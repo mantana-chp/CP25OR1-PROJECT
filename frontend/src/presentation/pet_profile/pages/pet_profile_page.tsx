@@ -312,7 +312,6 @@ export default function PetProfilePage() {
     async (petId: string) => {
       try {
         await hardDeletePet(petId)
-        Alert.alert('สำเร็จ', 'ลบสัตว์เลี้ยงถาวรเรียบร้อยแล้ว')
       } catch (error) {
         console.error('Error permanently deleting pet:', error)
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบสัตว์เลี้ยงถาวรได้')
@@ -499,7 +498,9 @@ export default function PetProfilePage() {
                 selectedIndex={currentPetIndex}
                 onSelect={handlePetSelect}
                 maxPets={30}
-                onEditPet={!isViewingDeceased ? handleEditPetFromSelector : undefined}
+                onEditPet={
+                  !isViewingDeceased ? handleEditPetFromSelector : undefined
+                }
                 onDeletePet={
                   !isViewingDeceased ? handleDeletePetFromSelector : undefined
                 }

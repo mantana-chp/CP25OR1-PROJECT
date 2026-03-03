@@ -67,7 +67,7 @@ export const petProfileService = {
       reason: 'JUST_DELETE' as const
     }
     console.log('📤 Request body:', requestBody)
-    
+
     const response = await apiClient.delete<{ data: DeletePetResponse }>(
       `/v1/pets/me/${petId}`,
       {
@@ -114,6 +114,20 @@ export const petProfileService = {
       data: IPetProfile[]
     }>('/v1/pets/me/recently-deleted')
     console.log('📥 Recently deleted pets API response:', response)
+    return response
+  },
+
+  /**
+   * Permanently delete a soft-deleted pet
+   * @param petId - Pet ID
+   * @returns Response with message
+   */
+  permanentDeletePet: async (petId: string) => {
+    console.log('🗑️ Permanently deleting pet:', petId)
+    const response = await apiClient.delete<{ data: { message: string } }>(
+      `/v1/pets/me/${petId}/permanent`
+    )
+    console.log('📥 Permanent delete response:', response)
     return response
   }
 }
