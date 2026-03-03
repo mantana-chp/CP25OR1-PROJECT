@@ -9,6 +9,7 @@ import {
   softDeletePetController,
   getPastPetsController,
   getRecentlyDeletedPetsController,
+  permanentDeletePetController,
 } from './pet-controller'
 import { authGuard } from '../../middlewares/authGuard'
 import { validate } from '../../middlewares/validate'
@@ -19,6 +20,7 @@ import {
   updatePetProfileImageSchema,
   deletePetProfileImageSchema,
   softDeletePetSchema,
+  permanentDeletePetSchema,
 } from './pet-schema'
 
 const petRoutes = Router()
@@ -313,6 +315,44 @@ petRoutes.delete(
   authGuard,
   validate(softDeletePetSchema),
   softDeletePetController,
+)
+
+/**
+ * @openapi
+ * /pets/me/{id}/permanent:
+ *   delete:
+ *     tags: [Pets]
+ *     summary: Permanently delete a soft-deleted pet
+ *     description: |
+ *       Immediately and permanently removes a pet that was previously soft-deleted.
+ *       Only pets with status DELETED can be permanently deleted.
+ *       This action cannot be undone.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the soft-deleted pet
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Pet permanently deleted.
+ *       400:
+ *         description: Bad Request - Pet is not in DELETED status.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+petRoutes.delete(
+  '/me/:id/permanent',
+  authGuard,
+  validate(permanentDeletePetSchema),
+  permanentDeletePetController,
 )
 
 export default petRoutes

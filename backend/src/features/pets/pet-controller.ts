@@ -10,6 +10,7 @@ import {
   deletePetProfileImageSchema,
   softDeletePetSchema,
   getPetsQuerySchema,
+  permanentDeletePetSchema,
 } from './pet-schema'
 
 export const createPet = asyncHandler(async (req: Request, res: Response) => {
@@ -109,5 +110,16 @@ export const getRecentlyDeletedPetsController = asyncHandler(
     const { id: userId } = req.user!
     const deletedPets = await petService.getRecentlyDeletedPets(userId)
     sendSuccess(res, deletedPets)
+  },
+)
+
+export const permanentDeletePetController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { params } = permanentDeletePetSchema.parse(req)
+    const { id: petId } = params
+    const { id: userId } = req.user!
+
+    const result = await petService.permanentDeletePet(petId, userId)
+    sendSuccess(res, result)
   },
 )

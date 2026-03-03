@@ -367,3 +367,33 @@ export const getRecentlyDeletedPets = async (userId: string) => {
   if (!pets || pets.length === 0) return []
   return Promise.all(pets.map(formatPetProfile))
 }
+
+/**
+ * Permanently delete a soft-deleted pet immediately (skip 30-day wait).
+ * Only works on pets with status = DELETED.
+ */
+export const permanentDeletePet = async (petId: string, userId: string) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  if (existingPet.status !== pet_status.DELETED) {
+    throw new BadRequestError(
+      'Only soft-deleted pets can be permanently deleted.',
+    )
+  }
+
+  // Delete profile image from MinIO if it exists
+  if (existingPet.profile_image_key) {
+    try {
+      await deleteFile(existingPet.profile_image_key)
+    } catch (error) {
+      console.error('Failed to delete profile image during permanent delete:', error)
+    }
+  }
+
+  // Hard delete (cascade removes reminders & notifications)
+  await petRepository.hardDeletePet(petId)
+  return { message: 'Pet has been permanently deleted.' }
+}

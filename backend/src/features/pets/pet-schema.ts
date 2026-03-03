@@ -67,3 +67,9 @@ export const getPetsQuerySchema = z.object({
     status: z.enum(['ACTIVE', 'DECEASED', 'DELETED']).optional(),
   }),
 });
+
+export const permanentDeletePetSchema = z.object({
+  params: z.object({
+    id: z.uuid({ message: 'Invalid pet ID format' }),
+  }),
+});
