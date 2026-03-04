@@ -831,12 +831,17 @@ export default function AddReminderPage() {
           >
             <View style={styles.formCard}>
               <View style={styles.cardHeader}>
-                <Pressable onPress={handleBack} disabled={isSubmitting}>
+                <Pressable
+                  onPress={handleBack}
+                  disabled={isSubmitting}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
                   <Text style={styles.cancelText}>ยกเลิก</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => formik.handleSubmit()}
                   disabled={!canSubmit || isSubmitting}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Text
                     style={[
@@ -1091,13 +1096,13 @@ const styles = StyleSheet.create({
     marginBottom: 18
   },
   cancelText: {
-    color: '#4b5563',
-    fontSize: 16,
+    color: '#6b7280',
+    fontSize: 18,
     fontFamily: 'Prompt_400Regular'
   },
   addText: {
     color: '#2E759E',
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Prompt_700Bold'
   },
   submittingText: {

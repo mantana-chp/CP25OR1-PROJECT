@@ -1,5 +1,6 @@
 import { IPetProfile } from '@/src/domain/pet.domain'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Check, X } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   Image,
@@ -143,7 +144,7 @@ export default function PetSelector({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <Text style={styles.closeButton}>×</Text>
+                <X size={20} color="#9ca3af" />
               </TouchableOpacity>
             </View>
 
@@ -179,7 +180,9 @@ export default function PetSelector({
                         isSelected && styles.checkboxSelected
                       ]}
                     >
-                      {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                      {isSelected && (
+                        <Check size={16} color="white" strokeWidth={2} />
+                      )}
                     </View>
                   </TouchableOpacity>
                 )

@@ -125,7 +125,7 @@ export default function TimePicker(props: TimePickerProps) {
               {props.value}
             </Text>
           )}
-          <Clock color={'#A6A6A6'} size={props.small ? 16 : 20} />
+          <Clock color={'#9ca3af'} size={props.small ? 16 : 20} strokeWidth={1.5}/>
         </Pressable>
 
         {props.error && <Text style={styles.errorText}>{props.error}</Text>}
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    minHeight: 48,
+    minHeight: 32,
     backgroundColor: '#fff',
   },
   pickerButtonDisabled: {
