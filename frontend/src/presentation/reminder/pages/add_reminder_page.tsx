@@ -634,23 +634,6 @@ export default function AddReminderPage() {
 
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
-  const isSamePetType = (
-    species1: string | null,
-    species2: string | null
-  ): boolean => {
-    if (!species1 || !species2) return false
-
-    const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
-
-    for (const type of petTypes) {
-      if (species1.includes(type) && species2.includes(type)) {
-        return true
-      }
-    }
-
-    return false
-  }
-
   const canUseVaccineSchedule =
     currentPet &&
     (currentPet.species?.includes('สุนัข') ||

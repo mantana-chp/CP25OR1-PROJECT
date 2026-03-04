@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   placeholder: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#9ca3af',
     fontFamily: 'Prompt_400Regular'
   },
