@@ -275,12 +275,6 @@ export default function AddReminderPage() {
         return
       }
 
-      // Validate pet selection
-      if (!isEditMode && selectedPetIds.length === 0) {
-        showError('กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว')
-        return
-      }
-
       if (values.categoryName === 'Vaccination' && canUseVaccineSchedule) {
         if (doses.length === 0 || !doses[0].date) {
           showError('กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน')
