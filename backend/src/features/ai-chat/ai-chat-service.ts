@@ -7,6 +7,7 @@ import { Document } from '@langchain/core/documents';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
 import { ApiError } from '../../shared/errors';
+import { detectPetInQuery, PetCandidate } from './petNameMatcher';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
@@ -43,41 +44,77 @@ const initializeVectorStore = async () => {
 };
 
 /**
- * Main chat function using RAG with optional Pet Context
+ * Layer 3 — LLM-based entity extraction.
+ * Only called when Layers 1 & 2 both miss AND no resolvedPetId exists in the session.
+ * Uses a minimal, fast prompt to avoid latency impact on the main response.
  */
-export const chatWithAI = async (query: string, petId?: string): Promise<string> => {
-  const store = await initializeVectorStore();
-  let petContext = '';
+const extractPetWithLLM = async (
+  query: string,
+  pets: PetCandidate[]
+): Promise<PetCandidate | null> => {
+  if (pets.length === 0) return null;
+
+  const petListStr = pets.map((p) => p.pet_name).join(', ');
+
+  const extractionPrompt = `You are a name recognition assistant.
+You will be given a list of pet names and a user message.
+Identify if the user message references or mentions any of the pet names, including cross-language variants (e.g. English "Blue" for Thai "บลู"), nicknames, or indirect references.
+
+Pet names: ${petListStr}
+
+User message: "${query}"
+
+Reply with ONLY one of the following:
+- The exact pet name from the list if one is referenced
+- The word null if no pet is referenced
+
+Do not explain. Do not add punctuation. Reply in one word only.`;
 
   try {
-    // 1. Fetch Pet Context if petId is provided
-    if (petId) {
-      const pet = await prisma.pets.findUnique({
-        where: { id: petId },
-        include: {
-          species: true,
-          breeds: true,
-          reminders: {
-            where: {
-              reminder_status: 'done',
-              is_health: true
-            },
-            orderBy: {
-              status_done_at: 'desc'
-            },
-            take: 10 // Fetch last 10 health records for context
-          }
-        }
-      });
+    const response = await llm.invoke(extractionPrompt);
+    const raw = (response.content as string).trim();
 
-      if (pet) {
-        const formattedAge = formatBirthDateToYearsMonths(pet.birth_date);
-        const healthHistory = pet.reminders.map(r =>
-          `- ${r.reminder_name} (Date: ${r.status_done_at?.toISOString().split('T')[0]})`
-        ).join('\n');
+    if (!raw || raw.toLowerCase() === 'null') return null;
 
-        petContext = (
-          `
+    // Match the LLM's reply back to a known pet (case-insensitive)
+    const matched = pets.find(
+      (p) => p.pet_name.toLowerCase() === raw.toLowerCase()
+    );
+
+    logger.info(`[AI Chat] Layer 3 LLM extraction result: "${raw}" → ${matched ? matched.pet_name : 'no match'}`);
+    return matched ?? null;
+  } catch (error) {
+    logger.error('[AI Chat] Layer 3 LLM extraction failed:', error as Error);
+    return null;
+  }
+};
+
+/**
+ * Fetches the full pet profile and formats it as a context string for the prompt.
+ */
+const buildPetContext = async (petId: string): Promise<string> => {
+  const pet = await prisma.pets.findUnique({
+    where: { id: petId },
+    include: {
+      species: true,
+      breeds: true,
+      reminders: {
+        where: { reminder_status: 'done', is_health: true },
+        orderBy: { status_done_at: 'desc' },
+        take: 10,
+      },
+    },
+  });
+
+  if (!pet) return '';
+
+  const formattedAge = formatBirthDateToYearsMonths(pet.birth_date);
+  const healthHistory = pet.reminders
+    .map((r) => `- ${r.reminder_name} (Date: ${r.status_done_at?.toISOString().split('T')[0]})`)
+    .join('\n');
+
+  return (
+    `
 --- CURRENT PET PROFILE ---
 Name: ${pet.pet_name}
 Species: ${pet.species.name}
@@ -89,12 +126,62 @@ Weight: ${pet.weight || 'Unknown'} kg
 Recent Health History (Vaccines/Checkups):
 ${healthHistory || 'No recent health records.'}
 ---------------------------
-        `
-        );
+    `.trim()
+  );
+};
+
+/**
+ * Main chat function using RAG with 3-layer pet name detection.
+ *
+ * Layer 1 & 2 (exact + fuzzy) always run — free, catches name switching mid-session.
+ * Layer 3 (LLM extraction) only fires on the very first message when no pet is
+ * identified at all, then the resolvedPetId is echoed back to the frontend to
+ * cache for the rest of the session.
+ */
+export const chatWithAI = async (
+  query: string,
+  userId: string,
+  resolvedPetId?: string
+): Promise<{ answer: string; resolvedPetId?: string }> => {
+  const store = await initializeVectorStore();
+  let petContext = '';
+
+  try {
+    // 1. Fetch all active pets for this user (needed for name detection)
+    const userPets = await prisma.pets.findMany({
+      where: { user_id: userId, status: 'ACTIVE' },
+      select: { id: true, pet_name: true },
+    });
+
+    // 2. Pet name detection — Layers 1 & 2 always run on every message.
+    //    This allows mid-session pet switching without any extra cost.
+    const detectedPet = detectPetInQuery(query, userPets);
+    let finalResolvedPetId: string | undefined;
+
+    if (detectedPet) {
+      // L1 or L2 found a (possibly new) pet — always trust it
+      finalResolvedPetId = detectedPet.id;
+      logger.info(`[AI Chat] Pet detected via L1/L2: "${detectedPet.pet_name}"`);
+    } else if (resolvedPetId) {
+      // L1 & L2 missed, but we have a session pet → skip L3, keep current pet
+      finalResolvedPetId = resolvedPetId;
+      logger.info(`[AI Chat] No new pet in query, continuing session with resolvedPetId: ${resolvedPetId}`);
+    } else {
+      // L1 & L2 missed, no session pet → fire Layer 3 (LLM extraction)
+      logger.info('[AI Chat] No pet detected via L1/L2, falling back to Layer 3 LLM extraction.');
+      const llmPet = await extractPetWithLLM(query, userPets);
+      if (llmPet) {
+        finalResolvedPetId = llmPet.id;
+        logger.info(`[AI Chat] Pet detected via Layer 3: "${llmPet.pet_name}"`);
       }
     }
 
-    // 2. Retrieve relevant documents (Knowledge Base)
+    // 3. Build pet context string if a pet was resolved
+    if (finalResolvedPetId) {
+      petContext = await buildPetContext(finalResolvedPetId);
+    }
+
+    // 4. Retrieve relevant documents (Knowledge Base)
     // Use similaritySearchWithScore to filter out irrelevant results
     const resultsWithScore = await store.similaritySearchWithScore(query, 3);
 
@@ -113,7 +200,7 @@ ${healthHistory || 'No recent health records.'}
       .map((doc: Document) => doc.pageContent || doc.metadata.text)
       .join('\n\n');
 
-    // 3. Construct Prompt
+    // 5. Construct Prompt
     const prompt = `
 You are a helpful veterinary assistant AI.
 
@@ -140,14 +227,14 @@ Answer:
     logger.info(`AI Chat Request - Question: "${query}"`);
     logger.info(`Full AI Prompt:\n${prompt}`);
 
-    // 4. Generate Answer
+    // 6. Generate Answer
     const response = await llm.invoke(prompt);
     const answer = response.content as string;
 
     logger.info(`AI Chat Response received successfully.`);
     logger.info(`AI Answer:\n${answer}`);
 
-    return answer;
+    return { answer, resolvedPetId: finalResolvedPetId };
 
   } catch (error) {
     logger.error('Error in AI Chat service:', error as Error);
