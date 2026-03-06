@@ -4,6 +4,7 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { config } from '../../config';
 import { logger } from '../../libs/logger';
 import { Document } from '@langchain/core/documents';
+import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
 import { ApiError } from '../../shared/errors';
@@ -11,6 +12,22 @@ import { detectPetInQuery, PetCandidate } from './ai-chat-name-matcher';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
+
+const SYSTEM_INSTRUCTION = `
+You are a knowledgeable, calm veterinary assistant. Give pet owners practical, proportionate advice.
+
+Rules:
+- If a KNOWLEDGE BASE section is provided and relevant to the question, use it. If irrelevant, ignore it and answer from your own veterinary knowledge.
+- Never apologize for missing data.
+- Never use gendered terms to address the owner like "คุณแม่" or "คุณพ่อ". Try to use neutral terms like "คุณ" instead.
+- Never make a definitive diagnosis. Frame causes as possibilities.
+- Do NOT start your response with a greeting like "สวัสดี" or "สวัสดีค่ะ". Instead, open by briefly acknowledging the owner's concern naturally (e.g., "เข้าใจเลยว่าคุณเป็นห่วงเมื่อ..."), then go straight into the advice.
+
+Triage — scale your response to symptom severity:
+- Mild/routine (e.g. eating slightly less 1 day, single loose stool): reassure, give home-care tips, advise watching 2–3 days before considering a vet. Do NOT recommend an immediate vet visit.
+- Moderate/persistent (e.g. not eating 2+ days, repeated vomiting, visible weight loss): give home-care steps, list warning signs, set a clear timeframe ("if no improvement in 24–48 h, see a vet").
+- Urgent/red flag (e.g. breathing difficulty, seizure, uncontrolled bleeding, suspected poisoning, collapse): recommend seeing a vet or emergency clinic immediately and briefly explain why. This is the ONLY case where an immediate vet visit is warranted.
+`.trim();
 
 const llm = new ChatGoogleGenerativeAI({
   model: 'gemini-2.5-flash',
@@ -200,35 +217,37 @@ export const chatWithAI = async (
       .map((doc: Document) => doc.pageContent || doc.metadata.text)
       .join('\n\n');
 
-    // 5. Construct Prompt
-    const prompt = `
-You are a helpful veterinary assistant AI.
+    // 5. Construct per-request prompt — dynamic content only.
+    //    Static instructions live in SYSTEM_INSTRUCTION (sent via systemInstruction
+    //    field at model level), so they are NOT repeated here each request.
+    const userPromptParts: string[] = [];
 
-INSTRUCTIONS:
-1. Analyze the User Question.
-2. Check the "KNOWLEDGE BASE" below.
-   - IF the knowledge base contains information specifically relevant to the user's question (e.g., vaccine schedules for dogs/cats), USE IT to answer.
-   - IF the knowledge base contains information (like dog vaccines) but the user asks about a different topic (like "How to feed a parrot" or "Tiger behavior"), IGNORE the knowledge base completely.
-3. If ignoring the knowledge base, answer the question using your own general veterinary knowledge.
-4. Do NOT apologize for missing data. Just answer helpfuly.
-5. IMPORTANT: Do NOT provide medical diagnoses. If the user describes serious symptoms (e.g., vomiting, lethargy, difficulty breathing, bleeding, seizures, injury), ALWAYS recommend consulting a licensed veterinarian immediately. You can provide general information, but emphasize the importance of professional veterinary care for health concerns.
+    if (petContext) {
+      userPromptParts.push(petContext);
+    }
 
-${petContext ? petContext : ''}
-
-${context ? `--- KNOWLEDGE BASE (Reference Only - Ignore if irrelevant to question) ---
+    if (context) {
+      userPromptParts.push(
+        `--- KNOWLEDGE BASE (Reference Only - Ignore if irrelevant to question) ---
 ${context}
-----------------------------------------------------------------------------` : ''}
+----------------------------------------------------------------------------`
+      );
+    }
 
-User Question: ${query}
+    userPromptParts.push(`User Question: ${query}`);
 
-Answer:
-    `.trim();
+    const prompt = userPromptParts.join('\n\n');
 
     logger.info(`AI Chat Request - Question: "${query}"`);
     logger.info(`Full AI Prompt:\n${prompt}`);
 
-    // 6. Generate Answer
-    const response = await llm.invoke(prompt);
+    // 6. Generate Answer — system instructions sent as SystemMessage (separate role),
+    //    dynamic prompt as HumanMessage. This is the most token-efficient structure
+    //    Gemini supports and keeps the static instructions out of the user turn.
+    const response = await llm.invoke([
+      new SystemMessage(SYSTEM_INSTRUCTION),
+      new HumanMessage(prompt),
+    ]);
     const answer = response.content as string;
 
     logger.info(`AI Chat Response received successfully.`);
