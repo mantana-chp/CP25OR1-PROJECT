@@ -4,11 +4,12 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { config } from '../../config';
 import { logger } from '../../libs/logger';
 import { Document } from '@langchain/core/documents';
-import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
 import { ApiError } from '../../shared/errors';
 import { detectPetInQuery, PetCandidate } from './ai-chat-name-matcher';
+import { HistoryItem } from './ai-chat-schema';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
@@ -158,7 +159,8 @@ ${healthHistory || 'No recent health records.'}
 export const chatWithAI = async (
   query: string,
   userId: string,
-  resolvedPetId?: string
+  resolvedPetId?: string,
+  history?: HistoryItem[]
 ): Promise<{ answer: string; resolvedPetId?: string }> => {
   const store = await initializeVectorStore();
   let petContext = '';
@@ -241,11 +243,24 @@ ${context}
     logger.info(`AI Chat Request - Question: "${query}"`);
     logger.info(`Full AI Prompt:\n${prompt}`);
 
-    // 6. Generate Answer — system instructions sent as SystemMessage (separate role),
-    //    dynamic prompt as HumanMessage. This is the most token-efficient structure
-    //    Gemini supports and keeps the static instructions out of the user turn.
+    // 6. Generate Answer — build message array:
+    //    [SystemMessage] + [history turns] + [current HumanMessage]
+    //    History (max 8 entries = 4 turns) gives the AI conversational context
+    //    while keeping the backend fully stateless.
+    //    Assistant replies are truncated to 300 chars — enough for context, avoids
+    //    re-sending full advice paragraphs on every subsequent request.
+    const ASSISTANT_HISTORY_LIMIT = 300;
+    const historyMessages = (history ?? []).map((m) => {
+      const content =
+        m.role === 'assistant' && m.content.length > ASSISTANT_HISTORY_LIMIT
+          ? m.content.slice(0, ASSISTANT_HISTORY_LIMIT) + '…'
+          : m.content;
+      return m.role === 'user' ? new HumanMessage(content) : new AIMessage(content);
+    });
+
     const response = await llm.invoke([
       new SystemMessage(SYSTEM_INSTRUCTION),
+      ...historyMessages,
       new HumanMessage(prompt),
     ]);
     const answer = response.content as string;
