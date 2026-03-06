@@ -97,6 +97,20 @@ model reminders {
   parent_id          String?          @db.Uuid
   parent             reminders?       @relation("ReminderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
   children           reminders[]      @relation("ReminderHierarchy")
+
+  // --- Attachments ---
+  reminder_attachments reminder_attachments[]
+}
+
+model reminder_attachments {
+  id          String    @id @default(uuid()) @db.Uuid
+  reminder_id String    @db.Uuid
+  object_key  String    @db.VarChar
+  file_name   String    @db.VarChar
+  file_type   String    @db.VarChar
+  file_size   Int
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  reminders   reminders @relation(fields: [reminder_id], references: [id], onDelete: Cascade)
 }
 
 model recurrence {

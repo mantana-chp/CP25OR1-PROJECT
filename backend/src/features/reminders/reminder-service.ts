@@ -1,4 +1,5 @@
 import * as reminderRepository from './reminder-repository'
+import { deleteAttachmentsForReminders, getAttachmentDtos, AttachmentDto } from './reminder-attachment-service'
 import { ReminderWithPetName, FullReminderDto } from './reminder-types'
 import {
   mapPrismaReminderWithPetToReminder,
@@ -241,14 +242,16 @@ export const getAllReminders = async (
 export const getReminderById = async (
   id: string,
   userId: string,
-): Promise<FullReminderDto> => {
+): Promise<FullReminderDto & { attachments: AttachmentDto[] }> => {
   const reminder = await reminderRepository.findFullById(id)
   if (!reminder) throw new NotFoundError('Reminder not found')
   if (reminder.user_id !== userId)
     throw new ApiError('Forbidden', 403, [
       { message: 'User is not the owner of this reminder', code: 403 },
     ])
-  return mapFullPrismaReminderToFullReminderDto(reminder)
+  const dto = mapFullPrismaReminderToFullReminderDto(reminder)
+  const attachments = await getAttachmentDtos(id)
+  return { ...dto, attachments }
 }
 
 export const deleteReminder = async (
@@ -272,6 +275,17 @@ export const deleteReminder = async (
 
   //--- CANCEL A RECURRING SERIES (ALL_INSTANCES) ---
   if (isRecurring && scope === 'ALL_INSTANCES') {
+    // Collect IDs of all reminders that will be deleted, for MinIO cleanup after transaction
+    const futuresToDelete = await prisma.reminders.findMany({
+      where: {
+        recurrence_id: reminder.recurrence_id,
+        id: { not: reminder.id },
+        reminder_status: { in: ['to_do', 'overdue'] },
+      },
+      select: { id: true },
+    })
+    const allIdsToDelete = [reminder.id, ...futuresToDelete.map((r) => r.id)]
+
     await prisma.$transaction(async (tx) => {
       // 1. Mark the recurrence template as CANCELLED and set end date to today
       await tx.recurrence.update({
@@ -295,6 +309,9 @@ export const deleteReminder = async (
       await tx.notifications.deleteMany({ where: { reminder_id: reminder.id } })
       await tx.reminders.delete({ where: { id: reminder.id } })
     })
+
+    // Best-effort MinIO cleanup after successful DB transaction
+    await deleteAttachmentsForReminders(allIdsToDelete)
     return
   }
 
@@ -307,6 +324,9 @@ export const deleteReminder = async (
     await tx.notifications.deleteMany({ where: { reminder_id: id } })
     await tx.reminders.delete({ where: { id: id } })
   })
+
+  // Best-effort MinIO cleanup after successful DB transaction
+  await deleteAttachmentsForReminders([id])
 }
 
 export const createNewReminder = async (

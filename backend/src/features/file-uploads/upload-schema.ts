@@ -14,8 +14,8 @@ export const ALLOWED_IMAGE_TYPES = [
     'image/webp',
 ];
 
-// Maximum file size: 5MB
-export const MAX_FILE_SIZE = 5 * 1024 * 1024;
+// Maximum file size: 10MB (covers reminder attachments; pet profile images are also within this limit)
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // Request presigned URL schema
 export const requestUploadUrlSchema = z.object({

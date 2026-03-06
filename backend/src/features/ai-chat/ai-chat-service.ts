@@ -7,7 +7,7 @@ import { Document } from '@langchain/core/documents';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
 import { ApiError } from '../../shared/errors';
-import { detectPetInQuery, PetCandidate } from './petNameMatcher';
+import { detectPetInQuery, PetCandidate } from './ai-chat-name-matcher';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
