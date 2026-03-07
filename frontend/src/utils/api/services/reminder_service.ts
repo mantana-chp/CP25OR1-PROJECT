@@ -49,6 +49,19 @@ export const reminderService = {
     return apiClient.post<IReminder>('/v1/reminders', data)
   },
 
+  createBatchReminders: async (reminders: Omit<IReminder, 'id'>[]) => {
+    return apiClient.post<{
+      data: {
+        created: IReminder[]
+        errors: Array<{
+          index: number
+          reminderName: string
+          error: string
+        }>
+      }
+    }>('/v1/reminders/batch', reminders)
+  },
+
   updateReminder: async (id: string, data: Partial<IReminder>) => {
     return apiClient.patch<IReminder>(`/v1/reminders/${id}`, data)
   },

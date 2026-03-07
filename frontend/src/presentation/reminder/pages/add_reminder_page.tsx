@@ -1,5 +1,4 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import { useFormik } from 'formik'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -31,6 +30,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { createFormikInstance } from '../utils/formik-helper'
 import DatePicker from '../../components/date_picker'
 import DiscardChangesModal from '../../components/discard_changes_modal'
 import Header from '../../components/header_component'
@@ -42,6 +42,25 @@ import EndRepeatSelector from '../components/recurrence/end_repeat_selector'
 import RecurrencePicker from '../components/recurrence/recurrence_picker'
 import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
 import ReminderSuggestions from '../components/reminder_suggestions'
+
+// Type for individual form state
+interface ReminderFormState {
+  doses: IDose[]
+  customVaccineName: string
+  vaccineResetKey: number
+  initialReminderData: IReminder | null
+  loadingReminder: boolean
+  loadedVaccineIsCustom: boolean
+  initialChildReminders: any[]
+  recurrenceRule: IRecurrenceRule | null
+  duplicateError: string | null
+  originalPetSpecies: string | null
+  childrenToDelete: string[]
+  suggestions: IReminder[]
+  showSuggestions: boolean
+  hasUserStartedCreateMode: boolean
+  formValues: IReminder
+}
 
 export default function AddReminderPage() {
   const router = useRouter()
@@ -56,44 +75,15 @@ export default function AddReminderPage() {
         : ''
   const isEditMode = !!reminderId
 
-  const [doses, setDoses] = useState<IDose[]>([])
-  const [customVaccineName, setCustomVaccineName] = useState<string>('')
-  const [vaccineResetKey, setVaccineResetKey] = useState<number>(0)
-  const [initialReminderData, setInitialReminderData] =
-    useState<IReminder | null>(null)
-  const [loadingReminder, setLoadingReminder] = useState(isEditMode)
-  const [loadedVaccineIsCustom, setLoadedVaccineIsCustom] =
-    useState<boolean>(false)
-  const [initialChildReminders, setInitialChildReminders] = useState<any[]>([])
-  const [recurrenceRule, setRecurrenceRule] = useState<IRecurrenceRule | null>(
-    null,
-  )
-  const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
-  const [suggestions, setSuggestions] = useState<IReminder[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [hasUserStartedCreateMode, setHasUserStartedCreateMode] =
-    useState(false)
-  const [originalPetSpecies, setOriginalPetSpecies] = useState<string | null>(
-    null,
-  )
-  const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
+  // State for managing multiple reminder forms
+  const [reminderForms, setReminderForms] = useState<ReminderFormState[]>([])
   const [showDiscardModal, setShowDiscardModal] = useState(false)
-  const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
+  const [formErrors, setFormErrors] = useState<
+    Record<number, Record<string, string>>
+  >({})
   const apiSuccessRef = useRef(false)
-
-  const doneChildReminderIds = new Set(
-    initialChildReminders
-      .filter((child) => child.reminderStatus === 'done')
-      .map((child) => child.id),
-  )
-  const hasDoneChildren = doneChildReminderIds.size > 0
-
-  const isDose1Done = (() => {
-    const dose1 = doses.find((d) => d.doseNumber === 1)
-    return !!(
-      dose1?.childReminderId && doneChildReminderIds.has(dose1.childReminderId)
-    )
-  })()
+  const formikInstancesRef = useRef<Record<number, any>>({})
 
   const { pets, activePets, getFirstPetId, selectedPetId, setSelectedPetId } =
     usePets()
@@ -106,16 +96,27 @@ export default function AddReminderPage() {
     showErrorAlert: false,
     onSuccess: () => {
       apiSuccessRef.current = true
-      setDuplicateError(null)
       router.push('/(tabs)')
     },
     onError: (error) => {
       apiSuccessRef.current = false
       if (error.statusCode === 409) {
-        setDuplicateError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
+        showError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
       } else {
         showError(error.message || 'ไม่สามารถสร้างเตือนความจำได้')
       }
+    },
+  })
+
+  const createBatchRemindersApi = useApi(reminderService.createBatchReminders, {
+    showErrorAlert: false,
+    onSuccess: () => {
+      apiSuccessRef.current = true
+      router.push('/(tabs)')
+    },
+    onError: (error) => {
+      apiSuccessRef.current = false
+      showError(error.message || 'ไม่สามารถสร้างเตือนความจำได้')
     },
   })
 
@@ -123,355 +124,30 @@ export default function AddReminderPage() {
     showErrorAlert: false,
     onSuccess: () => {
       apiSuccessRef.current = true
-      setDuplicateError(null)
       router.push('/(tabs)')
     },
     onError: (error) => {
       apiSuccessRef.current = false
       if (error.statusCode === 409) {
-        setDuplicateError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
+        showError('เตือนความจำนี้ซ้ำกับที่มีอยู่แล้ว')
       } else {
         showError(error.message || 'ไม่สามารถแก้ไขเตือนความจำได้')
       }
     },
   })
 
-  const formik = useFormik<IReminder>({
-    initialValues: initialReminderData
-      ? {
-          id: initialReminderData.id || '',
-          userId: initialReminderData.userId || '',
-          petId: initialReminderData.petId || getFirstPetId(),
-          pet_name: initialReminderData.pet_name || '',
-          categoryName: initialReminderData.categoryName || 'General',
-          reminderName: initialReminderData.reminderName || '',
-          description: initialReminderData.description || '',
-          reminderDate: initialReminderData.reminderDate || '',
-          reminderTime: initialReminderData.reminderTime || '',
-          reminderStatus: initialReminderData.reminderStatus || 'to_do',
-          statusUpdatedAt: initialReminderData.statusUpdatedAt || '',
-          createdAt: initialReminderData.createdAt || '',
-          updatedAt: initialReminderData.updatedAt || '',
-          children: initialReminderData.children || [],
-        }
-      : {
-          ...reminderInitValue({} as IReminder),
-          petId: getFirstPetId(),
-        },
-    enableReinitialize: true,
-    validationSchema: reminderValidationSchema,
-    validateOnBlur: false,
-    validateOnChange: false,
-    onSubmit: async (values) => {
-      const errors = await formik.validateForm()
-
-      if (Object.keys(errors).length > 0) {
-        const errorMessages = Object.entries(errors)
-          .map(([field, error]) => error)
-          .join('\n')
-        showError(errorMessages || 'กรุณากรอกข้อมูลให้ครบถ้วน')
-        return
-      }
-
-      if (values.categoryName === 'Vaccination' && canUseVaccineSchedule) {
-        if (doses.length === 0 || !doses[0].date) {
-          showError('กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน')
-          return
-        }
-      }
-
-      let submitData: any = {
-        reminderName: values.reminderName,
-        description: values.description,
-        reminderDate: values.reminderDate,
-        reminderTime: values.reminderTime || '',
-        categoryName: values.categoryName || 'General',
-        petId: values.petId,
-      }
-
-      if (recurrenceRule && recurrenceRule.type !== 'none') {
-        const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
-        if (backendRecurrence) {
-          submitData.recurrence = backendRecurrence
-        }
-      } else if (isEditMode && initialReminderData?.recurrence) {
-        submitData.recurrence = null
-      }
-
-      if (
-        values.categoryName === 'Vaccination' &&
-        canUseVaccineSchedule &&
-        doses.length > 0
-      ) {
-        const syncedDoses = doses.map((dose) =>
-          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose,
-        )
-        const children: any[] = syncedDoses
-          .filter((dose) => {
-            if (
-              dose.childReminderId &&
-              doneChildReminderIds.has(dose.childReminderId)
-            ) {
-              return false
-            }
-            return true
-          })
-          .map((dose, index) => {
-            const childData: any = {
-              reminderName: customVaccineName
-                ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
-                : `วัคซีน เข็มที่ ${dose.doseNumber}`,
-              description: values.description,
-              reminderDate: dose.date,
-              reminderTime: dose.time || '',
-              categoryName: 'Vaccination',
-            }
-            if (dose.childReminderId) {
-              childData.id = dose.childReminderId
-            }
-            return childData
-          })
-        submitData.children = children
-
-        if (isEditMode && initialChildReminders.length > 0) {
-          const currentChildIds = syncedDoses
-            .map((dose) => dose.childReminderId)
-            .filter((id) => !!id)
-          const calculatedChildrenToDelete = initialChildReminders
-            .filter((child) => !currentChildIds.includes(child.id))
-            .map((child) => child.id)
-
-          const allChildrenToDelete = [
-            ...new Set([...calculatedChildrenToDelete, ...childrenToDelete]),
-          ]
-
-          if (allChildrenToDelete.length > 0) {
-            submitData.childrenToDelete = allChildrenToDelete
-          }
-        } else if (childrenToDelete.length > 0) {
-          submitData.childrenToDelete = childrenToDelete
-        }
-      } else if (isEditMode && childrenToDelete.length > 0) {
-        submitData.childrenToDelete = childrenToDelete
-      }
-
-      apiSuccessRef.current = false
-      if (isEditMode && reminderId) {
-        await updateReminderApi.execute(reminderId, submitData)
-      } else {
-        await createReminderApi.execute(submitData)
-      }
-
-      // Only reset form state on success
-      if (apiSuccessRef.current) {
-        setDoses([])
-        setCustomVaccineName('')
-        setInitialChildReminders([])
-        setInitialReminderData(null)
-        setLoadedVaccineIsCustom(false)
-        setVaccineResetKey((prev) => prev + 1)
-        setRecurrenceRule(null)
-        setHasUserStartedCreateMode(false)
-        setChildrenToDelete([])
-        setOriginalPetSpecies(null)
-        if (!isEditMode) {
-          formik.resetForm()
-        }
-      }
-    },
-  })
-
-  const isSubmitting = createReminderApi.loading || updateReminderApi.loading
-
-  const loadReminderData = useCallback(async () => {
-    if (isEditMode && reminderId) {
-      setLoadingReminder(true)
-      try {
-        const response = await reminderService.getReminderById(reminderId)
-        const reminderData = response.data
-        if (reminderData) {
-          const formattedReminderData = {
-            ...reminderData,
-            reminderTime: (reminderData.reminderTime || '').substring(0, 5),
-          }
-          setInitialReminderData(formattedReminderData)
-
-          if (reminderData.recurrence) {
-            const convertedRecurrence = convertFromBackendRecurrence(
-              reminderData.recurrence,
-            )
-            setRecurrenceRule(convertedRecurrence)
-          }
-
-          if (reminderData.petId) {
-            const originalPet = pets.find((p) => p.id === reminderData.petId)
-            if (originalPet) {
-              setOriginalPetSpecies(originalPet.species)
-            }
-          }
-
-          if (reminderData.children && reminderData.children.length > 0) {
-            setInitialChildReminders(reminderData.children)
-
-            const childrenWithDoseNumbers = reminderData.children.map(
-              (child: any) => {
-                const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
-                const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
-                return { ...child, extractedDoseNumber: doseNumber }
-              },
-            )
-
-            const sortedChildren = childrenWithDoseNumbers.sort(
-              (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
-            )
-
-            const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
-              doseNumber: child.extractedDoseNumber,
-              date: child.reminderDate || '',
-              time: (child.reminderTime || '').substring(0, 5),
-              isAutoCalculated: child.extractedDoseNumber > 1,
-              isEdited: child.extractedDoseNumber > 1,
-              childReminderId: child.id,
-            }))
-            setDoses(childrenDoses)
-            const firstChildName = reminderData.children[0]?.reminderName || ''
-            const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
-            if (nameMatch) {
-              const vaccineName = nameMatch[1]
-              setCustomVaccineName(vaccineName)
-              setLoadedVaccineIsCustom(true)
-            }
-          }
-        }
-      } catch (error) {
-        showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
-      } finally {
-        setLoadingReminder(false)
-      }
-    } else if (!hasUserStartedCreateMode) {
-      setInitialReminderData(null)
-      setLoadingReminder(false)
-      setLoadedVaccineIsCustom(false)
-      setInitialChildReminders([])
-      setDoses([])
-      setCustomVaccineName('')
-      setRecurrenceRule(null)
-    }
-  }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
-
+  // Initialize form on mount or edit mode
   useEffect(() => {
     if (isEditMode && reminderId) {
-      loadReminderData()
-    } else if (!isEditMode && !hasUserStartedCreateMode) {
-      setInitialReminderData(null)
-      setLoadingReminder(false)
-      setLoadedVaccineIsCustom(false)
-      setInitialChildReminders([])
-      setDoses([])
-      setCustomVaccineName('')
-      setRecurrenceRule(null)
+      // Edit mode: load single reminder
+      loadReminderForEdit()
+    } else {
+      // Create mode: initialize with one empty form
+      initializeNewForm()
     }
   }, [reminderId, isEditMode])
 
-  useEffect(() => {
-    if (!isEditMode && doses.length > 0) {
-      setHasUserStartedCreateMode(true)
-    }
-  }, [doses, isEditMode])
-
-  useFocusEffect(
-    useCallback(() => {
-      if (
-        isEditMode &&
-        reminderId &&
-        !initialReminderData &&
-        !hasUserStartedCreateMode
-      ) {
-        setLoadingReminder(true)
-        reminderService
-          .getReminderById(reminderId)
-          .then((response) => {
-            const reminderData = response.data
-            if (reminderData) {
-              const formattedReminderData = {
-                ...reminderData,
-                reminderTime: (reminderData.reminderTime || '').substring(0, 5),
-              }
-              setInitialReminderData(formattedReminderData)
-
-              if (reminderData.petId) {
-                const originalPet = pets.find(
-                  (p) => p.id === reminderData.petId,
-                )
-                if (originalPet) {
-                  setOriginalPetSpecies(originalPet.species)
-                }
-              }
-
-              if (reminderData.recurrence) {
-                const convertedRecurrence = convertFromBackendRecurrence(
-                  reminderData.recurrence,
-                )
-                setRecurrenceRule(convertedRecurrence)
-              }
-
-              if (reminderData.children && reminderData.children.length > 0) {
-                setInitialChildReminders(reminderData.children)
-
-                const childrenWithDoseNumbers = reminderData.children.map(
-                  (child: any) => {
-                    const doseMatch =
-                      child.reminderName.match(/เข็มที่\s*(\d+)/)
-                    const doseNumber = doseMatch
-                      ? parseInt(doseMatch[1], 10)
-                      : 0
-                    return { ...child, extractedDoseNumber: doseNumber }
-                  },
-                )
-
-                const sortedChildren = childrenWithDoseNumbers.sort(
-                  (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
-                )
-
-                const childrenDoses: IDose[] = sortedChildren.map(
-                  (child: any) => ({
-                    doseNumber: child.extractedDoseNumber,
-                    date: child.reminderDate || '',
-                    time: (child.reminderTime || '').substring(0, 5),
-                    isAutoCalculated: child.extractedDoseNumber > 1,
-                    isEdited: child.extractedDoseNumber > 1,
-                    childReminderId: child.id,
-                  }),
-                )
-                setDoses(childrenDoses)
-                const firstChildName =
-                  reminderData.children[0]?.reminderName || ''
-                const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
-                if (nameMatch) {
-                  const vaccineName = nameMatch[1]
-                  setCustomVaccineName(vaccineName)
-                  setLoadedVaccineIsCustom(true)
-                }
-              }
-            }
-          })
-          .catch((error) => {
-            showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
-          })
-          .finally(() => {
-            setLoadingReminder(false)
-          })
-      }
-    }, [
-      isEditMode,
-      reminderId,
-      showError,
-      initialReminderData,
-      hasUserStartedCreateMode,
-    ]),
-  )
-
-  // Fetch existing reminders for suggestions - refresh on screen focus
+  // Fetch existing reminders for suggestions
   useFocusEffect(
     useCallback(() => {
       const fetchReminders = async () => {
@@ -487,75 +163,374 @@ export default function AddReminderPage() {
     }, []),
   )
 
-  useEffect(() => {
-    if (petIdFromParams) {
-      formik.setFieldValue('petId', petIdFromParams)
-    }
-  }, [petIdFromParams])
-
-  useEffect(() => {
-    if (petIdFromParams) {
-      formik.setFieldValue('petId', petIdFromParams)
-    } else if (selectedPetId) {
-      formik.setFieldValue('petId', selectedPetId)
-    } else if (activePets.length > 0) {
-      formik.setFieldValue('petId', activePets[0].id)
-    }
-  }, [petIdFromParams, selectedPetId, activePets])
-
-  const currentPet = pets.find((p) => p.id === formik.values.petId)
-
-  const isSamePetType = (
-    species1: string | null,
-    species2: string | null,
-  ): boolean => {
-    if (!species1 || !species2) return false
-
-    const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
-
-    for (const type of petTypes) {
-      if (species1.includes(type) && species2.includes(type)) {
-        return true
-      }
+  // Initialize with one empty form for creation
+  const initializeNewForm = () => {
+    const initialValues: IReminder = {
+      ...reminderInitValue({} as IReminder),
+      petId: getFirstPetId(),
     }
 
-    return false
+    const newForm: ReminderFormState = {
+      formValues: initialValues,
+      doses: [],
+      customVaccineName: '',
+      vaccineResetKey: 0,
+      initialReminderData: null,
+      loadingReminder: false,
+      loadedVaccineIsCustom: false,
+      initialChildReminders: [],
+      recurrenceRule: null,
+      duplicateError: null,
+      originalPetSpecies: null,
+      childrenToDelete: [],
+      suggestions: [],
+      showSuggestions: false,
+      hasUserStartedCreateMode: false,
+    }
+
+    setReminderForms([newForm])
   }
 
-  const canUseVaccineSchedule =
-    currentPet &&
-    (currentPet.species?.includes('สุนัข') ||
-      currentPet.species?.includes('แมว')) &&
-    !!currentPet.age
+  // Load reminder for edit mode
+  const loadReminderForEdit = async () => {
+    const initialValues: IReminder = {
+      ...reminderInitValue({} as IReminder),
+      petId: getFirstPetId(),
+    }
 
-  const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
-  const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
-  const canSubmit =
-    formik.values.reminderName &&
-    formik.values.reminderDate &&
-    (isVaccinationCategory && canUseVaccineSchedule ? allDosesHaveDates : true)
+    const newForm: ReminderFormState = {
+      formValues: initialValues,
+      doses: [],
+      customVaccineName: '',
+      vaccineResetKey: 0,
+      initialReminderData: null,
+      loadingReminder: true,
+      loadedVaccineIsCustom: false,
+      initialChildReminders: [],
+      recurrenceRule: null,
+      duplicateError: null,
+      originalPetSpecies: null,
+      childrenToDelete: [],
+      suggestions: [],
+      showSuggestions: false,
+      hasUserStartedCreateMode: false,
+    }
 
+    try {
+      const response = await reminderService.getReminderById(reminderId)
+      const reminderData = response.data
+
+      if (reminderData) {
+        const formattedReminderData = {
+          ...reminderData,
+          reminderTime: (reminderData.reminderTime || '').substring(0, 5),
+        }
+
+        newForm.formValues = formattedReminderData
+        newForm.initialReminderData = formattedReminderData
+
+        // Handle recurrence
+        if (reminderData.recurrence) {
+          const convertedRecurrence = convertFromBackendRecurrence(
+            reminderData.recurrence,
+          )
+          newForm.recurrenceRule = convertedRecurrence
+        }
+
+        // Handle vaccine schedule children
+        if (
+          reminderData.categoryName === 'Vaccination' &&
+          reminderData.children &&
+          reminderData.children.length > 0
+        ) {
+          newForm.initialChildReminders = reminderData.children
+
+          const childrenWithDoseNumbers = reminderData.children.map(
+            (child: any) => {
+              const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
+              return {
+                ...child,
+                extractedDoseNumber: doseMatch ? parseInt(doseMatch[1], 10) : 1,
+              }
+            },
+          )
+
+          const sortedChildren = childrenWithDoseNumbers.sort(
+            (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
+          )
+
+          const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
+            doseNumber: child.extractedDoseNumber,
+            date: child.reminderDate || '',
+            time: child.reminderTime || '',
+            isAutoCalculated: child.extractedDoseNumber > 1,
+            isEdited: false,
+            childReminderId: child.id,
+          }))
+
+          newForm.doses = childrenDoses
+
+          const firstChildName = reminderData.children[0]?.reminderName || ''
+          const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+          if (nameMatch) {
+            newForm.customVaccineName = nameMatch[1]
+            newForm.loadedVaccineIsCustom = true
+          }
+        }
+
+        newForm.originalPetSpecies = null
+      }
+    } catch (error) {
+      showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
+    } finally {
+      newForm.loadingReminder = false
+      setReminderForms([newForm])
+    }
+  }
+
+  // Add a new empty form
+  const addNewForm = () => {
+    const initialValues: IReminder = {
+      ...reminderInitValue({} as IReminder),
+      petId: selectedPetId || getFirstPetId(),
+    }
+
+    const newForm: ReminderFormState = {
+      formValues: initialValues,
+      doses: [],
+      customVaccineName: '',
+      vaccineResetKey: 0,
+      initialReminderData: null,
+      loadingReminder: false,
+      loadedVaccineIsCustom: false,
+      initialChildReminders: [],
+      recurrenceRule: null,
+      duplicateError: null,
+      originalPetSpecies: null,
+      childrenToDelete: [],
+      suggestions: [],
+      showSuggestions: false,
+      hasUserStartedCreateMode: false,
+    }
+
+    setReminderForms([...reminderForms, newForm])
+  }
+
+  // Validate form values manually
+  const validateFormValues = async (
+    values: IReminder,
+  ): Promise<Record<string, string>> => {
+    try {
+      await reminderValidationSchema.validate(values, { abortEarly: false })
+      return {}
+    } catch (error: any) {
+      const errors: Record<string, string> = {}
+      if (error.inner) {
+        for (const err of error.inner) {
+          if (err.path) {
+            errors[err.path] = err.message
+          }
+        }
+      }
+      return errors
+    }
+  }
+
+  // Delete a form by index
+  const deleteForm = (index: number) => {
+    const updatedForms = reminderForms.filter((_, i) => i !== index)
+    setReminderForms(updatedForms)
+  }
+
+  // Update form state
+  const updateFormState = (
+    index: number,
+    updates: Partial<ReminderFormState>,
+  ) => {
+    const updatedForms = [...reminderForms]
+    updatedForms[index] = { ...updatedForms[index], ...updates }
+    setReminderForms(updatedForms)
+  }
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    try {
+      // Validate all forms
+      const errors: Record<number, Record<string, string>> = {}
+      for (let i = 0; i < reminderForms.length; i++) {
+        const formErrors = await validateFormValues(reminderForms[i].formValues)
+        if (Object.keys(formErrors).length > 0) {
+          errors[i] = formErrors
+        }
+      }
+
+      setFormErrors(errors)
+      if (Object.keys(errors).length > 0) {
+        showError('กรุณากรอกข้อมูลให้ครบถ้วน')
+        return
+      }
+
+      // Prepare submit data for all forms
+      const submitDataArray: any[] = []
+
+      for (let i = 0; i < reminderForms.length; i++) {
+        const form = reminderForms[i]
+        const values = form.formValues
+
+        // Check vaccination validation
+        const isVaccinationCategory = values.categoryName === 'Vaccination'
+        const currentPet = activePets.find((p) => p.id === values.petId)
+        const canUseVaccineSchedule =
+          currentPet &&
+          (currentPet.species?.includes('สุนัข') ||
+            currentPet.species?.includes('แมว')) &&
+          !!currentPet.age
+
+        if (isVaccinationCategory && canUseVaccineSchedule) {
+          if (form.doses.length === 0 || !form.doses[0].date) {
+            showError(`กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน (แบบฟอร์มที่ ${i + 1})`)
+            return
+          }
+        }
+
+        let submitData: any = {
+          reminderName: values.reminderName,
+          description: values.description,
+          reminderDate: values.reminderDate,
+          reminderTime: values.reminderTime || '',
+          categoryName: values.categoryName || 'General',
+          petId: values.petId,
+        }
+
+        // Handle recurrence
+        if (form.recurrenceRule && form.recurrenceRule.type !== 'none') {
+          const backendRecurrence = convertToBackendRecurrence(
+            form.recurrenceRule,
+          )
+          if (backendRecurrence) {
+            submitData.recurrence = backendRecurrence
+          }
+        }
+
+        // Handle vaccination children
+        if (
+          isVaccinationCategory &&
+          canUseVaccineSchedule &&
+          form.doses.length > 0
+        ) {
+          const doneChildReminderIds = new Set(
+            form.initialChildReminders
+              .filter((child) => child.reminderStatus === 'done')
+              .map((child) => child.id),
+          )
+
+          const syncedDoses = form.doses.map((dose) =>
+            dose.doseNumber === 1
+              ? { ...dose, date: values.reminderDate }
+              : dose,
+          )
+
+          const children: any[] = syncedDoses
+            .filter((dose) => {
+              if (
+                dose.childReminderId &&
+                doneChildReminderIds.has(dose.childReminderId)
+              ) {
+                return false
+              }
+              return true
+            })
+            .map((dose) => {
+              const childData: any = {
+                reminderName: form.customVaccineName
+                  ? `${form.customVaccineName} เข็มที่ ${dose.doseNumber}`
+                  : `วัคซีน เข็มที่ ${dose.doseNumber}`,
+                description: values.description,
+                reminderDate: dose.date,
+                reminderTime: dose.time || '',
+                categoryName: 'Vaccination',
+              }
+              if (dose.childReminderId) {
+                childData.id = dose.childReminderId
+              }
+              return childData
+            })
+
+          submitData.children = children
+
+          if (isEditMode && form.initialChildReminders.length > 0) {
+            const currentChildIds = syncedDoses
+              .map((dose) => dose.childReminderId)
+              .filter((id) => !!id)
+            const calculatedChildrenToDelete = form.initialChildReminders
+              .filter((child) => !currentChildIds.includes(child.id))
+              .map((child) => child.id)
+
+            const allChildrenToDelete = [
+              ...new Set([
+                ...calculatedChildrenToDelete,
+                ...form.childrenToDelete,
+              ]),
+            ]
+
+            if (allChildrenToDelete.length > 0) {
+              submitData.childrenToDelete = allChildrenToDelete
+            }
+          } else if (form.childrenToDelete.length > 0) {
+            submitData.childrenToDelete = form.childrenToDelete
+          }
+        } else if (isEditMode && form.childrenToDelete.length > 0) {
+          submitData.childrenToDelete = form.childrenToDelete
+        }
+
+        submitDataArray.push(submitData)
+      }
+
+      apiSuccessRef.current = false
+
+      // Use batch API if multiple forms, single API if one form
+      if (submitDataArray.length > 1) {
+        await createBatchRemindersApi.execute(submitDataArray)
+      } else if (isEditMode && reminderId) {
+        await updateReminderApi.execute(reminderId, submitDataArray[0])
+      } else {
+        await createReminderApi.execute(submitDataArray[0])
+      }
+
+      // Reset on success
+      if (apiSuccessRef.current) {
+        initializeNewForm()
+      }
+    } catch (error) {
+      console.error('Submit error:', error)
+      showError('เกิดข้อผิดพลาดในการสร้างเตือนความจำ')
+    }
+  }
+
+  // Confirm discard changes
   const confirmBack = () => {
     setShowDiscardModal(false)
-    setDoses([])
-    setCustomVaccineName('')
-    setVaccineResetKey((prev) => prev + 1)
-    setRecurrenceRule(null)
-    setHasUserStartedCreateMode(false)
-    setInitialReminderData(null)
-    setInitialChildReminders([])
-    setLoadedVaccineIsCustom(false)
-    setChildrenToDelete([])
-    setOriginalPetSpecies(null)
-    formik.resetForm()
+    setReminderForms([])
     router.back()
   }
 
+  // Handle back navigation with dirty check
   const handleBack = () => {
-    if (formik.dirty) {
+    const hasChanges = reminderForms.some((form) => {
+      // Check if form has actual data
+      return (
+        form.formValues.reminderName ||
+        form.formValues.reminderDate ||
+        form.formValues.reminderTime ||
+        form.doses.length > 0
+      )
+    })
+
+    if (hasChanges) {
       setShowDiscardModal(true)
     } else {
-      confirmBack()
+      setReminderForms([])
+      router.back()
     }
   }
 
@@ -569,107 +544,451 @@ export default function AddReminderPage() {
     )
 
     return () => backHandler.remove()
-  }, [formik.dirty])
+  }, [reminderForms])
 
-  const convertDateToString = (date: Date): string => {
-    try {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    } catch (e) {
-      return new Date().toISOString().split('T')[0]
-    }
-  }
+  // Loading state
+  const isLoading =
+    isEditMode && reminderForms.length > 0 && reminderForms[0].loadingReminder
+  const isSubmitting =
+    createReminderApi.loading ||
+    updateReminderApi.loading ||
+    createBatchRemindersApi.loading
 
-  const handleReminderNameChange = (value: string) => {
-    formik.setFieldValue('reminderName', value)
+  // Render form template
+  const renderFormTemplate = (formIndex: number) => {
+    const form = reminderForms[formIndex]
+    if (!form) return null
 
-    // Clear duplicate error when user changes the name
-    if (duplicateError) {
-      setDuplicateError(null)
-    }
+    const values = form.formValues
+    const currentPet = activePets.find((p) => p.id === values.petId)
 
-    if (value.trim().length >= 2) {
-      const filtered = existingReminders
-        .filter((reminder) =>
-          reminder.reminderName.toLowerCase().includes(value.toLowerCase()),
-        )
-        .slice(0, 5)
-
-      setSuggestions(filtered)
-      setShowSuggestions(filtered.length > 0)
-    } else {
-      setSuggestions([])
-      setShowSuggestions(false)
-    }
-  }
-
-  const handleSuggestionSelect = (reminder: IReminder) => {
-    // Auto-fill all form fields from selected reminder
-    formik.setFieldValue('reminderName', reminder.reminderName)
-    formik.setFieldValue('description', reminder.description)
-    formik.setFieldValue('categoryName', reminder.categoryName || 'General')
-    formik.setFieldValue('reminderTime', reminder.reminderTime || '')
-    formik.setFieldValue('reminderDate', reminder.reminderDate || '')
-
-    // Set pet if exists and is valid
-    if (reminder.petId && pets.some((p) => p.id === reminder.petId)) {
-      formik.setFieldValue('petId', reminder.petId)
-      setSelectedPetId(reminder.petId)
-    }
-
-    // Set recurrence if exists
-    if (reminder.recurrence) {
-      const convertedRecurrence = convertFromBackendRecurrence(
-        reminder.recurrence,
-      )
-      setRecurrenceRule(convertedRecurrence)
-    } else {
-      setRecurrenceRule(null)
-    }
-
-    // Handle vaccination category with doses
-    if (
-      reminder.categoryName === 'Vaccination' &&
-      reminder.children &&
-      reminder.children.length > 0
-    ) {
-      // Reset vaccine section to force reinitialize with new data
-      setVaccineResetKey((prev) => prev + 1)
-
-      const childrenWithDoseNumbers = reminder.children.map((child: any) => {
-        const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
-        const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
-        return { ...child, extractedDoseNumber: doseNumber }
-      })
-
-      const sortedChildren = childrenWithDoseNumbers.sort(
-        (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
-      )
-
-      const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
-        doseNumber: child.extractedDoseNumber,
-        date: child.reminderDate || '',
-        time: child.reminderTime || '',
-        isAutoCalculated: child.extractedDoseNumber > 1,
-        isEdited: false,
-        childReminderId: undefined, // New reminder, so no existing child IDs
-      }))
-      setDoses(childrenDoses)
-
-      const firstChildName = reminder.children[0]?.reminderName || ''
-      const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
-      if (nameMatch) {
-        const vaccineName = nameMatch[1]
-        setCustomVaccineName(vaccineName)
+    const isSamePetType = (
+      species1: string | null,
+      species2: string | null,
+    ): boolean => {
+      if (!species1 || !species2) return false
+      const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
+      for (const type of petTypes) {
+        if (species1.includes(type) && species2.includes(type)) {
+          return true
+        }
       }
-      setHasUserStartedCreateMode(true)
+      return false
     }
 
-    // Close suggestions
-    setShowSuggestions(false)
-    setSuggestions([])
+    const canUseVaccineSchedule =
+      currentPet &&
+      (currentPet.species?.includes('สุนัข') ||
+        currentPet.species?.includes('แมว')) &&
+      !!currentPet.age
+
+    const isVaccinationCategory = values.categoryName === 'Vaccination'
+    const allDosesHaveDates =
+      form.doses.length > 0 && form.doses.every((d) => !!d.date)
+    const canSubmit =
+      values.reminderName &&
+      values.reminderDate &&
+      (isVaccinationCategory && canUseVaccineSchedule
+        ? allDosesHaveDates
+        : true)
+
+    const doneChildReminderIds = new Set(
+      form.initialChildReminders
+        .filter((child) => child.reminderStatus === 'done')
+        .map((child) => child.id),
+    )
+    const hasDoneChildren = doneChildReminderIds.size > 0
+
+    const isDose1Done = (() => {
+      const dose1 = form.doses.find((d) => d.doseNumber === 1)
+      return !!(
+        dose1?.childReminderId &&
+        doneChildReminderIds.has(dose1.childReminderId)
+      )
+    })()
+
+    const convertDateToString = (date: Date): string => {
+      try {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      } catch (e) {
+        return new Date().toISOString().split('T')[0]
+      }
+    }
+
+    const handleReminderNameChange = (value: string) => {
+      const updates: Partial<ReminderFormState> = {
+        formValues: { ...values, reminderName: value },
+      }
+
+      // Clear duplicate error if exists
+      if (form.duplicateError) {
+        updates.duplicateError = null
+      }
+
+      // Update suggestions
+      if (value.trim().length >= 2) {
+        const filtered = existingReminders
+          .filter((reminder) =>
+            reminder.reminderName.toLowerCase().includes(value.toLowerCase()),
+          )
+          .slice(0, 5)
+
+        updates.suggestions = filtered
+        updates.showSuggestions = filtered.length > 0
+      } else {
+        updates.suggestions = []
+        updates.showSuggestions = false
+      }
+
+      // Single state update
+      updateFormState(formIndex, updates)
+    }
+
+    const handleSuggestionSelect = (reminder: IReminder) => {
+      const updates: Partial<ReminderFormState> = {
+        formValues: {
+          ...values,
+          reminderName: reminder.reminderName,
+          description: reminder.description,
+          categoryName: reminder.categoryName || 'General',
+          reminderTime: reminder.reminderTime || '',
+          reminderDate: reminder.reminderDate || '',
+          petId:
+            reminder.petId && pets.some((p) => p.id === reminder.petId)
+              ? reminder.petId
+              : values.petId,
+        },
+      }
+
+      if (reminder.petId && pets.some((p) => p.id === reminder.petId)) {
+        setSelectedPetId(reminder.petId)
+      }
+
+      // Handle recurrence
+      if (reminder.recurrence) {
+        const convertedRecurrence = convertFromBackendRecurrence(
+          reminder.recurrence,
+        )
+        updates.recurrenceRule = convertedRecurrence
+      } else {
+        updates.recurrenceRule = null
+      }
+
+      // Hide suggestions
+      updates.showSuggestions = false
+      updates.suggestions = []
+
+      // Handle vaccination with children
+      if (
+        reminder.categoryName === 'Vaccination' &&
+        reminder.children &&
+        reminder.children.length > 0
+      ) {
+        updates.vaccineResetKey = form.vaccineResetKey + 1
+
+        const childrenWithDoseNumbers = reminder.children.map((child: any) => {
+          const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
+          return {
+            ...child,
+            extractedDoseNumber: doseMatch ? parseInt(doseMatch[1], 10) : 1,
+          }
+        })
+
+        const sortedChildren = childrenWithDoseNumbers.sort(
+          (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
+        )
+
+        const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
+          doseNumber: child.extractedDoseNumber,
+          date: child.reminderDate || '',
+          time: child.reminderTime || '',
+          isAutoCalculated: child.extractedDoseNumber > 1,
+          isEdited: false,
+          childReminderId: undefined,
+        }))
+
+        const firstChildName = reminder.children[0]?.reminderName || ''
+        const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
+
+        updates.doses = childrenDoses
+        updates.customVaccineName = nameMatch ? nameMatch[1] : ''
+        updates.hasUserStartedCreateMode = true
+      }
+
+      // Single state update with all changes
+      updateFormState(formIndex, updates)
+    }
+
+    return (
+      <View key={`form-${formIndex}`} style={styles.formCard}>
+        {/* Header with buttons - only show on first form */}
+        {formIndex === 0 && (
+          <View style={styles.cardHeader}>
+            <Pressable onPress={handleBack} disabled={isSubmitting}>
+              <Text style={styles.cancelText}>ยกเลิก</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleSubmit()}
+              disabled={!canSubmit || isSubmitting}
+            >
+              <Text
+                style={[
+                  styles.addText,
+                  (!canSubmit || isSubmitting) && styles.submittingText,
+                ]}
+              >
+                {isSubmitting
+                  ? isEditMode
+                    ? 'กำลังแก้ไข...'
+                    : 'กำลังเพิ่ม...'
+                  : isEditMode
+                    ? 'แก้ไข'
+                    : `เพิ่ม (${reminderForms.length})`}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Duplicate Error Toast */}
+        {form.duplicateError && (
+          <View style={styles.duplicateErrorToast}>
+            <Text style={styles.duplicateErrorText}>{form.duplicateError}</Text>
+            <Pressable
+              onPress={() =>
+                updateFormState(formIndex, { duplicateError: null })
+              }
+            >
+              <Text style={styles.duplicateErrorDismiss}>✕</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Form title for non-first forms */}
+        {formIndex > 0 && (
+          <View style={styles.formTitleContainer}>
+            <Text style={styles.formTitle}>เตือนความจำที่ {formIndex + 1}</Text>
+          </View>
+        )}
+
+        <InputText
+          value={values.reminderName}
+          onChangeText={handleReminderNameChange}
+          placeholder='หัวข้อเตือนความจำ'
+          title='หัวข้อ'
+          required={true}
+          error={formErrors[formIndex]?.reminderName}
+        />
+
+        <ReminderSuggestions
+          suggestions={form.suggestions}
+          onSelect={handleSuggestionSelect}
+          visible={form.showSuggestions}
+        />
+
+        <PetSelector
+          pets={activePets}
+          selectedPetId={values.petId}
+          onSelectPet={(petId: string) => {
+            const newPet = activePets.find((p) => p.id === petId)
+            const oldPetSpecies = form.originalPetSpecies || currentPet?.species
+            const newPetSpecies = newPet?.species
+
+            updateFormState(formIndex, {
+              formValues: { ...values, petId },
+            })
+            setSelectedPetId(petId)
+
+            if (
+              isEditMode &&
+              !isSamePetType(oldPetSpecies || null, newPetSpecies || null)
+            ) {
+              const currentChildIds = form.initialChildReminders.map(
+                (child) => child.id,
+              )
+              updateFormState(formIndex, {
+                childrenToDelete: currentChildIds,
+                doses: [],
+                customVaccineName: '',
+                loadedVaccineIsCustom: false,
+                vaccineResetKey: form.vaccineResetKey + 1,
+                initialChildReminders: [],
+              })
+            }
+          }}
+          label='สัตว์เลี้ยง'
+          required={true}
+          disabled={isSubmitting}
+        />
+
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <DatePicker
+              title='วันที่เตือนความจำ'
+              placeholder='วัน/เดือน/ปี'
+              value={
+                values.reminderDate ? new Date(values.reminderDate) : undefined
+              }
+              onChange={(v) => {
+                const dateString = convertDateToString(v)
+                updateFormState(formIndex, {
+                  formValues: { ...values, reminderDate: dateString },
+                })
+              }}
+              error={formErrors[formIndex]?.reminderDate}
+              required={true}
+              disabled={isDose1Done || isSubmitting}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TimePicker
+              title='เวลาที่เตือนความจำ'
+              placeholder='เลือกเวลา'
+              value={values.reminderTime}
+              onChange={(v) => {
+                updateFormState(formIndex, {
+                  formValues: { ...values, reminderTime: v },
+                })
+              }}
+            />
+          </View>
+        </View>
+
+        <CategorySelector
+          value={values.categoryName}
+          onChange={(v) => {
+            updateFormState(formIndex, {
+              formValues: { ...values, categoryName: v },
+            })
+          }}
+          error={formErrors[formIndex]?.categoryName}
+          required={true}
+          disabled={hasDoneChildren || isSubmitting}
+        />
+
+        {values.reminderDate && values.categoryName !== 'Vaccination' && (
+          <>
+            <RecurrencePicker
+              value={
+                form.recurrenceRule || {
+                  type: 'none',
+                  interval: 1,
+                  endType: 'never',
+                }
+              }
+              onChange={(rule) =>
+                updateFormState(formIndex, { recurrenceRule: rule })
+              }
+              reminderDate={
+                values.reminderDate ? new Date(values.reminderDate) : undefined
+              }
+            />
+
+            {form.recurrenceRule && form.recurrenceRule.type !== 'none' && (
+              <EndRepeatSelector
+                recurrenceRule={form.recurrenceRule}
+                onChange={(rule) =>
+                  updateFormState(formIndex, { recurrenceRule: rule })
+                }
+              />
+            )}
+          </>
+        )}
+
+        <VaccineScheduleSection
+          key={form.vaccineResetKey}
+          isVaccinationCategory={isVaccinationCategory}
+          canUseVaccineSchedule={canUseVaccineSchedule || false}
+          petId={values.petId}
+          reminderDate={values.reminderDate}
+          doses={form.doses}
+          setDoses={(dosesOrFn) => {
+            if (typeof dosesOrFn === 'function') {
+              updateFormState(formIndex, { doses: dosesOrFn(form.doses) })
+            } else {
+              updateFormState(formIndex, { doses: dosesOrFn })
+            }
+          }}
+          onDose1DateChange={(dateString) => {
+            updateFormState(formIndex, {
+              formValues: { ...values, reminderDate: dateString },
+            })
+          }}
+          onDose1TimeChange={(time) => {
+            updateFormState(formIndex, {
+              formValues: { ...values, reminderTime: time },
+            })
+          }}
+          onCustomVaccineNameChange={(name) => {
+            updateFormState(formIndex, {
+              customVaccineName: name,
+            })
+          }}
+          initialVaccineId={null}
+          initialVaccineName={
+            form.customVaccineName ? form.customVaccineName : undefined
+          }
+          isEditMode={isEditMode}
+          initialCustomDoseCount={
+            isEditMode && form.doses.length > 0 ? form.doses.length : undefined
+          }
+          doneChildReminderIds={doneChildReminderIds}
+          onCustomDosesGenerated={() =>
+            updateFormState(formIndex, { hasUserStartedCreateMode: true })
+          }
+        />
+
+        <View>
+          <TextInput
+            style={[styles.input, styles.textarea]}
+            placeholder='รายละเอียดอื่นๆ'
+            multiline
+            numberOfLines={4}
+            value={values.description}
+            onChangeText={(text) => {
+              updateFormState(formIndex, {
+                formValues: { ...values, description: text },
+              })
+            }}
+            editable={!isSubmitting}
+          />
+          {formErrors[formIndex]?.description && (
+            <Text style={styles.errorText}>
+              {formErrors[formIndex]?.description}
+            </Text>
+          )}
+        </View>
+
+        {/* Delete button for non-first forms */}
+        {formIndex > 0 && (
+          <Pressable
+            onPress={() => deleteForm(formIndex)}
+            disabled={isSubmitting}
+            style={styles.deleteButton}
+          >
+            <Text style={styles.deleteButtonText}>ลบ</Text>
+          </Pressable>
+        )}
+      </View>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>กำลังโหลด...</Text>
+      </View>
+    )
+  }
+
+  if (reminderForms.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>กำลังเตรียม...</Text>
+      </View>
+    )
   }
 
   return (
@@ -692,205 +1011,23 @@ export default function AddReminderPage() {
             keyboardShouldPersistTaps='handled'
             contentContainerStyle={{ flexGrow: 1 }}
           >
-            <View style={styles.formCard}>
-              <View style={styles.cardHeader}>
-                <Pressable onPress={handleBack} disabled={isSubmitting}>
-                  <Text style={styles.cancelText}>ยกเลิก</Text>
-                </Pressable>
+            {/* Render all forms */}
+            {reminderForms.map((_, index) => renderFormTemplate(index))}
+
+            {/* Plus button to add new form (only in create mode) */}
+            {!isEditMode && (
+              <View style={styles.addFormButtonContainer}>
                 <Pressable
-                  onPress={() => formik.handleSubmit()}
-                  disabled={!canSubmit || isSubmitting}
+                  onPress={addNewForm}
+                  disabled={isSubmitting}
+                  style={styles.addFormButton}
                 >
-                  <Text
-                    style={[
-                      styles.addText,
-                      (!canSubmit || isSubmitting) && styles.submittingText,
-                    ]}
-                  >
-                    {isSubmitting
-                      ? isEditMode
-                        ? 'กำลังแก้ไข...'
-                        : 'กำลังเพิ่ม...'
-                      : isEditMode
-                        ? 'แก้ไข'
-                        : 'เพิ่ม'}
+                  <Text style={styles.addFormButtonText}>
+                    + เพิ่มเตือนความจำ
                   </Text>
                 </Pressable>
               </View>
-
-              {/* Duplicate Error Toast */}
-              {duplicateError && (
-                <View style={styles.duplicateErrorToast}>
-                  <Text style={styles.duplicateErrorText}>
-                    {duplicateError}
-                  </Text>
-                  <Pressable onPress={() => setDuplicateError(null)}>
-                    <Text style={styles.duplicateErrorDismiss}>✕</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              <InputText
-                value={formik.values.reminderName}
-                onChangeText={handleReminderNameChange}
-                placeholder='หัวข้อเตือนความจำ'
-                title='หัวข้อ'
-                required={true}
-                error={formik.errors.reminderName}
-              />
-
-              <ReminderSuggestions
-                suggestions={suggestions}
-                onSelect={handleSuggestionSelect}
-                visible={showSuggestions}
-              />
-
-              <PetSelector
-                pets={activePets}
-                selectedPetId={formik.values.petId}
-                onSelectPet={(petId: string) => {
-                  const newPet = activePets.find((p) => p.id === petId)
-                  const oldPetSpecies =
-                    originalPetSpecies || currentPet?.species
-                  const newPetSpecies = newPet?.species
-
-                  formik.setFieldValue('petId', petId)
-                  setSelectedPetId(petId)
-
-                  if (
-                    isEditMode &&
-                    !isSamePetType(oldPetSpecies || null, newPetSpecies || null)
-                  ) {
-                    const currentChildIds = initialChildReminders.map(
-                      (child) => child.id,
-                    )
-                    setChildrenToDelete(currentChildIds)
-
-                    setDoses([])
-                    setCustomVaccineName('')
-                    setLoadedVaccineIsCustom(false)
-                    setVaccineResetKey((prev) => prev + 1)
-                    setInitialChildReminders([])
-                  }
-                }}
-                label='สัตว์เลี้ยง'
-                required={true}
-                disabled={isSubmitting}
-              />
-
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <DatePicker
-                    title='วันที่เตือนความจำ'
-                    placeholder='วัน/เดือน/ปี'
-                    value={
-                      formik.values.reminderDate
-                        ? new Date(formik.values.reminderDate)
-                        : undefined
-                    }
-                    onChange={(v) => {
-                      const dateString = convertDateToString(v)
-                      formik.setFieldValue('reminderDate', dateString)
-                    }}
-                    error={formik.errors.reminderDate}
-                    required={true}
-                    disabled={isDose1Done || isSubmitting}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <TimePicker
-                    title='เวลาที่เตือนความจำ'
-                    placeholder='เลือกเวลา'
-                    value={formik.values.reminderTime}
-                    onChange={(v) => formik.setFieldValue('reminderTime', v)}
-                  />
-                </View>
-              </View>
-
-              <CategorySelector
-                value={formik.values.categoryName}
-                onChange={(v) => formik.setFieldValue('categoryName', v)}
-                error={formik.errors.categoryName}
-                required={true}
-                disabled={hasDoneChildren || isSubmitting}
-              />
-
-              {/* Hide recurrence picker if no date selected or if category is Vaccination */}
-              {formik.values.reminderDate &&
-                formik.values.categoryName !== 'Vaccination' && (
-                  <>
-                    <RecurrencePicker
-                      value={
-                        recurrenceRule || {
-                          type: 'none',
-                          interval: 1,
-                          endType: 'never',
-                        }
-                      }
-                      onChange={setRecurrenceRule}
-                      reminderDate={
-                        formik.values.reminderDate
-                          ? new Date(formik.values.reminderDate)
-                          : undefined
-                      }
-                    />
-
-                    {/* End Repeat Section */}
-                    {recurrenceRule && recurrenceRule.type !== 'none' && (
-                      <EndRepeatSelector
-                        recurrenceRule={recurrenceRule}
-                        onChange={setRecurrenceRule}
-                      />
-                    )}
-                  </>
-                )}
-
-              {/* Vaccine Schedule Section */}
-              <VaccineScheduleSection
-                key={vaccineResetKey}
-                isVaccinationCategory={isVaccinationCategory}
-                canUseVaccineSchedule={canUseVaccineSchedule || false}
-                petId={formik.values.petId}
-                reminderDate={formik.values.reminderDate}
-                doses={doses}
-                setDoses={setDoses}
-                onDose1DateChange={(dateString) => {
-                  formik.setFieldValue('reminderDate', dateString)
-                }}
-                onDose1TimeChange={(time) => {
-                  formik.setFieldValue('reminderTime', time)
-                }}
-                onCustomVaccineNameChange={setCustomVaccineName}
-                initialVaccineId={null}
-                initialVaccineName={
-                  customVaccineName ? customVaccineName : undefined
-                }
-                isEditMode={isEditMode}
-                initialCustomDoseCount={
-                  isEditMode && doses.length > 0 ? doses.length : undefined
-                }
-                doneChildReminderIds={doneChildReminderIds}
-                onCustomDosesGenerated={() => setHasUserStartedCreateMode(true)}
-              />
-
-              <View>
-                <TextInput
-                  style={[styles.input, styles.textarea]}
-                  placeholder='รายละเอียดอื่นๆ'
-                  multiline
-                  numberOfLines={4}
-                  value={formik.values.description}
-                  onChangeText={formik.handleChange('description')}
-                  onBlur={formik.handleBlur('description')}
-                  editable={!isSubmitting}
-                />
-                {formik.touched.description && formik.errors.description && (
-                  <Text style={styles.errorText}>
-                    {formik.errors.description}
-                  </Text>
-                )}
-              </View>
-            </View>
+            )}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -933,6 +1070,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
     elevation: 1,
+    marginBottom: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1064,5 +1202,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#B91C1C',
     paddingLeft: 8,
+  },
+  formTitleContainer: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  formTitle: {
+    fontSize: 16,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#225877',
+  },
+  deleteButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#B91C1C',
+  },
+  addFormButtonContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 32,
+  },
+  addFormButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addFormButtonText: {
+    fontSize: 16,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#2E759E',
   },
 })
