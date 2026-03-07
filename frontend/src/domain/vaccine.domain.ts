@@ -5,6 +5,7 @@ export interface IVaccine {
   species_id: string
   vaccine_name: string
   vaccine_name_th: string
+  maxDoses: number
 }
 
 export interface IDose {
