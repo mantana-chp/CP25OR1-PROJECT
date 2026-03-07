@@ -530,7 +530,14 @@ export default function VaccineScheduleSection({
       return
     }
 
-    setDoses((prev) => prev.filter((dose) => dose.doseNumber !== doseNumber))
+    setDoses((prev) => {
+      const filtered = prev.filter((d) => d.doseNumber !== doseNumber)
+      // Renumber the remaining doses sequentially
+      return filtered.map((dose, index) => ({
+        ...dose,
+        doseNumber: index + 1,
+      }))
+    })
   }
 
   const handleAddDose = () => {
