@@ -859,11 +859,11 @@ export default function VaccineScheduleSection({
                         value={
                           dose.date
                             ? parseStringToDate(dose.date)
-                            : isCustomVaccine
-                              ? undefined
-                              : reminderDate
+                            : dose.doseNumber === 1 && !isCustomVaccine
+                              ? reminderDate
                                 ? new Date(reminderDate)
                                 : undefined
+                              : undefined
                         }
                         onChange={(date) =>
                           handleDateChange(dose.doseNumber, date)
