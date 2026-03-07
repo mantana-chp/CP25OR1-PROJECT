@@ -76,6 +76,8 @@ export default function VaccineScheduleSection({
   const [isInitialized, setIsInitialized] = useState(false)
   const [isGeneratingCustomDoses, setIsGeneratingCustomDoses] = useState(false)
 
+  const [invalidDoses, setInvalidDoses] = useState<Set<number>>(new Set())
+
   const selectedVaccine = vaccineList.find((v) => v.id === selectedVaccineId)
   const hasReminderDate = !!reminderDate
   const isVaccineDropdownDisabled = isVaccinationCategory && !hasReminderDate
@@ -229,6 +231,7 @@ export default function VaccineScheduleSection({
       setSelectedTime('')
       setUserEditedTime(false)
       setDoses([])
+      setInvalidDoses(new Set())
     }
   }, [isEditMode, initialVaccineName])
 
@@ -347,6 +350,7 @@ export default function VaccineScheduleSection({
     setIsCustomDoseInputMode(false)
     setCustomDoseInputValue('')
     setDoses([])
+    setInvalidDoses(new Set())
   }
 
   const handleSelectCustomVaccine = () => {
@@ -405,6 +409,56 @@ export default function VaccineScheduleSection({
     }
 
     const dateString = convertDateToString(date)
+    const selectedDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    )
+    const wasInvalid = invalidDoses.has(doseNumber)
+
+    const parseDateString = (dateStr: string) => {
+      if (!dateStr) return null
+      const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+      const [year, month, day] = cleanDate.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    // Validation
+    if (doseNumber > 1) {
+      const previousDose = doses.find((d) => d.doseNumber === doseNumber - 1)
+      if (previousDose?.date) {
+        const prevDate = parseDateString(previousDose.date)
+        if (prevDate && selectedDate <= prevDate) {
+          showError(
+            `เข็มที่ ${doseNumber} ต้องมีวันที่หลังจากเข็มที่ ${doseNumber - 1}`,
+          )
+          setInvalidDoses((prev) => new Set(prev).add(doseNumber))
+          return
+        }
+      }
+    }
+
+    if (doseNumber < Math.max(...doses.map((d) => d.doseNumber))) {
+      const nextDose = doses.find((d) => d.doseNumber === doseNumber + 1)
+      if (nextDose?.date) {
+        const nextDate = parseDateString(nextDose.date)
+        if (nextDate && selectedDate >= nextDate) {
+          showError(
+            `เข็มที่ ${doseNumber} ต้องมีวันที่ก่อนเข็มที่ ${doseNumber + 1}`,
+          )
+          setInvalidDoses((prev) => new Set(prev).add(doseNumber))
+          return
+        }
+      }
+    }
+
+    const newInvalidDoses = new Set(invalidDoses)
+    newInvalidDoses.delete(doseNumber)
+    setInvalidDoses(newInvalidDoses)
+
+    if (wasInvalid) {
+      showSuccess(`เข็มที่ ${doseNumber} ถูกต้องแล้ว ✓`)
+    }
 
     if (doseNumber === 1) {
       setIsSyncingDose1(true)
@@ -872,6 +926,11 @@ export default function VaccineScheduleSection({
                         small={true}
                         disabled={isDoseDone}
                       />
+                      {invalidDoses.has(dose.doseNumber) && (
+                        <Text style={styles.validationErrorText}>
+                          วันที่ไม่ถูกต้อง
+                        </Text>
+                      )}
                     </View>
                     <View style={{ flex: 1 }}>
                       <TimePicker
@@ -1243,5 +1302,12 @@ const styles = StyleSheet.create({
   },
   deleteButtonDisabled: {
     opacity: 0.5,
+  },
+  validationErrorText: {
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    color: '#BF1737',
+    marginTop: 4,
+    marginLeft: 4,
   },
 })
