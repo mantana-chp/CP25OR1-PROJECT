@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Alert } from 'react-native'
 import { uploadService } from '../utils/api/services/upload_service'
 import { reminderService } from '../utils/api/services/reminder_service'
@@ -6,6 +6,7 @@ import { IAttachment } from '../domain/reminder.domain'
 
 interface UseReminderAttachmentsProps {
   reminderId?: string // Optional - for create mode
+  initialAttachments?: IAttachment[] // Attachments from reminder details API
   onAttachmentsChange?: () => void
 }
 
@@ -21,10 +22,12 @@ interface IPendingAttachment extends Omit<
 
 export function useReminderAttachments({
   reminderId,
+  initialAttachments = [],
   onAttachmentsChange
 }: UseReminderAttachmentsProps) {
   const [isUploading, setIsUploading] = useState(false)
-  const [attachments, setAttachments] = useState<IAttachment[]>([])
+  const [attachments, setAttachments] =
+    useState<IAttachment[]>(initialAttachments)
   const [pendingAttachments, setPendingAttachments] = useState<
     IPendingAttachment[]
   >([])
@@ -33,22 +36,12 @@ export function useReminderAttachments({
   // Mode: create or edit
   const isCreateMode = !reminderId || reminderId === ''
 
-  // Load attachments for a reminder
-  const loadAttachments = async () => {
-    if (!reminderId) return
-
-    try {
-      setIsLoading(true)
-      const response = await reminderService.getAttachments(reminderId)
-      setAttachments(response.data || [])
-    } catch (error) {
-      console.error('Error loading attachments:', error)
-      // Don't show error alert - fail silently for now since API might not exist yet
-      setAttachments([])
-    } finally {
-      setIsLoading(false)
+  // Update attachments when initialAttachments prop changes (for edit mode)
+  useEffect(() => {
+    if (initialAttachments.length > 0) {
+      setAttachments(initialAttachments)
     }
-  }
+  }, [initialAttachments])
 
   // Add a new attachment
   const addAttachment = async (file: {
@@ -225,15 +218,77 @@ export function useReminderAttachments({
     }
   }
 
+  // Upload all pending attachments for a newly created reminder
+  const uploadPendingAttachments = async (
+    newReminderId: string,
+    attachmentsToUpload?: IPendingAttachment[]
+  ): Promise<void> => {
+    const attachments = attachmentsToUpload || pendingAttachments
+
+    if (attachments.length === 0) {
+      return
+    }
+
+    console.log(`🚀 Uploading ${attachments.length} pending attachment(s)...`)
+
+    try {
+      for (const pending of attachments) {
+        console.log(`📤 Uploading: ${pending.fileName}`)
+
+        // Step 1: Request presigned upload URL
+        const urlResponse = await uploadService.requestUploadUrl({
+          fileName: pending.fileName,
+          fileType: pending.fileType,
+          fileSize: pending.fileSize,
+          category: 'reminder-attachment',
+          entityId: newReminderId
+        })
+
+        const { uploadUrl, objectKey } = urlResponse.data
+
+        // Step 2: Upload file to MinIO
+        await uploadService.uploadFileToMinIO(
+          uploadUrl,
+          pending.uri,
+          pending.fileType
+        )
+
+        // Step 3: Save attachment metadata
+        await reminderService.addAttachment(newReminderId, {
+          fileName: pending.fileName,
+          fileSize: pending.fileSize,
+          fileType: pending.fileType,
+          objectKey
+        })
+
+        console.log(`✅ Uploaded: ${pending.fileName}`)
+      }
+
+      console.log('✅ All pending attachments uploaded successfully')
+
+      // Clear pending attachments
+      setPendingAttachments([])
+    } catch (error: any) {
+      console.error('❌ Error uploading pending attachments:', error)
+
+      // Don't throw error to prevent blocking reminder creation
+      // Just log and show a warning
+      Alert.alert(
+        'เตือน',
+        'บางไฟล์แนบอาจไม่ได้รับการอัปโหลด กรุณาลองเพิ่มใหม่อีกครั้ง'
+      )
+    }
+  }
+
   return {
     attachments,
     pendingAttachments,
     isLoading,
     isUploading,
     isCreateMode,
-    loadAttachments,
     addAttachment,
     deleteAttachment,
-    downloadAttachment
+    downloadAttachment,
+    uploadPendingAttachments
   }
 }

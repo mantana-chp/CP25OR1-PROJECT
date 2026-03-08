@@ -80,6 +80,7 @@ export default function AddReminderPage() {
     null
   )
   const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
+  const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([])
   const [showDiscardModal, setShowDiscardModal] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const apiSuccessRef = useRef(false)
@@ -96,21 +97,69 @@ export default function AddReminderPage() {
   // Attachment management hook
   const {
     attachments,
-    pendingAttachments,
+    pendingAttachments: hookPendingAttachments,
     isLoading: isLoadingAttachments,
     isUploading: isUploadingAttachment,
     isCreateMode,
-    loadAttachments,
-    addAttachment,
-    deleteAttachment,
-    downloadAttachment
+    addAttachment: hookAddAttachment,
+    deleteAttachment: hookDeleteAttachment,
+    downloadAttachment,
+    uploadPendingAttachments
   } = useReminderAttachments({
     reminderId: reminderId || '',
+    initialAttachments: initialReminderData?.attachments || [],
     onAttachmentsChange: () => {
       // Optionally refresh data if needed
       console.log('✅ Attachments updated')
     }
   })
+
+  // Attachment handlers that defer changes until form submission
+  const handleAddAttachment = async (file: {
+    uri: string
+    name: string
+    size: number
+    mimeType: string
+  }): Promise<void> => {
+    // Always add to Formik's pendingAttachments (both create and edit mode)
+    const pendingFile: import('@/src/domain/reminder.domain').IPendingAttachment =
+      {
+        id: `temp-${Date.now()}-${Math.random()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.mimeType,
+        objectKey: '',
+        uri: file.uri,
+        isPending: true
+      }
+    formik.setFieldValue('pendingAttachments', [
+      ...(formik.values.pendingAttachments || []),
+      pendingFile
+    ])
+  }
+
+  const handleDeleteAttachment = async (
+    attachmentId: string
+  ): Promise<void> => {
+    // Check if it's a pending attachment (not yet uploaded)
+    const isPending = (formik.values.pendingAttachments || []).some(
+      (a) => a.id === attachmentId
+    )
+
+    if (isPending) {
+      // Remove from pendingAttachments
+      formik.setFieldValue(
+        'pendingAttachments',
+        (formik.values.pendingAttachments || []).filter(
+          (a) => a.id !== attachmentId
+        )
+      )
+    } else {
+      // It's an existing attachment - mark for deletion on submit
+      setAttachmentsToDelete((prev) => [...prev, attachmentId])
+    }
+  }
+
   const hasDoneChildren = doneChildReminderIds.size > 0
 
   const isDose1Done = (() => {
@@ -129,9 +178,23 @@ export default function AddReminderPage() {
 
   const createReminderApi = useApi(reminderService.createReminder, {
     showErrorAlert: false,
-    onSuccess: () => {
+    onSuccess: async (response) => {
       apiSuccessRef.current = true
       setDuplicateError(null)
+
+      // Upload pending attachments if any
+      if (
+        formik.values.pendingAttachments &&
+        formik.values.pendingAttachments.length > 0 &&
+        response?.data?.id
+      ) {
+        console.log('📤 Uploading pending attachments for new reminder...')
+        await uploadPendingAttachments(
+          response.data.id,
+          formik.values.pendingAttachments
+        )
+      }
+
       router.push('/(tabs)')
     },
     onError: (error) => {
@@ -146,9 +209,37 @@ export default function AddReminderPage() {
 
   const updateReminderApi = useApi(reminderService.updateReminder, {
     showErrorAlert: false,
-    onSuccess: () => {
+    onSuccess: async (response) => {
       apiSuccessRef.current = true
       setDuplicateError(null)
+
+      // Process attachment deletions
+      if (attachmentsToDelete.length > 0 && reminderId) {
+        console.log(
+          `🗑️ Deleting ${attachmentsToDelete.length} attachment(s)...`
+        )
+        for (const attachmentId of attachmentsToDelete) {
+          try {
+            await hookDeleteAttachment(attachmentId)
+          } catch (error) {
+            console.error(`Failed to delete attachment ${attachmentId}:`, error)
+          }
+        }
+      }
+
+      // Upload pending attachments if any
+      if (
+        formik.values.pendingAttachments &&
+        formik.values.pendingAttachments.length > 0 &&
+        reminderId
+      ) {
+        console.log('📤 Uploading pending attachments...')
+        await uploadPendingAttachments(
+          reminderId,
+          formik.values.pendingAttachments
+        )
+      }
+
       router.push('/(tabs)')
     },
     onError: (error) => {
@@ -225,6 +316,7 @@ export default function AddReminderPage() {
         setRecurrenceRule(null)
         setHasUserStartedCreateMode(false)
         setChildrenToDelete([])
+        setAttachmentsToDelete([])
         setOriginalPetSpecies(null)
         setSelectedPetIds([])
         formik.resetForm()
@@ -237,6 +329,7 @@ export default function AddReminderPage() {
       showError('เกิดข้อผิดพลาดในการสร้างเตือนความจำ')
     }
   }
+  console.log(initialReminderData)
 
   const formik = useFormik<IReminder>({
     initialValues: initialReminderData
@@ -254,11 +347,14 @@ export default function AddReminderPage() {
           statusUpdatedAt: initialReminderData.statusUpdatedAt || '',
           createdAt: initialReminderData.createdAt || '',
           updatedAt: initialReminderData.updatedAt || '',
-          children: initialReminderData.children || []
+          children: initialReminderData.children || [],
+          pendingAttachments: [],
+          attachments: initialReminderData.attachments || []
         }
       : {
           ...reminderInitValue({} as IReminder),
-          petId: getFirstPetId()
+          petId: getFirstPetId(),
+          pendingAttachments: []
         },
     enableReinitialize: true,
     validationSchema: reminderValidationSchema,
@@ -465,6 +561,7 @@ export default function AddReminderPage() {
       setDoses([])
       setCustomVaccineName('')
       setRecurrenceRule(null)
+      setAttachmentsToDelete([])
     }
   }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
 
@@ -478,6 +575,7 @@ export default function AddReminderPage() {
       setInitialChildReminders([])
       setDoses([])
       setCustomVaccineName('')
+      setAttachmentsToDelete([])
       setRecurrenceRule(null)
     }
   }, [reminderId, isEditMode])
@@ -487,13 +585,6 @@ export default function AddReminderPage() {
       setHasUserStartedCreateMode(true)
     }
   }, [doses, isEditMode])
-
-  // Load attachments when in edit mode
-  useEffect(() => {
-    if (isEditMode && reminderId) {
-      loadAttachments()
-    }
-  }, [isEditMode, reminderId])
 
   useFocusEffect(
     useCallback(() => {
@@ -658,6 +749,7 @@ export default function AddReminderPage() {
     setInitialReminderData(null)
     setInitialChildReminders([])
     setLoadedVaccineIsCustom(false)
+    setAttachmentsToDelete([])
     setChildrenToDelete([])
     setOriginalPetSpecies(null)
     setSelectedPetIds([])
@@ -1011,12 +1103,14 @@ export default function AddReminderPage() {
 
               {/* Attachment Manager */}
               <AttachmentManager
-                attachments={attachments}
-                pendingAttachments={pendingAttachments}
-                onAddAttachment={addAttachment}
-                onDeleteAttachment={deleteAttachment}
+                attachments={attachments.filter(
+                  (att) => !attachmentsToDelete.includes(att.id)
+                )}
+                pendingAttachments={formik.values.pendingAttachments || []}
+                onAddAttachment={handleAddAttachment}
+                onDeleteAttachment={handleDeleteAttachment}
                 onDownloadAttachment={downloadAttachment}
-                maxFiles={5}
+                maxFiles={2}
                 maxFileSize={10}
                 allowedTypes={['application/pdf', 'image/jpeg', 'image/png']}
                 disabled={isSubmitting}

@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 
-import { getCategoryInfo, IReminder } from '@/src/domain/reminder.domain'
+import {
+  getCategoryInfo,
+  IReminder,
+  IAttachment
+} from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
@@ -15,7 +19,9 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  Download,
   Edit2,
+  File,
   Hourglass,
   PawPrint,
   Pill,
@@ -31,6 +37,7 @@ import {
 } from 'lucide-react-native'
 import LoadingComponent from '../../components/loading_component'
 import VaccineListSection from '../components/vaccine_list_section'
+import AttachmentPreviewModal from '../components/attachment_preview_modal'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -47,6 +54,14 @@ const formatTime = (time: Date) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
 const parseApiTime = (timeString: string): Date => {
@@ -76,6 +91,9 @@ export default function ReminderDetailModal({
   // ------------------
   const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
+  const [previewAttachment, setPreviewAttachment] =
+    useState<IAttachment | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
@@ -129,6 +147,13 @@ export default function ReminderDetailModal({
     })
   }
 
+  const handleAttachmentPress = (attachment: IAttachment) => {
+    setPreviewAttachment(attachment)
+    setShowPreview(true)
+  }
+
+  // ------------------
+  // USE-EFFECTS
   // ------------------
   // USE-EFFECTS
   // ------------------
@@ -343,6 +368,33 @@ export default function ReminderDetailModal({
               </View>
             )}
 
+            {/* Attachments Section */}
+            {reminder?.attachments && reminder.attachments.length > 0 && (
+              <View style={styles.attachmentsSection}>
+                <Text style={styles.attachmentsSectionLabel}>
+                  ไฟล์แนบ ({reminder.attachments.length})
+                </Text>
+                {reminder.attachments.map((attachment) => (
+                  <Pressable
+                    key={attachment.id}
+                    style={styles.attachmentItem}
+                    onPress={() => handleAttachmentPress(attachment)}
+                  >
+                    <File size={20} color="#5FA7D1" />
+                    <View style={styles.attachmentInfo}>
+                      <Text style={styles.attachmentFileName} numberOfLines={1}>
+                        {attachment.fileName}
+                      </Text>
+                      <Text style={styles.attachmentFileSize}>
+                        {formatFileSize(attachment.fileSize)}
+                      </Text>
+                    </View>
+                    <Download size={18} color="#6b7280" />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
             {/* Child Reminders Section */}
             {reminder?.children && reminder.children.length > 0 && (
               <VaccineListSection children={reminder.children} />
@@ -363,6 +415,16 @@ export default function ReminderDetailModal({
           <X color="#FFFFFF" size={28} />
         </Pressable>
       )}
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        visible={showPreview}
+        attachment={previewAttachment}
+        onClose={() => {
+          setShowPreview(false)
+          setPreviewAttachment(null)
+        }}
+      />
     </View>
   )
 }
@@ -597,5 +659,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     lineHeight: 16
+  },
+  attachmentsSection: {
+    gap: 8,
+    paddingTop: 4
+  },
+  attachmentsSectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
+  },
+  attachmentInfo: {
+    flex: 1,
+    gap: 2
+  },
+  attachmentFileName: {
+    fontSize: 13,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
+  },
+  attachmentFileSize: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280'
   }
 })

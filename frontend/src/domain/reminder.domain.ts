@@ -58,13 +58,21 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
 
 export interface IAttachment {
   id: string
-  reminderId: string
   fileName: string
   fileSize: number
   fileType: string
   objectKey: string
   downloadUrl?: string
   createdAt: string
+}
+
+export interface IPendingAttachment extends Omit<
+  IAttachment,
+  'id' | 'createdAt'
+> {
+  id: string // Temporary local ID
+  uri: string // Local file URI
+  isPending: true
 }
 
 export interface IChildReminder {
@@ -98,6 +106,7 @@ export interface IReminder {
   updatedAt: string
   children: IReminder[]
   attachments?: IAttachment[] // File attachments
+  pendingAttachments?: IPendingAttachment[] // Attachments pending upload (frontend only)
   // Recurrence fields
   recurrenceId?: string // ID of the recurring rule (if this reminder is part of a series)
   recurrence?: {
@@ -136,6 +145,7 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     createdAt: v.createdAt || '',
     updatedAt: v.updatedAt || '',
     children: v.children || [],
+    pendingAttachments: v.pendingAttachments || [],
     recurrence: v.recurrence,
     occurrenceNumber: v.occurrenceNumber,
     isVirtual: v.isVirtual,

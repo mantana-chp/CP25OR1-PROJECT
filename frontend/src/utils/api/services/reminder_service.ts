@@ -99,10 +99,15 @@ export const reminderService = {
   },
 
   deleteAttachment: async (reminderId: string, attachmentId: string) => {
-    return apiClient.delete(`/v1/reminders/${reminderId}/attachments/${attachmentId}`)
+    return apiClient.delete(
+      `/v1/reminders/${reminderId}/attachments/${attachmentId}`
+    )
   },
 
-  getAttachmentDownloadUrl: async (reminderId: string, attachmentId: string) => {
+  getAttachmentDownloadUrl: async (
+    reminderId: string,
+    attachmentId: string
+  ) => {
     return apiClient.get<{ data: { downloadUrl: string; expiresIn: number } }>(
       `/v1/reminders/${reminderId}/attachments/${attachmentId}/download-url`
     )

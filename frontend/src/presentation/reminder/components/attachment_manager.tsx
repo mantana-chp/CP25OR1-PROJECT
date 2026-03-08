@@ -7,9 +7,20 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
-  Linking
+  Linking,
+  Modal,
+  Pressable
 } from 'react-native'
-import { File, Plus, Trash2, Download, X } from 'lucide-react-native'
+import {
+  File,
+  Plus,
+  Trash2,
+  Download,
+  X,
+  Camera,
+  Image as ImageIcon,
+  FileText
+} from 'lucide-react-native'
 import { IAttachment } from '@/src/domain/reminder.domain'
 
 // Type for pending attachments in create mode
@@ -56,6 +67,7 @@ export default function AttachmentManager({
   isUploading = false
 }: AttachmentManagerProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showAttachmentOptions, setShowAttachmentOptions] = useState(false)
 
   // Merge attachments and pending attachments for display
   const allAttachments: DisplayAttachment[] = [
@@ -78,7 +90,123 @@ export default function AttachmentManager({
     return <File size={20} color="#5FA7D1" />
   }
 
+  const handlePickFromCamera = async () => {
+    setShowAttachmentOptions(false)
+
+    if (disabled || isUploading) return
+
+    if (allAttachments.length >= maxFiles) {
+      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
+      return
+    }
+
+    try {
+      const ImagePicker = await import('expo-image-picker')
+
+      // Request camera permissions
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync()
+
+      if (!permissionResult.granted) {
+        Alert.alert('ต้องการสิทธิ์', 'กรุณาอนุญาตการเข้าถึงกล้องเพื่อถ่ายรูป')
+        return
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8
+      })
+
+      if (result.canceled) return
+
+      const image = result.assets[0]
+
+      // Validate file size
+      if (!image.fileSize) {
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถได้รับขนาดไฟล์ได้')
+        return
+      }
+
+      const fileSizeInMB = image.fileSize / (1024 * 1024)
+      if (fileSizeInMB > maxFileSize) {
+        Alert.alert('ไฟล์ใหญ่เกินไป', `ขนาดไฟล์ต้องไม่เกิน ${maxFileSize} MB`)
+        return
+      }
+
+      await onAddAttachment({
+        uri: image.uri,
+        name: `photo_${Date.now()}.jpg`,
+        size: image.fileSize,
+        mimeType: 'image/jpeg'
+      })
+    } catch (error) {
+      console.error('Error taking photo:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถถ่ายรูปได้')
+    }
+  }
+
+  const handlePickFromGallery = async () => {
+    setShowAttachmentOptions(false)
+
+    if (disabled || isUploading) return
+
+    if (allAttachments.length >= maxFiles) {
+      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
+      return
+    }
+
+    try {
+      const ImagePicker = await import('expo-image-picker')
+
+      // Request media library permissions
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync()
+
+      if (!permissionResult.granted) {
+        Alert.alert('ต้องการสิทธิ์', 'กรุณาอนุญาตการเข้าถึงคลังรูปภาพ')
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8
+      })
+
+      if (result.canceled) return
+
+      const image = result.assets[0]
+
+      // Validate file size
+      if (!image.fileSize) {
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถได้รับขนาดไฟล์ได้')
+        return
+      }
+
+      const fileSizeInMB = image.fileSize / (1024 * 1024)
+      if (fileSizeInMB > maxFileSize) {
+        Alert.alert('ไฟล์ใหญ่เกินไป', `ขนาดไฟล์ต้องไม่เกิน ${maxFileSize} MB`)
+        return
+      }
+
+      // Get filename from uri or create one
+      const fileName = image.uri.split('/').pop() || `image_${Date.now()}.jpg`
+
+      await onAddAttachment({
+        uri: image.uri,
+        name: fileName,
+        size: image.fileSize,
+        mimeType: image.mimeType || 'image/jpeg'
+      })
+    } catch (error) {
+      console.error('Error picking image:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกรูปภาพได้')
+    }
+  }
+
   const handlePickDocument = async () => {
+    setShowAttachmentOptions(false)
+
     if (disabled || isUploading) return
 
     if (allAttachments.length >= maxFiles) {
@@ -246,7 +374,7 @@ export default function AttachmentManager({
           (disabled || isUploading || allAttachments.length >= maxFiles) &&
             styles.addButtonDisabled
         ]}
-        onPress={handlePickDocument}
+        onPress={() => setShowAttachmentOptions(true)}
         disabled={disabled || isUploading || allAttachments.length >= maxFiles}
       >
         {isUploading ? (
@@ -265,6 +393,74 @@ export default function AttachmentManager({
       <Text style={styles.hint}>
         รองรับไฟล์ PDF และรูปภาพ (สูงสุด {maxFileSize} MB)
       </Text>
+
+      {/* Attachment Options Modal */}
+      <Modal
+        visible={showAttachmentOptions}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAttachmentOptions(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowAttachmentOptions(false)}
+        >
+          <View style={styles.optionsContainer}>
+            <View style={styles.optionsHeader}>
+              <Text style={styles.optionsTitle}>เลือกประเภทไฟล์</Text>
+              <TouchableOpacity
+                onPress={() => setShowAttachmentOptions(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={handlePickFromCamera}
+            >
+              <View style={styles.optionIcon}>
+                <Camera size={24} color="#5FA7D1" />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>ถ่ายรูป</Text>
+                <Text style={styles.optionDescription}>
+                  เปิดกล้องเพื่อถ่ายรูป
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={handlePickFromGallery}
+            >
+              <View style={styles.optionIcon}>
+                <ImageIcon size={24} color="#5FA7D1" />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>เลือกรูปภาพ</Text>
+                <Text style={styles.optionDescription}>เลือกจากคลังรูปภาพ</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={handlePickDocument}
+            >
+              <View style={styles.optionIcon}>
+                <FileText size={24} color="#5FA7D1" />
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>เลือกเอกสาร</Text>
+                <Text style={styles.optionDescription}>
+                  เลือกไฟล์ PDF หรือรูปภาพ
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   )
 }
@@ -382,5 +578,65 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Prompt_400Regular',
     color: '#92400E'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end'
+  },
+  optionsContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 32,
+    paddingTop: 8
+  },
+  optionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb'
+  },
+  optionsTitle: {
+    fontSize: 18,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#225877'
+  },
+  closeButton: {
+    padding: 4
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6'
+  },
+  optionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#E8F4F8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16
+  },
+  optionContent: {
+    flex: 1
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877',
+    marginBottom: 2
+  },
+  optionDescription: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280'
   }
 })
