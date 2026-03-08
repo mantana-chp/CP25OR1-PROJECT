@@ -1,10 +1,11 @@
 export interface ChatRequest {
-  petId?: string
+  resolvedPetId?: string
   query: string
 }
 
 export interface ChatResponse {
   answer: string
+  resolvedPetId?: string
   requires_user_input?: boolean
   input_type?: 'severity_scale'
   metadata?: {
