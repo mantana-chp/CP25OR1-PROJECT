@@ -7,6 +7,11 @@ import {
   deleteReminder,
   toggleReminderStatus,
 } from './reminder-controller';
+import {
+  requestAttachmentUrl,
+  saveAttachment,
+  deleteAttachment,
+} from './reminder-attachment-controller';
 import { authGuard } from '../../middlewares/authGuard';
 
 const router = Router();
@@ -191,5 +196,37 @@ router.delete('/:id', authGuard, deleteReminder);
  *         description: Reminder not found.
  */
 router.patch('/:id/status', authGuard, toggleReminderStatus);
+
+// ── Reminder Attachments ────────────────────────────────────────────────────
+
+/**
+ * @openapi
+ * /reminders/{id}/attachments/request-url:
+ *   post:
+ *     tags: [Reminders]
+ *     summary: Request a presigned PUT URL to upload an attachment
+ *     description: Returns a presigned URL for direct upload to storage. Max 2 attachments per reminder.
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/attachments/request-url', authGuard, requestAttachmentUrl);
+
+/**
+ * @openapi
+ * /reminders/{id}/attachments:
+ *   post:
+ *     tags: [Reminders]
+ *     summary: Save attachment metadata after successful upload
+ */
+router.post('/:id/attachments', authGuard, saveAttachment);
+
+/**
+ * @openapi
+ * /reminders/{id}/attachments/{attachmentId}:
+ *   delete:
+ *     tags: [Reminders]
+ *     summary: Delete a specific attachment
+ */
+router.delete('/:id/attachments/:attachmentId', authGuard, deleteAttachment);
 
 export default router;

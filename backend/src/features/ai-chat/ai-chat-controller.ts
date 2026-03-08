@@ -9,12 +9,10 @@ import { chatSchema } from './ai-chat-schema';
  * POST /v1/ai-chat
  */
 export const chat = asyncHandler(async (req: Request, res: Response) => {
-  // Validate request body
-  const { query, petId } = chatSchema.parse(req).body;
+  const { query, resolvedPetId, history } = chatSchema.parse(req).body;
+  const { id: userId } = req.user!;
 
-  // Call the service with optional petId
-  const answer = await aiChatService.chatWithAI(query, petId);
+  const result = await aiChatService.chatWithAI(query, userId, resolvedPetId, history);
 
-  // Send success response
-  sendSuccess(res, { answer });
+  sendSuccess(res, result);
 });
