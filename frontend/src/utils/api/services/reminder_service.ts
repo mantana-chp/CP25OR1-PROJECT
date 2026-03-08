@@ -76,21 +76,6 @@ export const reminderService = {
     return apiClient.patch<IReminder>(`/v1/reminders/${id}/status`)
   },
 
-  // Attachment Management APIs (Prepared for future backend implementation)
-  getAttachments: async (reminderId: string) => {
-    return apiClient.get<{
-      data: Array<{
-        id: string
-        reminderId: string
-        fileName: string
-        fileSize: number
-        fileType: string
-        objectKey: string
-        createdAt: string
-      }>
-    }>(`/v1/reminders/${reminderId}/attachments`)
-  },
-
   addAttachment: async (
     reminderId: string,
     attachmentData: {
