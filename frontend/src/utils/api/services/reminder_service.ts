@@ -37,7 +37,7 @@ export interface GetRemindersResponse {
 export const reminderService = {
   getReminders: async (params?: { category?: string; page?: number }) => {
     return apiClient.get<GetRemindersResponse>('/v1/reminders', {
-      params
+      params,
     })
   },
 
@@ -49,6 +49,19 @@ export const reminderService = {
     return apiClient.post<IReminder>('/v1/reminders', data)
   },
 
+  createBatchReminders: async (reminders: Omit<IReminder, 'id'>[]) => {
+    return apiClient.post<{
+      data: {
+        created: IReminder[]
+        errors: Array<{
+          index: number
+          reminderName: string
+          error: string
+        }>
+      }
+    }>('/v1/reminders/batch', reminders)
+  },
+
   updateReminder: async (id: string, data: Partial<IReminder>) => {
     return apiClient.patch<IReminder>(`/v1/reminders/${id}`, data)
   },
@@ -56,7 +69,7 @@ export const reminderService = {
   deleteReminder: async (
     id: string,
     deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
-    excludeDate?: string // For virtual reminders: the date to exclude (YYYY-MM-DD)
+    excludeDate?: string, // For virtual reminders: the date to exclude (YYYY-MM-DD)
   ) => {
     const params: any = {}
     if (deleteScope) {
@@ -67,12 +80,12 @@ export const reminderService = {
     }
     console.log('[API DELETE Request]', {
       url: `/v1/reminders/${id}`,
-      params
+      params,
     })
     return apiClient.delete(`/v1/reminders/${id}`, { params })
   },
 
   updateReminderStatus: async (id: string) => {
     return apiClient.patch<IReminder>(`/v1/reminders/${id}/status`)
-  }
+  },
 }
