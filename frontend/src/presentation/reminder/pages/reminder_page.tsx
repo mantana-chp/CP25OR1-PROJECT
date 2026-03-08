@@ -61,22 +61,6 @@ export default function ReminderPage() {
   const pets = getPetsApi.data?.data || []
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
-  // Debug: Log recurring rules to check excluded_dates
-  React.useEffect(() => {
-    if (recurringRules.length > 0) {
-      console.log('[Recurring Rules] Full Data:', recurringRules)
-      console.log(
-        '[Recurring Rules] Summary:',
-        recurringRules.map((rule: any) => ({
-          id: rule.id,
-          reminder_name: rule.reminder_name,
-          frequency: rule.frequency,
-          excluded_dates: rule.excluded_dates
-        }))
-      )
-    }
-  }, [recurringRules])
-
   // Generate virtual reminders asynchronously (AsyncStorage requires async)
   useEffect(() => {
     const loadVirtualReminders = async () => {
