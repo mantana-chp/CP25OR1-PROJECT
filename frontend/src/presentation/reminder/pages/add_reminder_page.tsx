@@ -27,7 +27,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View
@@ -182,15 +181,15 @@ export default function AddReminderPage() {
       apiSuccessRef.current = true
       setDuplicateError(null)
 
-      // Upload pending attachments if any
+      // Upload pending attachments for single-pet creation
+      const createdReminderId = response?.data?.[0]?.id
       if (
+        createdReminderId &&
         formik.values.pendingAttachments &&
-        formik.values.pendingAttachments.length > 0 &&
-        response?.data?.id
+        formik.values.pendingAttachments.length > 0
       ) {
-        console.log('📤 Uploading pending attachments for new reminder...')
         await uploadPendingAttachments(
-          response.data.id,
+          createdReminderId,
           formik.values.pendingAttachments
         )
       }
@@ -252,85 +251,6 @@ export default function AddReminderPage() {
     }
   })
 
-  // Handle multi-pet submission
-  const handleMultiPetSubmit = async (values: IReminder) => {
-    let successCount = 0
-    let failCount = 0
-    const totalPets = selectedPetIds.length
-
-    apiSuccessRef.current = false
-
-    try {
-      for (const petId of selectedPetIds) {
-        try {
-          let submitData: any = {
-            reminderName: values.reminderName,
-            description: values.description,
-            reminderDate: values.reminderDate,
-            reminderTime: values.reminderTime || '',
-            categoryName: values.categoryName || 'General',
-            petId: petId
-          }
-
-          if (recurrenceRule && recurrenceRule.type !== 'none') {
-            const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
-            if (backendRecurrence) {
-              submitData.recurrence = backendRecurrence
-            }
-          }
-
-          // Note: Multi-pet mode doesn't support vaccine schedules or attachments
-          // as they require per-pet configuration
-
-          await reminderService.createReminder(submitData)
-          successCount++
-        } catch (error: any) {
-          console.error(`Failed to create reminder for pet ${petId}:`, error)
-          failCount++
-        }
-      }
-
-      if (successCount > 0) {
-        apiSuccessRef.current = true
-        setDuplicateError(null)
-
-        // Show success message
-        if (failCount === 0) {
-          // All succeeded
-          router.push('/(tabs)')
-        } else {
-          // Partial success
-          showError(
-            `สร้างเตือนความจำสำเร็จ ${successCount} ตัว, ล้มเหลว ${failCount} ตัว`
-          )
-          setTimeout(() => router.push('/(tabs)'), 2000)
-        }
-
-        // Reset form state
-        setDoses([])
-        setCustomVaccineName('')
-        setInitialChildReminders([])
-        setInitialReminderData(null)
-        setLoadedVaccineIsCustom(false)
-        setVaccineResetKey((prev) => prev + 1)
-        setRecurrenceRule(null)
-        setHasUserStartedCreateMode(false)
-        setChildrenToDelete([])
-        setAttachmentsToDelete([])
-        setOriginalPetSpecies(null)
-        setSelectedPetIds([])
-        formik.resetForm()
-      } else {
-        // All failed
-        showError('ไม่สามารถสร้างเตือนความจำได้')
-      }
-    } catch (error) {
-      console.error('Multi-pet submission error:', error)
-      showError('เกิดข้อผิดพลาดในการสร้างเตือนความจำ')
-    }
-  }
-  console.log(initialReminderData)
-
   const formik = useFormik<IReminder>({
     initialValues: initialReminderData
       ? {
@@ -378,20 +298,14 @@ export default function AddReminderPage() {
         }
       }
 
-      // Handle multi-pet creation (when more than 1 pet selected)
-      if (!isEditMode && selectedPetIds.length > 1) {
-        await handleMultiPetSubmit(values)
-        return
-      }
-
-      // Single pet creation/edit
+      // Build submit data — petId is an array for create (backend supports multi-pet natively)
       let submitData: any = {
         reminderName: values.reminderName,
         description: values.description,
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: values.petId
+        petId: isEditMode ? values.petId : selectedPetIds
       }
 
       if (recurrenceRule && recurrenceRule.type !== 'none') {
@@ -478,6 +392,8 @@ export default function AddReminderPage() {
         setRecurrenceRule(null)
         setHasUserStartedCreateMode(false)
         setChildrenToDelete([])
+        setAttachmentsToDelete([])
+        setSelectedPetIds([])
         setOriginalPetSpecies(null)
         if (!isEditMode) {
           formik.resetForm()
@@ -1101,7 +1017,8 @@ export default function AddReminderPage() {
                 )}
               </View>
 
-              {/* Attachment Manager */}
+              {/* Attachment Manager — disabled in multi-pet create mode */}
+              {/* {(isEditMode || selectedPetIds.length <= 1) && ( */}
               <AttachmentManager
                 attachments={attachments.filter(
                   (att) => !attachmentsToDelete.includes(att.id)
@@ -1116,6 +1033,7 @@ export default function AddReminderPage() {
                 disabled={isSubmitting}
                 isUploading={isUploadingAttachment}
               />
+              {/* )} */}
             </View>
           </ScrollView>
         </View>
