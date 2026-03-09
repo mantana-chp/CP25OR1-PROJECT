@@ -1,6 +1,6 @@
 import { IDeletedPet } from '@/src/domain/pet.domain'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { RotateCcw, Trash2, X } from 'lucide-react-native'
+import { History, RotateCcw, Trash2, X } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   ActivityIndicator,
@@ -38,9 +38,9 @@ export default function RecentlyDeletedModal({
 
     if (diffDays === 0) return 'วันนี้'
     if (diffDays === 1) return 'เมื่อวาน'
-    if (diffDays < 7) return `${diffDays} วันที่แล้ว`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} สัปดาห์ที่แล้ว`
-    return `${Math.floor(diffDays / 30)} เดือนที่แล้ว`
+    if (diffDays < 7) return ` ${diffDays} วันที่แล้ว`
+    if (diffDays < 30) return ` ${Math.floor(diffDays / 7)} สัปดาห์ที่แล้ว`
+    return ` ${Math.floor(diffDays / 30)} เดือนที่แล้ว`
   }
 
   const handleRestore = async (pet: IDeletedPet) => {
@@ -146,7 +146,7 @@ export default function RecentlyDeletedModal({
                         {processingId === pet.id ? (
                           <ActivityIndicator size="small" color="#5FA7D1" />
                         ) : (
-                          <RotateCcw size={16} color="#5FA7D1" />
+                          <History size={16} color="#5FA7D1" />
                         )}
                       </Pressable>
                       <Pressable
