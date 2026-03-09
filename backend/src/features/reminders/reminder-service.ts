@@ -25,7 +25,10 @@ import {
   RecurrenceStatusEnum,
 } from '../../generated/prisma/client'
 import prisma from '../../libs/db'
-import { CreateReminderPayload, UpdateReminderPayload } from './reminder-schema'
+import { CreateReminderPayload, CreateMultipleRemindersPayload, UpdateReminderPayload } from './reminder-schema'
+
+// Internal type used by createReminderInTransaction — always a single pet
+type SinglePetReminderPayload = Omit<CreateReminderPayload, 'petId'> & { petId: string }
 
 const healthCategories: category_name[] = [
   category_name.Vaccination,
@@ -48,7 +51,7 @@ const calculateNextOccurrence = (
       // Find how many intervals have passed since template start
       const daysDiff = Math.floor(
         (currentDate.getTime() - templateStartDate.getTime()) /
-          (1000 * 3600 * 24),
+        (1000 * 3600 * 24),
       )
       // Calculate intervals: (+1 to account for "next interval after current period")
       const intervalsToAdd =
@@ -68,7 +71,7 @@ const calculateNextOccurrence = (
             // Calculate weeks since template start
             const weeksSinceStart = Math.floor(
               (checkDate.getTime() - templateStartDate.getTime()) /
-                (1000 * 3600 * 24 * 7),
+              (1000 * 3600 * 24 * 7),
             )
             if (rule.interval === 1 || weeksSinceStart % rule.interval === 0) {
               return checkDate
@@ -84,7 +87,7 @@ const calculateNextOccurrence = (
       const newMonthDate = new Date(templateStartDate)
       let monthsDiff =
         (currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()) *
-          12 +
+        12 +
         (currentDate.getUTCMonth() - templateStartDate.getUTCMonth())
 
       // If we're in a later month but haven't reached the occurrence day yet,
@@ -355,7 +358,7 @@ export const deleteReminder = async (
 
 const createReminderInTransaction = async (
   tx: Prisma.TransactionClient,
-  newReminderData: CreateReminderPayload,
+  newReminderData: SinglePetReminderPayload,
   userId: string,
 ): Promise<reminders> => {
   const { petId, children, recurrence, ...parentData } = newReminderData
@@ -577,14 +580,21 @@ const createReminderInTransaction = async (
 export const createNewReminder = async (
   newReminderData: CreateReminderPayload,
   userId: string,
-): Promise<reminders> => {
+): Promise<reminders[]> => {
+  const { petId: petIds, ...restData } = newReminderData
   return await prisma.$transaction(async (tx) => {
-    return await createReminderInTransaction(tx, newReminderData, userId)
+    const results: reminders[] = []
+    for (const petId of petIds) {
+      results.push(
+        await createReminderInTransaction(tx, { ...restData, petId }, userId),
+      )
+    }
+    return results
   })
 }
 
 export const createMultipleReminders = async (
-  remindersData: CreateReminderPayload[],
+  remindersData: CreateMultipleRemindersPayload,
   userId: string,
 ): Promise<{
   created: reminders[]

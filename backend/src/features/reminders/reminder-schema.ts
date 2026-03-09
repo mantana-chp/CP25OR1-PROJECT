@@ -31,7 +31,12 @@ const recurrenceSchema = z.object({
 
 export const createReminderSchema = z.object({
   body: z.object({
-    petId: z.uuid(),
+    petId: z
+      .union([
+        z.uuid(),
+        z.array(z.uuid()).min(1, 'At least one pet must be selected'),
+      ])
+      .transform((v) => (Array.isArray(v) ? v : [v])),
     reminderName: z.string().min(1, 'Reminder Name is required'),
     description: z.string().optional(),
     reminderDate: z.string().min(1, 'Reminder Date is required'),

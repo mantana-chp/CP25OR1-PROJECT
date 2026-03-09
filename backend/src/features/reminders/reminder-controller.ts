@@ -4,7 +4,6 @@ import {
   createReminderSchema,
   getReminderByIdSchema,
   deleteReminderSchema,
-  CreateReminderPayload,
   updateReminderSchema,
   UpdateReminderPayload,
   createMultipleRemindersSchema,
@@ -31,14 +30,13 @@ export const getReminderById = asyncHandler(
 
 export const createReminder = asyncHandler(
   async (req: Request, res: Response) => {
-    const validatedData: CreateReminderPayload =
-      createReminderSchema.parse(req).body
+    const validatedData = createReminderSchema.parse(req).body
     const { id: userId } = req.user!
-    const newReminder = await reminderService.createNewReminder(
+    const newReminders = await reminderService.createNewReminder(
       validatedData,
       userId,
     )
-    sendSuccess(res, newReminder, 201)
+    sendSuccess(res, newReminders, 201)
   },
 )
 
