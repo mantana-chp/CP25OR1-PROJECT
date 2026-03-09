@@ -22,12 +22,28 @@ Rules:
 - Never apologize for missing data.
 - Never use gendered terms to address the owner like "คุณแม่" or "คุณพ่อ". Try to use neutral terms like "คุณ" instead.
 - Never make a definitive diagnosis. Frame causes as possibilities.
-- Do NOT start your response with a greeting like "สวัสดี" or "สวัสดีค่ะ". Instead, open by briefly acknowledging the owner's concern naturally (e.g., "เข้าใจเลยว่าคุณเป็นห่วงเมื่อ..."), then go straight into the advice.
+- Do NOT start your response with a greeting like "สวัสดี" or "สวัสดีค่ะ". Open with a natural, varied acknowledgment of the owner's concern — do NOT use the same phrase every time. Rotate between different openers, for example: briefly acknowledging the symptom ("การอาเจียน 2 ครั้งในเช้าวันเดียวกัน..."), empathising, or going straight into context ("อาการแบบนี้มักเกิดจาก...").
 
 Triage — scale your response to symptom severity:
 - Mild/routine (e.g. eating slightly less 1 day, single loose stool): reassure, give home-care tips, advise watching 2–3 days before considering a vet. Do NOT recommend an immediate vet visit.
 - Moderate/persistent (e.g. not eating 2+ days, repeated vomiting, visible weight loss): give home-care steps, list warning signs, set a clear timeframe ("if no improvement in 24–48 h, see a vet").
 - Urgent/red flag (e.g. breathing difficulty, seizure, uncontrolled bleeding, suspected poisoning, collapse): recommend seeing a vet or emergency clinic immediately and briefly explain why. This is the ONLY case where an immediate vet visit is warranted.
+
+Severity flag:
+- Append exactly "[NEEDS_SEVERITY]" on a new line at the very end of your response ONLY when ALL of the following are true:
+  1. The current message is the FIRST time the user is reporting or describing a pet's symptom or health concern (e.g. vomiting, not eating, lethargy, injury).
+  2. No "[SEVERITY: X/5]" appears anywhere in the conversation history.
+  3. The conversation history does not already contain a prior user message describing symptoms (i.e. this is the symptom-reporting turn, not a follow-up question about it).
+- Do NOT append it for follow-up questions about already-discussed symptoms (e.g. "should I see a vet?", "how long should I wait?", "what if it gets worse?").
+- Do NOT append it for general questions, vaccine schedules, feeding advice, or any non-symptom topic.
+- Do NOT append it if the conversation already contains a "[SEVERITY: X/5]" message.
+- When you DO append "[NEEDS_SEVERITY]", end your answer with a natural closing question on the line before it, asking the owner to rate severity (e.g. "เพื่อให้คำแนะนำได้แม่นยำขึ้น รบกวนประเมินความรุนแรงของอาการน้องให้หน่อยได้ไหมครับ?"). This makes the severity widget feel like a natural next step.
+
+Severity response:
+- If the current message starts with "[SEVERITY: X/5]", the user is giving you a severity rating for the symptoms already discussed in the conversation history.
+- Do NOT re-acknowledge the symptoms. Do NOT repeat prior advice. Do NOT start over.
+- Start directly with a short line acknowledging the rating (e.g. "ระดับความรุนแรง 3/5 —"), then immediately give refined, updated guidance based on that specific level.
+- Adjust your triage recommendation accordingly: low severity (1–2) → reassure + home care; medium (3) → watchful home care + clear timeframe; high (4–5) → recommend vet urgently.
 `.trim();
 
 const llm = new ChatGoogleGenerativeAI({
@@ -161,7 +177,7 @@ export const chatWithAI = async (
   userId: string,
   resolvedPetId?: string,
   history?: HistoryItem[]
-): Promise<{ answer: string; resolvedPetId?: string }> => {
+): Promise<{ answer: string; resolvedPetId?: string; severityFlag?: boolean }> => {
   const store = await initializeVectorStore();
   let petContext = '';
 
@@ -263,12 +279,17 @@ ${context}
       ...historyMessages,
       new HumanMessage(prompt),
     ]);
-    const answer = response.content as string;
+    const rawAnswer = response.content as string;
 
-    logger.info(`AI Chat Response received successfully.`);
+    // Parse severity flag marker — AI appends [NEEDS_SEVERITY] when symptom context
+    // is detected and no severity rating exists in history yet.
+    const severityFlag = rawAnswer.includes('[NEEDS_SEVERITY]');
+    const answer = rawAnswer.replace(/\[NEEDS_SEVERITY\]/g, '').trimEnd();
+
+    logger.info(`AI Chat Response received successfully. severityFlag=${severityFlag}`);
     logger.info(`AI Answer:\n${answer}`);
 
-    return { answer, resolvedPetId: finalResolvedPetId };
+    return { answer, resolvedPetId: finalResolvedPetId, severityFlag: severityFlag || undefined };
 
   } catch (error) {
     logger.error('Error in AI Chat service:', error as Error);
