@@ -119,6 +119,24 @@ export async function getAttachmentDtos(reminderId: string): Promise<AttachmentD
     return Promise.all(attachments.map(toDto));
 }
 
+// ── Bulk fetch attachments for many reminders at once (used in GET all reminders) ─
+export async function getAttachmentDtosBulk(
+    reminderIds: string[],
+): Promise<Map<string, AttachmentDto[]>> {
+    const result = new Map<string, AttachmentDto[]>();
+    if (reminderIds.length === 0) return result;
+
+    const attachments = await attachmentRepository.findByReminderIds(reminderIds);
+    const dtos = await Promise.all(attachments.map(toDto));
+
+    for (let i = 0; i < attachments.length; i++) {
+        const reminderId = attachments[i].reminder_id;
+        if (!result.has(reminderId)) result.set(reminderId, []);
+        result.get(reminderId)!.push(dtos[i]);
+    }
+    return result;
+}
+
 // ── Bulk MinIO cleanup for a list of reminder IDs (used in deleteReminder) ───
 export async function deleteAttachmentsForReminders(reminderIds: string[]): Promise<void> {
     if (reminderIds.length === 0) return;

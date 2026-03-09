@@ -2,6 +2,7 @@ import * as reminderRepository from './reminder-repository'
 import {
   deleteAttachmentsForReminders,
   getAttachmentDtos,
+  getAttachmentDtosBulk,
   AttachmentDto,
 } from './reminder-attachment-service'
 import { ReminderWithPetName, FullReminderDto } from './reminder-types'
@@ -244,7 +245,7 @@ const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
 
 export const getAllReminders = async (
   userId: string
-): Promise<{ reminders: FullReminderDto[]; recurringRules: recurrence[] }> => {
+): Promise<{ reminders: (FullReminderDto & { attachments: AttachmentDto[] })[]; recurringRules: recurrence[] }> => {
   const notDonePrismaReminders =
     await reminderRepository.findNotDoneByUserIdWithRecurrence(userId)
   const donePrismaReminders =
@@ -252,17 +253,20 @@ export const getAllReminders = async (
   const recurringRules =
     await reminderRepository.findActiveRecurrenceRulesByUserId(userId)
 
-  const notDoneReminders = notDonePrismaReminders.map(
-    mapFullPrismaReminderToFullReminderDto
-  )
-  const doneReminders = donePrismaReminders.map(
-    mapFullPrismaReminderToFullReminderDto
-  )
+  const allDtos = [
+    ...notDonePrismaReminders.map(mapFullPrismaReminderToFullReminderDto),
+    ...donePrismaReminders.map(mapFullPrismaReminderToFullReminderDto),
+  ]
 
-  return {
-    reminders: [...notDoneReminders, ...doneReminders],
-    recurringRules
-  }
+  const reminderIds = allDtos.map((r) => r.id)
+  const attachmentsMap = await getAttachmentDtosBulk(reminderIds)
+
+  const reminders = allDtos.map((dto) => ({
+    ...dto,
+    attachments: attachmentsMap.get(dto.id) ?? [],
+  }))
+
+  return { reminders, recurringRules }
 }
 
 export const getReminderById = async (

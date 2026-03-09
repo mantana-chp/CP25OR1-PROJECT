@@ -17,7 +17,7 @@ export const getNotifications = async (userId: string, isRead?: boolean): Promis
     isRead
   )
 
-  return notificationsFromDb.map(mapPrismaNotificationToDto);
+  return Promise.all(notificationsFromDb.map(mapPrismaNotificationToDto));
 }
 
 export const markAsRead = async (
@@ -48,7 +48,7 @@ export const markAsRead = async (
     throw new Error('Failed to retrieve updated notification with relations.');
   }
 
-  return mapPrismaNotificationToDto(updatedNotificationWithRelations);
+  return await mapPrismaNotificationToDto(updatedNotificationWithRelations);
 }
 
 /**

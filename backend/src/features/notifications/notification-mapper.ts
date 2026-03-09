@@ -1,5 +1,6 @@
 import { notifications, reminders, pets, notification_status, reminder_status, category_name } from '../../generated/prisma/client';
 import { Prisma } from '../../generated/prisma/client';
+import { generateDownloadUrl } from '../file-uploads/upload-service';
 
 export interface PetDto {
   id: string;
@@ -10,6 +11,7 @@ export interface PetDto {
   gender: 'male' | 'female' | 'unknown';
   birthDate?: Date | null;
   weight?: number | null;
+  profileImageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +39,7 @@ export interface ReminderDto {
 export interface PetInfoDto {
   id: string;
   name: string;
+  profileImageUrl?: string | null;
 }
 
 export interface PetTipsDto {
@@ -74,20 +77,31 @@ export type NotificationWithRelations = Prisma.notificationsGetPayload<{
   }
 }>;
 
-export const mapPrismaPetToDto = (prismaPet: pets): PetDto => ({
-  id: prismaPet.id,
-  userId: prismaPet.user_id,
-  speciesId: prismaPet.species_id,
-  breedId: prismaPet.breed_id,
-  petName: prismaPet.pet_name,
-  gender: prismaPet.gender,
-  birthDate: prismaPet.birth_date,
-  weight: prismaPet.weight ? prismaPet.weight.toNumber() : null,
-  createdAt: prismaPet.created_at,
-  updatedAt: prismaPet.updated_at,
-});
+export const mapPrismaPetToDto = async (prismaPet: pets): Promise<PetDto> => {
+  let profileImageUrl: string | null = null;
+  if (prismaPet.profile_image_key) {
+    try {
+      profileImageUrl = await generateDownloadUrl(prismaPet.profile_image_key, 3600);
+    } catch {
+      profileImageUrl = null;
+    }
+  }
+  return {
+    id: prismaPet.id,
+    userId: prismaPet.user_id,
+    speciesId: prismaPet.species_id,
+    breedId: prismaPet.breed_id,
+    petName: prismaPet.pet_name,
+    gender: prismaPet.gender,
+    birthDate: prismaPet.birth_date,
+    weight: prismaPet.weight ? prismaPet.weight.toNumber() : null,
+    profileImageUrl,
+    createdAt: prismaPet.created_at,
+    updatedAt: prismaPet.updated_at,
+  };
+};
 
-export const mapPrismaReminderToDto = (prismaReminder: reminders & { pets?: pets | null }): ReminderDto => ({
+export const mapPrismaReminderToDto = async (prismaReminder: reminders & { pets?: pets | null }): Promise<ReminderDto> => ({
   id: prismaReminder.id,
   userId: prismaReminder.user_id,
   petId: prismaReminder.pet_id,
@@ -103,11 +117,11 @@ export const mapPrismaReminderToDto = (prismaReminder: reminders & { pets?: pets
   categoryName: prismaReminder.category_name,
   isHealth: prismaReminder.is_health,
   parentId: prismaReminder.parent_id,
-  pets: prismaReminder.pets ? mapPrismaPetToDto(prismaReminder.pets) : undefined,
+  pets: prismaReminder.pets ? await mapPrismaPetToDto(prismaReminder.pets) : undefined,
 });
 
 
-export const mapPrismaNotificationToDto = (prismaNotification: NotificationWithRelations): NotificationDto => {
+export const mapPrismaNotificationToDto = async (prismaNotification: NotificationWithRelations): Promise<NotificationDto> => {
   const notificationDto: NotificationDto = {
     id: prismaNotification.id,
     userId: prismaNotification.user.id,
@@ -116,7 +130,7 @@ export const mapPrismaNotificationToDto = (prismaNotification: NotificationWithR
     status: prismaNotification.status,
     readAt: prismaNotification.read_at,
     createdAt: prismaNotification.created_at,
-    reminder: prismaNotification.reminders ? mapPrismaReminderToDto(prismaNotification.reminders) : undefined,
+    reminder: prismaNotification.reminders ? await mapPrismaReminderToDto(prismaNotification.reminders) : undefined,
   };
 
   // If the notification is a pet tip, add the petTips and petInfo fields
@@ -128,9 +142,18 @@ export const mapPrismaNotificationToDto = (prismaNotification: NotificationWithR
   }
 
   if (prismaNotification.pet) {
+    let profileImageUrl: string | null = null;
+    if (prismaNotification.pet.profile_image_key) {
+      try {
+        profileImageUrl = await generateDownloadUrl(prismaNotification.pet.profile_image_key, 3600);
+      } catch {
+        profileImageUrl = null;
+      }
+    }
     notificationDto.petInfo = {
       id: prismaNotification.pet.id,
       name: prismaNotification.pet.pet_name,
+      profileImageUrl,
     };
   }
 
