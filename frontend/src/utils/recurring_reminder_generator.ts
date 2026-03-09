@@ -119,15 +119,6 @@ export async function generateVirtualOccurrencesForRule(
   // Create a set of excluded dates for fast lookup
   const excludedDatesSet = new Set<string>(allExcludedDates)
 
-  // Debug: Log if there are excluded dates
-  // if (excludedDatesSet.size > 0) {
-  //   console.log(
-  //     `[${rule.reminder_name}] Excluding dates:`,
-  //     Array.from(excludedDatesSet),
-  //     `(backend: ${backendExcludedDates.length}, localStorage: ${localStorageExcludedDates.length})`
-  //   )
-  // }
-
   // Determine end date from rule
   let effectiveEndDate = rangeEnd
   if (rule.endDate) {
@@ -136,20 +127,21 @@ export async function generateVirtualOccurrencesForRule(
   }
 
   let currentDate = startDate.isBefore(rangeStart) ? rangeStart : startDate
-  let occurrenceCount = 0
+  let totalOccurrences = 0 // Total occurrences including excluded dates
+  let validOccurrences = 0 // Only non-excluded occurrences (for endAfterOccurrences check)
 
   // Generate occurrences based on frequency
   switch (rule.frequency) {
     case 'DAILY':
       while (
         currentDate.isSameOrBefore(effectiveEndDate) &&
-        occurrenceCount < maxOccurrences
+        totalOccurrences < maxOccurrences
       ) {
         if (currentDate.isSameOrAfter(rangeStart)) {
-          // Check if we've exceeded endAfterOccurrences
+          // Check if we've exceeded endAfterOccurrences (count all occurrences including excluded)
           if (
             rule.endAfterOccurrences &&
-            occurrenceCount >= rule.endAfterOccurrences
+            totalOccurrences >= rule.endAfterOccurrences
           ) {
             break
           }
@@ -158,13 +150,14 @@ export async function generateVirtualOccurrencesForRule(
           const dateKey = currentDate.format('YYYY-MM-DD')
           if (!excludedDatesSet.has(dateKey)) {
             virtualReminders.push(
-              createVirtualReminder(rule, currentDate, occurrenceCount + 1)
+              createVirtualReminder(rule, currentDate, totalOccurrences + 1)
             )
-            occurrenceCount++
+            validOccurrences++
           }
+          totalOccurrences++
         } else {
-          // Still increment occurrence count for dates before range
-          occurrenceCount++
+          // Still increment total occurrence count for dates before range
+          totalOccurrences++
         }
 
         // Move to next occurrence based on interval
@@ -183,7 +176,7 @@ export async function generateVirtualOccurrencesForRule(
 
       while (
         weekStart.isSameOrBefore(effectiveEndDate) &&
-        occurrenceCount < maxOccurrences
+        totalOccurrences < maxOccurrences
       ) {
         // Check each selected day in this week
         for (const dayOfWeek of daysOfWeek) {
@@ -201,7 +194,7 @@ export async function generateVirtualOccurrencesForRule(
           ) {
             if (
               rule.endAfterOccurrences &&
-              occurrenceCount >= rule.endAfterOccurrences
+              totalOccurrences >= rule.endAfterOccurrences
             ) {
               break
             }
@@ -210,10 +203,15 @@ export async function generateVirtualOccurrencesForRule(
             const dateKey = occurrenceDate.format('YYYY-MM-DD')
             if (!excludedDatesSet.has(dateKey)) {
               virtualReminders.push(
-                createVirtualReminder(rule, occurrenceDate, occurrenceCount + 1)
+                createVirtualReminder(
+                  rule,
+                  occurrenceDate,
+                  totalOccurrences + 1
+                )
               )
-              occurrenceCount++
+              validOccurrences++
             }
+            totalOccurrences++
           }
         }
 
@@ -225,7 +223,7 @@ export async function generateVirtualOccurrencesForRule(
     case 'MONTHLY':
       while (
         currentDate.isSameOrBefore(effectiveEndDate) &&
-        occurrenceCount < maxOccurrences
+        totalOccurrences < maxOccurrences
       ) {
         if (
           currentDate.isSameOrAfter(rangeStart) &&
@@ -233,7 +231,7 @@ export async function generateVirtualOccurrencesForRule(
         ) {
           if (
             rule.endAfterOccurrences &&
-            occurrenceCount >= rule.endAfterOccurrences
+            totalOccurrences >= rule.endAfterOccurrences
           ) {
             break
           }
@@ -248,10 +246,11 @@ export async function generateVirtualOccurrencesForRule(
           const dateKey = occurrenceDate.format('YYYY-MM-DD')
           if (!excludedDatesSet.has(dateKey)) {
             virtualReminders.push(
-              createVirtualReminder(rule, occurrenceDate, occurrenceCount + 1)
+              createVirtualReminder(rule, occurrenceDate, totalOccurrences + 1)
             )
-            occurrenceCount++
+            validOccurrences++
           }
+          totalOccurrences++
         }
 
         // Move to next month interval
@@ -262,7 +261,7 @@ export async function generateVirtualOccurrencesForRule(
     case 'YEARLY':
       while (
         currentDate.isSameOrBefore(effectiveEndDate) &&
-        occurrenceCount < maxOccurrences
+        totalOccurrences < maxOccurrences
       ) {
         if (
           currentDate.isSameOrAfter(rangeStart) &&
@@ -270,7 +269,7 @@ export async function generateVirtualOccurrencesForRule(
         ) {
           if (
             rule.endAfterOccurrences &&
-            occurrenceCount >= rule.endAfterOccurrences
+            totalOccurrences >= rule.endAfterOccurrences
           ) {
             break
           }
@@ -279,10 +278,11 @@ export async function generateVirtualOccurrencesForRule(
           const dateKey = currentDate.format('YYYY-MM-DD')
           if (!excludedDatesSet.has(dateKey)) {
             virtualReminders.push(
-              createVirtualReminder(rule, currentDate, occurrenceCount + 1)
+              createVirtualReminder(rule, currentDate, totalOccurrences + 1)
             )
-            occurrenceCount++
+            validOccurrences++
           }
+          totalOccurrences++
         }
 
         // Move to next year interval
@@ -393,7 +393,6 @@ export async function generateAllVirtualReminders(
         petIdToPetName.set(reminder.petId, reminder.pet_name)
       }
 
-      
       const recurrenceId = reminder.recurrenceId || reminder.recurrence?.id
       if (recurrenceId && reminder.petId) {
         recurrenceIdToPetInfo.set(recurrenceId, {
@@ -472,14 +471,24 @@ export async function generateAllVirtualReminders(
 /**
  * Merge real reminders with virtual reminders, removing duplicates
  * Real reminders take precedence over virtual ones for the same date
+ *
+ * @param realReminders - Array of real reminders from the database
+ * @param virtualReminders - Array of virtual reminders generated from rules
+ * @param options - Optional configuration
+ * @param options.requirePreviousDone - If true, virtual reminders only show if all previous instances are done (default: false for calendar, true for list)
  */
 export function mergeRealAndVirtualReminders(
   realReminders: IReminder[],
-  virtualReminders: IVirtualReminder[]
+  virtualReminders: IVirtualReminder[],
+  options: { requirePreviousDone?: boolean } = {}
 ): Array<IReminder | IVirtualReminder> {
+  const { requirePreviousDone = false } = options
+
   // Create a set of dates that have real reminders
   const realReminderDates = new Set<string>()
   const realRemindersByRuleAndDate = new Map<string, IReminder>()
+  // Group real reminders by rule ID for checking previous instances
+  const realRemindersByRule = new Map<string, IReminder[]>()
 
   for (const reminder of realReminders) {
     const dateKey = dayjs(reminder.reminderDate).format('YYYY-MM-DD')
@@ -487,18 +496,56 @@ export function mergeRealAndVirtualReminders(
 
     // Track by rule ID and date to filter out virtual instances
     if (reminder.recurrence?.id) {
-      const key = `${reminder.recurrence.id}-${dateKey}`
+      const ruleId = reminder.recurrence.id
+      const key = `${ruleId}-${dateKey}`
       realRemindersByRuleAndDate.set(key, reminder)
+
+      // Group by rule ID (only needed if requirePreviousDone is true)
+      if (requirePreviousDone) {
+        if (!realRemindersByRule.has(ruleId)) {
+          realRemindersByRule.set(ruleId, [])
+        }
+        realRemindersByRule.get(ruleId)!.push(reminder)
+      }
     }
   }
 
   // Filter virtual reminders to exclude dates that already have real reminders
+  // AND optionally exclude virtual reminders where previous instances are not done
   const filteredVirtualReminders = virtualReminders.filter((virtual) => {
     const dateKey = dayjs(virtual.reminderDate).format('YYYY-MM-DD')
     const ruleKey = `${virtual.originalRuleId}-${dateKey}`
 
     // Exclude if there's already a real reminder for this rule on this date
-    return !realRemindersByRuleAndDate.has(ruleKey)
+    if (realRemindersByRuleAndDate.has(ruleKey)) {
+      return false
+    }
+
+    // Only check previous instances if requirePreviousDone is true
+    if (requirePreviousDone) {
+      // Check if there are any previous instances (real reminders) that are not done
+      const remindersForThisRule =
+        realRemindersByRule.get(virtual.originalRuleId) || []
+      const virtualDate = dayjs(virtual.reminderDate)
+
+      for (const realReminder of remindersForThisRule) {
+        const realDate = dayjs(realReminder.reminderDate)
+
+        // If this real reminder is before the virtual reminder date
+        if (realDate.isBefore(virtualDate)) {
+          // Check if it's not done (status is 'to_do' or 'overdue')
+          if (
+            realReminder.reminderStatus === 'to_do' ||
+            realReminder.reminderStatus === 'overdue'
+          ) {
+            // Don't show this virtual reminder because a previous instance is not done
+            return false
+          }
+        }
+      }
+    }
+
+    return true
   })
 
   // Combine and sort by date

@@ -42,6 +42,8 @@ import EndRepeatSelector from '../components/recurrence/end_repeat_selector'
 import RecurrencePicker from '../components/recurrence/recurrence_picker'
 import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
 import ReminderSuggestions from '../components/reminder_suggestions'
+import AttachmentManager from '../components/attachment_manager'
+import { useReminderAttachments } from '@/src/hooks/useReminderAttachments'
 
 export default function AddReminderPage() {
   const router = useRouter()
@@ -77,15 +79,86 @@ export default function AddReminderPage() {
     null
   )
   const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
+  const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([])
   const [showDiscardModal, setShowDiscardModal] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const apiSuccessRef = useRef(false)
+
+  // Pet selection state (supports single or multiple pets)
+  const [selectedPetIds, setSelectedPetIds] = useState<string[]>([])
 
   const doneChildReminderIds = new Set(
     initialChildReminders
       .filter((child) => child.reminderStatus === 'done')
       .map((child) => child.id)
   )
+
+  // Attachment management hook
+  const {
+    attachments,
+    pendingAttachments: hookPendingAttachments,
+    isLoading: isLoadingAttachments,
+    isUploading: isUploadingAttachment,
+    isCreateMode,
+    addAttachment: hookAddAttachment,
+    deleteAttachment: hookDeleteAttachment,
+    downloadAttachment,
+    uploadPendingAttachments
+  } = useReminderAttachments({
+    reminderId: reminderId || '',
+    initialAttachments: initialReminderData?.attachments || [],
+    onAttachmentsChange: () => {
+      // Optionally refresh data if needed
+      console.log('✅ Attachments updated')
+    }
+  })
+
+  // Attachment handlers that defer changes until form submission
+  const handleAddAttachment = async (file: {
+    uri: string
+    name: string
+    size: number
+    mimeType: string
+  }): Promise<void> => {
+    // Always add to Formik's pendingAttachments (both create and edit mode)
+    const pendingFile: import('@/src/domain/reminder.domain').IPendingAttachment =
+      {
+        id: `temp-${Date.now()}-${Math.random()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.mimeType,
+        objectKey: '',
+        uri: file.uri,
+        isPending: true
+      }
+    formik.setFieldValue('pendingAttachments', [
+      ...(formik.values.pendingAttachments || []),
+      pendingFile
+    ])
+  }
+
+  const handleDeleteAttachment = async (
+    attachmentId: string
+  ): Promise<void> => {
+    // Check if it's a pending attachment (not yet uploaded)
+    const isPending = (formik.values.pendingAttachments || []).some(
+      (a) => a.id === attachmentId
+    )
+
+    if (isPending) {
+      // Remove from pendingAttachments
+      formik.setFieldValue(
+        'pendingAttachments',
+        (formik.values.pendingAttachments || []).filter(
+          (a) => a.id !== attachmentId
+        )
+      )
+    } else {
+      // It's an existing attachment - mark for deletion on submit
+      setAttachmentsToDelete((prev) => [...prev, attachmentId])
+    }
+  }
+
   const hasDoneChildren = doneChildReminderIds.size > 0
 
   const isDose1Done = (() => {
@@ -95,7 +168,8 @@ export default function AddReminderPage() {
     )
   })()
 
-  const { pets, activePets, getFirstPetId, selectedPetId, setSelectedPetId } = usePets()
+  const { pets, activePets, getFirstPetId, selectedPetId, setSelectedPetId } =
+    usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
@@ -103,9 +177,23 @@ export default function AddReminderPage() {
 
   const createReminderApi = useApi(reminderService.createReminder, {
     showErrorAlert: false,
-    onSuccess: () => {
+    onSuccess: async (response) => {
       apiSuccessRef.current = true
       setDuplicateError(null)
+
+      // Upload pending attachments for single-pet creation
+      const createdReminderId = response?.data?.[0]?.id
+      if (
+        createdReminderId &&
+        formik.values.pendingAttachments &&
+        formik.values.pendingAttachments.length > 0
+      ) {
+        await uploadPendingAttachments(
+          createdReminderId,
+          formik.values.pendingAttachments
+        )
+      }
+
       router.push('/(tabs)')
     },
     onError: (error) => {
@@ -120,9 +208,37 @@ export default function AddReminderPage() {
 
   const updateReminderApi = useApi(reminderService.updateReminder, {
     showErrorAlert: false,
-    onSuccess: () => {
+    onSuccess: async (response) => {
       apiSuccessRef.current = true
       setDuplicateError(null)
+
+      // Process attachment deletions
+      if (attachmentsToDelete.length > 0 && reminderId) {
+        console.log(
+          `🗑️ Deleting ${attachmentsToDelete.length} attachment(s)...`
+        )
+        for (const attachmentId of attachmentsToDelete) {
+          try {
+            await hookDeleteAttachment(attachmentId)
+          } catch (error) {
+            console.error(`Failed to delete attachment ${attachmentId}:`, error)
+          }
+        }
+      }
+
+      // Upload pending attachments if any
+      if (
+        formik.values.pendingAttachments &&
+        formik.values.pendingAttachments.length > 0 &&
+        reminderId
+      ) {
+        console.log('📤 Uploading pending attachments...')
+        await uploadPendingAttachments(
+          reminderId,
+          formik.values.pendingAttachments
+        )
+      }
+
       router.push('/(tabs)')
     },
     onError: (error) => {
@@ -151,11 +267,14 @@ export default function AddReminderPage() {
           statusUpdatedAt: initialReminderData.statusUpdatedAt || '',
           createdAt: initialReminderData.createdAt || '',
           updatedAt: initialReminderData.updatedAt || '',
-          children: initialReminderData.children || []
+          children: initialReminderData.children || [],
+          pendingAttachments: [],
+          attachments: initialReminderData.attachments || []
         }
       : {
           ...reminderInitValue({} as IReminder),
-          petId: getFirstPetId()
+          petId: getFirstPetId(),
+          pendingAttachments: []
         },
     enableReinitialize: true,
     validationSchema: reminderValidationSchema,
@@ -179,13 +298,14 @@ export default function AddReminderPage() {
         }
       }
 
+      // Build submit data — petId is an array for create (backend supports multi-pet natively)
       let submitData: any = {
         reminderName: values.reminderName,
         description: values.description,
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: values.petId
+        petId: isEditMode ? values.petId : selectedPetIds
       }
 
       if (recurrenceRule && recurrenceRule.type !== 'none') {
@@ -272,6 +392,8 @@ export default function AddReminderPage() {
         setRecurrenceRule(null)
         setHasUserStartedCreateMode(false)
         setChildrenToDelete([])
+        setAttachmentsToDelete([])
+        setSelectedPetIds([])
         setOriginalPetSpecies(null)
         if (!isEditMode) {
           formik.resetForm()
@@ -355,6 +477,7 @@ export default function AddReminderPage() {
       setDoses([])
       setCustomVaccineName('')
       setRecurrenceRule(null)
+      setAttachmentsToDelete([])
     }
   }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
 
@@ -368,6 +491,7 @@ export default function AddReminderPage() {
       setInitialChildReminders([])
       setDoses([])
       setCustomVaccineName('')
+      setAttachmentsToDelete([])
       setRecurrenceRule(null)
     }
   }, [reminderId, isEditMode])
@@ -502,24 +626,14 @@ export default function AddReminderPage() {
     }
   }, [petIdFromParams, selectedPetId, activePets])
 
-  const currentPet = pets.find((p) => p.id === formik.values.petId)
-
-  const isSamePetType = (
-    species1: string | null,
-    species2: string | null
-  ): boolean => {
-    if (!species1 || !species2) return false
-
-    const petTypes = ['สุนัข', 'แมว', 'นก', 'กระต่าย']
-
-    for (const type of petTypes) {
-      if (species1.includes(type) && species2.includes(type)) {
-        return true
-      }
+  // Initialize selectedPetIds for create mode
+  useEffect(() => {
+    if (!isEditMode && selectedPetIds.length === 0 && formik.values.petId) {
+      setSelectedPetIds([formik.values.petId])
     }
+  }, [isEditMode, formik.values.petId])
 
-    return false
-  }
+  const currentPet = pets.find((p) => p.id === formik.values.petId)
 
   const canUseVaccineSchedule =
     currentPet &&
@@ -529,9 +643,16 @@ export default function AddReminderPage() {
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
   const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
+
+  // Validation: Check pet selection (use selectedPetIds for create, petId for edit)
+  const hasPetSelected = isEditMode
+    ? !!formik.values.petId
+    : selectedPetIds.length > 0
+
   const canSubmit =
     formik.values.reminderName &&
     formik.values.reminderDate &&
+    hasPetSelected &&
     (isVaccinationCategory && canUseVaccineSchedule ? allDosesHaveDates : true)
 
   const confirmBack = () => {
@@ -544,8 +665,10 @@ export default function AddReminderPage() {
     setInitialReminderData(null)
     setInitialChildReminders([])
     setLoadedVaccineIsCustom(false)
+    setAttachmentsToDelete([])
     setChildrenToDelete([])
     setOriginalPetSpecies(null)
+    setSelectedPetIds([])
     formik.resetForm()
     router.back()
   }
@@ -693,12 +816,17 @@ export default function AddReminderPage() {
           >
             <View style={styles.formCard}>
               <View style={styles.cardHeader}>
-                <Pressable onPress={handleBack} disabled={isSubmitting}>
+                <Pressable
+                  onPress={handleBack}
+                  disabled={isSubmitting}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
                   <Text style={styles.cancelText}>ยกเลิก</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => formik.handleSubmit()}
                   disabled={!canSubmit || isSubmitting}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Text
                     style={[
@@ -746,35 +874,32 @@ export default function AddReminderPage() {
 
               <PetSelector
                 pets={activePets}
-                selectedPetId={formik.values.petId}
-                onSelectPet={(petId: string) => {
-                  const newPet = activePets.find((p) => p.id === petId)
-                  const oldPetSpecies =
-                    originalPetSpecies || currentPet?.species
-                  const newPetSpecies = newPet?.species
-
-                  formik.setFieldValue('petId', petId)
-                  setSelectedPetId(petId)
-
-                  if (
-                    isEditMode &&
-                    !isSamePetType(oldPetSpecies || null, newPetSpecies || null)
-                  ) {
-                    const currentChildIds = initialChildReminders.map(
-                      (child) => child.id
-                    )
-                    setChildrenToDelete(currentChildIds)
-
-                    setDoses([])
-                    setCustomVaccineName('')
-                    setLoadedVaccineIsCustom(false)
-                    setVaccineResetKey((prev) => prev + 1)
-                    setInitialChildReminders([])
-                  }
-                }}
+                selectedPetIds={
+                  isEditMode ? [formik.values.petId] : selectedPetIds
+                }
+                onSelectPets={
+                  isEditMode
+                    ? undefined // Disable selection in edit mode
+                    : (petIds: string[]) => {
+                        setSelectedPetIds(petIds)
+                        // Update formik petId to first selected pet for validation
+                        if (petIds.length > 0) {
+                          formik.setFieldValue('petId', petIds[0])
+                        }
+                        // Clear vaccine schedules if multiple pets selected
+                        if (
+                          petIds.length > 1 &&
+                          formik.values.categoryName === 'Vaccination'
+                        ) {
+                          formik.setFieldValue('categoryName', 'General')
+                          setDoses([])
+                          setCustomVaccineName('')
+                        }
+                      }
+                }
                 label="สัตว์เลี้ยง"
                 required={true}
-                disabled={isSubmitting}
+                disabled={isEditMode || isSubmitting}
               />
 
               <View style={styles.row}>
@@ -848,7 +973,9 @@ export default function AddReminderPage() {
               <VaccineScheduleSection
                 key={vaccineResetKey}
                 isVaccinationCategory={isVaccinationCategory}
-                canUseVaccineSchedule={canUseVaccineSchedule || false}
+                canUseVaccineSchedule={
+                  (canUseVaccineSchedule || false) && selectedPetIds.length <= 1
+                }
                 petId={formik.values.petId}
                 reminderDate={formik.values.reminderDate}
                 doses={doses}
@@ -889,6 +1016,24 @@ export default function AddReminderPage() {
                   </Text>
                 )}
               </View>
+
+              {/* Attachment Manager — disabled in multi-pet create mode */}
+              {/* {(isEditMode || selectedPetIds.length <= 1) && ( */}
+              <AttachmentManager
+                attachments={attachments.filter(
+                  (att) => !attachmentsToDelete.includes(att.id)
+                )}
+                pendingAttachments={formik.values.pendingAttachments || []}
+                onAddAttachment={handleAddAttachment}
+                onDeleteAttachment={handleDeleteAttachment}
+                onDownloadAttachment={downloadAttachment}
+                maxFiles={2}
+                maxFileSize={10}
+                allowedTypes={['application/pdf', 'image/jpeg', 'image/png']}
+                disabled={isSubmitting}
+                isUploading={isUploadingAttachment}
+              />
+              {/* )} */}
             </View>
           </ScrollView>
         </View>
@@ -940,13 +1085,13 @@ const styles = StyleSheet.create({
     marginBottom: 18
   },
   cancelText: {
-    color: '#4b5563',
-    fontSize: 16,
+    color: '#6b7280',
+    fontSize: 18,
     fontFamily: 'Prompt_400Regular'
   },
   addText: {
     color: '#2E759E',
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Prompt_700Bold'
   },
   submittingText: {
@@ -972,7 +1117,8 @@ const styles = StyleSheet.create({
   textarea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingVertical: 12
+    paddingVertical: 12,
+    marginBottom: 12
   },
   row: {
     flexDirection: 'row',

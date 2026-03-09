@@ -14,12 +14,3 @@ export const thaiMonths = [
 ]
 
 export const weekDays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
-
-export interface Reminder {
-  id: string
-  date: Date
-  title: string
-  description: string
-  location: string
-  isCompleted: boolean
-}

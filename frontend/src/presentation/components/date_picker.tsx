@@ -130,7 +130,11 @@ export default function DatePicker(props: DatePickerProps) {
               props.small && styles.pickerButtonIconSmall
             ]}
           >
-            <CalendarDays color={'#A6A6A6'} />
+            <CalendarDays
+              color={'#9ca3af'}
+              size={props.small ? 16 : 20}
+              strokeWidth={1.5}
+            />
           </Text>
         </Pressable>
 
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    minHeight: 48,
+    minHeight: 32,
     backgroundColor: '#fff'
   },
   pickerButtonDisabled: {

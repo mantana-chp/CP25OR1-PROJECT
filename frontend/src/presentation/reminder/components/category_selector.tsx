@@ -81,7 +81,7 @@ export default function CategorySelector({
         ) : (
           <View style={styles.placeholderContent}>
             <LayoutGrid
-              size={20}
+              size={18}
               color={modalVisible ? '#ffffff' : '#9ca3af'}
             />
             <Text
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    minHeight: 48,
+    minHeight: 32,
     justifyContent: 'center'
   },
   selectorActive: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   placeholder: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#9ca3af',
     fontFamily: 'Prompt_400Regular'
   },

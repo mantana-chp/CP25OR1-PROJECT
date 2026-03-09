@@ -93,9 +93,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔄 Fetching recently deleted pets...')
       const response = await petProfileService.getRecentlyDeletedPets()
-      console.log('📦 Deleted pets response:', response)
       const deletedPetsData = response?.data || []
-      console.log('📊 Deleted pets data:', deletedPetsData)
       // Filter only deleted pets (not deceased)
       const formattedDeleted: IDeletedPet[] = deletedPetsData
         .filter((pet) => pet.status === 'DELETED' && pet.deleted_at)

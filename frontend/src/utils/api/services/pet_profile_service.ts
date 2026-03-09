@@ -113,7 +113,6 @@ export const petProfileService = {
     const response = await apiClient.get<{
       data: IPetProfile[]
     }>('/v1/pets/me/recently-deleted')
-    console.log('📥 Recently deleted pets API response:', response)
     return response
   },
 

@@ -88,4 +88,41 @@ export const reminderService = {
   updateReminderStatus: async (id: string) => {
     return apiClient.patch<IReminder>(`/v1/reminders/${id}/status`)
   },
+
+  addAttachment: async (
+    reminderId: string,
+    attachmentData: {
+      fileName: string
+      fileSize: number
+      fileType: string
+      objectKey: string
+    }
+  ) => {
+    return apiClient.post<{
+      data: {
+        id: string
+        reminderId: string
+        fileName: string
+        fileSize: number
+        fileType: string
+        objectKey: string
+        createdAt: string
+      }
+    }>(`/v1/reminders/${reminderId}/attachments`, attachmentData)
+  },
+
+  deleteAttachment: async (reminderId: string, attachmentId: string) => {
+    return apiClient.delete(
+      `/v1/reminders/${reminderId}/attachments/${attachmentId}`
+    )
+  },
+
+  getAttachmentDownloadUrl: async (
+    reminderId: string,
+    attachmentId: string
+  ) => {
+    return apiClient.get<{ data: { downloadUrl: string; expiresIn: number } }>(
+      `/v1/reminders/${reminderId}/attachments/${attachmentId}/download-url`
+    )
+  }
 }

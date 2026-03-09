@@ -504,6 +504,7 @@ export default function PetProfilePage() {
                 onDeletePet={
                   !isViewingDeceased ? handleDeletePetFromSelector : undefined
                 }
+                isViewingDeceased={isViewingDeceased}
               />
 
               {/* Selected Pet Info */}
