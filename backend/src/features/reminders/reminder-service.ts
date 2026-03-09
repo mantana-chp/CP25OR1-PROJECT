@@ -1,5 +1,9 @@
 import * as reminderRepository from './reminder-repository'
-import { deleteAttachmentsForReminders, getAttachmentDtos, AttachmentDto } from './reminder-attachment-service'
+import {
+  deleteAttachmentsForReminders,
+  getAttachmentDtos,
+  AttachmentDto,
+} from './reminder-attachment-service'
 import { ReminderWithPetName, FullReminderDto } from './reminder-types'
 import {
   mapPrismaReminderWithPetToReminder,
@@ -21,7 +25,10 @@ import {
   RecurrenceStatusEnum
 } from '../../generated/prisma/client'
 import prisma from '../../libs/db'
-import { CreateReminderPayload, UpdateReminderPayload } from './reminder-schema'
+import { CreateReminderPayload, CreateMultipleRemindersPayload, UpdateReminderPayload } from './reminder-schema'
+
+// Internal type used by createReminderInTransaction — always a single pet
+type SinglePetReminderPayload = Omit<CreateReminderPayload, 'petId'> & { petId: string }
 
 const healthCategories: category_name[] = [
   category_name.Vaccination,
@@ -44,7 +51,7 @@ const calculateNextOccurrence = (
       // Find how many intervals have passed since template start
       const daysDiff = Math.floor(
         (currentDate.getTime() - templateStartDate.getTime()) /
-          (1000 * 3600 * 24)
+        (1000 * 3600 * 24),
       )
       // Calculate intervals: (+1 to account for "next interval after current period")
       const intervalsToAdd =
@@ -64,7 +71,7 @@ const calculateNextOccurrence = (
             // Calculate weeks since template start
             const weeksSinceStart = Math.floor(
               (checkDate.getTime() - templateStartDate.getTime()) /
-                (1000 * 3600 * 24 * 7)
+              (1000 * 3600 * 24 * 7),
             )
             if (rule.interval === 1 || weeksSinceStart % rule.interval === 0) {
               return checkDate
@@ -80,7 +87,7 @@ const calculateNextOccurrence = (
       const newMonthDate = new Date(templateStartDate)
       let monthsDiff =
         (currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()) *
-          12 +
+        12 +
         (currentDate.getUTCMonth() - templateStartDate.getUTCMonth())
 
       // If we're in a later month but haven't reached the occurrence day yet,
@@ -123,7 +130,7 @@ const calculateNextOccurrence = (
       const intervalsToAddYear =
         Math.ceil((yearsDiff + 1) / rule.interval) * rule.interval
       nextDate.setUTCFullYear(
-        templateStartDate.getUTCFullYear() + intervalsToAddYear
+        templateStartDate.getUTCFullYear() + intervalsToAddYear,
       )
       break
 
@@ -168,7 +175,7 @@ const generateNextInstance = async (
   const nextDate = calculateNextOccurrence(
     templateStartDate,
     currentReminder.reminder_date,
-    rule as any
+    rule as any,
   )
   if (!nextDate) return
 
@@ -349,18 +356,19 @@ export const deleteReminder = async (
   await deleteAttachmentsForReminders([id])
 }
 
-export const createNewReminder = async (
-  newReminderData: CreateReminderPayload,
-  userId: string
+const createReminderInTransaction = async (
+  tx: Prisma.TransactionClient,
+  newReminderData: SinglePetReminderPayload,
+  userId: string,
 ): Promise<reminders> => {
   const { petId, children, recurrence, ...parentData } = newReminderData
-  const pet = await prisma.pets.findFirst({
-    where: { id: petId, user_id: userId }
+  const pet = await tx.pets.findFirst({
+    where: { id: petId, user_id: userId },
   })
   if (!pet) throw new NotFoundError('Pet not found.')
 
   const reminderDate = new Date(parentData.reminderDate)
-  const existingReminder = await prisma.reminders.findFirst({
+  const existingReminder = await tx.reminders.findFirst({
     where: {
       pet_id: petId,
       reminder_name: parentData.reminderName,
@@ -425,7 +433,8 @@ export const createNewReminder = async (
       : reminder_status.to_do
   }
 
-  return await prisma.$transaction(async (tx) => {
+  // Transaction handling is done by the caller
+  {
     // Step 1: If recurring, create the recurrence template FIRST
     let recurrenceId: string | null = null
     if (recurrence) {
@@ -482,8 +491,8 @@ export const createNewReminder = async (
           endDate: recurrence.endDate
             ? new Date(recurrence.endDate)
             : undefined,
-          endAfterOccurrences: recurrence.endAfterOccurrences
-        }
+          endAfterOccurrences: recurrence.endAfterOccurrences,
+        },
       })
       recurrenceId = newRecurrence.id
     }
@@ -503,9 +512,9 @@ export const createNewReminder = async (
         user: { connect: { id: userId } },
         pets: { connect: { id: petId } },
         ...(recurrenceId && {
-          recurrence_template: { connect: { id: recurrenceId } }
-        }) // Link to recurrence template via relation
-      }
+          recurrence_template: { connect: { id: recurrenceId } },
+        }), // Link to recurrence template via relation
+      },
     })
 
     // Step 3: Create children if provided
@@ -565,7 +574,67 @@ export const createNewReminder = async (
     })
     if (!fullReminder) throw new Error('Failed to retrieve created reminder.')
     return fullReminder
+  }
+}
+
+export const createNewReminder = async (
+  newReminderData: CreateReminderPayload,
+  userId: string,
+): Promise<reminders[]> => {
+  const { petId: petIds, ...restData } = newReminderData
+  return await prisma.$transaction(async (tx) => {
+    const results: reminders[] = []
+    for (const petId of petIds) {
+      results.push(
+        await createReminderInTransaction(tx, { ...restData, petId }, userId),
+      )
+    }
+    return results
   })
+}
+
+export const createMultipleReminders = async (
+  remindersData: CreateMultipleRemindersPayload,
+  userId: string,
+): Promise<{
+  created: reminders[]
+  errors: Array<{ index: number; reminderName: string; error: string }>
+}> => {
+  const created: reminders[] = []
+  const errors: Array<{ index: number; reminderName: string; error: string }> =
+    []
+
+  if (remindersData.length === 0) {
+    throw new BadRequestError('At least one reminder must be provided.')
+  }
+
+  await prisma.$transaction(
+    async (tx) => {
+      for (let i = 0; i < remindersData.length; i++) {
+        try {
+          const reminder = await createReminderInTransaction(
+            tx,
+            remindersData[i],
+            userId,
+          )
+          created.push(reminder)
+        } catch (err: any) {
+          // Continue creating other reminders even if one fails
+          errors.push({
+            index: i,
+            reminderName: remindersData[i].reminderName,
+            error: err.message || 'Unknown error occurred',
+          })
+        }
+      }
+    },
+    {
+      // Use serializable isolation to ensure consistency across all reminders
+      isolationLevel: 'Serializable',
+    },
+  )
+
+  return { created, errors }
 }
 
 export const toggleReminderStatus = async (
@@ -794,8 +863,8 @@ export const updateReminder = async (
             : originalRecurrence.endDate,
           endAfterOccurrences:
             recurrence?.endAfterOccurrences ??
-            originalRecurrence.endAfterOccurrences
-        }
+            originalRecurrence.endAfterOccurrences,
+        },
       })
 
       // 4. Update the current instance to link to the NEW recurrence template
@@ -1000,10 +1069,10 @@ export const updateReminder = async (
             if ((recurrence.daysOfWeek & dayBit) === 0) {
               for (let i = 1; i <= 30; i++) {
                 const checkDate = new Date(
-                  reminderToUpdate.reminder_date.getTime()
+                  reminderToUpdate.reminder_date.getTime(),
                 )
                 checkDate.setUTCDate(
-                  reminderToUpdate.reminder_date.getUTCDate() + i
+                  reminderToUpdate.reminder_date.getUTCDate() + i,
                 )
                 const checkDayBit = 1 << checkDate.getUTCDay()
                 if ((recurrence.daysOfWeek & checkDayBit) > 0) {
@@ -1021,12 +1090,12 @@ export const updateReminder = async (
               recurrence.dayOfMonth
             ) {
               const checkDate = new Date(
-                reminderToUpdate.reminder_date.getTime()
+                reminderToUpdate.reminder_date.getTime(),
               )
               checkDate.setUTCDate(recurrence.dayOfMonth)
               if (checkDate < reminderToUpdate.reminder_date) {
                 checkDate.setUTCMonth(
-                  reminderToUpdate.reminder_date.getUTCMonth() + 1
+                  reminderToUpdate.reminder_date.getUTCMonth() + 1,
                 )
               }
               thisInstanceTemplateStartDate = checkDate

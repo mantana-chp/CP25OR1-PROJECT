@@ -31,7 +31,12 @@ const recurrenceSchema = z.object({
 
 export const createReminderSchema = z.object({
   body: z.object({
-    petId: z.uuid(),
+    petId: z
+      .union([
+        z.uuid(),
+        z.array(z.uuid()).min(1, 'At least one pet must be selected'),
+      ])
+      .transform((v) => (Array.isArray(v) ? v : [v])),
     reminderName: z.string().min(1, 'Reminder Name is required'),
     description: z.string().optional(),
     reminderDate: z.string().min(1, 'Reminder Date is required'),
@@ -87,9 +92,29 @@ export const updateReminderSchema = z.object({
   }),
 })
 
+export const createMultipleRemindersSchema = z.object({
+  body: z
+    .array(
+      z.object({
+        petId: z.uuid(),
+        reminderName: z.string().min(1, 'Reminder Name is required'),
+        description: z.string().optional(),
+        reminderDate: z.string().min(1, 'Reminder Date is required'),
+        reminderTime: z.string().optional(),
+        categoryName: z.enum(category_name).optional(),
+        children: z.array(simpleReminderObject).optional(),
+        recurrence: recurrenceSchema.optional(),
+      }),
+    )
+    .min(1, 'At least one reminder must be provided'),
+})
+
 export type RecurrencePayload = z.infer<typeof recurrenceSchema>
 export type CreateReminderPayload = z.infer<
   typeof createReminderSchema.shape.body
+>
+export type CreateMultipleRemindersPayload = z.infer<
+  typeof createMultipleRemindersSchema.shape.body
 >
 export type UpdateReminderPayload = z.infer<
   typeof updateReminderSchema.shape.body
