@@ -260,7 +260,6 @@ class ApiClient {
 
   async request<T>(config: AxiosRequestConfig): Promise<T> {
     const response = await this.client.request<T>(config)
-    console.log('📦 Raw response.data structure:', response.data)
     return response.data
   }
 
