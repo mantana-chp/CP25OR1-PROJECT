@@ -3,49 +3,14 @@ import { registerPushToken } from './user-controller';
 import { authGuard } from '../../middlewares/authGuard';
 import { validate } from '../../middlewares/validate';
 import { registerPushTokenSchema } from './user-schema';
+import { hasAccessiblePetsController } from '../pet-sharing/pet-sharing-controller';
 
 const userRoutes = Router();
 
-/**
- * @openapi
- * /users/me/push-token:
- *   post:
- *     tags: [Users]
- *     summary: Register a push notification token for the current user
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - $ref: '#/components/parameters/InstallationIdHeader'
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/PushTokenBody'
- *     responses:
- *       200:
- *         description: Successfully registered push token.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: 'string'
- *                   example: 'Push token registered successfully'
- *       400:
- *         description: Bad Request - Validation error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       401:
- *         description: Unauthorized.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
 userRoutes.post('/me/push-token', authGuard, validate(registerPushTokenSchema), registerPushToken);
+
+// Startup check: does this user own or have caregiver access to at least 1 pet?
+// GET /v1/users/me/has-accessible-pets
+userRoutes.get('/me/has-accessible-pets', authGuard, hasAccessiblePetsController);
 
 export default userRoutes;

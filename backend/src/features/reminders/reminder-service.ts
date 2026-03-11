@@ -27,6 +27,7 @@ import {
 } from '../../generated/prisma/client'
 import prisma from '../../libs/db'
 import { CreateReminderPayload, CreateMultipleRemindersPayload, UpdateReminderPayload } from './reminder-schema'
+import { canAccessPet } from '../pet-sharing/pet-sharing-repository'
 
 // Internal type used by createReminderInTransaction — always a single pet
 type SinglePetReminderPayload = Omit<CreateReminderPayload, 'petId'> & { petId: string }
@@ -247,11 +248,11 @@ export const getAllReminders = async (
   userId: string
 ): Promise<{ reminders: (FullReminderDto & { attachments: AttachmentDto[] })[]; recurringRules: recurrence[] }> => {
   const notDonePrismaReminders =
-    await reminderRepository.findNotDoneByUserIdWithRecurrence(userId)
+    await reminderRepository.findNotDoneByAccessiblePets(userId)
   const donePrismaReminders =
-    await reminderRepository.findDoneByUserIdWithRecurrence(userId)
+    await reminderRepository.findDoneByAccessiblePets(userId)
   const recurringRules =
-    await reminderRepository.findActiveRecurrenceRulesByUserId(userId)
+    await reminderRepository.findActiveRecurrenceRulesByAccessiblePets(userId)
 
   const allDtos = [
     ...notDonePrismaReminders.map(mapFullPrismaReminderToFullReminderDto),
@@ -272,16 +273,45 @@ export const getAllReminders = async (
 export const getReminderById = async (
   id: string,
   userId: string,
-): Promise<FullReminderDto & { attachments: AttachmentDto[] }> => {
+): Promise<FullReminderDto & { attachments: AttachmentDto[]; created_by: string }> => {
   const reminder = await reminderRepository.findFullById(id)
   if (!reminder) throw new NotFoundError('Reminder not found')
-  if (reminder.user_id !== userId)
+  // Allow owner or active caregiver to view the reminder
+  const hasAccess = await canAccessPet(reminder.pet_id!, userId)
+  if (!hasAccess)
     throw new ApiError('Forbidden', 403, [
-      { message: 'User is not the owner of this reminder', code: 403 }
+      { message: 'Access to this reminder denied', code: 403 }
     ])
+
+  // Determine created_by label
+  // created_by_user_id = actual API caller; falls back to user_id (pet owner) for old reminders
+  const creatorId = reminder.created_by_user_id ?? reminder.user_id
+  const petOwnerId = reminder.pets?.user_id ?? reminder.user_id
+
+  let created_by: string
+  if (creatorId === userId) {
+    // The requesting user is the one who created this reminder
+    created_by = 'You'
+  } else if (petOwnerId === userId) {
+    // Owner is viewing — the creator was a caregiver; show their alias
+    const contact = await prisma.owner_caregiver_contacts.findUnique({
+      where: {
+        owner_user_id_caregiver_user_id: {
+          owner_user_id: userId,
+          caregiver_user_id: creatorId,
+        },
+      },
+      select: { alias: true },
+    })
+    created_by = contact?.alias ?? 'Caregiver'
+  } else {
+    // Caregiver is viewing — the creator was the owner (or another party)
+    created_by = 'Owner'
+  }
+
   const dto = mapFullPrismaReminderToFullReminderDto(reminder)
   const attachments = await getAttachmentDtos(id)
-  return { ...dto, attachments }
+  return { ...dto, attachments, created_by }
 }
 
 export const deleteReminder = async (
@@ -291,9 +321,14 @@ export const deleteReminder = async (
 ): Promise<void> => {
   const reminder = await reminderRepository.findFullById(id)
   if (!reminder) throw new NotFoundError('Reminder not found')
-  if (reminder.user_id !== userId)
+  // Only the pet owner may delete reminders
+  const pet = await prisma.pets.findUnique({
+    where: { id: reminder.pet_id! },
+    select: { user_id: true },
+  })
+  if (!pet || pet.user_id !== userId)
     throw new ApiError('Forbidden', 403, [
-      { message: 'User is not the owner of this reminder' }
+      { message: 'Only the pet owner can delete reminders' }
     ])
 
   if (reminder.reminder_status === 'done') {
@@ -367,9 +402,19 @@ const createReminderInTransaction = async (
 ): Promise<reminders> => {
   const { petId, children, recurrence, ...parentData } = newReminderData
   const pet = await tx.pets.findFirst({
-    where: { id: petId, user_id: userId },
+    where: {
+      id: petId,
+      OR: [
+        { user_id: userId },
+        { user_access: { some: { user_id: userId, revoked_at: null } } },
+      ],
+    },
+    select: { id: true, user_id: true },
   })
   if (!pet) throw new NotFoundError('Pet not found.')
+
+  // Reminders always belong to the pet's owner, even when created by a caregiver
+  const ownerUserId = pet.user_id
 
   const reminderDate = new Date(parentData.reminderDate)
   const existingReminder = await tx.reminders.findFirst({
@@ -513,8 +558,9 @@ const createReminderInTransaction = async (
         status_done_at: statusDoneAt,
         status_before_done: statusBeforeDone,
         is_health: isHealth,
-        user: { connect: { id: userId } },
+        user: { connect: { id: ownerUserId } },
         pets: { connect: { id: petId } },
+        created_by_user_id: userId, // actual API caller (owner or caregiver)
         ...(recurrenceId && {
           recurrence_template: { connect: { id: recurrenceId } },
         }), // Link to recurrence template via relation
@@ -564,9 +610,10 @@ const createReminderInTransaction = async (
           status_done_at: childStatusDoneAt,
           status_before_done: childStatusBeforeDone,
           is_health: childIsHealth,
-          user_id: userId,
+          user_id: ownerUserId,
           pet_id: petId,
-          parent_id: parentReminder.id
+          parent_id: parentReminder.id,
+          created_by_user_id: userId, // actual API caller
         }
       })
       await tx.reminders.createMany({ data: childrenData })
@@ -647,9 +694,11 @@ export const toggleReminderStatus = async (
 ): Promise<ReminderWithPetName> => {
   const reminderToToggle = await reminderRepository.findFullById(id)
   if (!reminderToToggle) throw new NotFoundError('Reminder not found')
-  if (reminderToToggle.user_id !== userId)
+  // Allow owner or active caregiver to toggle reminder status
+  const hasAccess = await canAccessPet(reminderToToggle.pet_id!, userId)
+  if (!hasAccess)
     throw new ApiError('Forbidden', 403, [
-      { message: 'User is not the owner of this reminder' }
+      { message: 'Access to this reminder denied' }
     ])
 
   await prisma.$transaction(async (tx) => {
@@ -747,9 +796,11 @@ export const updateReminder = async (
 
   const reminderToUpdate = await reminderRepository.findFullById(reminderId)
   if (!reminderToUpdate) throw new NotFoundError('Reminder not found')
-  if (reminderToUpdate.user_id !== userId)
+  // Allow owner or active caregiver to update reminders
+  const hasAccess = await canAccessPet(reminderToUpdate.pet_id!, userId)
+  if (!hasAccess)
     throw new ApiError('Forbidden', 403, [
-      { message: 'User is not the owner of this reminder' }
+      { message: 'Access to this reminder denied' }
     ])
 
   const isChangingDateOrRecurrence =

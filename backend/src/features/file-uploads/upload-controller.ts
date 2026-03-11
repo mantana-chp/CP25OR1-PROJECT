@@ -6,7 +6,9 @@ import {
     confirmUploadSchema,
 } from './upload-schema';
 import * as uploadService from './upload-service';
-import { NotFoundError } from '../../shared/errors';
+import { NotFoundError, ForbiddenError } from '../../shared/errors';
+import prisma from '../../libs/db';
+import { canAccessPet } from '../pet-sharing/pet-sharing-repository';
 
 /**
  * Generate presigned URL for file upload
@@ -16,6 +18,31 @@ export const requestUploadUrl = asyncHandler(
     async (req: Request, res: Response) => {
         const { id: userId } = req.user!;
         const uploadRequest = requestUploadUrlSchema.parse(req).body;
+
+        // For pet profile images, only the pet owner may obtain an upload URL
+        if (uploadRequest.category === 'pet-profile') {
+            const pet = await prisma.pets.findUnique({
+                where: { id: uploadRequest.entityId },
+                select: { user_id: true },
+            });
+            if (!pet) throw new NotFoundError('Pet not found');
+            if (pet.user_id !== userId)
+                throw new ForbiddenError('Only the pet owner can upload a profile image');
+        }
+
+        // For reminder attachments, the user must own or have caregiver access to the reminder's pet
+        if (uploadRequest.category === 'reminder-attachment') {
+            const reminder = await prisma.reminders.findUnique({
+                where: { id: uploadRequest.entityId },
+                select: { pet_id: true },
+            });
+            if (!reminder) throw new NotFoundError('Reminder not found');
+            const hasAccess = reminder.pet_id
+                ? await canAccessPet(reminder.pet_id, userId)
+                : false;
+            if (!hasAccess)
+                throw new ForbiddenError('Access to this reminder denied');
+        }
 
         const result = await uploadService.generateUploadUrl(uploadRequest, userId);
 

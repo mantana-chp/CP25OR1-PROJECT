@@ -5,6 +5,7 @@ import { minioClient } from '../../libs/minio-client';
 import { NotFoundError, ApiError, BadRequestError } from '../../shared/errors';
 import { reminder_attachments } from '../../generated/prisma/client';
 import { logger } from '../../libs/logger';
+import { canAccessPet } from '../pet-sharing/pet-sharing-repository';
 
 const MAX_ATTACHMENTS = 2;
 const PRESIGNED_GET_EXPIRY = 3600; // 1 hour
@@ -33,12 +34,13 @@ async function toDto(attachment: reminder_attachments): Promise<AttachmentDto> {
     };
 }
 
-// ── Verify the reminder exists and belongs to userId ──────────────────────────
+// ── Verify the user can access the reminder (owner OR active caregiver) ───────
 async function assertOwner(reminderId: string, userId: string): Promise<void> {
     const reminder = await reminderRepository.findFullById(reminderId);
     if (!reminder) throw new NotFoundError('Reminder not found');
-    if (reminder.user_id !== userId)
-        throw new ApiError('Forbidden', 403, [{ message: 'User is not the owner of this reminder' }]);
+    const hasAccess = await canAccessPet(reminder.pet_id!, userId);
+    if (!hasAccess)
+        throw new ApiError('Forbidden', 403, [{ message: 'Access to this reminder denied' }]);
 }
 
 // ── Request a presigned PUT URL (enforces ≤2 attachments) ────────────────────
