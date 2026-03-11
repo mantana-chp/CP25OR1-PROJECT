@@ -56,10 +56,22 @@ export default function ReminderPage() {
     }, [loadReminders, loadPets])
   )
 
-  const reminders = getRemindersApi.data?.data?.reminders || []
-  const recurringRules = getRemindersApi.data?.data?.recurringRules || []
-  const pets = getPetsApi.data?.data || []
-  const safeReminders = Array.isArray(reminders) ? reminders : []
+  const reminders = useMemo(
+    () => getRemindersApi.data?.data?.reminders || [],
+    [getRemindersApi.data]
+  )
+  const recurringRules = useMemo(
+    () => getRemindersApi.data?.data?.recurringRules || [],
+    [getRemindersApi.data]
+  )
+  const pets = useMemo(
+    () => getPetsApi.data?.data || [],
+    [getPetsApi.data]
+  )
+  const safeReminders = useMemo(
+    () => (Array.isArray(reminders) ? reminders : []),
+    [reminders]
+  )
 
   // Generate virtual reminders asynchronously (AsyncStorage requires async)
   useEffect(() => {
@@ -84,20 +96,24 @@ export default function ReminderPage() {
     }
   }, [recurringRules, safeReminders, pets])
 
-  const remindersWithRecurrence = safeReminders.map((reminder) => {
-    const recurringRule = Array.isArray(recurringRules)
-      ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
-      : null
+  const remindersWithRecurrence = useMemo(
+    () =>
+      safeReminders.map((reminder) => {
+        const recurringRule = Array.isArray(recurringRules)
+          ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
+          : null
 
-    if (recurringRule) {
-      return {
-        ...reminder,
-        recurrence: recurringRule as any
-      }
-    }
+        if (recurringRule) {
+          return {
+            ...reminder,
+            recurrence: recurringRule as any
+          }
+        }
 
-    return reminder
-  })
+        return reminder
+      }),
+    [safeReminders, recurringRules]
+  )
 
   // Generate virtual reminders and merge with real ones
   // Use requirePreviousDone: true for the list to only show virtual reminders when previous instances are done
@@ -156,16 +172,19 @@ export default function ReminderPage() {
     setSelectedDate(new Date())
   }
 
-  const filteredReminders =
-    hasUserSelectedDate && selectedDate
-      ? allReminders.filter((reminder) =>
-          dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
-        )
-      : allReminders.filter((reminder) => {
-          if (!reminder.isVirtual) return true
+  const filteredReminders = useMemo(
+    () =>
+      hasUserSelectedDate && selectedDate
+        ? allReminders.filter((reminder) =>
+            dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
+          )
+        : allReminders.filter((reminder) => {
+            if (!reminder.isVirtual) return true
 
-          return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
-        })
+            return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
+          }),
+    [hasUserSelectedDate, selectedDate, allReminders]
+  )
 
   const handleResetRemindersFilters = () => {
     setSelectedCategory(null)
