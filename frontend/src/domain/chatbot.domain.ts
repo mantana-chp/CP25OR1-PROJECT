@@ -1,17 +1,18 @@
+export interface HistoryItem {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface ChatRequest {
   resolvedPetId?: string
   query: string
+  history?: HistoryItem[]
 }
 
 export interface ChatResponse {
   answer: string
   resolvedPetId?: string
-  requires_user_input?: boolean
-  input_type?: 'severity_scale'
-  metadata?: {
-    prompt?: string
-    context?: string
-  }
+  severityFlag?: boolean
 }
 
 export type SeverityLevel = 1 | 2 | 3 | 4 | 5

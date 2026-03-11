@@ -1,11 +1,20 @@
-import { ChatRequest, ChatResponse } from '@/src/domain/chatbot.domain'
+import {
+  ChatRequest,
+  ChatResponse,
+  HistoryItem
+} from '@/src/domain/chatbot.domain'
 import { apiClient } from '../api_client'
 
 export const chatbotService = {
-  sendMessage: async (query: string, resolvedPetId?: string) => {
+  sendMessage: async (
+    query: string,
+    resolvedPetId?: string,
+    history?: HistoryItem[]
+  ) => {
     const requestBody: ChatRequest = {
       query,
-      resolvedPetId
+      resolvedPetId,
+      history
     }
 
     return apiClient.post<{ data: ChatResponse }>('/v1/ai-chat', requestBody)

@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 
 import { useError } from '@/src/presentation/components/error_context'
+import { HistoryItem } from '@/src/domain/chatbot.domain'
 import { chatbotService } from '@/src/utils/api/services/chatbot_service'
 
 import Header from '../../components/header_component'
@@ -27,8 +28,8 @@ interface Message {
   text: string
   isUser: boolean
   requiresSeverityInput?: boolean
-  severityPrompt?: string
   awaitingSeverity?: boolean
+  originalQuery?: string
 }
 
 export default function ChatbotPage() {
@@ -36,11 +37,14 @@ export default function ChatbotPage() {
 
   const [disclaimerVisible, setDisclaimerVisible] = useState(true)
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
-  const [resolvedPetId, setResolvedPetId] = useState<string | undefined>(undefined)
+  const [resolvedPetId, setResolvedPetId] = useState<string | undefined>(
+    undefined
+  )
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const [isError, setIsError] = useState(false)
   const [lastFailedMessage, setLastFailedMessage] = useState<string>('')
+  const [chatHistory, setChatHistory] = useState<HistoryItem[]>([])
   const scrollViewRef = useRef<ScrollView>(null)
 
   // Show welcome message after disclaimer is accepted
@@ -78,8 +82,13 @@ export default function ChatbotPage() {
     }, 100)
 
     try {
-      // Call the API with query and optional resolvedPetId
-      const response = await chatbotService.sendMessage(text, resolvedPetId)
+      // Call the API with query, optional resolvedPetId, and conversation history
+      const response = await chatbotService.sendMessage(
+        text,
+        resolvedPetId,
+        chatHistory
+      )
+      console.log(response.data)
 
       // Always update resolvedPetId with what server returns
       // - New pet detected → server returns new uuid → state updates
@@ -88,9 +97,21 @@ export default function ChatbotPage() {
       setResolvedPetId(response.data.resolvedPetId)
 
       // Check if AI requires severity input
-      const requiresSeverity = 
-        response.data.requires_user_input === true && 
-        response.data.input_type === 'severity_scale'
+      console.log('[Chatbot] API response data:', JSON.stringify(response.data))
+      const requiresSeverity = response.data.severityFlag === true
+      console.log(
+        '[Chatbot] severityFlag:',
+        response.data.severityFlag,
+        '| requiresSeverity:',
+        requiresSeverity
+      )
+
+      // Update chat history with this exchange
+      setChatHistory((prev) => [
+        ...prev,
+        { role: 'user', content: text },
+        { role: 'assistant', content: response.data.answer }
+      ])
 
       // Add AI response
       const aiMessage: Message = {
@@ -98,8 +119,8 @@ export default function ChatbotPage() {
         text: response.data.answer,
         isUser: false,
         requiresSeverityInput: requiresSeverity,
-        severityPrompt: response.data.metadata?.prompt,
-        awaitingSeverity: requiresSeverity
+        awaitingSeverity: requiresSeverity,
+        originalQuery: requiresSeverity ? text : undefined
       }
       setMessages((prev) => [...prev, aiMessage])
 
@@ -124,6 +145,10 @@ export default function ChatbotPage() {
     level: SeverityLevel,
     label: string
   ) => {
+    // Find the original symptom query from the severity-triggering AI message
+    const targetMessage = messages.find((msg) => msg.id === messageId)
+    const originalQuery = targetMessage?.originalQuery || ''
+
     // Mark the message as no longer awaiting severity
     setMessages((prev) =>
       prev.map((msg) =>
@@ -131,10 +156,10 @@ export default function ChatbotPage() {
       )
     )
 
-    // Send severity context as a hidden message to AI
-    const severityText = `[ระดับความรุนแรงของอาการ: ${level}/5 - ${label}]`
-    
-    // Show the severity selection as user message
+    // Build severity query with prefix expected by the backend
+    const severityQuery = `[SEVERITY: ${level}/5] ${originalQuery}`
+
+    // Show the severity selection as user message (friendly display)
     const userSeverityMessage: Message = {
       id: Date.now().toString(),
       text: `เลือกระดับความรุนแรง: ${label} (${level}/5)`,
@@ -150,14 +175,22 @@ export default function ChatbotPage() {
     }, 100)
 
     try {
-      // Send the severity context back to AI
+      // Send severity query with conversation history back to AI
       const response = await chatbotService.sendMessage(
-        severityText,
-        resolvedPetId
+        severityQuery,
+        resolvedPetId,
+        chatHistory
       )
 
       // Update resolvedPetId from response
       setResolvedPetId(response.data.resolvedPetId)
+
+      // Update chat history with the severity exchange
+      setChatHistory((prev) => [
+        ...prev,
+        { role: 'user', content: severityQuery },
+        { role: 'assistant', content: response.data.answer }
+      ])
 
       // Add AI's follow-up response
       const aiMessage: Message = {
@@ -206,11 +239,8 @@ export default function ChatbotPage() {
         >
           {_.map(messages, (message) => (
             <React.Fragment key={message.id}>
-              <ChatBubble
-                message={message.text}
-                isUser={message.isUser}
-              />
-              
+              <ChatBubble message={message.text} isUser={message.isUser} />
+
               {/* Show severity scale widget if needed */}
               {message.requiresSeverityInput && message.awaitingSeverity && (
                 <SeverityScaleWidget
@@ -218,7 +248,6 @@ export default function ChatbotPage() {
                     handleSeveritySelect(message.id, level, label)
                   }
                   disabled={isTyping}
-                  prompt={message.severityPrompt}
                 />
               )}
             </React.Fragment>
