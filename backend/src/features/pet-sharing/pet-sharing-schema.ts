@@ -3,7 +3,7 @@ import { z } from 'zod';
 // POST /v1/pets/invite
 export const generateInviteSchema = z.object({
     body: z.object({
-        petIds: z.array(z.string().uuid('Invalid pet ID')).min(1, 'At least one pet is required'),
+        petIds: z.array(z.uuid('Invalid pet ID')).min(1, 'At least one pet is required'),
         alias: z.string().trim().min(1, 'Alias is required').max(100, 'Alias must be at most 100 characters'),
     }),
 });
@@ -11,21 +11,21 @@ export const generateInviteSchema = z.object({
 // POST /v1/pet-shares/claim/:token
 export const claimInviteSchema = z.object({
     params: z.object({
-        token: z.string().uuid('Invalid invite token'),
+        token: z.uuid('Invalid invite token'),
     }),
 });
 
 // GET /v1/pets/:petId/caregivers
 export const listCaregiversSchema = z.object({
     params: z.object({
-        petId: z.string().uuid('Invalid pet ID'),
+        petId: z.uuid('Invalid pet ID'),
     }),
 });
 
 // PATCH /v1/owner-contacts/:contactId
 export const updateAliasSchema = z.object({
     params: z.object({
-        contactId: z.string().uuid('Invalid contact ID'),
+        contactId: z.uuid('Invalid contact ID'),
     }),
     body: z.object({
         alias: z.string().trim().min(1, 'Alias is required').max(100, 'Alias must be at most 100 characters'),
@@ -35,8 +35,8 @@ export const updateAliasSchema = z.object({
 // DELETE /v1/pets/:petId/caregivers/:accessId
 export const revokeCaregiverSchema = z.object({
     params: z.object({
-        petId: z.string().uuid('Invalid pet ID'),
-        accessId: z.string().uuid('Invalid access ID'),
+        petId: z.uuid('Invalid pet ID'),
+        accessId: z.uuid('Invalid access ID'),
     }),
 });
 
@@ -46,6 +46,6 @@ export const listInvitesSchema = z.object({});
 // DELETE /v1/pets/invites/:inviteId
 export const cancelInviteSchema = z.object({
     params: z.object({
-        inviteId: z.string().uuid('Invalid invite ID'),
+        inviteId: z.uuid('Invalid invite ID'),
     }),
 });
