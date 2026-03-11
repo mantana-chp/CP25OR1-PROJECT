@@ -291,7 +291,7 @@ export const getReminderById = async (
   let created_by: string
   if (creatorId === userId) {
     // The requesting user is the one who created this reminder
-    created_by = 'You'
+    created_by = 'คุณ'
   } else if (petOwnerId === userId) {
     // Owner is viewing — the creator was a caregiver; show their alias
     const contact = await prisma.owner_caregiver_contacts.findUnique({
@@ -303,10 +303,10 @@ export const getReminderById = async (
       },
       select: { alias: true },
     })
-    created_by = contact?.alias ?? 'Caregiver'
+    created_by = contact?.alias ?? 'ผู้ดูแล'
   } else {
-    // Caregiver is viewing — the creator was the owner (or another party)
-    created_by = 'Owner'
+    // Caregiver is viewing — the creator was the owner
+    created_by = 'เจ้าของสัตว์เลี้ยง'
   }
 
   const dto = mapFullPrismaReminderToFullReminderDto(reminder)
