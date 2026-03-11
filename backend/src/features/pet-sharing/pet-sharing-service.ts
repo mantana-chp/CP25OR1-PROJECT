@@ -139,6 +139,7 @@ export const listCaregivers = async (petId: string) => {
     const rows = await repo.findCaregiversByPetId(petId);
     return rows.map((row) => ({
         accessId: row.id,
+        contactId: row.contact.id,
         alias: row.contact.alias,
         grantedAt: row.granted_at,
     }));
