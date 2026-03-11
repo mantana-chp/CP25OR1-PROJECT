@@ -8,6 +8,11 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { LayoutAnimation } from 'react-native'
 
+interface NavigationRange {
+  minDate: Date
+  maxDate: Date
+}
+
 interface DayInfo {
   day: number
   isCurrentMonth: boolean
@@ -63,6 +68,54 @@ export const useCalendar = (
   const allReminders = useMemo(() => {
     return mergeRealAndVirtualReminders(reminders, virtualReminders)
   }, [reminders, virtualReminders])
+
+  // --- Navigation range ---
+  // Default: 1 year backward and forward from today.
+  // If any reminder falls outside that window, extend the boundary to include it.
+  const navigationRange = useMemo((): NavigationRange => {
+    const now = new Date()
+    const defaultMin = new Date(now.getFullYear() - 1, now.getMonth(), 1)
+    const defaultMax = new Date(now.getFullYear() + 1, now.getMonth(), 1)
+
+    if (allReminders.length === 0) {
+      return { minDate: defaultMin, maxDate: defaultMax }
+    }
+
+    const reminderTimes = allReminders.map((r) =>
+      new Date(r.reminderDate).getTime()
+    )
+    const earliest = new Date(Math.min(...reminderTimes))
+    const latest = new Date(Math.max(...reminderTimes))
+
+    const minDate =
+      earliest < defaultMin
+        ? new Date(earliest.getFullYear(), earliest.getMonth(), 1)
+        : defaultMin
+    const maxDate =
+      latest > defaultMax
+        ? new Date(latest.getFullYear(), latest.getMonth(), 1)
+        : defaultMax
+
+    return { minDate, maxDate }
+  }, [allReminders])
+
+  const canGoPrev = useMemo(() => {
+    const prevMonthStart = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - 1,
+      1
+    )
+    return prevMonthStart >= navigationRange.minDate
+  }, [currentDate, navigationRange])
+
+  const canGoNext = useMemo(() => {
+    const nextMonthStart = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      1
+    )
+    return nextMonthStart <= navigationRange.maxDate
+  }, [currentDate, navigationRange])
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -192,6 +245,7 @@ export const useCalendar = (
   }
 
   const previousMonth = () => {
+    if (!canGoPrev) return
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
@@ -199,6 +253,7 @@ export const useCalendar = (
   }
 
   const nextMonth = () => {
+    if (!canGoNext) return
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
@@ -223,6 +278,8 @@ export const useCalendar = (
     previousMonth,
     nextMonth,
     goToToday,
+    canGoPrev,
+    canGoNext,
     allReminders // Export merged reminders for use in other components
   }
 }
