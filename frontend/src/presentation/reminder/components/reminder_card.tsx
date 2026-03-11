@@ -7,13 +7,13 @@ import 'dayjs/locale/th'
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native'
+import Modal from '../../components/modal'
 
 import {
   convertFromBackendRecurrence,
@@ -400,42 +400,18 @@ export default function ReminderCard(props: ReminderCardProps) {
 
       {/* Delete Confirmation Modal */}
       <Modal
+        variant="confirmation"
         visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelDelete}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ยืนยันการลบ</Text>
-            <Text style={styles.modalMessage}>
-              คุณต้องการลบเตือนความจำ{' '}
-              <Text style={styles.modalBold}>{reminder.reminderName}</Text>{' '}
-              หรือไม่?
-            </Text>
-            <Text style={styles.modalSubMessage}>
-              การดำเนินการนี้ไม่สามารถย้อนกลับได้
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.deleteButtonModal]}
-                onPress={handleConfirmDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteButtonText}>ลบ</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={handleCancelDelete}
+        icon="trash"
+        title="ยืนยันการลบ"
+        message={`ต้องการลบเตือนความจำ "${reminder.reminderName}" ใช่หรือไม่?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+        confirmText="ลบ"
+        cancelText="ยกเลิก"
+        onConfirm={handleConfirmDelete}
+        confirmVariant="error"
+        isLoading={isDeleting}
+      />
 
       {/* Delete Series Modal for Recurring Reminders */}
       <DeleteSeriesModal
@@ -606,72 +582,5 @@ const styles = StyleSheet.create({
   },
   chevron: {
     marginLeft: 4
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    gap: 16
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877',
-    textAlign: 'center'
-  },
-  modalMessage: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877',
-    textAlign: 'center',
-    lineHeight: 24
-  },
-  modalBold: {
-    fontFamily: 'Prompt_700Bold',
-    color: '#BF1737'
-  },
-  modalSubMessage: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#6b7280',
-    textAlign: 'center'
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignItems: 'center'
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db'
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_500Medium',
-    color: '#4b5563'
-  },
-  deleteButtonModal: {
-    backgroundColor: '#BF1737'
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#fff'
   }
 })

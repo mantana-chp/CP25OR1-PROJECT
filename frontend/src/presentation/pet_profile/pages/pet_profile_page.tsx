@@ -320,16 +320,6 @@ export default function PetProfilePage() {
     [hardDeletePet]
   )
 
-  // --- Deceased handlers ---
-  const openDeceasedModalFromDelete = useCallback(() => {
-    if (!petToDelete) return
-    setPetToMarkDeceased({
-      id: petToDelete.id,
-      name: petToDelete.name
-    })
-    setShowDeceasedModal(true)
-  }, [petToDelete])
-
   const openDeceasedModalFromCard = useCallback(() => {
     if (!currentPet) return
     setPetToMarkDeceased({
@@ -600,7 +590,6 @@ export default function PetProfilePage() {
           setPetToDelete(null)
         }}
         onDelete={handleDeleteConfirm}
-        onDeceased={openDeceasedModalFromDelete}
         isLoading={isDeleting}
       />
 

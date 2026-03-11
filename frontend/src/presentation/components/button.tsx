@@ -1,3 +1,4 @@
+import { colors } from '@/constants/design-system'
 import React from 'react'
 import {
   ActivityIndicator,
@@ -5,7 +6,8 @@ import {
   StyleSheet,
   Text,
   TextStyle,
-  ViewStyle,
+  TouchableOpacity,
+  ViewStyle
 } from 'react-native'
 
 type ButtonVariant = 'base' | 'success' | 'error' | 'ghost'
@@ -32,7 +34,7 @@ export default function Button({
   loading = false,
   fullWidth = false,
   style,
-  textStyle,
+  textStyle
 }: ButtonProps) {
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
@@ -91,14 +93,14 @@ export default function Button({
   }
 
   return (
-    <Pressable
+    <TouchableOpacity
       style={[
         styles.button,
         getVariantStyle(),
         getSizeStyle(),
         fullWidth && styles.fullWidth,
         (disabled || loading) && styles.disabled,
-        style,
+        style
       ]}
       onPress={onPress}
       disabled={disabled || loading}
@@ -114,13 +116,13 @@ export default function Button({
             styles.buttonText,
             getVariantTextStyle(),
             getSizeTextStyle(),
-            textStyle,
+            textStyle
           ]}
         >
           {title}
         </Text>
       )}
-    </Pressable>
+    </TouchableOpacity>
   )
 }
 
@@ -129,65 +131,64 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
+    flexDirection: 'row'
   },
   buttonText: {
     fontFamily: 'Prompt_500Medium',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   fullWidth: {
-    width: '100%',
+    width: '100%'
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.5
   },
-  // Variants
   baseButton: {
-    backgroundColor: '#225877',
+    backgroundColor: '#225877'
   },
   baseButtonText: {
-    color: '#fff',
+    color: '#fff'
   },
   successButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success.DEFAULT
   },
   successButtonText: {
-    color: '#fff',
+    color: '#fff'
   },
   errorButton: {
-    backgroundColor: '#BF1737',
+    backgroundColor: colors.danger.dark
   },
   errorButtonText: {
-    color: '#fff',
+    color: '#fff'
   },
   ghostButton: {
     backgroundColor: '#f3f4f6',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#d1d5db'
   },
   ghostButtonText: {
-    color: '#4b5563',
+    color: '#4b5563'
   },
   // Sizes
   smallButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   smallButtonText: {
-    fontSize: 13,
+    fontSize: 13
   },
   mediumButton: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 24
   },
   mediumButtonText: {
-    fontSize: 14,
+    fontSize: 14
   },
   largeButton: {
     paddingVertical: 14,
-    paddingHorizontal: 32,
+    paddingHorizontal: 32
   },
   largeButtonText: {
-    fontSize: 16,
-  },
+    fontSize: 16
+  }
 })
