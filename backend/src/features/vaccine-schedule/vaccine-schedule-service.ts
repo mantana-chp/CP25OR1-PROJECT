@@ -6,6 +6,7 @@ export enum VaccineLogicType {
 import { addDays, differenceInDays, format } from 'date-fns'
 import prisma from '../../libs/db'
 import { ApiError, NotFoundError } from '../../shared/errors'
+import { canAccessPet } from '../pet-sharing/pet-sharing-repository'
 
 export interface CalculateScheduleInput {
   petId: string
@@ -35,8 +36,9 @@ export const calculateVaccineSchedule = async (
   if (!vaccine) {
     throw new NotFoundError('Vaccine not found')
   }
-  if (pet.user_id !== userId) {
-    throw new ApiError('Forbidden: User does not own this pet.', 403)
+  // Allow owner or active caregiver to calculate vaccine schedules
+  if (!(await canAccessPet(petId, userId))) {
+    throw new ApiError('Forbidden: Access to this pet denied.', 403)
   }
   if (!pet.birth_date) {
     throw new ApiError(
@@ -147,8 +149,9 @@ export const getVaccinesForPet = async (petId: string, userId: string) => {
     throw new NotFoundError('Pet not found')
   }
 
-  if (pet.user_id !== userId) {
-    throw new ApiError('Forbidden: User does not own this pet.', 403)
+  // Allow owner or active caregiver to view vaccines
+  if (!(await canAccessPet(petId, userId))) {
+    throw new ApiError('Forbidden: Access to this pet denied.', 403)
   }
 
   const vaccines = await prisma.vaccine.findMany({
@@ -175,13 +178,13 @@ export const getVaccinesForPet = async (petId: string, userId: string) => {
       vaccine.primary_series_logic === VaccineLogicType.FIXED_COUNT
         ? vaccine.primary_target_value
         : Math.max(
-            vaccine.primary_interval_days > 0
-              ? Math.ceil(
-                  vaccine.primary_target_value / vaccine.primary_interval_days,
-                )
-              : vaccine.primary_target_value,
-            vaccine.adult_primary_dose_count,
-          )
+          vaccine.primary_interval_days > 0
+            ? Math.ceil(
+              vaccine.primary_target_value / vaccine.primary_interval_days,
+            )
+            : vaccine.primary_target_value,
+          vaccine.adult_primary_dose_count,
+        )
 
     return {
       id: vaccine.id,

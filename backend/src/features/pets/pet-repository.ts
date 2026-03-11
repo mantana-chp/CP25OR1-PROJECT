@@ -88,6 +88,14 @@ export const findPetProfileByPetId = async (petId: string, userId: string) => {
   });
 };
 
+/** Fetch a pet by ID alone (no ownership filter). Used after access has been verified externally. */
+export const findPetProfileByIdOnly = async (petId: string) => {
+  return await prisma.pets.findUnique({
+    where: { id: petId },
+    select: petProfileSelect,
+  });
+};
+
 export const update = async (petId: string, userId: string, data: Prisma.petsUpdateInput) => {
   return await prisma.pets.update({
     where: {
@@ -161,7 +169,7 @@ export const restorePet = async (petId: string, userId: string) => {
 /** Permanent delete - for user-initiated permanent deletion */
 export const permanentDeletePet = async (petId: string, userId: string) => {
   return await prisma.pets.delete({
-    where: { 
+    where: {
       id: petId,
       user_id: userId,
     },

@@ -178,3 +178,63 @@ export const findActiveRecurrenceRulesByUserId = async (userId: string): Promise
   });
   return recurrenceRules;
 };
+
+// ─── Caregiver-aware queries (owner OR active caregiver access) ───────────────
+
+const accessiblePetsCondition = (userId: string) => ({
+  OR: [
+    { pets: { user_id: userId } },
+    { pets: { user_access: { some: { user_id: userId, revoked_at: null } } } },
+  ],
+});
+
+export const findNotDoneByAccessiblePets = async (userId: string) => {
+  return await prisma.reminders.findMany({
+    where: {
+      parent_id: null,
+      reminder_status: {
+        in: [reminder_status.to_do, reminder_status.overdue],
+      },
+      ...accessiblePetsCondition(userId),
+    },
+    include: {
+      pets: true,
+      children: true,
+      recurrence_template: true,
+    },
+    orderBy: [
+      { reminder_date: 'asc' },
+      { reminder_time: 'asc' },
+    ],
+  });
+};
+
+export const findDoneByAccessiblePets = async (userId: string) => {
+  return await prisma.reminders.findMany({
+    where: {
+      parent_id: null,
+      reminder_status: reminder_status.done,
+      ...accessiblePetsCondition(userId),
+    },
+    include: {
+      pets: true,
+      children: true,
+      recurrence_template: true,
+    },
+    orderBy: { updated_at: 'asc' },
+  });
+};
+
+export const findActiveRecurrenceRulesByAccessiblePets = async (userId: string): Promise<recurrence[]> => {
+  return await prisma.recurrence.findMany({
+    where: {
+      recurrence_status: RecurrenceStatusEnum.ACTIVE,
+      reminders: {
+        some: {
+          parent_id: null,
+          ...accessiblePetsCondition(userId),
+        },
+      },
+    },
+  });
+};

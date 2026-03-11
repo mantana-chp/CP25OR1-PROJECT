@@ -12,6 +12,7 @@ import {
   permanentDeletePetController,
 } from './pet-controller'
 import { authGuard } from '../../middlewares/authGuard'
+import { resolvePetRole, requireOwner } from '../../middlewares/resolvePetRole'
 import { validate } from '../../middlewares/validate'
 import {
   createPetSchema,
@@ -149,6 +150,7 @@ petRoutes.get(
 petRoutes.get(
   '/me/:id',
   authGuard,
+  resolvePetRole,
   validate(getPetByIdSchema),
   getPetProfileByIdController,
 )
@@ -193,6 +195,8 @@ petRoutes.get(
 petRoutes.patch(
   '/me/:id',
   authGuard,
+  resolvePetRole,
+  requireOwner,
   validate(updatePetSchema),
   updatePetController,
 )
@@ -232,6 +236,8 @@ petRoutes.patch(
 petRoutes.put(
   '/me/:id/profile-image',
   authGuard,
+  resolvePetRole,
+  requireOwner,
   validate(updatePetProfileImageSchema),
   updatePetProfileImageController,
 )
@@ -259,6 +265,8 @@ petRoutes.put(
 petRoutes.delete(
   '/me/:id/profile-image',
   authGuard,
+  resolvePetRole,
+  requireOwner,
   validate(deletePetProfileImageSchema),
   deletePetProfileImageController,
 )
@@ -313,6 +321,8 @@ petRoutes.delete(
 petRoutes.delete(
   '/me/:id',
   authGuard,
+  resolvePetRole,
+  requireOwner,
   validate(softDeletePetSchema),
   softDeletePetController,
 )
@@ -351,6 +361,8 @@ petRoutes.delete(
 petRoutes.delete(
   '/me/:id/permanent',
   authGuard,
+  resolvePetRole,
+  requireOwner,
   validate(permanentDeletePetSchema),
   permanentDeletePetController,
 )
