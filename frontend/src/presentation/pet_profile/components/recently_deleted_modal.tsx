@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -133,11 +134,18 @@ export default function RecentlyDeletedModal({
                   <View key={pet.id} style={styles.petItem}>
                     <View style={styles.petInfo}>
                       <View style={styles.petAvatar}>
-                        <MaterialCommunityIcons
-                          name="dog"
-                          size={18}
-                          color="white"
-                        />
+                        {pet.profile_image_url ? (
+                          <Image
+                            source={{ uri: pet.profile_image_url }}
+                            style={styles.petAvatarImage}
+                          />
+                        ) : (
+                          <MaterialCommunityIcons
+                            name="dog"
+                            size={18}
+                            color="white"
+                          />
+                        )}
                       </View>
                       <View style={styles.petDetails}>
                         <Text style={styles.petName} numberOfLines={1}>
@@ -256,13 +264,19 @@ const styles = StyleSheet.create({
     flex: 1
   },
   petAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#9CA3AF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10
+    marginRight: 10,
+    overflow: 'hidden'
+  },
+  petAvatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18
   },
   petDetails: {
     flex: 1
