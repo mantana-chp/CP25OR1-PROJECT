@@ -23,6 +23,7 @@ import {
   Bone,
   ChevronRight,
   Clock,
+  Paperclip,
   PawPrint,
   Pill,
   Pipette,
@@ -344,6 +345,35 @@ export default function ReminderCard(props: ReminderCardProps) {
                   ? `${formattedDate}, ${formattedTime} น.`
                   : formattedDate}
               </Text>
+
+              {reminder?.attachments?.length > 0 && (
+                <>
+                  <View style={styles.separator} />
+                  <Paperclip
+                    size={10}
+                    color={
+                      isDone
+                        ? '#9CA3AF'
+                        : reminder?.reminderStatus === 'overdue'
+                          ? '#BF1737'
+                          : isVirtual
+                            ? '#D1D5DB'
+                            : '#9CA3AF'
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.dateTimeText,
+                      reminder?.reminderStatus === 'overdue' &&
+                        styles.overdueText,
+                      isVirtual && styles.virtualText,
+                      isDone && styles.doneText
+                    ]}
+                  >
+                    {reminder?.attachments?.length} ไฟล์แนบ
+                  </Text>
+                </>
+              )}
             </View>
 
             {/* Recurrence info if recurring */}

@@ -105,7 +105,7 @@ export interface IReminder {
   createdAt: string
   updatedAt: string
   children: IReminder[]
-  attachments?: IAttachment[] // File attachments
+  attachments: IAttachment[] // File attachments
   pendingAttachments?: IPendingAttachment[] // Attachments pending upload (frontend only)
   // Recurrence fields
   recurrenceId?: string // ID of the recurring rule (if this reminder is part of a series)
@@ -145,6 +145,7 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     createdAt: v.createdAt || '',
     updatedAt: v.updatedAt || '',
     children: v.children || [],
+    attachments: v.attachments || [],
     pendingAttachments: v.pendingAttachments || [],
     recurrence: v.recurrence,
     occurrenceNumber: v.occurrenceNumber,
