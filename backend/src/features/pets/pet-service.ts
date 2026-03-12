@@ -2,14 +2,14 @@ import * as petRepository from './pet-repository'
 import {
   NotFoundError,
   ConflictError,
-  BadRequestError,
+  BadRequestError
 } from '../../shared/errors'
 import {
   Prisma,
   pet_status,
   reminder_status,
   notification_status,
-  RecurrenceStatusEnum,
+  RecurrenceStatusEnum
 } from '../../generated/prisma/client'
 import { type PetUpdatePayload } from './pet-schema'
 import { formatAgeFromBirthDate } from '../../shared/utils'
@@ -54,7 +54,7 @@ const formatPetProfile = async (pet: any) => {
     status: pet.status,
     deceased_date: pet.deceased_date ?? null,
     deleted_at: pet.deleted_at ?? null,
-    deletion_reason: pet.deletion_reason ?? null,
+    deletion_reason: pet.deletion_reason ?? null
   }
 }
 
@@ -71,7 +71,7 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
     birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
     user: { connect: { id: userId } },
     species: { connect: { id: petData.species_id } },
-    ...(petData.breed_id && { breeds: { connect: { id: petData.breed_id } } }),
+    ...(petData.breed_id && { breeds: { connect: { id: petData.breed_id } } })
   }
 
   return await petRepository.create(data)
@@ -80,7 +80,7 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
 export const updatePet = async (
   petId: string,
   userId: string,
-  petData: PetUpdatePayload,
+  petData: PetUpdatePayload
 ) => {
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
   if (!existingPet) {
@@ -122,7 +122,7 @@ export const updatePet = async (
 
   if (Object.keys(updateData).length === 0) {
     throw new BadRequestError(
-      'Request body must contain at least one valid field to update.',
+      'Request body must contain at least one valid field to update.'
     )
   }
 
@@ -133,11 +133,11 @@ export const updatePet = async (
 
 export const getAllPetProfilesForUser = async (
   userId: string,
-  status?: pet_status,
+  status?: pet_status
 ) => {
   const pets = await petRepository.findAllPetProfilesByUserId(
     userId,
-    status ?? pet_status.ACTIVE,
+    status ?? pet_status.ACTIVE
   )
 
   if (!pets || pets.length === 0) {
@@ -166,7 +166,7 @@ export const getPetProfileById = async (petId: string, userId: string) => {
 export const updatePetProfileImage = async (
   petId: string,
   userId: string,
-  objectKey: string,
+  objectKey: string
 ) => {
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
   if (!existingPet) {
@@ -185,7 +185,7 @@ export const updatePetProfileImage = async (
 
   // Update with new profile image key
   const updateData: Prisma.petsUpdateInput = {
-    profile_image_key: objectKey,
+    profile_image_key: objectKey
   }
 
   await petRepository.update(petId, userId, updateData)
@@ -213,7 +213,7 @@ export const deletePetProfileImage = async (petId: string, userId: string) => {
 
   // Remove from database
   const updateData: Prisma.petsUpdateInput = {
-    profile_image_key: null,
+    profile_image_key: null
   }
 
   await petRepository.update(petId, userId, updateData)
@@ -236,19 +236,19 @@ const cancelAllRemindersForPet = async (petId: string) => {
       where: {
         pet_id: petId,
         reminder_status: {
-          in: [reminder_status.to_do, reminder_status.overdue],
-        },
+          in: [reminder_status.to_do, reminder_status.overdue]
+        }
       },
       data: {
-        reminder_status: reminder_status.cancelled,
-      },
+        reminder_status: reminder_status.cancelled
+      }
     })
 
     // 2. Cancel all active recurrence templates linked to this pet's reminders
     const recurrenceIds = await tx.reminders.findMany({
       where: { pet_id: petId, recurrence_id: { not: null } },
       select: { recurrence_id: true },
-      distinct: ['recurrence_id'],
+      distinct: ['recurrence_id']
     })
 
     const uniqueRecurrenceIds = recurrenceIds
@@ -259,18 +259,18 @@ const cancelAllRemindersForPet = async (petId: string) => {
       await tx.recurrence.updateMany({
         where: {
           id: { in: uniqueRecurrenceIds },
-          recurrence_status: RecurrenceStatusEnum.ACTIVE,
+          recurrence_status: RecurrenceStatusEnum.ACTIVE
         },
         data: {
-          recurrence_status: RecurrenceStatusEnum.CANCELLED,
-        },
+          recurrence_status: RecurrenceStatusEnum.CANCELLED
+        }
       })
     }
 
     // 3. Cancel all pending notifications for this pet's reminders
     const reminderIds = await tx.reminders.findMany({
       where: { pet_id: petId },
-      select: { id: true },
+      select: { id: true }
     })
 
     const reminderIdList = reminderIds.map((r) => r.id)
@@ -279,11 +279,11 @@ const cancelAllRemindersForPet = async (petId: string) => {
       await tx.notifications.updateMany({
         where: {
           reminder_id: { in: reminderIdList },
-          status: notification_status.pending,
+          status: notification_status.pending
         },
         data: {
-          status: notification_status.failed,
-        },
+          status: notification_status.failed
+        }
       })
     }
 
@@ -291,11 +291,11 @@ const cancelAllRemindersForPet = async (petId: string) => {
     await tx.notifications.updateMany({
       where: {
         pet_id: petId,
-        status: notification_status.pending,
+        status: notification_status.pending
       },
       data: {
-        status: notification_status.failed,
-      },
+        status: notification_status.failed
+      }
     })
   })
 }
@@ -309,7 +309,7 @@ export const softDeletePet = async (
   petId: string,
   userId: string,
   reason: 'JUST_DELETE' | 'DECEASED',
-  deceasedDate?: string | null,
+  deceasedDate?: string | null
 ) => {
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
   if (!existingPet) {
@@ -318,7 +318,7 @@ export const softDeletePet = async (
 
   if (existingPet.status !== pet_status.ACTIVE) {
     throw new BadRequestError(
-      'Only active pets can be deleted or marked as deceased.',
+      'Only active pets can be deleted or marked as deceased.'
     )
   }
 
@@ -334,7 +334,7 @@ export const softDeletePet = async (
   const activePetCount = await petRepository.countActivePetsByUserId(userId)
   if (activePetCount <= 1) {
     throw new BadRequestError(
-      'Cannot delete your last active pet. You must have at least one active pet.',
+      'Cannot delete your last active pet. You must have at least one active pet.'
     )
   }
 
@@ -343,7 +343,7 @@ export const softDeletePet = async (
   return {
     message:
       'Pet has been deleted. It will be permanently removed after 30 days.',
-    status: 'DELETED',
+    status: 'DELETED'
   }
 }
 
@@ -353,7 +353,7 @@ export const softDeletePet = async (
 export const getPastPets = async (userId: string) => {
   const pets = await petRepository.findAllPetProfilesByUserId(
     userId,
-    pet_status.DECEASED,
+    pet_status.DECEASED
   )
   if (!pets || pets.length === 0) return []
   return Promise.all(pets.map(formatPetProfile))
@@ -369,6 +369,24 @@ export const getRecentlyDeletedPets = async (userId: string) => {
 }
 
 /**
+ * Restore a soft-deleted pet back to ACTIVE status.
+ * Only works on pets with status = DELETED.
+ */
+export const restorePet = async (petId: string, userId: string) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  if (existingPet.status !== pet_status.DELETED) {
+    throw new BadRequestError('Only soft-deleted pets can be restored.')
+  }
+
+  await petRepository.restorePet(petId, userId)
+  return { message: 'Pet has been restored successfully.', status: 'ACTIVE' }
+}
+
+/**
  * Permanently delete a soft-deleted pet immediately (skip 30-day wait).
  * Only works on pets with status = DELETED.
  */
@@ -380,7 +398,7 @@ export const permanentDeletePet = async (petId: string, userId: string) => {
 
   if (existingPet.status !== pet_status.DELETED) {
     throw new BadRequestError(
-      'Only soft-deleted pets can be permanently deleted.',
+      'Only soft-deleted pets can be permanently deleted.'
     )
   }
 
@@ -389,7 +407,10 @@ export const permanentDeletePet = async (petId: string, userId: string) => {
     try {
       await deleteFile(existingPet.profile_image_key)
     } catch (error) {
-      console.error('Failed to delete profile image during permanent delete:', error)
+      console.error(
+        'Failed to delete profile image during permanent delete:',
+        error
+      )
     }
   }
 

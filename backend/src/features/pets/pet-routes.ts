@@ -10,6 +10,7 @@ import {
   getPastPetsController,
   getRecentlyDeletedPetsController,
   permanentDeletePetController,
+  restorePetController
 } from './pet-controller'
 import { authGuard } from '../../middlewares/authGuard'
 import { validate } from '../../middlewares/validate'
@@ -21,6 +22,7 @@ import {
   deletePetProfileImageSchema,
   softDeletePetSchema,
   permanentDeletePetSchema,
+  restorePetSchema
 } from './pet-schema'
 
 const petRoutes = Router()
@@ -114,7 +116,7 @@ petRoutes.get('/me/past', authGuard, getPastPetsController)
 petRoutes.get(
   '/me/recently-deleted',
   authGuard,
-  getRecentlyDeletedPetsController,
+  getRecentlyDeletedPetsController
 )
 
 /**
@@ -150,7 +152,7 @@ petRoutes.get(
   '/me/:id',
   authGuard,
   validate(getPetByIdSchema),
-  getPetProfileByIdController,
+  getPetProfileByIdController
 )
 
 /**
@@ -194,7 +196,7 @@ petRoutes.patch(
   '/me/:id',
   authGuard,
   validate(updatePetSchema),
-  updatePetController,
+  updatePetController
 )
 
 /**
@@ -233,7 +235,7 @@ petRoutes.put(
   '/me/:id/profile-image',
   authGuard,
   validate(updatePetProfileImageSchema),
-  updatePetProfileImageController,
+  updatePetProfileImageController
 )
 
 /**
@@ -260,7 +262,7 @@ petRoutes.delete(
   '/me/:id/profile-image',
   authGuard,
   validate(deletePetProfileImageSchema),
-  deletePetProfileImageController,
+  deletePetProfileImageController
 )
 
 /**
@@ -314,7 +316,7 @@ petRoutes.delete(
   '/me/:id',
   authGuard,
   validate(softDeletePetSchema),
-  softDeletePetController,
+  softDeletePetController
 )
 
 /**
@@ -352,7 +354,44 @@ petRoutes.delete(
   '/me/:id/permanent',
   authGuard,
   validate(permanentDeletePetSchema),
-  permanentDeletePetController,
+  permanentDeletePetController
+)
+
+/**
+ * @openapi
+ * /pets/me/{id}/restore:
+ *   patch:
+ *     tags: [Pets]
+ *     summary: Restore a soft-deleted pet back to active status
+ *     description: |
+ *       Restores a pet that was previously soft-deleted (status = DELETED) back to ACTIVE status.
+ *       Only pets within the 30-day recovery window can be restored.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the soft-deleted pet to restore
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Pet restored successfully.
+ *       400:
+ *         description: Bad Request - Pet is not in DELETED status.
+ *       401:
+ *         description: Unauthorized.
+ *       404:
+ *         description: Pet not found.
+ */
+petRoutes.patch(
+  '/me/:id/restore',
+  authGuard,
+  validate(restorePetSchema),
+  restorePetController
 )
 
 export default petRoutes

@@ -11,6 +11,7 @@ import {
   softDeletePetSchema,
   getPetsQuerySchema,
   permanentDeletePetSchema,
+  restorePetSchema
 } from './pet-schema'
 
 export const createPet = asyncHandler(async (req: Request, res: Response) => {
@@ -28,10 +29,10 @@ export const getAllPetProfilesController = asyncHandler(
     const { status } = getPetsQuerySchema.parse(req).query
     const petProfiles = await petService.getAllPetProfilesForUser(
       userId,
-      status as any,
+      status as any
     )
     sendSuccess(res, petProfiles)
-  },
+  }
 )
 
 export const getPetProfileByIdController = asyncHandler(
@@ -40,7 +41,7 @@ export const getPetProfileByIdController = asyncHandler(
     const { id: userId } = req.user!
     const petProfile = await petService.getPetProfileById(petId, userId)
     sendSuccess(res, petProfile)
-  },
+  }
 )
 
 export const updatePetController = asyncHandler(
@@ -50,7 +51,7 @@ export const updatePetController = asyncHandler(
     const { id: userId } = req.user!
     const updatedPet = await petService.updatePet(petId, userId, petData)
     sendSuccess(res, updatedPet)
-  },
+  }
 )
 
 export const updatePetProfileImageController = asyncHandler(
@@ -63,10 +64,10 @@ export const updatePetProfileImageController = asyncHandler(
     const updatedPet = await petService.updatePetProfileImage(
       petId,
       userId,
-      objectKey,
+      objectKey
     )
     sendSuccess(res, updatedPet)
-  },
+  }
 )
 
 export const deletePetProfileImageController = asyncHandler(
@@ -77,7 +78,7 @@ export const deletePetProfileImageController = asyncHandler(
 
     const updatedPet = await petService.deletePetProfileImage(petId, userId)
     sendSuccess(res, updatedPet)
-  },
+  }
 )
 
 export const softDeletePetController = asyncHandler(
@@ -91,10 +92,10 @@ export const softDeletePetController = asyncHandler(
       petId,
       userId,
       reason,
-      deceased_date,
+      deceased_date
     )
     sendSuccess(res, result)
-  },
+  }
 )
 
 export const getPastPetsController = asyncHandler(
@@ -102,7 +103,7 @@ export const getPastPetsController = asyncHandler(
     const { id: userId } = req.user!
     const pastPets = await petService.getPastPets(userId)
     sendSuccess(res, pastPets)
-  },
+  }
 )
 
 export const getRecentlyDeletedPetsController = asyncHandler(
@@ -110,7 +111,7 @@ export const getRecentlyDeletedPetsController = asyncHandler(
     const { id: userId } = req.user!
     const deletedPets = await petService.getRecentlyDeletedPets(userId)
     sendSuccess(res, deletedPets)
-  },
+  }
 )
 
 export const permanentDeletePetController = asyncHandler(
@@ -121,5 +122,16 @@ export const permanentDeletePetController = asyncHandler(
 
     const result = await petService.permanentDeletePet(petId, userId)
     sendSuccess(res, result)
-  },
+  }
+)
+
+export const restorePetController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { params } = restorePetSchema.parse(req)
+    const { id: petId } = params
+    const { id: userId } = req.user!
+
+    const result = await petService.restorePet(petId, userId)
+    sendSuccess(res, result)
+  }
 )
