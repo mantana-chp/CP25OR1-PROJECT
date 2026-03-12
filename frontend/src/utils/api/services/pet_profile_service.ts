@@ -117,6 +117,20 @@ export const petProfileService = {
   },
 
   /**
+   * Restore a soft-deleted pet back to ACTIVE status
+   * @param petId - Pet ID
+   * @returns Response with message and status
+   */
+  restorePet: async (petId: string) => {
+    console.log('♻️ Restoring pet:', petId)
+    const response = await apiClient.patch<{
+      data: { message: string; status: string }
+    }>(`/v1/pets/me/${petId}/restore`)
+    console.log('📥 Restore response:', response)
+    return response
+  },
+
+  /**
    * Permanently delete a soft-deleted pet
    * @param petId - Pet ID
    * @returns Response with message

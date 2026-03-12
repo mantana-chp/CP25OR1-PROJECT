@@ -43,16 +43,28 @@ export default function RecentlyDeletedModal({
     return ` ${Math.floor(diffDays / 30)} เดือนที่แล้ว`
   }
 
-  const handleRestore = async (pet: IDeletedPet) => {
-    setProcessingId(pet.id)
-    try {
-      await onRestore(pet.id)
-      if (deletedPets.length === 1) {
-        onClose()
-      }
-    } finally {
-      setProcessingId(null)
-    }
+  const handleRestore = (pet: IDeletedPet) => {
+    Alert.alert(
+      'กู้คืนสัตว์เลี้ยง',
+      `คุณต้องการกู้คืน "${pet.pet_name}" กลับมาเป็นสัตว์เลี้ยงที่ใช้งานอยู่ใช่ไหม?`,
+      [
+        { text: 'ยกเลิก', style: 'cancel' },
+        {
+          text: 'กู้คืน',
+          onPress: async () => {
+            setProcessingId(pet.id)
+            try {
+              await onRestore(pet.id)
+              if (deletedPets.length === 1) {
+                onClose()
+              }
+            } finally {
+              setProcessingId(null)
+            }
+          }
+        }
+      ]
+    )
   }
 
   const handlePermanentDelete = (pet: IDeletedPet) => {
