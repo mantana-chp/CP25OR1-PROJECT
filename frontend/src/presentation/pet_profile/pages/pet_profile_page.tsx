@@ -659,6 +659,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
-    marginBottom: 4
+    marginVertical: 4
   }
 })
