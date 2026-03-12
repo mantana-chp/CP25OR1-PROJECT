@@ -142,7 +142,7 @@ export default function ReminderDetailModal({
   const handleEdit = () => {
     onClose()
     router.push({
-      pathname: '/(tabs)/add-reminder',
+      pathname: '/(tabs)/add_reminder',
       params: { reminderId: id }
     })
   }

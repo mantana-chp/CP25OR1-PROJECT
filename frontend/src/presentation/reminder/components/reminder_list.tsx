@@ -454,7 +454,7 @@ export default function ReminderList({
       )}
 
       {/* Floating Add Button */}
-      <Link href="/(tabs)/add-reminder" push asChild>
+      <Link href="/(tabs)/add_reminder" push asChild>
         <TouchableOpacity style={styles.addReminderButton}>
           <Plus size={32} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
