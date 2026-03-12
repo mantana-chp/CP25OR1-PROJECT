@@ -1,6 +1,6 @@
 import { colors } from '@/constants/design-system'
 import { useRouter } from 'expo-router'
-import { BriefcaseMedical } from 'lucide-react-native'
+import { BriefcaseMedical, ClipboardList } from 'lucide-react-native'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -28,7 +28,7 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
           style={styles.menuButton}
         >
           <View style={styles.iconCircle}>
-            <BriefcaseMedical
+            <ClipboardList
               size={28}
               color={colors.primary.DEFAULT}
               strokeWidth={1.5}

@@ -247,15 +247,15 @@ const styles = StyleSheet.create({
   filterScroll: {
     paddingHorizontal: 16,
     paddingBottom: 12,
-    gap: 8
+    gap: 4
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border.DEFAULT,
     backgroundColor: colors.background.primary,
     gap: 6
