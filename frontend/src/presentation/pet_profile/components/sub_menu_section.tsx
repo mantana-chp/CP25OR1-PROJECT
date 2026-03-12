@@ -21,7 +21,7 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
         <Pressable
           onPress={() => {
             router.push({
-              pathname: '/(tabs)/health_history',
+              pathname: '/(tabs)/health_record',
               params: petId ? { petId } : {}
             })
           }}
@@ -45,14 +45,13 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    // marginBottom: 16
+    backgroundColor: '#FFFFFF'
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
-    marginBottom: 12
+    marginBottom: 4
   },
   container: {
     flexDirection: 'row',

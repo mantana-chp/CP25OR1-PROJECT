@@ -183,7 +183,7 @@ export default function HealthRecordPage() {
 
   return (
     <View style={styles.container}>
-      <Header title="ประวัติสุขภาพ"  onBackPress={() => router.back()} />
+      <Header title="ประวัติสุขภาพ" goBack onBackPress={() => router.push('/(tabs)/pet_profile')} />
 
       <FlatList
         data={filteredRecords}

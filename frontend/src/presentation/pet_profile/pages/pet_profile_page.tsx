@@ -11,8 +11,6 @@ import { useApi } from '@/src/utils/api/use_api'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
-  Dimensions,
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,18 +21,14 @@ import {
 import { Trash2 } from 'lucide-react-native'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
-import ReminderCard from '../../reminder/components/reminder_card'
 import DeceasedPetModal from '../components/deceased_pet_modal'
+import UpcomingRemindersSection from '../components/upcoming_reminders_section'
 import DeletePetModal from '../components/delete_pet_modal'
 import HealthRecordCard from '../components/health_record_card'
 import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
 import RecentlyDeletedModal from '../components/recently_deleted_modal'
 import SubMenuSection from '../components/sub_menu_section'
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
-const CARD_SPACING = 4
 
 const HEALTH_CATEGORIES = ['Vaccination', 'Checkup', 'Medication', 'Deworming']
 
@@ -43,8 +37,6 @@ export default function PetProfilePage() {
   // CONST
   // ------------------
   const router = useRouter()
-  const flatListRef = useRef<FlatList>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
 
   const {
     pets: contextPets,
@@ -222,16 +214,6 @@ export default function PetProfilePage() {
     router.push({ pathname: '/(tabs)', params: { reminderId: id } })
   }
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index || 0)
-    }
-  }).current
-
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50
-  }).current
-
   const handlePetSelect = (index: number) => {
     const pet = displayPets[index]
     if (pet) {
@@ -355,34 +337,6 @@ export default function PetProfilePage() {
   // Can delete only if more than 1 active pet
   const canDeletePet = activePets.length > 1
 
-  const renderReminderCard = ({ item }: { item: any }) => {
-    return (
-      <View style={styles.cardWrapper}>
-        <ReminderCard
-          reminder={item}
-          onPress={handleReminderPress}
-          canDelete={false}
-          hideToggle={true}
-        />
-      </View>
-    )
-  }
-
-  const renderDotIndicators = () => {
-    if (upcomingReminders.length <= 1) return null
-
-    return (
-      <View style={styles.dotContainer}>
-        {_.map(upcomingReminders, (_, index) => (
-          <View
-            key={index}
-            style={[styles.dot, index === currentIndex && styles.activeDot]}
-          />
-        ))}
-      </View>
-    )
-  }
-
   // ------------------
   // REDER
   // ------------------
@@ -404,7 +358,13 @@ export default function PetProfilePage() {
               </Text>
             </View>
           ) : (
-            <>
+            <View
+              style={{
+                backgroundColor: '#fff',
+                paddingHorizontal: 16,
+                paddingVertical: 16
+              }}
+            >
               {/* Selected Pet Info */}
               {currentPet && (
                 <PetInfoCard
@@ -511,7 +471,7 @@ export default function PetProfilePage() {
                 }
                 isViewingDeceased={isViewingDeceased}
               />
-            </>
+            </View>
           )}
         </View>
 
@@ -519,41 +479,11 @@ export default function PetProfilePage() {
 
         {/* Appointments Section & Health History - Only for active pets */}
         {!isViewingDeceased && (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>กิจกรรมที่ใกล้เข้ามา</Text>
-
-              {/* Reminder Content */}
-              {getRemindersApi.loading ? (
-                <LoadingComponent />
-              ) : upcomingReminders.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>
-                    ไม่มีกิจกรรมที่ใกล้เข้ามา
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <FlatList
-                    ref={flatListRef}
-                    data={upcomingReminders}
-                    renderItem={renderReminderCard}
-                    keyExtractor={(item) => item.id}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    snapToInterval={CARD_WIDTH + CARD_SPACING}
-                    snapToAlignment="center"
-                    decelerationRate="fast"
-                    contentContainerStyle={styles.flatListContent}
-                    onViewableItemsChanged={onViewableItemsChanged}
-                    viewabilityConfig={viewabilityConfig}
-                  />
-                  {renderDotIndicators()}
-                </>
-              )}
-            </View>
-          </>
+          <UpcomingRemindersSection
+            reminders={upcomingReminders}
+            loading={getRemindersApi.loading}
+            onReminderPress={handleReminderPress}
+          />
         )}
 
         <Text style={styles.versionText}>v.{version}</Text>
@@ -601,15 +531,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF9F1'
   },
   section: {
-    paddingVertical: 12,
-    paddingHorizontal: 16
+    paddingBottom: 8
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    marginTop: 16
+    marginVertical: 12
   },
   sectionTitle: {
     fontSize: 17,
@@ -627,8 +555,8 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
     gap: 4
@@ -658,7 +586,7 @@ const styles = StyleSheet.create({
   },
   tabBadge: {
     backgroundColor: '#d1d5db',
-    borderRadius: 8,
+    borderRadius: 10,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
@@ -693,7 +621,7 @@ const styles = StyleSheet.create({
   },
   deletedBadge: {
     backgroundColor: '#BF1737',
-    borderRadius: 8,
+    borderRadius: 10,
     minWidth: 16,
     height: 16,
     justifyContent: 'center',
@@ -714,14 +642,6 @@ const styles = StyleSheet.create({
   healthListContainer: {
     maxHeight: 300 // Approx 3 items
   },
-  cardWrapper: {
-    width: CARD_WIDTH,
-    marginHorizontal: CARD_SPACING / 2,
-    paddingHorizontal: 16
-  },
-  flatListContent: {
-    paddingHorizontal: 16
-  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -733,23 +653,6 @@ const styles = StyleSheet.create({
     color: '#999',
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center'
-  },
-  dotContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-    gap: 8
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D9D9D9'
-  },
-  activeDot: {
-    backgroundColor: '#5FA7D1',
-    width: 24
   },
   versionText: {
     color: '#C4C4C4',
