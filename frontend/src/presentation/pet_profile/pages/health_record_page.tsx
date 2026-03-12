@@ -30,7 +30,7 @@ type CategoryFilter =
   | 'Deworming'
 
 const FILTER_TABS: { id: CategoryFilter; label: string; color: string }[] = [
-  { id: 'All', label: 'ทั้งหมด', color: colors.primary.DEFAULT },
+  { id: 'All', label: 'ทั้งหมด', color: colors.primary.light },
   { id: 'Vaccination', label: 'วัคซีน', color: '#EC4899' },
   { id: 'Checkup', label: 'ตรวจสุขภาพ', color: '#3B82F6' },
   { id: 'Medication', label: 'ยา/อาหารเสริม', color: '#10B981' },
@@ -209,23 +209,24 @@ export default function HealthRecordPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.secondary
+    backgroundColor: colors.background.primary
   },
   listContent: {
     paddingBottom: 32,
     flexGrow: 1
   },
   petCardWrapper: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 4
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
+    backgroundColor: colors.background.secondary,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 16,
-    marginTop: 20,
+    marginTop: 16,
     marginBottom: 12
   },
   sectionTitle: {
@@ -256,8 +257,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-    backgroundColor: colors.background.primary,
+    borderColor: colors.border.light,
+    backgroundColor: colors.background.secondary,
     gap: 6
   },
   filterChipText: {

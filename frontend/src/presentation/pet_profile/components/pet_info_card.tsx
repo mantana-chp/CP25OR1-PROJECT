@@ -106,7 +106,7 @@ export default function PetInfoCard({
                   <Link
                     href={`/(tabs)/add_pet_form?petId=${data.id}`}
                     push
-                    asChild 
+                    asChild
                   >
                     <TouchableOpacity
                       style={styles.editButton}
@@ -195,9 +195,9 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: colors.background.secondary,
     padding: 8,
-    borderRadius: 12,
+    borderRadius: 12
     // borderWidth: 1,
     // borderColor: '#E8F4F8'
   },

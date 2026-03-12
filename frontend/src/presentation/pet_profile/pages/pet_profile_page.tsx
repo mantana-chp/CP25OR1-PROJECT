@@ -29,6 +29,7 @@ import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
 import RecentlyDeletedModal from '../components/recently_deleted_modal'
 import SubMenuSection from '../components/sub_menu_section'
+import { colors } from '@/constants/design-system'
 
 const HEALTH_CATEGORIES = ['Vaccination', 'Checkup', 'Medication', 'Deworming']
 
@@ -528,7 +529,7 @@ export default function PetProfilePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F1'
+    backgroundColor: colors.background.primary
   },
   section: {
     paddingBottom: 8
