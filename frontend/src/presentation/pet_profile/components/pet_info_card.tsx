@@ -9,6 +9,7 @@ import {
   MaterialCommunityIcons
 } from '@expo/vector-icons'
 import { Cake, Edit2, Ribbon, Trash2, VenusAndMars } from 'lucide-react-native'
+import { colors } from '@/constants/design-system'
 
 interface PetInfoCardProps {
   data: IPetProfile
@@ -101,6 +102,20 @@ export default function PetInfoCard({
                 <Text style={styles.petName} numberOfLines={1}>
                   {data.pet_name}
                 </Text>
+                {!isDeceased && !readOnly && (
+                  <Link
+                    href={`/(tabs)/add_pet_form?petId=${data.id}`}
+                    push
+                    asChild 
+                  >
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Edit2 size={16} color="#5FA7D1" />
+                    </TouchableOpacity>
+                  </Link>
+                )}
                 {isDeceased && (
                   <View style={styles.deceasedBadge}>
                     <Text style={styles.deceasedBadgeText}>🕊️ เสียชีวิต</Text>
@@ -109,19 +124,11 @@ export default function PetInfoCard({
               </View>
               {!isDeceased && !readOnly && (
                 <View style={styles.actionButtons}>
-                  <Link
-                    href={`/(tabs)/add_pet_form?petId=${data.id}`}
-                    push
-                    asChild
-                  >
-                    <TouchableOpacity style={styles.editButton}>
-                      <Edit2 size={16} color="#5FA7D1" />
-                    </TouchableOpacity>
-                  </Link>
                   {onMarkDeceased && (
                     <TouchableOpacity
                       style={styles.deceasedButton}
                       onPress={onMarkDeceased}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                       <Ribbon size={16} color="#6b7280" />
                     </TouchableOpacity>
@@ -130,6 +137,7 @@ export default function PetInfoCard({
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={onDelete}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                       <Trash2 size={16} color="#BF1737" />
                     </TouchableOpacity>
@@ -184,14 +192,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_500Medium',
-    marginBottom: 4
+    marginBottom: 8
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 12,
     padding: 8,
-    borderWidth: 1,
-    borderColor: '#5FA7D1'
+    borderRadius: 12,
+    // borderWidth: 1,
+    // borderColor: '#E8F4F8'
   },
   deceasedCard: {
     borderColor: '#9ca3af',
@@ -280,21 +288,21 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8
+    gap: 2
   },
   editButton: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: '#E8F4F8'
+    padding: 4
+    // borderRadius: 6
+    // backgroundColor: '#E8F4F8'
   },
   deceasedButton: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: '#f3f4f6'
+    padding: 4
+    // borderRadius: 6
+    // backgroundColor: '#f3f4f6'
   },
   deleteButton: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: '#FEF2F2'
+    padding: 4
+    // borderRadius: 6
+    // backgroundColor: '#FEF2F2'
   }
 })

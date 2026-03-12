@@ -29,7 +29,7 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
         >
           <View style={styles.iconCircle}>
             <BriefcaseMedical
-              size={30}
+              size={28}
               color={colors.primary.DEFAULT}
               strokeWidth={1.5}
             />
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
-    marginBottom: 4
+    marginBottom: 8
   },
   container: {
     flexDirection: 'row',
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     alignItems: 'center',
-    gap: 8
+    gap: 2
   },
   iconCircle: {
     width: 30,

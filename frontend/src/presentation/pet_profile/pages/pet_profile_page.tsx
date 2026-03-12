@@ -539,13 +539,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginVertical: 12
   },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#225877',
-    fontFamily: 'Prompt_500Medium',
-    marginBottom: 4
-  },
   tabContainer: {
     flexDirection: 'row',
     gap: 6,
