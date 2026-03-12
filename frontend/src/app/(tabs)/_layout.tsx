@@ -146,7 +146,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="health_history"
+        name="health_record"
         options={{
           title: 'ประวัติสุขภาพ',
           href: null,

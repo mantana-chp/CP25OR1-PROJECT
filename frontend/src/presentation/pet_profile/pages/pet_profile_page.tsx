@@ -30,6 +30,7 @@ import HealthRecordCard from '../components/health_record_card'
 import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
 import RecentlyDeletedModal from '../components/recently_deleted_modal'
+import SubMenuSection from '../components/sub_menu_section'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
@@ -390,86 +391,7 @@ export default function PetProfilePage() {
       <Header title="โปรไฟล์สัตว์เลี้ยง" />
 
       <ScrollView>
-        {/* Tabs */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.tabContainer}>
-              <Pressable
-                style={[styles.tab, activeTab === 'active' && styles.activeTab]}
-                onPress={() => setActiveTab('active')}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === 'active' && styles.activeTabText
-                  ]}
-                >
-                  สัตว์เลี้ยงของฉัน
-                </Text>
-                {activePets.length > 0 && (
-                  <View
-                    style={[
-                      styles.tabBadge,
-                      activeTab === 'active' && styles.activeTabBadge
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabBadgeText,
-                        activeTab === 'active' && styles.activeTabBadgeText
-                      ]}
-                    >
-                      {activePets.length}
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-              <Pressable
-                style={[styles.tab, activeTab === 'past' && styles.pastTab]}
-                onPress={() => setActiveTab('past')}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === 'past' && styles.pastTabText
-                  ]}
-                >
-                  🕊️ ในความทรงจำ
-                </Text>
-                {contextDeceasedPets.length > 0 && (
-                  <View
-                    style={[
-                      styles.tabBadge,
-                      activeTab === 'past' && styles.pastTabBadge
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabBadgeText,
-                        activeTab === 'past' && styles.pastTabBadgeText
-                      ]}
-                    >
-                      {contextDeceasedPets.length}
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-            </View>
-            {deletedPets.length > 0 && (
-              <Pressable
-                style={styles.recentlyDeletedButton}
-                onPress={() => setShowRecentlyDeletedModal(true)}
-              >
-                <Trash2 size={14} color="#BF1737" />
-                <View style={styles.deletedBadge}>
-                  <Text style={styles.deletedBadgeText}>
-                    {deletedPets.length}
-                  </Text>
-                </View>
-              </Pressable>
-            )}
-          </View>
-
           {/* Pet List */}
           {getPetsApi.loading ? (
             <LoadingComponent />
@@ -483,6 +405,99 @@ export default function PetProfilePage() {
             </View>
           ) : (
             <>
+              {/* Selected Pet Info */}
+              {currentPet && (
+                <PetInfoCard
+                  data={currentPet}
+                  canDelete={!isViewingDeceased && canDeletePet}
+                  onDelete={!isViewingDeceased ? handleDeletePress : undefined}
+                  onMarkDeceased={
+                    !isViewingDeceased ? openDeceasedModalFromCard : undefined
+                  }
+                  isDeceased={isViewingDeceased}
+                />
+              )}
+
+              <View style={styles.sectionHeader}>
+                <View style={styles.tabContainer}>
+                  <Pressable
+                    style={[
+                      styles.tab,
+                      activeTab === 'active' && styles.activeTab
+                    ]}
+                    onPress={() => setActiveTab('active')}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === 'active' && styles.activeTabText
+                      ]}
+                    >
+                      สัตว์เลี้ยงของฉัน
+                    </Text>
+                    {activePets.length > 0 && (
+                      <View
+                        style={[
+                          styles.tabBadge,
+                          activeTab === 'active' && styles.activeTabBadge
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tabBadgeText,
+                            activeTab === 'active' && styles.activeTabBadgeText
+                          ]}
+                        >
+                          {activePets.length}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.tab, activeTab === 'past' && styles.pastTab]}
+                    onPress={() => setActiveTab('past')}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === 'past' && styles.pastTabText
+                      ]}
+                    >
+                      🕊️ ในความทรงจำ
+                    </Text>
+                    {contextDeceasedPets.length > 0 && (
+                      <View
+                        style={[
+                          styles.tabBadge,
+                          activeTab === 'past' && styles.pastTabBadge
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tabBadgeText,
+                            activeTab === 'past' && styles.pastTabBadgeText
+                          ]}
+                        >
+                          {contextDeceasedPets.length}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                </View>
+                {deletedPets.length > 0 && (
+                  <Pressable
+                    style={styles.recentlyDeletedButton}
+                    onPress={() => setShowRecentlyDeletedModal(true)}
+                  >
+                    <Trash2 size={14} color="#BF1737" />
+                    <View style={styles.deletedBadge}>
+                      <Text style={styles.deletedBadgeText}>
+                        {deletedPets.length}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
+              </View>
               <PetSelector
                 pets={displayPets}
                 selectedIndex={currentPetIndex}
@@ -496,22 +511,11 @@ export default function PetProfilePage() {
                 }
                 isViewingDeceased={isViewingDeceased}
               />
-
-              {/* Selected Pet Info */}
-              {currentPet && (
-                <PetInfoCard
-                  data={currentPet}
-                  canDelete={!isViewingDeceased && canDeletePet}
-                  onDelete={!isViewingDeceased ? handleDeletePress : undefined}
-                  onMarkDeceased={
-                    !isViewingDeceased ? openDeceasedModalFromCard : undefined
-                  }
-                  isDeceased={isViewingDeceased}
-                />
-              )}
             </>
           )}
         </View>
+
+        <SubMenuSection petId={currentPet?.id} />
 
         {/* Appointments Section & Health History - Only for active pets */}
         {!isViewingDeceased && (
@@ -551,32 +555,6 @@ export default function PetProfilePage() {
             </View>
           </>
         )}
-
-        {/* Health History Section */}
-        <View style={styles.section}>
-          <View style={styles.healthSectionContainer}>
-            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
-
-            {getHealthRecordsApi.loading ? (
-              <LoadingComponent />
-            ) : healthHistoryList.length > 0 ? (
-              <View style={styles.healthListContainer}>
-                <ScrollView
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={true}
-                >
-                  {_.map(healthHistoryList, (item) => (
-                    <HealthRecordCard key={item.id} reminder={item} />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>ไม่มีประวัติสุขภาพ</Text>
-              </View>
-            )}
-          </View>
-        </View>
 
         <Text style={styles.versionText}>v.{version}</Text>
       </ScrollView>
@@ -630,13 +608,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8
+    marginBottom: 8,
+    marginTop: 16
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: '#225877',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
+    marginBottom: 4
   },
   tabContainer: {
     flexDirection: 'row',

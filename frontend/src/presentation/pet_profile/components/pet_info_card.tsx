@@ -16,6 +16,7 @@ interface PetInfoCardProps {
   onDelete?: () => void
   onMarkDeceased?: () => void
   isDeceased?: boolean
+  readOnly?: boolean
 }
 
 export default function PetInfoCard({
@@ -23,7 +24,8 @@ export default function PetInfoCard({
   canDelete = false,
   onDelete,
   onMarkDeceased,
-  isDeceased = false
+  isDeceased = false,
+  readOnly = false
 }: PetInfoCardProps) {
   // Debug: Log pet data when received
   useEffect(() => {
@@ -77,94 +79,99 @@ export default function PetInfoCard({
   }
 
   return (
-    <View style={[styles.card, isDeceased && styles.deceasedCard]}>
-      <View style={styles.cardHeader}>
-        <View
-          style={[styles.petAvatar, isDeceased && styles.deceasedPetAvatar]}
-        >
-          {data.profile_image_url ? (
-            <Image
-              source={{ uri: data.profile_image_url }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <MaterialCommunityIcons name="dog" size={28} color="white" />
-          )}
-        </View>
-        <View style={styles.cardHeaderText}>
-          <View style={styles.nameRow}>
-            <View style={styles.nameAndBadge}>
-              <Text style={styles.petName} numberOfLines={1}>
-                {data.pet_name}
-              </Text>
-              {isDeceased && (
-                <View style={styles.deceasedBadge}>
-                  <Text style={styles.deceasedBadgeText}>🕊️ เสียชีวิต</Text>
+    <View>
+      <Text style={styles.sectionTitle}>ข้อมูลสัตว์เลี้ยง</Text>
+      <View style={[styles.card, isDeceased && styles.deceasedCard]}>
+        <View style={styles.cardHeader}>
+          <View
+            style={[styles.petAvatar, isDeceased && styles.deceasedPetAvatar]}
+          >
+            {data.profile_image_url ? (
+              <Image
+                source={{ uri: data.profile_image_url }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <MaterialCommunityIcons name="dog" size={28} color="white" />
+            )}
+          </View>
+          <View style={styles.cardHeaderText}>
+            <View style={styles.nameRow}>
+              <View style={styles.nameAndBadge}>
+                <Text style={styles.petName} numberOfLines={1}>
+                  {data.pet_name}
+                </Text>
+                {isDeceased && (
+                  <View style={styles.deceasedBadge}>
+                    <Text style={styles.deceasedBadgeText}>🕊️ เสียชีวิต</Text>
+                  </View>
+                )}
+              </View>
+              {!isDeceased && !readOnly && (
+                <View style={styles.actionButtons}>
+                  <Link
+                    href={`/(tabs)/add_pet_form?petId=${data.id}`}
+                    push
+                    asChild
+                  >
+                    <TouchableOpacity style={styles.editButton}>
+                      <Edit2 size={16} color="#5FA7D1" />
+                    </TouchableOpacity>
+                  </Link>
+                  {onMarkDeceased && (
+                    <TouchableOpacity
+                      style={styles.deceasedButton}
+                      onPress={onMarkDeceased}
+                    >
+                      <Ribbon size={16} color="#6b7280" />
+                    </TouchableOpacity>
+                  )}
+                  {canDelete && onDelete && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={onDelete}
+                    >
+                      <Trash2 size={16} color="#BF1737" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
-            {!isDeceased && (
-              <View style={styles.actionButtons}>
-                <Link
-                  href={`/(tabs)/add_pet_form?petId=${data.id}`}
-                  push
-                  asChild
-                >
-                  <TouchableOpacity style={styles.editButton}>
-                    <Edit2 size={16} color="#5FA7D1" />
-                  </TouchableOpacity>
-                </Link>
-                {onMarkDeceased && (
-                  <TouchableOpacity
-                    style={styles.deceasedButton}
-                    onPress={onMarkDeceased}
-                  >
-                    <Ribbon size={16} color="#6b7280" />
-                  </TouchableOpacity>
-                )}
-                {canDelete && onDelete && (
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={onDelete}
-                  >
-                    <Trash2 size={16} color="#BF1737" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
           </View>
         </View>
-      </View>
 
-      <View
-        style={[
-          styles.infoGrid,
-          { flexDirection: 'row', justifyContent: 'space-between' }
-        ]}
-      >
-        <View style={styles.infoItem}>
-          <Ionicons name="paw-outline" size={12} color="#5BA3D0" />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {data.species} {data.breed}
-          </Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Cake size={12} color="#5BA3D0" />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {convertDaysToThaiAge(data.age)}
-          </Text>
-        </View>
-        <View style={styles.infoItem}>
-          <VenusAndMars size={12} color="#5BA3D0" />
-          <Text style={styles.infoText} numberOfLines={1}>
-            เพศ {getThaiGender(data.gender)}
-          </Text>
-        </View>
-        <View style={styles.infoItem}>
-          <FontAwesome6 name="weight-scale" size={12} color="#5BA3D0" />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {data.weight ? `${formatWeight(parseFloat(data.weight))} กก.` : '-'}
-          </Text>
+        <View
+          style={[
+            styles.infoGrid,
+            { flexDirection: 'row', justifyContent: 'space-between' }
+          ]}
+        >
+          <View style={styles.infoItem}>
+            <Ionicons name="paw-outline" size={12} color="#5BA3D0" />
+            <Text style={styles.infoText} numberOfLines={1}>
+              {data.species} {data.breed}
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Cake size={12} color="#5BA3D0" />
+            <Text style={styles.infoText} numberOfLines={1}>
+              {convertDaysToThaiAge(data.age)}
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <VenusAndMars size={12} color="#5BA3D0" />
+            <Text style={styles.infoText} numberOfLines={1}>
+              เพศ {getThaiGender(data.gender)}
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <FontAwesome6 name="weight-scale" size={12} color="#5BA3D0" />
+            <Text style={styles.infoText} numberOfLines={1}>
+              {data.weight
+                ? `${formatWeight(parseFloat(data.weight))} กก.`
+                : '-'}
+            </Text>
+          </View>
         </View>
       </View>
     </View>
@@ -172,10 +179,17 @@ export default function PetInfoCard({
 }
 
 const styles = StyleSheet.create({
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#225877',
+    fontFamily: 'Prompt_500Medium',
+    marginBottom: 4
+  },
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 12,
+    padding: 8,
     borderWidth: 1,
     borderColor: '#5FA7D1'
   },
