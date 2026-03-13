@@ -28,6 +28,7 @@ import {
 import prisma from '../../libs/db'
 import { CreateReminderPayload, CreateMultipleRemindersPayload, UpdateReminderPayload } from './reminder-schema'
 import { canAccessPet } from '../pet-sharing/pet-sharing-repository'
+import { sendStatusChangeNotification } from '../notifications/notification-service'
 
 // Internal type used by createReminderInTransaction — always a single pet
 type SinglePetReminderPayload = Omit<CreateReminderPayload, 'petId'> & { petId: string }
@@ -784,6 +785,16 @@ export const toggleReminderStatus = async (
   const updatedReminder = await reminderRepository.findFullById(id)
   if (!updatedReminder)
     throw new Error('Failed to retrieve reminder after update.')
+
+  // Fire-and-forget: notify owner and caregivers (excluding the actor) about the status change
+  void sendStatusChangeNotification(
+    userId,
+    id,
+    reminderToToggle.pet_id!,
+    reminderToToggle.reminder_name,
+    updatedReminder.reminder_status,
+  )
+
   return mapPrismaReminderWithPetToReminder(updatedReminder)
 }
 

@@ -54,6 +54,7 @@ export const markAsRead = async (
 /**
  * This is the core function called by the cron job.
  * It finds reminders that are nearly due and processes them just-in-time.
+ * Notifications are fanned out to both the pet owner and any active caregivers.
  */
 export const processAndSendNotifications = async () => {
   logger.info('--- RUNNING NOTIFICATION JOB ---');
@@ -92,7 +93,7 @@ export const processAndSendNotifications = async () => {
       user: { include: { push_tokens: true } },
       pets: true,
       children: true,
-      notifications: { orderBy: { created_at: 'desc' } }, // Include to check retry attempts
+      notifications: { orderBy: { created_at: 'desc' } }, // Include to check retry attempts per user
     },
   });
 
@@ -109,41 +110,13 @@ export const processAndSendNotifications = async () => {
   const MAX_RETRY_ATTEMPTS = 5; // Maximum times to retry a failed notification
   const RETRY_INTERVAL_MS = 15 * 60 * 1000; // Wait at least 15 minutes between retries
 
-  // Filter in-memory to find only the reminders that are actually due to be processed now
+  // Filter in-memory to find reminders that are within the send time window.
+  // Per-user retry/skip logic is handled inside the recipient loop below.
   const dueReminders = candidateReminders.filter(reminder => {
     // Skip parent reminders (reminders that have children)
     if (reminder.children && reminder.children.length > 0) {
       logger.info(`[NotificationJob] Skipping parent reminder ${reminder.id} (has ${reminder.children.length} children).`);
       return false;
-    }
-
-    // Check if already successfully notified
-    const hasSuccessfulNotification = reminder.notifications?.some(n => n.status === 'sent');
-    if (hasSuccessfulNotification) {
-      logger.info(`[NotificationJob] Skipping reminder ${reminder.id} (already successfully notified).`);
-      return false;
-    }
-
-    // Check retry attempts for failed/pending notifications
-    const failedAttempts = reminder.notifications?.filter(n => n.status === 'failed' || n.status === 'pending') || [];
-    const existingNotification = failedAttempts[0]; // Most recent (ordered by created_at desc)
-    const retryCount = existingNotification?.retry_count || 0;
-
-    if (retryCount >= MAX_RETRY_ATTEMPTS) {
-      logger.warn(`[NotificationJob] Skipping reminder ${reminder.id} (max retry attempts reached: ${retryCount}/${MAX_RETRY_ATTEMPTS}). Notification permanently failed.`);
-      return false;
-    }
-
-    // If this is a retry, check if enough time has passed since last attempt
-    if (retryCount > 0 && existingNotification) {
-      const timeSinceLastAttempt = now.getTime() - new Date(existingNotification.created_at!).getTime();
-
-      if (timeSinceLastAttempt < RETRY_INTERVAL_MS) {
-        // Too soon to retry, wait longer
-        return false;
-      }
-
-      logger.info(`[NotificationJob] Retry attempt #${retryCount + 1} for reminder ${reminder.id} (last attempt: ${Math.floor(timeSinceLastAttempt / 60000)} min ago).`);
     }
 
     let notificationSendTimeUTC: Date;
@@ -186,18 +159,12 @@ export const processAndSendNotifications = async () => {
 
     // All comparisons now in UTC
     const notificationTimeReached = notificationSendTimeUTC <= now;
-    const reminderNotYetOccurred = now < reminderActualTimeUTC;
 
     // Grace period: allow sending up to 60 minutes after the reminder time
     const gracePeriodMs = 60 * 60 * 1000;
     const withinGracePeriod = now <= new Date(reminderActualTimeUTC.getTime() + gracePeriodMs);
 
-    const shouldCreateNotification = notificationTimeReached && (reminderNotYetOccurred || withinGracePeriod);
-
-    // Uncomment for debugging:
-    // logger.debug(`[NotificationJob] Reminder ${reminder.id}: notificationTime=${notificationSendTimeUTC.toISOString()}, reminderTime=${reminderActualTimeUTC.toISOString()}, now=${now.toISOString()}, shouldSend=${shouldCreateNotification}`);
-
-    return shouldCreateNotification;
+    return notificationTimeReached && withinGracePeriod;
   });
 
   if (dueReminders.length === 0) {
@@ -209,116 +176,126 @@ export const processAndSendNotifications = async () => {
   logger.info(`[NotificationJob] Found ${dueReminders.length} reminders that are actually due for notification: [${dueReminders.map(r => r.id).join(', ')}]`);
 
   for (const reminder of dueReminders) {
-    const failedAttempts = reminder.notifications?.filter(n => n.status === 'failed' || n.status === 'pending') || [];
-    const existingNotification = failedAttempts[0];
-    const retryCount = existingNotification?.retry_count || 0;
-    const isRetry = retryCount > 0;
-
-    logger.info(`[NotificationJob] Processing reminder ${reminder.id}${isRetry ? ` (retry attempt #${retryCount + 1})` : ''}...`);
-
-    const hasPushTokens = reminder.user.push_tokens && reminder.user.push_tokens.length > 0;
     const petName = reminder.pets?.pet_name;
     const reminderName = reminder.reminder_name;
 
-    // Check if notification is fundamentally broken (missing required data)
-    if (!petName || !reminderName) {
-      logger.error(`[NotificationJob] Skipping reminder ${reminder.id}: Missing required data (petName: ${petName}, reminderName: ${reminderName}). Marking as failed.`);
+    // Fetch active caregivers for this pet
+    const caregiverAccess = await prisma.pet_user_access.findMany({
+      where: { pet_id: reminder.pet_id, revoked_at: null, role: 'CAREGIVER' },
+      include: { user: { include: { push_tokens: true } } },
+    });
 
-      // Check if there's already a failed notification for this reminder
-      if (existingNotification) {
-        // Update existing notification to permanently failed
-        await notificationRepository.update(existingNotification.id, {
-          status: notification_status.failed,
-          sent_at: null,
-          retry_count: retryCount, // Keep current retry count
+    // Build the full recipient list: owner first, then caregivers
+    const recipients = [
+      { userId: reminder.user_id, pushTokens: reminder.user.push_tokens },
+      ...caregiverAccess.map(a => ({ userId: a.user_id, pushTokens: a.user.push_tokens })),
+    ];
+
+    for (const recipient of recipients) {
+      // Per-user: find this recipient's existing notification for this reminder
+      const userNotifications = reminder.notifications.filter(n => n.user_id === recipient.userId);
+
+      // Skip if already successfully sent to this user
+      if (userNotifications.some(n => n.status === 'sent')) {
+        logger.info(`[NotificationJob] Skipping user ${recipient.userId} for reminder ${reminder.id} (already sent).`);
+        continue;
+      }
+
+      // Per-user retry check
+      const failedNotification = userNotifications.find(n => n.status === 'failed' || n.status === 'pending');
+      const retryCount = failedNotification?.retry_count ?? 0;
+      const isRetry = retryCount > 0;
+
+      if (retryCount >= MAX_RETRY_ATTEMPTS) {
+        logger.warn(`[NotificationJob] Skipping user ${recipient.userId} for reminder ${reminder.id} (max retries: ${retryCount}/${MAX_RETRY_ATTEMPTS}).`);
+        continue;
+      }
+
+      if (isRetry && failedNotification) {
+        const timeSinceLastAttempt = now.getTime() - new Date(failedNotification.created_at!).getTime();
+        if (timeSinceLastAttempt < RETRY_INTERVAL_MS) {
+          continue; // Too soon to retry
+        }
+        logger.info(`[NotificationJob] Retry attempt #${retryCount + 1} for user ${recipient.userId}, reminder ${reminder.id}.`);
+      }
+
+      logger.info(`[NotificationJob] Processing reminder ${reminder.id} for user ${recipient.userId}${isRetry ? ` (retry #${retryCount + 1})` : ''}...`);
+
+      // Check required data
+      if (!petName || !reminderName) {
+        logger.error(`[NotificationJob] Skipping reminder ${reminder.id}: Missing required data. Marking as failed.`);
+        if (failedNotification) {
+          await notificationRepository.update(failedNotification.id, { status: notification_status.failed, sent_at: null });
+        } else {
+          await notificationRepository.create({
+            id: uuidv4(), status: notification_status.failed, retry_count: 0,
+            user: { connect: { id: recipient.userId } },
+            reminders: { connect: { id: reminder.id } },
+            sent_at: null,
+          });
+        }
+        continue;
+      }
+
+      // Reuse existing notification or create new one
+      let notificationToProcess;
+      if (isRetry && failedNotification) {
+        notificationToProcess = failedNotification;
+        logger.info(`[NotificationJob] Reusing existing notification ${notificationToProcess.id} for retry.`);
+        await notificationRepository.update(notificationToProcess.id, {
+          status: notification_status.pending,
+          retry_count: retryCount + 1,
         });
       } else {
-        // Create a failed notification to prevent infinite retries
-        await notificationRepository.create({
+        notificationToProcess = await notificationRepository.create({
           id: uuidv4(),
-          status: notification_status.failed,
+          status: notification_status.pending,
           retry_count: 0,
-          user: { connect: { id: reminder.user_id } },
+          user: { connect: { id: recipient.userId } },
           reminders: { connect: { id: reminder.id } },
-          sent_at: null,
         });
       }
-      continue;
-    }
 
-    // Reuse existing notification or create new one
-    let notificationToProcess;
-    if (isRetry && existingNotification) {
-      // Reuse the most recent failed/pending notification
-      notificationToProcess = existingNotification;
-      logger.info(`[NotificationJob] Reusing existing notification ${notificationToProcess.id} for retry.`);
+      let finalStatus: notification_status = notification_status.sent;
+      let sentAt: Date | null = new Date();
+      const messagesToSend: PushMessage[] = [];
 
-      // Update status to pending and increment retry count before attempting
-      await notificationRepository.update(notificationToProcess.id, {
-        status: notification_status.pending,
-        retry_count: retryCount + 1,
-      });
-    } else {
-      // Create new notification for first attempt
-      notificationToProcess = await notificationRepository.create({
-        id: uuidv4(),
-        status: notification_status.pending,
-        retry_count: 0, // First attempt
-        user: { connect: { id: reminder.user_id } },
-        reminders: { connect: { id: reminder.id } },
-      });
-    }
-
-    let finalStatus: notification_status = notification_status.sent;
-    let sentAt: Date | null = new Date();
-    const messagesToSend: PushMessage[] = [];
-
-    // If user has tokens and data is valid, prepare push messages
-    if (hasPushTokens && petName && reminderName) {
-      for (const token of reminder.user.push_tokens) {
-        messagesToSend.push({
-          to: token.token,
-          sound: 'default',
-          title: `แจ้งเตือนน: ${reminderName}`,
-          body: `ถึงเวลาของน้อง ${petName} แล้วว`,
-          data: { reminderId: reminder.id, notificationId: notificationToProcess.id },
-        });
-      }
-    } else {
-      logger.info(`[NotificationJob] Notification ${notificationToProcess.id} will be processed for in-app only (no push tokens or missing data).`);
-    }
-
-    // Send push notifications if any were prepared
-    if (messagesToSend.length > 0) {
-      try {
-        logger.info(`[NotificationJob] Sending ${messagesToSend.length} push notifications for notification ID: ${notificationToProcess.id}${isRetry ? ` (retry #${retryCount + 1})` : ''}`);
-        await expoPushService.send(messagesToSend);
-        logger.info(`[NotificationJob] Successfully sent push notifications for ${notificationToProcess.id}.`);
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          logger.error(`[NotificationJob] Failed to send push for notification ${notificationToProcess.id} (attempt ${retryCount + 1}):`, error);
-        } else {
-          logger.error(`[NotificationJob] Failed to send push for notification ${notificationToProcess.id} (attempt ${retryCount + 1}):`, new Error(String(error)));
+      if (recipient.pushTokens && recipient.pushTokens.length > 0) {
+        for (const token of recipient.pushTokens) {
+          messagesToSend.push({
+            to: token.token,
+            sound: 'default',
+            title: `แจ้งเตือนน: ${reminderName}`,
+            body: `ถึงเวลาของน้อง ${petName} แล้วว`,
+            data: { reminderId: reminder.id, notificationId: notificationToProcess.id },
+          });
         }
-        finalStatus = notification_status.failed;
-        sentAt = null;
+      } else {
+        logger.info(`[NotificationJob] No push tokens for user ${recipient.userId}. Notification ${notificationToProcess.id} saved for in-app only.`);
+      }
 
-        // Log warning if approaching max retries
-        if (retryCount + 1 >= MAX_RETRY_ATTEMPTS - 1) {
-          logger.warn(`[NotificationJob] ⚠️ Reminder ${reminder.id} has failed ${retryCount + 1} times. Will attempt ${MAX_RETRY_ATTEMPTS - retryCount - 1} more time(s) before permanent failure.`);
+      if (messagesToSend.length > 0) {
+        try {
+          logger.info(`[NotificationJob] Sending ${messagesToSend.length} push notifications for notification ID: ${notificationToProcess.id}${isRetry ? ` (retry #${retryCount + 1})` : ''}`);
+          await expoPushService.send(messagesToSend);
+          logger.info(`[NotificationJob] Successfully sent push notifications for ${notificationToProcess.id}.`);
+        } catch (error: unknown) {
+          logger.error(
+            `[NotificationJob] Failed to send push for notification ${notificationToProcess.id} (attempt ${retryCount + 1}):`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+          finalStatus = notification_status.failed;
+          sentAt = null;
+
+          if (retryCount + 1 >= MAX_RETRY_ATTEMPTS - 1) {
+            logger.warn(`[NotificationJob] ⚠️ Reminder ${reminder.id} / user ${recipient.userId} has failed ${retryCount + 1} times.`);
+          }
         }
       }
-    } else if (!hasPushTokens) {
-      // No push tokens but notification still created for in-app display
-      logger.info(`[NotificationJob] No push tokens for user ${reminder.user_id}. Notification ${notificationToProcess.id} saved for in-app only.`);
-    }
 
-    // Update the notification to its final state
-    await notificationRepository.update(notificationToProcess.id, {
-      status: finalStatus,
-      sent_at: sentAt,
-    });
-    logger.info(`[NotificationJob] Marked notification ${notificationToProcess.id} as ${finalStatus}.`);
+      await notificationRepository.update(notificationToProcess.id, { status: finalStatus, sent_at: sentAt });
+      logger.info(`[NotificationJob] Marked notification ${notificationToProcess.id} as ${finalStatus}.`);
+    }
   }
 
   logger.info('--- FINISHED NOTIFICATION JOB ---');
@@ -406,5 +383,128 @@ export const sendTipNotification = async (
       sent_at: sentAt,
     });
     logger.info(`[TipNotification] Marked notification ${newNotificationId} as ${finalStatus}.`);
+  }
+};
+
+/**
+ * Sends a status-change notification to everyone involved with a reminder EXCEPT the actor.
+ * Called when toggleReminderStatus() is used (fire-and-forget).
+ *
+ * Actor label rules:
+ *   owner → caregiver:   "โดย เจ้าของ"
+ *   caregiver → owner:   "โดย [alias from owner_caregiver_contacts]"
+ *   caregiver → caregiver: "โดย ผู้ดูแลอีกคน"
+ */
+export const sendStatusChangeNotification = async (
+  actorUserId: string,
+  reminderId: string,
+  petId: string,
+  reminderName: string,
+  newStatus: string,
+): Promise<void> => {
+  try {
+    const statusTh =
+      newStatus === 'done' ? 'เสร็จแล้ว' :
+        newStatus === 'overdue' ? 'เลยกำหนด' : 'รอดำเนินการ';
+
+    // Get pet owner id
+    const pet = await prisma.pets.findUnique({ where: { id: petId }, select: { user_id: true } });
+    if (!pet) return;
+    const ownerId = pet.user_id;
+
+    // Get all active caregivers with contact info for alias lookup
+    const caregiverAccess = await prisma.pet_user_access.findMany({
+      where: { pet_id: petId, revoked_at: null, role: 'CAREGIVER' },
+      include: {
+        contact: true, // owner_caregiver_contacts — has .alias
+        user: { include: { push_tokens: true } },
+      },
+    });
+
+    const actorIsOwner = actorUserId === ownerId;
+
+    interface Recipient {
+      userId: string;
+      actorLabel: string;
+      pushTokens: { token: string }[];
+    }
+
+    const recipients: Recipient[] = [];
+
+    // Add owner as recipient (only if owner is not the actor)
+    if (!actorIsOwner) {
+      const actorAccess = caregiverAccess.find(a => a.user_id === actorUserId);
+      const actorAlias = actorAccess?.contact?.alias ?? 'ผู้ดูแล';
+      const ownerWithTokens = await prisma.users.findUnique({
+        where: { id: ownerId },
+        include: { push_tokens: true },
+      });
+      if (ownerWithTokens) {
+        recipients.push({
+          userId: ownerId,
+          actorLabel: `โดย ${actorAlias}`,
+          pushTokens: ownerWithTokens.push_tokens,
+        });
+      }
+    }
+
+    // Add caregivers as recipients (excluding the actor)
+    for (const access of caregiverAccess) {
+      if (access.user_id === actorUserId) continue;
+      recipients.push({
+        userId: access.user_id,
+        actorLabel: actorIsOwner ? 'โดย เจ้าของ' : 'โดย ผู้ดูแลอีกคน',
+        pushTokens: access.user.push_tokens,
+      });
+    }
+
+    if (recipients.length === 0) {
+      logger.info(`[StatusChangeNotification] No other recipients for reminder ${reminderId}.`);
+      return;
+    }
+
+    for (const recipient of recipients) {
+      const message = `${reminderName} ถูกเปลี่ยนสถานะเป็น ${statusTh} แล้วว ${recipient.actorLabel}`;
+
+      const notification = await notificationRepository.create({
+        id: uuidv4(),
+        status: notification_status.pending,
+        user: { connect: { id: recipient.userId } },
+        reminders: { connect: { id: reminderId } },
+        tips_title: message,
+        sent_at: null,
+      });
+
+      let finalStatus: notification_status = notification_status.sent;
+      let sentAt: Date | null = new Date();
+
+      if (recipient.pushTokens.length > 0) {
+        const messages: PushMessage[] = recipient.pushTokens.map(t => ({
+          to: t.token,
+          sound: 'default',
+          title: message,
+          body: message,
+          data: { reminderId, notificationId: notification.id },
+        }));
+        try {
+          await expoPushService.send(messages);
+          logger.info(`[StatusChangeNotification] Push sent to user ${recipient.userId} for reminder ${reminderId}.`);
+        } catch (error: unknown) {
+          logger.error(
+            `[StatusChangeNotification] Failed to send push for notification ${notification.id}:`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+          finalStatus = notification_status.failed;
+          sentAt = null;
+        }
+      } else {
+        logger.info(`[StatusChangeNotification] No push tokens for user ${recipient.userId}. In-app only.`);
+      }
+
+      await notificationRepository.update(notification.id, { status: finalStatus, sent_at: sentAt });
+    }
+  } catch (error) {
+    // Non-blocking: log but never throw — must not break toggleReminderStatus
+    logger.error('[StatusChangeNotification] Unexpected error:', error instanceof Error ? error : new Error(String(error)));
   }
 };
