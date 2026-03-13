@@ -47,12 +47,12 @@ export const generateInvite = async (
     userId: string,
     alias: string,
 ) => {
-    // Verify the requesting user owns ALL supplied pets
+    // Verify the requesting user owns ALL supplied pets and they are all ACTIVE
     const ownedCount = await prisma.pets.count({
-        where: { id: { in: petIds }, user_id: userId },
+        where: { id: { in: petIds }, user_id: userId, status: 'ACTIVE', deleted_at: null },
     });
     if (ownedCount !== petIds.length) {
-        throw new BadRequestError('One or more pets not found or do not belong to you.');
+        throw new BadRequestError('One or more pets not found, do not belong to you, or are not active.');
     }
 
     await repo.expireStaleInvites();
@@ -98,6 +98,12 @@ export const claimInvite = async (
         }
 
         for (const { pet } of invite.invite_pets) {
+            // Pet may have been deceased or deleted after the invite was created
+            const petRecord = await tx.pets.findUnique({ where: { id: pet.id }, select: { status: true, deleted_at: true } });
+            if (!petRecord || petRecord.status !== 'ACTIVE' || petRecord.deleted_at !== null) {
+                throw new BadRequestError('One or more pets in this invite are no longer active. Please ask the owner to generate a new invite.');
+            }
+
             const existing = await repo.findActiveAccess(pet.id, userId);
             if (existing) continue; // already has access — skip silently
 
