@@ -66,22 +66,6 @@ export const markInviteExpired = async (inviteId: string) => {
     });
 };
 
-export const findPendingInvitesByCreator = async (createdBy: string) => {
-    return prisma.pet_share_invites.findMany({
-        where: {
-            created_by: createdBy,
-            status: invite_status.PENDING,
-            expires_at: { gt: new Date() },
-        },
-        include: {
-            invite_pets: {
-                include: { pet: { select: { id: true, pet_name: true } } },
-            },
-        },
-        orderBy: { created_at: 'desc' },
-    });
-};
-
 // ─── Contacts ────────────────────────────────────────────────────────────────
 
 /**

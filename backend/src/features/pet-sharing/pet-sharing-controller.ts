@@ -7,7 +7,6 @@ import {
     claimInviteSchema,
     updateAliasSchema,
     revokeCaregiverSchema,
-    cancelInviteSchema,
     listCaregiversSchema,
 } from './pet-sharing-schema';
 
@@ -57,25 +56,6 @@ export const revokeCaregiverController = asyncHandler(
         const { params } = revokeCaregiverSchema.parse(req);
         const { id: userId } = req.user!;
         const result = await service.revokeCaregiver(params.petId, params.accessId, userId);
-        sendSuccess(res, result);
-    },
-);
-
-// GET /v1/pets/invites
-export const listInvitesController = asyncHandler(
-    async (req: Request, res: Response) => {
-        const { id: userId } = req.user!;
-        const result = await service.listPendingInvites(userId);
-        sendSuccess(res, result);
-    },
-);
-
-// DELETE /v1/pets/invites/:inviteId
-export const cancelInviteController = asyncHandler(
-    async (req: Request, res: Response) => {
-        const { params } = cancelInviteSchema.parse(req);
-        const { id: userId } = req.user!;
-        const result = await service.cancelInvite(params.inviteId, userId);
         sendSuccess(res, result);
     },
 );

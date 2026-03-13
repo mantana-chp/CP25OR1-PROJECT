@@ -198,42 +198,7 @@ export const revokeCaregiver = async (
     return { message: 'Caregiver access revoked.' };
 };
 
-// ─── 6. List Pending Invites ──────────────────────────────────────────────────
-
-export const listPendingInvites = async (userId: string) => {
-    const invites = await repo.findPendingInvitesByCreator(userId);
-    return invites.map((inv) => ({
-        inviteId: inv.id,
-        alias: inv.caregiver_alias,
-        expiresAt: inv.expires_at,
-        createdAt: inv.created_at,
-        pets: inv.invite_pets.map((ip) => ({ id: ip.pet.id, pet_name: ip.pet.pet_name })),
-    }));
-};
-
-// ─── 7. Cancel Invite ─────────────────────────────────────────────────────────
-
-export const cancelInvite = async (
-    inviteId: string,
-    userId: string,
-) => {
-    const invite = await prisma.pet_share_invites.findFirst({
-        where: { id: inviteId, created_by: userId },
-    });
-
-    if (!invite) {
-        throw new NotFoundError('Invite not found or does not belong to you.');
-    }
-
-    if (invite.status !== invite_status.PENDING) {
-        throw new BadRequestError('Only PENDING invites can be cancelled.');
-    }
-
-    await repo.markInviteExpired(inviteId);
-    return { message: 'Invite cancelled.' };
-};
-
-// ─── 8. Has Accessible Pets (startup check) ───────────────────────────────────
+// ─── 6. Has Accessible Pets (startup check) ───────────────────────────────────
 
 export const hasAccessiblePets = async (userId: string): Promise<boolean> => {
     return repo.hasAnyAccessiblePet(userId);

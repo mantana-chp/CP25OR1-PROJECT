@@ -40,12 +40,4 @@ export const revokeCaregiverSchema = z.object({
     }),
 });
 
-// GET /v1/pets/invites
-export const listInvitesSchema = z.object({});
 
-// DELETE /v1/pets/invites/:inviteId
-export const cancelInviteSchema = z.object({
-    params: z.object({
-        inviteId: z.uuid('Invalid invite ID'),
-    }),
-});
