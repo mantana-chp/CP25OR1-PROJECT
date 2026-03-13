@@ -1,4 +1,5 @@
 import * as petRepository from './pet-repository'
+import * as sharingRepository from '../pet-sharing/pet-sharing-repository'
 import {
   NotFoundError,
   ConflictError,
@@ -135,24 +136,35 @@ export const getAllPetProfilesForUser = async (
   userId: string,
   status?: pet_status
 ) => {
-  const pets = await petRepository.findAllPetProfilesByUserId(
+  const resolvedStatus = status ?? pet_status.ACTIVE
+  const ownedPets = await petRepository.findAllPetProfilesByUserId(
     userId,
-    status ?? pet_status.ACTIVE
+    resolvedStatus,
   )
 
-  if (!pets || pets.length === 0) {
+  // For ACTIVE pets, also include pets shared with this user as a caregiver
+  let allPets = ownedPets ?? []
+  if (resolvedStatus === pet_status.ACTIVE) {
+    const sharedPets = await sharingRepository.findSharedActivePetsByUserId(userId)
+    allPets = [...allPets, ...sharedPets]
+  }
+
+  if (allPets.length === 0) {
     return []
   }
 
-  return Promise.all(pets.map(formatPetProfile))
+  return Promise.all(allPets.map(formatPetProfile))
 }
 
 export const getPetProfileById = async (petId: string, userId: string) => {
-  const pet = await petRepository.findPetProfileByPetId(petId, userId)
-
-  if (!pet) {
-    throw new NotFoundError('Pet not found or does not belong to this user.')
+  // Allow owner OR active caregiver
+  const canAccess = await sharingRepository.canAccessPet(petId, userId)
+  if (!canAccess) {
+    throw new NotFoundError('Pet not found or access denied.')
   }
+
+  const pet = await petRepository.findPetProfileByIdOnly(petId)
+  if (!pet) throw new NotFoundError('Pet not found.')
 
   return formatPetProfile(pet)
 }
@@ -349,14 +361,18 @@ export const softDeletePet = async (
 
 /**
  * Get past (deceased) pets for a user.
+ * Includes shared deceased pets the user has/had caregiver access to.
  */
 export const getPastPets = async (userId: string) => {
-  const pets = await petRepository.findAllPetProfilesByUserId(
+  const ownedDeceased = await petRepository.findAllPetProfilesByUserId(
     userId,
     pet_status.DECEASED
   )
-  if (!pets || pets.length === 0) return []
-  return Promise.all(pets.map(formatPetProfile))
+  const sharedDeceased = await sharingRepository.findSharedDeceasedPetsByUserId(userId)
+
+  const allDeceased = [...(ownedDeceased ?? []), ...sharedDeceased]
+  if (allDeceased.length === 0) return []
+  return Promise.all(allDeceased.map(formatPetProfile))
 }
 
 /**

@@ -37,6 +37,12 @@ export class NotFoundError extends ApiError {
   }
 }
 
+export class ForbiddenError extends ApiError {
+  constructor(message: string = "Forbidden") {
+    super(message, 403);
+  }
+}
+
 export const formatZodError = (error: ZodError) => {
   return error.issues.map(err => ({
     message: err.message,
