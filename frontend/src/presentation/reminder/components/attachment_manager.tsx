@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import { useFocusEffect } from 'expo-router'
+import React, { useCallback, useRef, useState } from 'react'
 import {
+  ActionSheetIOS,
   Alert,
   StyleSheet,
   Text,
@@ -7,10 +9,14 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
+  InteractionManager,
   Linking,
   Modal,
+  Platform,
   Pressable
 } from 'react-native'
+import * as DocumentPicker from 'expo-document-picker'
+import * as ImagePicker from 'expo-image-picker'
 import {
   File,
   Plus,
@@ -68,12 +74,114 @@ export default function AttachmentManager({
 }: AttachmentManagerProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showAttachmentOptions, setShowAttachmentOptions] = useState(false)
+  const [isPickerOpening, setIsPickerOpening] = useState(false)
+  const isPickerActiveRef = useRef(false)
+  const pickerRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
   // Merge attachments and pending attachments for display
   const allAttachments: DisplayAttachment[] = [
     ...attachments,
     ...pendingAttachments
   ]
+
+  const clearPickerRecoveryTimeout = () => {
+    if (pickerRecoveryTimeoutRef.current) {
+      clearTimeout(pickerRecoveryTimeoutRef.current)
+      pickerRecoveryTimeoutRef.current = null
+    }
+  }
+
+  const resetPickerState = () => {
+    clearPickerRecoveryTimeout()
+    isPickerActiveRef.current = false
+    setIsPickerOpening(false)
+  }
+
+  const startPickerRecoveryTimeout = () => {
+    clearPickerRecoveryTimeout()
+    // Guard against native picker promises that never resolve on iOS.
+    pickerRecoveryTimeoutRef.current = setTimeout(() => {
+      resetPickerState()
+    }, 45000)
+  }
+
+  const beginPickerFlow = async (): Promise<boolean> => {
+    if (disabled || isUploading || isPickerActiveRef.current) {
+      return false
+    }
+
+    if (allAttachments.length >= maxFiles) {
+      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
+      return false
+    }
+
+    isPickerActiveRef.current = true
+    setIsPickerOpening(true)
+    setShowAttachmentOptions(false)
+    startPickerRecoveryTimeout()
+
+    // iOS needs a moment to dismiss this modal before presenting a native picker.
+    if (Platform.OS === 'ios') {
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => {
+          setTimeout(resolve, 150)
+        })
+      })
+    }
+
+    return true
+  }
+
+  const endPickerFlow = () => {
+    resetPickerState()
+  }
+
+  const handleOpenAttachmentOptions = () => {
+    if (disabled || isUploading || allAttachments.length >= maxFiles) {
+      return
+    }
+
+    // Recover from stale lock when returning from prior picker/navigation flow.
+    if (isPickerActiveRef.current || isPickerOpening) {
+      resetPickerState()
+    }
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['ยกเลิก', 'ถ่ายรูป', 'เลือกรูปภาพ', 'เลือกเอกสาร'],
+          cancelButtonIndex: 0,
+          userInterfaceStyle: 'light'
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            void handlePickFromCamera()
+          } else if (buttonIndex === 2) {
+            void handlePickFromGallery()
+          } else if (buttonIndex === 3) {
+            void handlePickDocument()
+          }
+        }
+      )
+      return
+    }
+
+    setShowAttachmentOptions(true)
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      resetPickerState()
+      setShowAttachmentOptions(false)
+
+      return () => {
+        resetPickerState()
+        setShowAttachmentOptions(false)
+      }
+    }, [])
+  )
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
@@ -91,18 +199,12 @@ export default function AttachmentManager({
   }
 
   const handlePickFromCamera = async () => {
-    setShowAttachmentOptions(false)
-
-    if (disabled || isUploading) return
-
-    if (allAttachments.length >= maxFiles) {
-      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
+    const canContinue = await beginPickerFlow()
+    if (!canContinue) {
       return
     }
 
     try {
-      const ImagePicker = await import('expo-image-picker')
-
       // Request camera permissions
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync()
 
@@ -142,22 +244,18 @@ export default function AttachmentManager({
     } catch (error) {
       console.error('Error taking photo:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถถ่ายรูปได้')
+    } finally {
+      endPickerFlow()
     }
   }
 
   const handlePickFromGallery = async () => {
-    setShowAttachmentOptions(false)
-
-    if (disabled || isUploading) return
-
-    if (allAttachments.length >= maxFiles) {
-      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
+    const canContinue = await beginPickerFlow()
+    if (!canContinue) {
       return
     }
 
     try {
-      const ImagePicker = await import('expo-image-picker')
-
       // Request media library permissions
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -201,24 +299,23 @@ export default function AttachmentManager({
     } catch (error) {
       console.error('Error picking image:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกรูปภาพได้')
+    } finally {
+      endPickerFlow()
     }
   }
 
   const handlePickDocument = async () => {
-    setShowAttachmentOptions(false)
-
-    if (disabled || isUploading) return
-
-    if (allAttachments.length >= maxFiles) {
-      Alert.alert('ถึงขีดจำกัด', `สามารถแนบไฟล์ได้สูงสุด ${maxFiles} ไฟล์`)
+    const canContinue = await beginPickerFlow()
+    if (!canContinue) {
       return
     }
 
     try {
-      // Dynamic import to avoid missing dependency error
-      const DocumentPicker = await import('expo-document-picker')
       const result = await DocumentPicker.getDocumentAsync({
-        type: allowedTypes,
+        type:
+          Platform.OS === 'ios'
+            ? ['public.image', 'com.adobe.pdf']
+            : allowedTypes,
         copyToCacheDirectory: true
       })
 
@@ -256,6 +353,8 @@ export default function AttachmentManager({
     } catch (error) {
       console.error('Error picking document:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกไฟล์ได้')
+    } finally {
+      endPickerFlow()
     }
   }
 
@@ -371,11 +470,17 @@ export default function AttachmentManager({
       <TouchableOpacity
         style={[
           styles.addButton,
-          (disabled || isUploading || allAttachments.length >= maxFiles) &&
+          (disabled ||
+            isUploading ||
+            allAttachments.length >= maxFiles) &&
             styles.addButtonDisabled
         ]}
-        onPress={() => setShowAttachmentOptions(true)}
-        disabled={disabled || isUploading || allAttachments.length >= maxFiles}
+        onPress={handleOpenAttachmentOptions}
+        disabled={
+          disabled ||
+          isUploading ||
+          allAttachments.length >= maxFiles
+        }
       >
         {isUploading ? (
           <>
@@ -399,11 +504,19 @@ export default function AttachmentManager({
         visible={showAttachmentOptions}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowAttachmentOptions(false)}
+        onRequestClose={() => {
+          if (!isPickerOpening) {
+            setShowAttachmentOptions(false)
+          }
+        }}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setShowAttachmentOptions(false)}
+          onPress={() => {
+            if (!isPickerOpening) {
+              setShowAttachmentOptions(false)
+            }
+          }}
         >
           <View style={styles.optionsContainer}>
             <View style={styles.optionsHeader}>
@@ -411,14 +524,16 @@ export default function AttachmentManager({
               <TouchableOpacity
                 onPress={() => setShowAttachmentOptions(false)}
                 style={styles.closeButton}
+                disabled={isPickerOpening}
               >
                 <X size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isPickerOpening && styles.optionItemDisabled]}
               onPress={handlePickFromCamera}
+              disabled={isPickerOpening}
             >
               <View style={styles.optionIcon}>
                 <Camera size={24} color="#5FA7D1" />
@@ -432,8 +547,9 @@ export default function AttachmentManager({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isPickerOpening && styles.optionItemDisabled]}
               onPress={handlePickFromGallery}
+              disabled={isPickerOpening}
             >
               <View style={styles.optionIcon}>
                 <ImageIcon size={24} color="#5FA7D1" />
@@ -445,8 +561,9 @@ export default function AttachmentManager({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.optionItem}
+              style={[styles.optionItem, isPickerOpening && styles.optionItemDisabled]}
               onPress={handlePickDocument}
+              disabled={isPickerOpening}
             >
               <View style={styles.optionIcon}>
                 <FileText size={24} color="#5FA7D1" />
@@ -615,6 +732,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6'
+  },
+  optionItemDisabled: {
+    opacity: 0.5
   },
   optionIcon: {
     width: 48,
