@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   },
   optionsTitle: {
     fontSize: 18,
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_500Medium',
     color: '#225877'
   },
   closeButton: {
