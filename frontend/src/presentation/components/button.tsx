@@ -1,12 +1,18 @@
-import { colors } from '@/constants/design-system'
+import {
+  borderRadius,
+  colors,
+  spacing,
+  typography
+} from '@/constants/design-system'
 import React from 'react'
 import {
   ActivityIndicator,
-  Pressable,
+  StyleProp,
   StyleSheet,
   Text,
   TextStyle,
   TouchableOpacity,
+  View,
   ViewStyle
 } from 'react-native'
 
@@ -18,11 +24,13 @@ interface ButtonProps {
   onPress: () => void
   variant?: ButtonVariant
   size?: ButtonSize
+  icon?: React.ReactNode
+  iconPosition?: 'left' | 'right'
   disabled?: boolean
   loading?: boolean
   fullWidth?: boolean
-  style?: ViewStyle
-  textStyle?: TextStyle
+  style?: StyleProp<ViewStyle>
+  textStyle?: StyleProp<TextStyle>
 }
 
 export default function Button({
@@ -30,6 +38,8 @@ export default function Button({
   onPress,
   variant = 'base',
   size = 'medium',
+  icon,
+  iconPosition = 'left',
   disabled = false,
   loading = false,
   fullWidth = false,
@@ -107,20 +117,34 @@ export default function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'ghost' ? '#225877' : '#fff'}
+          color={
+            variant === 'ghost'
+              ? colors.primary.DEFAULT
+              : colors.background.secondary
+          }
           size="small"
         />
       ) : (
-        <Text
-          style={[
-            styles.buttonText,
-            getVariantTextStyle(),
-            getSizeTextStyle(),
-            textStyle
-          ]}
-        >
-          {title}
-        </Text>
+        <>
+          {icon && iconPosition === 'left' ? (
+            <View style={styles.leftIcon}>{icon}</View>
+          ) : null}
+
+          <Text
+            style={[
+              styles.buttonText,
+              getVariantTextStyle(),
+              getSizeTextStyle(),
+              textStyle
+            ]}
+          >
+            {title}
+          </Text>
+
+          {icon && iconPosition === 'right' ? (
+            <View style={styles.rightIcon}>{icon}</View>
+          ) : null}
+        </>
       )}
     </TouchableOpacity>
   )
@@ -128,14 +152,24 @@ export default function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 40,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row'
   },
   buttonText: {
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: typography.fontFamily.medium,
     textAlign: 'center'
+  },
+  leftIcon: {
+    marginRight: spacing[2],
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  rightIcon: {
+    marginLeft: spacing[2],
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   fullWidth: {
     width: '100%'
@@ -144,51 +178,51 @@ const styles = StyleSheet.create({
     opacity: 0.5
   },
   baseButton: {
-    backgroundColor: '#225877'
+    backgroundColor: colors.primary.DEFAULT
   },
   baseButtonText: {
-    color: '#fff'
+    color: colors.background.secondary
   },
   successButton: {
     backgroundColor: colors.success.DEFAULT
   },
   successButtonText: {
-    color: '#fff'
+    color: colors.background.secondary
   },
   errorButton: {
     backgroundColor: colors.danger.dark
   },
   errorButtonText: {
-    color: '#fff'
+    color: colors.background.secondary
   },
   ghostButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.gray[100],
     borderWidth: 1,
-    borderColor: '#d1d5db'
+    borderColor: colors.border.DEFAULT
   },
   ghostButtonText: {
-    color: '#4b5563'
+    color: colors.gray[600]
   },
   // Sizes
   smallButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4]
   },
   smallButtonText: {
-    fontSize: 13
+    fontSize: typography.fontSize.base
   },
   mediumButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[6]
   },
   mediumButtonText: {
-    fontSize: 14
+    fontSize: typography.fontSize.md
   },
   largeButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 32
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[8]
   },
   largeButtonText: {
-    fontSize: 16
+    fontSize: typography.fontSize.lg
   }
 })
