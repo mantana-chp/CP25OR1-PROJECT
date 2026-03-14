@@ -29,6 +29,7 @@ import { useApi } from '@/src/utils/api/use_api'
 
 import Button from '../../components/button'
 import Header from '../../components/header_component'
+import Modal from '../../components/modal'
 import AccessListSection from '../components/access_list_section'
 import AliasModal from '../components/alias_modal'
 import EmptyState from '../components/empty_state'
@@ -52,6 +53,10 @@ export default function PetSharingPage() {
   const [showAliasModal, setShowAliasModal] = useState(false)
   const [aliasInput, setAliasInput] = useState('')
   const [showQrModal, setShowQrModal] = useState(false)
+  const [showCancelInviteModal, setShowCancelInviteModal] = useState(false)
+  const [caregiverToRevoke, setCaregiverToRevoke] = useState<ICaregiver | null>(
+    null
+  )
 
   const listCaregiversApi = useApi(petSharingService.listCaregivers, {
     showErrorAlert: false
@@ -174,58 +179,54 @@ export default function PetSharingPage() {
 
   const handleCancelInvite = () => {
     if (!pendingInvite) return
+    setShowCancelInviteModal(true)
+  }
 
-    Alert.alert('ยกเลิกรหัสเชิญ', 'คุณต้องการยกเลิกรหัสเชิญนี้ใช่หรือไม่?', [
-      {
-        text: 'ไม่',
-        style: 'cancel'
-      },
-      {
-        text: 'ยกเลิกคำเชิญ',
-        style: 'destructive',
-        onPress: async () => {
-          const result = await cancelInviteApi.execute(pendingInvite.inviteId)
-          if (result.error) {
-            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถยกเลิกรหัสเชิญได้')
-            return
-          }
-          setPendingInvite(null)
-        }
-      }
-    ])
+  const closeCancelInviteModal = () => {
+    if (cancelInviteApi.loading) return
+    setShowCancelInviteModal(false)
+  }
+
+  const handleConfirmCancelInvite = async () => {
+    if (!pendingInvite) return
+
+    const result = await cancelInviteApi.execute(pendingInvite.inviteId)
+    if (result.error) {
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถยกเลิกรหัสเชิญได้')
+      return
+    }
+
+    setPendingInvite(null)
+    setShowCancelInviteModal(false)
   }
 
   const handleRevokeCaregiver = (caregiver: ICaregiver) => {
     if (!petId) return
+    setCaregiverToRevoke(caregiver)
+  }
 
-    Alert.alert(
-      'ยกเลิกสิทธิ์ผู้ดูแล',
-      `ต้องการลบ "${caregiver.alias}" ออกจากรายชื่อผู้ดูแลหรือไม่?`,
-      [
-        {
-          text: 'ไม่',
-          style: 'cancel'
-        },
-        {
-          text: 'ลบผู้ดูแล',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await revokeApi.execute(petId, caregiver.accessId)
-            if (result.error) {
-              Alert.alert(
-                'เกิดข้อผิดพลาด',
-                'ไม่สามารถลบผู้ดูแลได้ กรุณาลองใหม่อีกครั้ง'
-              )
-              return
-            }
+  const closeRevokeCaregiverModal = () => {
+    if (revokeApi.loading) return
+    setCaregiverToRevoke(null)
+  }
 
-            setCaregivers((prev) =>
-              prev.filter((item) => item.accessId !== caregiver.accessId)
-            )
-          }
-        }
-      ]
+  const handleConfirmRevokeCaregiver = async () => {
+    if (!petId || !caregiverToRevoke) return
+
+    const targetCaregiver = caregiverToRevoke
+    const result = await revokeApi.execute(petId, targetCaregiver.accessId)
+    if (result.error) {
+      Alert.alert(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถลบผู้ดูแลได้ กรุณาลองใหม่อีกครั้ง'
+      )
+      return
+    }
+
+    setCaregivers((prev) =>
+      prev.filter((item) => item.accessId !== targetCaregiver.accessId)
     )
+    setCaregiverToRevoke(null)
   }
 
   const isLoading = listCaregiversApi.loading || listInvitesApi.loading
@@ -339,6 +340,34 @@ export default function PetSharingPage() {
         claimLink={claimLink}
         onClose={() => setShowQrModal(false)}
         onShare={handleShareInvite}
+      />
+
+      <Modal
+        visible={showCancelInviteModal}
+        onClose={closeCancelInviteModal}
+        variant="confirmation"
+        icon="warning"
+        title="ยกเลิกรหัสเชิญ"
+        message="คุณต้องการยกเลิกรหัสเชิญนี้ใช่หรือไม่?"
+        confirmText="ยกเลิกคำเชิญ"
+        cancelText="ไม่"
+        confirmVariant="error"
+        onConfirm={handleConfirmCancelInvite}
+        isLoading={cancelInviteApi.loading}
+      />
+
+      <Modal
+        visible={Boolean(caregiverToRevoke)}
+        onClose={closeRevokeCaregiverModal}
+        variant="confirmation"
+        icon="trash"
+        title="ยกเลิกสิทธิ์ผู้ดูแล"
+        message={`ต้องการลบ "${caregiverToRevoke?.alias ?? ''}" ออกจากรายชื่อผู้ดูแลหรือไม่?`}
+        confirmText="ลบผู้ดูแล"
+        cancelText="ไม่"
+        confirmVariant="error"
+        onConfirm={handleConfirmRevokeCaregiver}
+        isLoading={revokeApi.loading}
       />
     </View>
   )

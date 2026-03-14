@@ -8,8 +8,6 @@ import {
 import { X } from 'lucide-react-native'
 import React from 'react'
 import {
-  Modal,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +15,7 @@ import {
   View
 } from 'react-native'
 import Button from '../../components/button'
+import Modal from '../../components/modal'
 
 interface AliasModalProps {
   visible: boolean
@@ -36,49 +35,45 @@ export default function AliasModal({
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
+      onClose={onClose}
+      maxWidth={420}
+      containerStyle={styles.modalContainer}
     >
-      <View style={styles.modalOverlay}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeaderRow}>
+          <Text style={styles.modalTitle}>สร้างรหัสเชิญใหม่</Text>
+          <TouchableOpacity onPress={onClose}>
+            <X size={iconSizes.lg} color={colors.gray[500]} />
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.modalCard}>
-          <View style={styles.modalHeaderRow}>
-            <Text style={styles.modalTitle}>สร้างรหัสเชิญใหม่</Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={iconSizes.lg} color={colors.gray[500]} />
-            </TouchableOpacity>
-          </View>
+        <Text style={styles.modalDescription}>
+          ระบุชื่อสำหรับผู้ดูแลที่กำลังจะเชิญ เช่น พี่สาว หรือ เพื่อนบ้าน
+        </Text>
 
-          <Text style={styles.modalDescription}>
-            ระบุชื่อสำหรับผู้ดูแลที่กำลังจะเชิญ เช่น พี่สาว หรือ เพื่อนบ้าน
-          </Text>
+        <TextInput
+          style={styles.aliasInput}
+          placeholder="ชื่อผู้ดูแล"
+          placeholderTextColor={colors.gray[400]}
+          value={aliasInput}
+          onChangeText={onChangeAlias}
+          maxLength={100}
+          autoFocus
+        />
 
-          <TextInput
-            style={styles.aliasInput}
-            placeholder="ชื่อผู้ดูแล"
-            placeholderTextColor={colors.gray[400]}
-            value={aliasInput}
-            onChangeText={onChangeAlias}
-            maxLength={100}
-            autoFocus
+        <View style={styles.buttons}>
+          <Button
+            title="ยกเลิก"
+            onPress={onClose}
+            variant="ghost"
+            style={styles.buttonHalf}
           />
-
-          <View style={styles.buttons}>
-            <Button
-              title="ยกเลิก"
-              onPress={onClose}
-              variant="ghost"
-              style={styles.buttonHalf}
-            />
-            <Button
-              title={'สร้างรหัส'}
-              onPress={onConfirm}
-              variant="base"
-              style={styles.buttonHalf}
-            />
-          </View>
+          <Button
+            title="สร้างรหัส"
+            onPress={onConfirm}
+            variant="base"
+            style={styles.buttonHalf}
+          />
         </View>
       </View>
     </Modal>
@@ -86,19 +81,10 @@ export default function AliasModal({
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[5]
+  modalContainer: {
+    padding: spacing[4]
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: borderRadius.xl,
-    padding: spacing[4],
-    backgroundColor: colors.background.secondary,
+  modalContent: {
     gap: spacing[2]
   },
   modalHeaderRow: {

@@ -8,15 +8,9 @@ import {
 import { IPendingInvite } from '@/src/utils/api/services/pet_sharing_service'
 import { Share2, X } from 'lucide-react-native'
 import React from 'react'
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Button from '../../components/button'
+import Modal from '../../components/modal'
 import QRCode from 'react-native-qrcode-svg'
 import { formatExpiresIn } from '../../../utils/pet_sharing_utils'
 
@@ -38,69 +32,56 @@ export default function QrModal({
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
+      onClose={onClose}
+      maxWidth={420}
+      containerStyle={styles.modalContainer}
     >
-      <View style={styles.modalOverlay}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-
-        <View style={styles.modalCard}>
-          <View style={styles.modalHeaderRow}>
-            <Text style={styles.modalTitle}>QR Code คำเชิญ</Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={iconSizes.lg} color={colors.gray[500]} />
-            </TouchableOpacity>
-          </View>
-
-          {pendingInvite ? (
-            <>
-              <View style={styles.qrFullscreenContainer}>
-                <QRCode value={claimLink} size={220} />
-              </View>
-
-              <Text style={styles.qrFullscreenSubtitle}>
-                ให้ผู้ดูแลสแกน QR Code นี้เพื่อรับสิทธิ์การดูแล
-              </Text>
-
-              <Text style={styles.qrFullscreenExpiry}>
-                {formatExpiresIn(pendingInvite.expiresAt)}
-              </Text>
-
-              <Button
-                title="แชร์รหัสเชิญ"
-                onPress={onShare}
-                icon={
-                  <Share2
-                    size={iconSizes.md}
-                    color={colors.background.secondary}
-                  />
-                }
-                style={[styles.createInviteButton, styles.qrShareButton]}
-                textStyle={styles.createInviteButtonText}
-              />
-            </>
-          ) : null}
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeaderRow}>
+          <Text style={styles.modalTitle}>QR Code คำเชิญ</Text>
+          <TouchableOpacity onPress={onClose}>
+            <X size={iconSizes.lg} color={colors.gray[500]} />
+          </TouchableOpacity>
         </View>
+
+        {pendingInvite ? (
+          <>
+            <View style={styles.qrFullscreenContainer}>
+              <QRCode value={claimLink} size={220} />
+            </View>
+
+            <Text style={styles.qrFullscreenSubtitle}>
+              ให้ผู้ดูแลสแกน QR Code นี้เพื่อรับสิทธิ์การดูแล
+            </Text>
+
+            <Text style={styles.qrFullscreenExpiry}>
+              {formatExpiresIn(pendingInvite.expiresAt)}
+            </Text>
+
+            <Button
+              title="แชร์รหัสเชิญ"
+              onPress={onShare}
+              icon={
+                <Share2
+                  size={iconSizes.md}
+                  color={colors.background.secondary}
+                />
+              }
+              style={[styles.createInviteButton, styles.qrShareButton]}
+              textStyle={styles.createInviteButtonText}
+            />
+          </>
+        ) : null}
       </View>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[5]
+  modalContainer: {
+    padding: spacing[4]
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: borderRadius.xl,
-    padding: spacing[4],
-    backgroundColor: colors.background.secondary,
+  modalContent: {
     gap: spacing[2]
   },
   modalHeaderRow: {

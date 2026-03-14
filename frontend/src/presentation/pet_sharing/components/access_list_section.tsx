@@ -153,8 +153,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.danger.DEFAULT,
     borderRadius: borderRadius.full,
-    paddingHorizontal: 14,
-    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background.secondary
