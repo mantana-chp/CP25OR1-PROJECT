@@ -117,11 +117,11 @@ export default function TodayRemindersModal({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Bell size={24} color="#225877" />
+              <Bell size={20} color="#225877" />
               <Text style={styles.headerTitle}>เตือนความจำวันนี้</Text>
             </View>
             <Pressable onPress={handleClose} hitSlop={10}>
-              <X size={24} color="#6b7280" />
+              <X size={20} color="#6b7280" />
             </Pressable>
           </View>
 
@@ -259,10 +259,10 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12
+    gap: 8
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontFamily: 'Prompt_700Bold',
     color: '#225877'
   },
