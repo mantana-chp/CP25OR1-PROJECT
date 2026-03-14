@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   borderRadius,
@@ -40,6 +41,7 @@ import PendingInviteCard from '../components/pending_invite_card'
 
 export default function PetSharingPage() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { petId: rawPetId } = useLocalSearchParams<{
     petId?: string | string[]
   }>()
@@ -397,7 +399,14 @@ export default function PetSharingPage() {
             ) : null}
           </ScrollView>
 
-          <View style={styles.stickyFooter}>
+          <View
+            style={[
+              styles.stickyFooter,
+              {
+                paddingBottom: Math.max(spacing[4], insets.bottom + spacing[2])
+              }
+            ]}
+          >
             <Button
               title="สร้างรหัสเชิญใหม่"
               onPress={openCreateInviteModal}
@@ -491,11 +500,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 4,
+    bottom: 0,
     backgroundColor: colors.background.primary,
     paddingHorizontal: spacing[4],
-    paddingTop: spacing[2],
-    paddingBottom: spacing[6]
+    paddingTop: spacing[2]
   },
   createInviteButton: {
     minHeight: spacing[12],
