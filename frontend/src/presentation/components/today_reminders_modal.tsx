@@ -4,7 +4,7 @@ import { useApi } from '@/src/utils/api/use_api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import dayjs from 'dayjs'
 import _ from 'lodash'
-import { Bell, Check, ClockIcon, PawPrintIcon, X } from 'lucide-react-native'
+import { Bell, Check, X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import {
   Modal,
@@ -14,8 +14,8 @@ import {
   Text,
   View
 } from 'react-native'
+import ReminderCard from '../reminder/components/reminder_card'
 import LoadingComponent from './loading_component'
-import { Ionicons } from '@expo/vector-icons'
 
 const LAST_SHOWN_KEY = '@today_reminders_last_shown'
 
@@ -95,11 +95,6 @@ export default function TodayRemindersModal({
     setIsChecked(!isChecked)
   }
 
-  const formatTime = (timeString: string) => {
-    if (!timeString) return ''
-    return timeString.substring(0, 5) + ' น.'
-  }
-
   if (!visible || todayReminders.length === 0) {
     return null
   }
@@ -138,58 +133,13 @@ export default function TodayRemindersModal({
                 คุณมี {todayReminders.length} รายการที่ต้องทำวันนี้
               </Text>
 
-              {_.map(todayReminders, (reminder, index) => (
-                <View key={reminder.id} style={styles.reminderCard}>
-                  <View style={styles.reminderHeader}>
-                    <View style={styles.reminderContent}>
-                      <View style={styles.infoRow}>
-                        <Text style={styles.reminderNumber}>{index + 1}.</Text>
-                        <Text style={styles.reminderName}>
-                          {reminder.reminderName}
-                        </Text>
-                      </View>
-                      {reminder.pet_name && (
-                        <View style={styles.infoRow}>
-                          <Ionicons
-                            name={'paw-outline'}
-                            size={14}
-                            color={'#225877'}
-                          />
-                          <Text style={styles.petName}>
-                            {reminder.pet_name}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.infoRow}>
-                        <ClockIcon
-                          size={14}
-                          color={
-                            reminder?.reminderStatus.includes('overdue')
-                              ? '#BF1737'
-                              : '#FF9531'
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.reminderTime,
-                            reminder?.reminderStatus.includes('overdue') && {
-                              color: '#BF1737'
-                            }
-                          ]}
-                        >
-                          {formatTime(reminder.reminderTime) || '-'}
-                          {reminder?.reminderStatus.includes('overdue') &&
-                            ' (เกินกำหนดเวลา)'}
-                        </Text>
-                      </View>
-                      {reminder.description && reminder.description !== '-' && (
-                        <Text style={styles.reminderDescription}>
-                          {reminder.description}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </View>
+              {_.map(todayReminders, (reminder) => (
+                <ReminderCard
+                  key={reminder.id}
+                  reminder={reminder}
+                  canDelete={false}
+                  hideToggle={true}
+                />
               ))}
             </ScrollView>
           )}
@@ -257,7 +207,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb'
   },
@@ -272,61 +222,18 @@ const styles = StyleSheet.create({
     color: '#225877'
   },
   content: {
-    padding: 20,
+    padding: 16,
     maxHeight: 400
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#6b7280',
     marginBottom: 16,
     textAlign: 'center'
   },
-  reminderCard: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#5FA7D1'
-  },
-  reminderHeader: {
-    flexDirection: 'row',
-    gap: 8
-  },
-  reminderNumber: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877'
-  },
-  reminderContent: {
-    flex: 1,
-    gap: 4
-  },
-  reminderName: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877'
-  },
-  petName: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  reminderTime: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#FF9531'
-  },
-  reminderDescription: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
-    marginTop: 4
-  },
   footer: {
-    padding: 20,
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     flexDirection: 'row',
@@ -346,11 +253,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center'
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -358,8 +260,8 @@ const styles = StyleSheet.create({
     flex: 1
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 16,
+    height: 16,
     borderRadius: 4,
     borderWidth: 2,
     borderColor: '#5FA7D1',
