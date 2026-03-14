@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   createPet,
+  createMultiplePets,
   getAllPetProfilesController,
   getPetProfileByIdController,
   updatePetController,
@@ -17,6 +18,7 @@ import { resolvePetRole, requireOwner } from '../../middlewares/resolvePetRole'
 import { validate } from '../../middlewares/validate'
 import {
   createPetSchema,
+  createMultiplePetsSchema,
   getPetByIdSchema,
   updatePetSchema,
   updatePetProfileImageSchema,
@@ -55,6 +57,49 @@ const petRoutes = Router()
  *         description: Conflict - User has reached the pet limit.
  */
 petRoutes.post('/', authGuard, validate(createPetSchema), createPet)
+
+/**
+ * @openapi
+ * /pets/bulk:
+ *   post:
+ *     tags: [Pets]
+ *     summary: Create multiple pets at once for the authenticated user (limit 30 total)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - pets
+ *             properties:
+ *               pets:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 30
+ *                 items:
+ *                   $ref: '#/components/schemas/CreatePetBody'
+ *     responses:
+ *       201:
+ *         description: Pets created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/PetProfile'
+ *       400:
+ *         description: Bad Request - Validation error.
+ *       401:
+ *         description: Unauthorized.
+ *       409:
+ *         description: Conflict - User has reached the pet limit.
+ */
+petRoutes.post('/bulk', authGuard, validate(createMultiplePetsSchema), createMultiplePets)
 
 /**
  * @openapi

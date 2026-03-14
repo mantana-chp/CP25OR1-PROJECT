@@ -4,6 +4,7 @@ import * as petService from './pet-service'
 import { sendSuccess } from '../../shared/response'
 import {
   createPetSchema,
+  createMultiplePetsSchema,
   getPetByIdSchema,
   updatePetSchema,
   updatePetProfileImageSchema,
@@ -21,6 +22,15 @@ export const createPet = asyncHandler(async (req: Request, res: Response) => {
   const newPet = await petService.createPet(userId, petData)
 
   sendSuccess(res, newPet, 201)
+})
+
+export const createMultiplePets = asyncHandler(async (req: Request, res: Response) => {
+  const { id: userId } = req.user!
+  const { pets: petsData } = createMultiplePetsSchema.parse(req).body
+
+  const newPets = await petService.createMultiplePets(userId, petsData)
+
+  sendSuccess(res, newPets, 201)
 })
 
 export const getAllPetProfilesController = asyncHandler(
