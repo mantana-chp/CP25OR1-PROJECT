@@ -1,3 +1,4 @@
+import { IPetProfile } from '@/src/domain/pet.domain'
 import { apiClient } from '../api_client'
 
 export interface ICaregiver {
@@ -35,6 +36,12 @@ export const petSharingService = {
         petIds,
         alias
       }
+    )
+  },
+
+  claimInvite: async (token: string) => {
+    return apiClient.post<{ data: IPetProfile[] }>(
+      `/v1/pet-shares/claim/${token}`
     )
   },
 

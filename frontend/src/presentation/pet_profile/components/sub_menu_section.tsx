@@ -1,11 +1,6 @@
 import { colors } from '@/constants/design-system'
 import { useRouter } from 'expo-router'
-import {
-  BriefcaseMedical,
-  ClipboardList,
-  User2,
-  Users
-} from 'lucide-react-native'
+import { ClipboardList, ScanQrCode, Users } from 'lucide-react-native'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -54,6 +49,21 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
             <Users size={28} color={colors.primary.DEFAULT} strokeWidth={1.5} />
           </View>
           <Text style={styles.text}>ผู้ดูแลร่วม</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            router.push('./scan_pet_share')
+          }}
+          style={styles.menuButton}
+        >
+          <View style={styles.iconCircle}>
+            <ScanQrCode
+              size={28}
+              color={colors.primary.DEFAULT}
+              strokeWidth={1.5}
+            />
+          </View>
+          <Text style={styles.text}>สแกน QR Code</Text>
         </Pressable>
       </View>
     </View>

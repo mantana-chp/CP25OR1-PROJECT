@@ -151,6 +151,14 @@ export default function TabLayout() {
           tabBarStyle: { display: 'none' }
         }}
       />
+      <Tabs.Screen
+        name="scan_pet_share"
+        options={{
+          title: 'สแกน QR Code',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
     </Tabs>
   )
 }

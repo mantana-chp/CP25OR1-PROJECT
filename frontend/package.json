@@ -30,6 +30,7 @@
     "dayjs": "^1.11.18",
     "expo": "~54.0.27",
     "expo-application": "~7.0.8",
+    "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.9",
     "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
