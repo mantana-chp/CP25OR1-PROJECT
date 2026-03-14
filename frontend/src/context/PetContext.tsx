@@ -148,18 +148,20 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     [refreshDeletedPets]
   )
 
-  // MOCK: Restore - move pet from deletedPets back to activePets (local state only)
+  // Restore - call backend API, then refresh local state
   const restorePet = useCallback(
     async (petId: string) => {
-      const petToRestore = deletedPets.find((p) => p.id === petId)
-      if (petToRestore) {
-        // Remove deleted_at and add back to active pets
-        const { deleted_at, ...restoredPet } = petToRestore
-        setActivePetsData((prev) => [...prev, restoredPet as IPetProfile])
-        setDeletedPets((prev) => prev.filter((p) => p.id !== petId))
+      try {
+        console.log('♻️ Restoring pet:', petId)
+        await petProfileService.restorePet(petId)
+        console.log('✅ Pet restored')
+        await Promise.all([refreshPets(), refreshDeletedPets()])
+      } catch (error) {
+        console.error('❌ Error restoring pet:', error)
+        throw error
       }
     },
-    [deletedPets]
+    [refreshPets, refreshDeletedPets]
   )
 
   // Mark pet as deceased - call backend API

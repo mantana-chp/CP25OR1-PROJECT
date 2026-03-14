@@ -1,5 +1,6 @@
+import { Modal } from '@/src/presentation/components'
 import React from 'react'
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 
 interface DeleteConfirmationModalProps {
   visible: boolean
@@ -19,39 +20,16 @@ export default function DeleteConfirmationModal({
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>ยืนยันการลบ</Text>
-          <Text style={styles.modalMessage}>
-            การลบเตือนความจำนี้จะลบเตือนความจำทั้งหมดใน{' '}
-            <Text style={styles.modalBold}>{reminderName}</Text> ({totalCount}{' '}
-            รายการ)
-          </Text>
-          <Text style={styles.modalSubMessage}>คุณแน่ใจหรือไม่?</Text>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={onCancel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.deleteButtonModal]}
-              onPress={onConfirm}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.deleteButtonText}>ลบทั้งหมด</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
+      onClose={onCancel}
+      variant="confirmation"
+      maxWidth={400}
+      icon="trash"
+      title="ยืนยันการลบ"
+      message={`คุณแน่ใจหรือไม่ว่าจะลบเตือนความจำทั้งหมดใน \n"${reminderName}" (${totalCount} รายการ)?`}
+      confirmText="ลบทั้งหมด"
+      cancelText="ยกเลิก"
+      onConfirm={onConfirm}
+    />
   )
 }
 
