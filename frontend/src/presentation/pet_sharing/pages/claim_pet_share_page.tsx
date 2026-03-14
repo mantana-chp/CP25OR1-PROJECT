@@ -19,47 +19,55 @@ import {
   CameraView,
   useCameraPermissions
 } from 'expo-camera'
-import { RefreshCw, ScanLine, ShieldCheck } from 'lucide-react-native'
-import React, { useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native'
+import { ScanLine, ShieldCheck } from 'lucide-react-native'
+import React, { useMemo, useRef } from 'react'
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native'
 
 import Button from '../../components/button'
 import Header from '../../components/header_component'
 
+const DUPLICATE_SCAN_WINDOW_MS = 2000
+
 const getClaimErrorMessage = (error: ApiError) => {
   const message = error.message?.toLowerCase() ?? ''
+  const backendMessage =
+    typeof error.errors?.[0]?.message === 'string'
+      ? error.errors[0].message.toLowerCase()
+      : ''
+  const mergedMessage = `${message} ${backendMessage}`
 
   if (error.statusCode === 401) {
     return 'กรุณาเข้าสู่ระบบก่อนรับคำเชิญ'
   }
 
-  if (error.statusCode === 404 || message.includes('invalid code')) {
+  if (error.statusCode === 404 || mergedMessage.includes('invalid code')) {
     return 'QR Code ไม่ถูกต้องหรือถูกยกเลิกแล้ว'
   }
 
-  if (message.includes('already the owner')) {
+  if (mergedMessage.includes('already the owner')) {
     return 'บัญชีนี้เป็นเจ้าของสัตว์เลี้ยงนี้อยู่แล้ว'
   }
 
-  if (message.includes('code expired or already used')) {
+  if (
+    mergedMessage.includes('already a caregiver') ||
+    mergedMessage.includes('already caregiver')
+  ) {
+    return 'คุณอยู่ในรายชื่อผู้ดูแลร่วมของสัตว์เลี้ยงนี้แล้ว'
+  }
+
+  if (mergedMessage.includes('code expired or already used')) {
     return 'QR Code นี้หมดอายุหรือถูกใช้ไปแล้ว'
   }
 
-  if (message.includes('expired')) {
+  if (mergedMessage.includes('expired')) {
     return 'QR Code หมดอายุแล้ว กรุณาขอรหัสเชิญใหม่จากเจ้าของสัตว์เลี้ยง'
   }
 
-  if (message.includes('already used')) {
+  if (mergedMessage.includes('already used')) {
     return 'QR Code นี้ถูกใช้ไปแล้ว'
   }
 
-  if (message.includes('no longer active')) {
+  if (mergedMessage.includes('no longer active')) {
     return 'คำเชิญนี้อ้างอิงสัตว์เลี้ยงที่ไม่พร้อมแชร์แล้ว กรุณาขอรหัสใหม่'
   }
 
@@ -72,8 +80,12 @@ export default function ClaimPetSharePage() {
   const { refreshPets } = usePets()
 
   const [permission, requestPermission] = useCameraPermissions()
-  const [facing, setFacing] = useState<CameraType>('back')
-  const [hasScanned, setHasScanned] = useState(false)
+  const facing: CameraType = 'back'
+  const isHandlingScanRef = useRef(false)
+  const lastScannedPayloadRef = useRef<{
+    value: string
+    scannedAt: number
+  } | null>(null)
 
   const claimInviteApi = useApi(petSharingService.claimInvite, {
     showErrorAlert: false
@@ -104,7 +116,6 @@ export default function ClaimPetSharePage() {
   const onClaimInvite = async (token: string) => {
     if (!isAuthenticated) {
       Alert.alert('กรุณาเข้าสู่ระบบ', 'คุณต้องเข้าสู่ระบบก่อนรับคำเชิญ')
-      setHasScanned(false)
       return
     }
 
@@ -113,7 +124,6 @@ export default function ClaimPetSharePage() {
     if (result.error) {
       const error = result.error as ApiError
       Alert.alert('รับคำเชิญไม่สำเร็จ', getClaimErrorMessage(error))
-      setHasScanned(false)
       return
     }
 
@@ -125,41 +135,48 @@ export default function ClaimPetSharePage() {
     Alert.alert(
       'รับคำเชิญสำเร็จ',
       firstPetName
-        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว`
-        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว',
-      [
-        {
-          text: 'ตกลง',
-          onPress: () => router.replace('/(tabs)/pet_profile')
-        }
-      ]
+        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว\nคุณสามารถสแกน QR ถัดไปได้ทันที`
+        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว\nคุณสามารถสแกน QR ถัดไปได้ทันที'
     )
   }
 
   const onBarcodeScanned = async (event: BarcodeScanningResult) => {
-    if (hasScanned || claimInviteApi.loading) {
+    if (isHandlingScanRef.current || claimInviteApi.loading) {
       return
     }
 
-    setHasScanned(true)
+    const payload = event.data?.trim()
+    if (!payload) return
 
-    const token = extractClaimToken(event.data)
+    const now = Date.now()
+    const previousScan = lastScannedPayloadRef.current
+
+    if (
+      previousScan &&
+      previousScan.value === payload &&
+      now - previousScan.scannedAt < DUPLICATE_SCAN_WINDOW_MS
+    ) {
+      return
+    }
+
+    isHandlingScanRef.current = true
+    lastScannedPayloadRef.current = {
+      value: payload,
+      scannedAt: now
+    }
+
+    const token = extractClaimToken(payload)
     if (!token) {
       Alert.alert('QR Code ไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญใน QR Code นี้')
-      setHasScanned(false)
+      isHandlingScanRef.current = false
       return
     }
 
-    await onClaimInvite(token)
-  }
-
-  const onFlipCamera = () => {
-    setFacing((current) => (current === 'back' ? 'front' : 'back'))
-  }
-
-  const onResetScan = () => {
-    if (claimInviteApi.loading) return
-    setHasScanned(false)
+    try {
+      await onClaimInvite(token)
+    } finally {
+      isHandlingScanRef.current = false
+    }
   }
 
   return (
@@ -173,7 +190,10 @@ export default function ClaimPetSharePage() {
           </View>
         ) : !isAuthenticated ? (
           <View style={styles.stateContainer}>
-            <ShieldCheck color={colors.warning.DEFAULT} size={iconSizes['4xl']} />
+            <ShieldCheck
+              color={colors.warning.DEFAULT}
+              size={iconSizes['4xl']}
+            />
             <Text style={styles.stateTitle}>กรุณาเข้าสู่ระบบก่อน</Text>
             <Text style={styles.stateDescription}>
               คุณต้องเข้าสู่ระบบก่อนรับคำเชิญผู้ดูแลร่วม
@@ -205,9 +225,7 @@ export default function ClaimPetSharePage() {
                 style={styles.camera}
                 facing={facing}
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={
-                  hasScanned || claimInviteApi.loading ? undefined : onBarcodeScanned
-                }
+                onBarcodeScanned={onBarcodeScanned}
               />
 
               <View pointerEvents="none" style={styles.scanFrame} />
@@ -216,30 +234,6 @@ export default function ClaimPetSharePage() {
             <Text style={styles.helperText}>
               วาง QR Code คำเชิญให้อยู่ภายในกรอบเพื่อรับสิทธิ์ผู้ดูแลร่วม
             </Text>
-
-            <View style={styles.actionRow}>
-              <Button
-                title="สลับกล้อง"
-                onPress={onFlipCamera}
-                variant="ghost"
-                icon={
-                  <RefreshCw
-                    size={iconSizes.md}
-                    color={colors.primary.DEFAULT}
-                    strokeWidth={2}
-                  />
-                }
-                style={styles.secondaryButton}
-                textStyle={styles.secondaryButtonText}
-              />
-
-              <Button
-                title={hasScanned ? 'สแกนอีกครั้ง' : 'พร้อมสแกน'}
-                onPress={onResetScan}
-                disabled={!hasScanned}
-                style={styles.primaryButton}
-              />
-            </View>
           </>
         )}
       </View>
@@ -286,22 +280,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
     lineHeight: typography.lineHeight.normal
-  },
-  actionRow: {
-    marginTop: spacing[4],
-    flexDirection: 'row',
-    gap: spacing[3]
-  },
-  secondaryButton: {
-    flex: 1
-  },
-  secondaryButtonText: {
-    color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.medium
-  },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: colors.primary.light
   },
   stateContainer: {
     alignItems: 'center',

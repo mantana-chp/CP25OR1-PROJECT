@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { Info, UserPlus } from 'lucide-react-native'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -57,6 +57,10 @@ export default function PetSharingPage() {
   const [caregiverToRevoke, setCaregiverToRevoke] = useState<ICaregiver | null>(
     null
   )
+  const isRealtimeSyncingRef = useRef(false)
+  const caregiversRef = useRef<ICaregiver[]>([])
+  const pendingInviteRef = useRef<IPendingInvite | null>(null)
+  const showQrModalRef = useRef(false)
 
   const listCaregiversApi = useApi(petSharingService.listCaregivers, {
     showErrorAlert: false
@@ -106,10 +110,99 @@ export default function PetSharingPage() {
     }
   }, [petId, listCaregiversApi.execute, listInvitesApi.execute])
 
+  useEffect(() => {
+    caregiversRef.current = caregivers
+  }, [caregivers])
+
+  useEffect(() => {
+    pendingInviteRef.current = pendingInvite
+  }, [pendingInvite])
+
+  useEffect(() => {
+    showQrModalRef.current = showQrModal
+  }, [showQrModal])
+
+  const syncRealtimeData = useCallback(async () => {
+    if (!petId || !isOwner) return
+    if (isRealtimeSyncingRef.current) return
+
+    isRealtimeSyncingRef.current = true
+
+    try {
+      const previousCaregivers = caregiversRef.current
+      const previousPendingInvite = pendingInviteRef.current
+
+      const [caregiversRes, invitesRes] = await Promise.all([
+        petSharingService.listCaregivers(petId),
+        petSharingService.listPendingInvites()
+      ])
+
+      const caregiversData = unwrapData<ICaregiver[]>(caregiversRes)
+      const nextCaregivers = Array.isArray(caregiversData) ? caregiversData : []
+
+      const allInvites = unwrapData<IPendingInvite[]>(invitesRes)
+      const invites = Array.isArray(allInvites) ? allInvites : []
+      const nextPendingInvite =
+        invites.find((invite) => invite.pets.some((pet) => pet.id === petId)) ??
+        null
+
+      setCaregivers(nextCaregivers)
+      setPendingInvite(nextPendingInvite)
+
+      const hadPendingInvite = Boolean(previousPendingInvite)
+      const isInviteAcceptedNow = hadPendingInvite && !nextPendingInvite
+
+      if (isInviteAcceptedNow) {
+        const previousAccessIds = new Set(
+          previousCaregivers.map((caregiver) => caregiver.accessId)
+        )
+        const newlyAcceptedCaregivers = nextCaregivers.filter(
+          (caregiver) => !previousAccessIds.has(caregiver.accessId)
+        )
+
+        if (newlyAcceptedCaregivers.length > 0) {
+          if (showQrModalRef.current) {
+            setShowQrModal(false)
+          }
+
+          Alert.alert(
+            'ผู้ดูแลรับคำเชิญแล้ว',
+            `"${newlyAcceptedCaregivers[0].alias}" เข้าร่วมเป็นผู้ดูแลร่วมเรียบร้อยแล้ว`
+          )
+        }
+      }
+    } catch (error) {
+      const apiError = error as ApiError
+      if (apiError?.statusCode === 403) {
+        setIsOwner(false)
+        setCaregivers([])
+        setPendingInvite(null)
+      }
+    } finally {
+      isRealtimeSyncingRef.current = false
+    }
+  }, [petId, isOwner])
+
   useFocusEffect(
     useCallback(() => {
       void loadData()
     }, [loadData])
+  )
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!petId || !isOwner || !pendingInvite) return
+
+      void syncRealtimeData()
+
+      const pollInterval = setInterval(() => {
+        void syncRealtimeData()
+      }, 3000)
+
+      return () => {
+        clearInterval(pollInterval)
+      }
+    }, [petId, isOwner, pendingInvite?.inviteId, syncRealtimeData])
   )
 
   const openCreateInviteModal = () => {
