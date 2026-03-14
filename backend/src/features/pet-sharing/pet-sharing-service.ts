@@ -88,6 +88,27 @@ export const claimInvite = async (
     throw new NotFoundError('Invalid code')
   }
 
+  // Idempotent claim for the same user: if already accepted by this caregiver,
+  // return the linked pets instead of failing with "already used".
+  if (
+    invite.status === invite_status.ACCEPTED &&
+    invite.claimed_by === userId
+  ) {
+    const alreadyClaimedPets = await Promise.all(
+      invite.invite_pets.map(({ pet }) =>
+        prisma.pets.findUnique({
+          where: { id: pet.id },
+          include: {
+            species: { select: { name_th: true } },
+            breeds: { select: { name_th: true } }
+          }
+        })
+      )
+    )
+
+    return Promise.all(alreadyClaimedPets.filter(Boolean).map(formatPetProfile))
+  }
+
   if (
     invite.status !== invite_status.PENDING ||
     invite.expires_at < new Date()
@@ -99,6 +120,19 @@ export const claimInvite = async (
   const ownerIds = [...new Set(invite.invite_pets.map((ip) => ip.pet.user_id))]
   if (ownerIds.includes(userId)) {
     throw new BadRequestError('You are already the owner of one of these pets')
+  }
+
+  const invitePetIds = invite.invite_pets.map((invitePet) => invitePet.pet.id)
+  const existingActiveAccessCount = await prisma.pet_user_access.count({
+    where: {
+      user_id: userId,
+      revoked_at: null,
+      pet_id: { in: invitePetIds }
+    }
+  })
+
+  if (existingActiveAccessCount === invitePetIds.length) {
+    throw new BadRequestError('You are already a caregiver for this pet')
   }
 
   // Transaction: for each unique owner ensure a contact, then create access per pet
