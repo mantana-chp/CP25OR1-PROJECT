@@ -11,7 +11,7 @@ import {
   getPastPetsController,
   getRecentlyDeletedPetsController,
   permanentDeletePetController,
-  restorePetController
+  restorePetController,
 } from './pet-controller'
 import { authGuard } from '../../middlewares/authGuard'
 import { resolvePetRole, requireOwner } from '../../middlewares/resolvePetRole'
@@ -25,7 +25,7 @@ import {
   deletePetProfileImageSchema,
   softDeletePetSchema,
   permanentDeletePetSchema,
-  restorePetSchema
+  restorePetSchema,
 } from './pet-schema'
 
 const petRoutes = Router()
@@ -99,7 +99,12 @@ petRoutes.post('/', authGuard, validate(createPetSchema), createPet)
  *       409:
  *         description: Conflict - User has reached the pet limit.
  */
-petRoutes.post('/bulk', authGuard, validate(createMultiplePetsSchema), createMultiplePets)
+petRoutes.post(
+  '/bulk',
+  authGuard,
+  validate(createMultiplePetsSchema),
+  createMultiplePets,
+)
 
 /**
  * @openapi
@@ -162,7 +167,7 @@ petRoutes.get('/me/past', authGuard, getPastPetsController)
 petRoutes.get(
   '/me/recently-deleted',
   authGuard,
-  getRecentlyDeletedPetsController
+  getRecentlyDeletedPetsController,
 )
 
 /**
@@ -199,7 +204,7 @@ petRoutes.get(
   authGuard,
   resolvePetRole,
   validate(getPetByIdSchema),
-  getPetProfileByIdController
+  getPetProfileByIdController,
 )
 
 /**
@@ -245,7 +250,7 @@ petRoutes.patch(
   resolvePetRole,
   requireOwner,
   validate(updatePetSchema),
-  updatePetController
+  updatePetController,
 )
 
 /**
@@ -286,7 +291,7 @@ petRoutes.put(
   resolvePetRole,
   requireOwner,
   validate(updatePetProfileImageSchema),
-  updatePetProfileImageController
+  updatePetProfileImageController,
 )
 
 /**
@@ -315,7 +320,7 @@ petRoutes.delete(
   resolvePetRole,
   requireOwner,
   validate(deletePetProfileImageSchema),
-  deletePetProfileImageController
+  deletePetProfileImageController,
 )
 
 /**
@@ -371,7 +376,7 @@ petRoutes.delete(
   resolvePetRole,
   requireOwner,
   validate(softDeletePetSchema),
-  softDeletePetController
+  softDeletePetController,
 )
 
 /**
@@ -411,7 +416,7 @@ petRoutes.delete(
   resolvePetRole,
   requireOwner,
   validate(permanentDeletePetSchema),
-  permanentDeletePetController
+  permanentDeletePetController,
 )
 
 /**
@@ -448,7 +453,7 @@ petRoutes.patch(
   '/me/:id/restore',
   authGuard,
   validate(restorePetSchema),
-  restorePetController
+  restorePetController,
 )
 
 export default petRoutes

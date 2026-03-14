@@ -87,9 +87,7 @@ export const createMultiplePets = async (
   }
 
   if (petsData.length > 30) {
-    throw new BadRequestError(
-      'Cannot create more than 30 pets at once.',
-    )
+    throw new BadRequestError('Cannot create more than 30 pets at once.')
   }
 
   const currentPetCount = await petRepository.countByUserId(userId)
@@ -112,7 +110,9 @@ export const createMultiplePets = async (
         birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
         user: { connect: { id: userId } },
         species: { connect: { id: petData.species_id } },
-        ...(petData.breed_id && { breeds: { connect: { id: petData.breed_id } } }),
+        ...(petData.breed_id && {
+          breeds: { connect: { id: petData.breed_id } },
+        }),
       }
 
       const newPet = await tx.pets.create({ data })
