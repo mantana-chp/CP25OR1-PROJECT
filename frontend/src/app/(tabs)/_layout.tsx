@@ -143,6 +143,14 @@ export default function TabLayout() {
           tabBarStyle: { display: 'none' }
         }}
       />
+      <Tabs.Screen
+        name="pet_sharing"
+        options={{
+          title: 'จัดการผู้ดูแล',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
     </Tabs>
   )
 }

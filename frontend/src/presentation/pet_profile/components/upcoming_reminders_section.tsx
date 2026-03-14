@@ -110,10 +110,10 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_SPACING / 2,
-    paddingHorizontal: 16
+    paddingHorizontal: 8
   },
   flatListContent: {
-    paddingHorizontal: 16
+    paddingHorizontal: 8
   },
   emptyContainer: {
     alignItems: 'center',
