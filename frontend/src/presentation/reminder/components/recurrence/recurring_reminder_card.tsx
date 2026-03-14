@@ -33,6 +33,7 @@ import {
 import DeleteConfirmationModal from '../modal/delete_confirmation_modal'
 import VaccineCompleteModal from '../modal/vaccine_complete_modal'
 import VaccineUndoModal from '../modal/vaccine_undo_modal'
+import { Ionicons } from '@expo/vector-icons'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -358,7 +359,7 @@ export default function RecurringReminderCard({
 
           {/* Combined Info Row */}
           <View style={styles.detailsRow}>
-            <PawPrint size={11} color="#6B7280" />
+            <Ionicons name={'paw-outline'} size={11} color={'#6b7280'} />
             <Text style={styles.detailText} numberOfLines={1}>
               {reminder.pet_name}
             </Text>

@@ -1,4 +1,5 @@
 import { getCategoryInfo, IReminder } from '@/src/domain/reminder.domain'
+import { Ionicons } from '@expo/vector-icons'
 import dayjs from 'dayjs'
 import 'dayjs/locale/th'
 import {
@@ -100,8 +101,8 @@ export default function HealthRecordCard({ reminder }: HealthRecordCardProps) {
             </Text>
           </View>
           {reminder.pet_name && (
-            <View style={styles.metaItem}>
-              <PawPrint size={13} color="#9ca3af" strokeWidth={2} />
+            <View style={styles.metaItem}> 
+              <Ionicons name={'paw-outline'} size={13} color={'#9ca3af'} />
               <Text style={styles.metaText}>{reminder.pet_name}</Text>
             </View>
           )}

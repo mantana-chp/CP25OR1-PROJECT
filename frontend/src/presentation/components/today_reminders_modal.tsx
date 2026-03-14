@@ -15,6 +15,7 @@ import {
   View
 } from 'react-native'
 import LoadingComponent from './loading_component'
+import { Ionicons } from '@expo/vector-icons'
 
 const LAST_SHOWN_KEY = '@today_reminders_last_shown'
 
@@ -149,7 +150,11 @@ export default function TodayRemindersModal({
                       </View>
                       {reminder.pet_name && (
                         <View style={styles.infoRow}>
-                          <PawPrintIcon size={14} color="#225877" />
+                          <Ionicons
+                            name={'paw-outline'}
+                            size={14}
+                            color={'#225877'}
+                          />
                           <Text style={styles.petName}>
                             {reminder.pet_name}
                           </Text>
