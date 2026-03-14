@@ -1,27 +1,27 @@
-import prisma from '../../libs/db';
-import * as repo from './pet-sharing-repository';
-import * as petRepo from '../pets/pet-repository';
-import { generateDownloadUrl } from '../file-uploads/upload-service';
-import { formatAgeFromBirthDate } from '../../shared/utils';
+import prisma from '../../libs/db'
+import * as repo from './pet-sharing-repository'
+import * as petRepo from '../pets/pet-repository'
+import { generateDownloadUrl } from '../file-uploads/upload-service'
+import { formatAgeFromBirthDate } from '../../shared/utils'
 import {
-    NotFoundError,
-    BadRequestError,
-    ForbiddenError,
-} from '../../shared/errors';
-import { invite_status } from '../../generated/prisma/client';
+  NotFoundError,
+  BadRequestError,
+  ForbiddenError
+} from '../../shared/errors'
+import { invite_status } from '../../generated/prisma/client'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatPetProfile = async (pet: any) => {
-    let profileImageUrl = null;
-    if (pet.profile_image_key) {
-        try {
-            profileImageUrl = await generateDownloadUrl(pet.profile_image_key, 3600);
-        } catch {
-            profileImageUrl = null;
-        }
+  let profileImageUrl = null
+  if (pet.profile_image_key) {
+    try {
+      profileImageUrl = await generateDownloadUrl(pet.profile_image_key, 3600)
+    } catch {
+      profileImageUrl = null
     }
   }
+
   return {
     id: pet.id,
     pet_name: pet.pet_name,
@@ -45,9 +45,9 @@ const formatPetProfile = async (pet: any) => {
 // ─── 1. Generate Invite ───────────────────────────────────────────────────────
 
 export const generateInvite = async (
-    petIds: string[],
-    userId: string,
-    alias: string,
+  petIds: string[],
+  userId: string,
+  alias: string
 ) => {
   // Verify the requesting user owns ALL supplied pets and they are all ACTIVE
   const ownedCount = await prisma.pets.count({
@@ -78,9 +78,9 @@ export const generateInvite = async (
 // ─── 2. Claim Invite ──────────────────────────────────────────────────────────
 
 export const claimInvite = async (
-    token: string,
-    userId: string,
-    installationId: string,
+  token: string,
+  userId: string,
+  installationId: string
 ) => {
   const invite = await repo.findInviteById(token)
 
@@ -168,61 +168,61 @@ export const claimInvite = async (
 // ─── 3. List Caregivers ───────────────────────────────────────────────────────
 
 export const listCaregivers = async (petId: string) => {
-    const rows = await repo.findCaregiversByPetId(petId);
-    return rows.map((row) => ({
-        accessId: row.id,
-        contactId: row.contact.id,
-        alias: row.contact.alias,
-        grantedAt: row.granted_at,
-    }));
-};
+  const rows = await repo.findCaregiversByPetId(petId)
+  return rows.map((row) => ({
+    accessId: row.id,
+    contactId: row.contact.id,
+    alias: row.contact.alias,
+    grantedAt: row.granted_at
+  }))
+}
 
 // ─── 4. Update Alias ─────────────────────────────────────────────────────────
 
 export const updateAlias = async (
-    contactId: string,
-    userId: string,
-    alias: string,
+  contactId: string,
+  userId: string,
+  alias: string
 ) => {
-    // findUnique with owner check — throws if not found
-    const contact = await prisma.owner_caregiver_contacts.findFirst({
-        where: { id: contactId, owner_user_id: userId },
-    });
+  // findUnique with owner check — throws if not found
+  const contact = await prisma.owner_caregiver_contacts.findFirst({
+    where: { id: contactId, owner_user_id: userId }
+  })
 
-    if (!contact) {
-        throw new NotFoundError('Contact not found or does not belong to you.');
-    }
+  if (!contact) {
+    throw new NotFoundError('Contact not found or does not belong to you.')
+  }
 
-    return prisma.owner_caregiver_contacts.update({
-        where: { id: contactId },
-        data: { alias, updated_at: new Date() },
-        select: { id: true, alias: true, updated_at: true },
-    });
-};
+  return prisma.owner_caregiver_contacts.update({
+    where: { id: contactId },
+    data: { alias, updated_at: new Date() },
+    select: { id: true, alias: true, updated_at: true }
+  })
+}
 
 // ─── 5. Revoke Caregiver ──────────────────────────────────────────────────────
 
 export const revokeCaregiver = async (
-    petId: string,
-    accessId: string,
-    userId: string,
+  petId: string,
+  accessId: string,
+  userId: string
 ) => {
-    // Ownership validated by requireOwner middleware.
-    const access = await prisma.pet_user_access.findFirst({
-        where: { id: accessId, pet_id: petId },
-    });
+  // Ownership validated by requireOwner middleware.
+  const access = await prisma.pet_user_access.findFirst({
+    where: { id: accessId, pet_id: petId }
+  })
 
-    if (!access) {
-        throw new NotFoundError('Caregiver access record not found.');
-    }
+  if (!access) {
+    throw new NotFoundError('Caregiver access record not found.')
+  }
 
-    if (access.revoked_at) {
-        throw new BadRequestError('This caregiver access has already been revoked.');
-    }
+  if (access.revoked_at) {
+    throw new BadRequestError('This caregiver access has already been revoked.')
+  }
 
-    await repo.revokeAccess(accessId, petId);
-    return { message: 'Caregiver access revoked.' };
-};
+  await repo.revokeAccess(accessId, petId)
+  return { message: 'Caregiver access revoked.' }
+}
 
 // ─── 6. List Pending Invites ──────────────────────────────────────────────────
 
@@ -247,20 +247,20 @@ export const cancelInvite = async (inviteId: string, userId: string) => {
     where: { id: inviteId, created_by: userId }
   })
 
-    if (!invite) {
-        throw new NotFoundError('Invite not found or does not belong to you.');
-    }
+  if (!invite) {
+    throw new NotFoundError('Invite not found or does not belong to you.')
+  }
 
-    if (invite.status !== invite_status.PENDING) {
-        throw new BadRequestError('Only PENDING invites can be cancelled.');
-    }
+  if (invite.status !== invite_status.PENDING) {
+    throw new BadRequestError('Only PENDING invites can be cancelled.')
+  }
 
-    await repo.markInviteExpired(inviteId);
-    return { message: 'Invite cancelled.' };
-};
+  await repo.markInviteExpired(inviteId)
+  return { message: 'Invite cancelled.' }
+}
 
 // ─── 8. Has Accessible Pets (startup check) ───────────────────────────────────
 
 export const hasAccessiblePets = async (userId: string): Promise<boolean> => {
-    return repo.hasAnyAccessiblePet(userId);
-};
+  return repo.hasAnyAccessiblePet(userId)
+}
