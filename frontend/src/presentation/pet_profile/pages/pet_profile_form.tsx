@@ -141,6 +141,10 @@ export default function PetProfileForm({
 
     try {
       setIsLoading(true)
+      // Clear previous image state immediately to prevent flashing old image
+      setSelectedImageUri(undefined)
+      setOriginalImageKey(undefined)
+      
       const response = await petProfileService.getPetProfileById(petId)
 
       if (response) {
