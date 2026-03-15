@@ -1,6 +1,6 @@
 import { colors } from '@/constants/design-system'
 import { useRouter } from 'expo-router'
-import { BriefcaseMedical, ClipboardList } from 'lucide-react-native'
+import { ClipboardList, ScanQrCode, Users } from 'lucide-react-native'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -36,6 +36,35 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
           </View>
           <Text style={styles.text}>ประวัติสุขภาพ</Text>
         </Pressable>
+        <Pressable
+          onPress={() => {
+            router.push({
+              pathname: '/(tabs)/pet_sharing',
+              params: petId ? { petId } : {}
+            })
+          }}
+          style={styles.menuButton}
+        >
+          <View style={styles.iconCircle}>
+            <Users size={28} color={colors.primary.DEFAULT} strokeWidth={1.5} />
+          </View>
+          <Text style={styles.text}>ผู้ดูแลร่วม</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            router.push('./scan_pet_share')
+          }}
+          style={styles.menuButton}
+        >
+          <View style={styles.iconCircle}>
+            <ScanQrCode
+              size={28}
+              color={colors.primary.DEFAULT}
+              strokeWidth={1.5}
+            />
+          </View>
+          <Text style={styles.text}>สแกน QR Code</Text>
+        </Pressable>
       </View>
     </View>
   )
@@ -55,9 +84,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 24,
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
     paddingBottom: 8
   },
   menuButton: {

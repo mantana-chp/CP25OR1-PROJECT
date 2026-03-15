@@ -87,6 +87,7 @@ export type TDeletionReason = 'JUST_DELETE' | 'DECEASED'
 export interface IPetProfile {
   id: string
   pet_name: string
+  petRole?: 'OWNER' | 'CAREGIVER'
   gender: string
   species: string
   species_id: string

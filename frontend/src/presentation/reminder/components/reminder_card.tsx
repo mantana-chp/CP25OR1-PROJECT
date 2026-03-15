@@ -22,9 +22,7 @@ import {
 import {
   Bone,
   ChevronRight,
-  Clock,
   Paperclip,
-  PawPrint,
   Pill,
   Pipette,
   Repeat,

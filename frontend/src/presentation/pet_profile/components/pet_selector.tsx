@@ -15,6 +15,7 @@ import ActionSheet from '../../components/action-sheet'
 interface Pet {
   id: string
   pet_name: string
+  petRole?: 'OWNER' | 'CAREGIVER'
   imageUrl?: string
   profile_image_url?: string | null
 }
@@ -58,6 +59,10 @@ export default function PetSelector({
   }, [pets])
 
   const handleLongPress = (pet: Pet) => {
+    if (pet.petRole === 'CAREGIVER') {
+      return
+    }
+
     setSelectedPetForAction(pet)
     setActionMenuVisible(true)
   }
@@ -76,7 +81,7 @@ export default function PetSelector({
           onEditPet(selectedPetForAction.id)
         }
       },
-      disabled: !onEditPet
+      disabled: !onEditPet || selectedPetForAction?.petRole === 'CAREGIVER'
     },
     {
       icon: 'delete-outline' as const,
@@ -87,7 +92,7 @@ export default function PetSelector({
         }
       },
       variant: 'error' as const,
-      disabled: !onDeletePet
+      disabled: !onDeletePet || selectedPetForAction?.petRole === 'CAREGIVER'
     }
   ]
 

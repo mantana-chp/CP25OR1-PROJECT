@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     padding: 20
   },
   container: {
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background.secondary,
     borderRadius: 16,
     padding: 24,
     width: '100%',

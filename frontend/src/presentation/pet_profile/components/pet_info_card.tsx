@@ -102,6 +102,11 @@ export default function PetInfoCard({
                 <Text style={styles.petName} numberOfLines={1}>
                   {data.pet_name}
                 </Text>
+                {data.petRole === 'CAREGIVER' && !isDeceased && (
+                  <View style={styles.caregiverBadge}>
+                    <Text style={styles.caregiverBadgeText}>ผู้ดูแลร่วม</Text>
+                  </View>
+                )}
                 {!isDeceased && !readOnly && (
                   <Link
                     href={`/(tabs)/add_pet_form?petId=${data.id}`}
@@ -261,6 +266,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Prompt_400Regular',
     color: '#6b7280'
+  },
+  caregiverBadge: {
+    backgroundColor: '#E8F4F8',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#5FA7D1'
+  },
+  caregiverBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
   },
   infoGrid: {
     flexDirection: 'row',

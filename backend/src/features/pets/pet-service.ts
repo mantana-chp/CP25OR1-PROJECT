@@ -28,6 +28,7 @@ export type PetCreationData = {
 
 const formatPetProfile = async (pet: any) => {
   if (!pet) return null
+  const petRole = pet.petRole === 'CAREGIVER' ? 'CAREGIVER' : 'OWNER'
 
   // Generate presigned URL for profile image if it exists
   let profileImageUrl = null
@@ -52,6 +53,7 @@ const formatPetProfile = async (pet: any) => {
     breed: pet.breeds?.name_th || null,
     age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null,
     profile_image_url: profileImageUrl,
+    petRole,
     status: pet.status,
     deceased_date: pet.deceased_date ?? null,
     deleted_at: pet.deleted_at ?? null,
@@ -183,17 +185,17 @@ export const getAllPetProfilesForUser = async (
   status?: pet_status,
 ) => {
   const resolvedStatus = status ?? pet_status.ACTIVE
-  const ownedPets = await petRepository.findAllPetProfilesByUserId(
-    userId,
-    resolvedStatus,
-  )
+  const ownedPets = (
+    await petRepository.findAllPetProfilesByUserId(userId, resolvedStatus)
+  ).map((pet) => ({ ...pet, petRole: 'OWNER' }))
 
   // For ACTIVE pets, also include pets shared with this user as a caregiver
   let allPets = ownedPets ?? []
   if (resolvedStatus === pet_status.ACTIVE) {
-    const sharedPets =
+    const sharedPets = (
       await sharingRepository.findSharedActivePetsByUserId(userId)
-    allPets = [...allPets, ...sharedPets]
+    ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
+
   }
 
   if (allPets.length === 0) {
@@ -210,10 +212,15 @@ export const getPetProfileById = async (petId: string, userId: string) => {
     throw new NotFoundError('Pet not found or access denied.')
   }
 
+  const ownedPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (ownedPet) {
+    return formatPetProfile({ ...ownedPet, petRole: 'OWNER' })
+  }
+
   const pet = await petRepository.findPetProfileByIdOnly(petId)
   if (!pet) throw new NotFoundError('Pet not found.')
 
-  return formatPetProfile(pet)
+  return formatPetProfile({ ...pet, petRole: 'CAREGIVER' })
 }
 
 /**
@@ -411,12 +418,13 @@ export const softDeletePet = async (
  * Includes shared deceased pets the user has/had caregiver access to.
  */
 export const getPastPets = async (userId: string) => {
-  const ownedDeceased = await petRepository.findAllPetProfilesByUserId(
-    userId,
-    pet_status.DECEASED,
-  )
-  const sharedDeceased =
+  const ownedDeceased = (
+    await petRepository.findAllPetProfilesByUserId(userId, pet_status.DECEASED)
+  ).map((pet) => ({ ...pet, petRole: 'OWNER' }))
+  const sharedDeceased = (
     await sharingRepository.findSharedDeceasedPetsByUserId(userId)
+  ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
+
 
   const allDeceased = [...(ownedDeceased ?? []), ...sharedDeceased]
   if (allDeceased.length === 0) return []
