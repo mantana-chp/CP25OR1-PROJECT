@@ -1,6 +1,7 @@
 import { IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import dayjs from 'dayjs'
 import { AlertCircle, Bell, Check, Clock, PawPrint } from 'lucide-react-native'
@@ -207,7 +208,7 @@ export default function RealtimeReminderNotification({
     setCurrentReminders(reminders)
     setCompletedIds(new Set())
     setVisible(true)
-    
+
     // Save all shown reminders
     reminders.forEach((reminder) => {
       saveShownReminder(reminder.id)
@@ -253,17 +254,18 @@ export default function RealtimeReminderNotification({
 
     const idsToComplete = Array.from(completedIds)
     if (idsToComplete.length === 0) {
-      Alert.alert('กรุณาเลือกรายการ', 'โปรดเลือกอย่างน้อย 1 รายการที่ต้องการทำเครื่องหมายเสร็จ')
+      Alert.alert(
+        'กรุณาเลือกรายการ',
+        'โปรดเลือกอย่างน้อย 1 รายการที่ต้องการทำเครื่องหมายเสร็จ'
+      )
       return
     }
 
     try {
       setIsMarkingDone(true)
-      
+
       // Mark all selected reminders as done
-      await Promise.all(
-        idsToComplete.map((id) => updateStatusApi.execute(id))
-      )
+      await Promise.all(idsToComplete.map((id) => updateStatusApi.execute(id)))
 
       // Notify parent for each completed reminder
       idsToComplete.forEach((id) => {
@@ -287,13 +289,11 @@ export default function RealtimeReminderNotification({
 
     try {
       setIsMarkingDone(true)
-      
+
       const allIds = currentReminders.map((r) => r.id)
-      
+
       // Mark all reminders as done
-      await Promise.all(
-        allIds.map((id) => updateStatusApi.execute(id))
-      )
+      await Promise.all(allIds.map((id) => updateStatusApi.execute(id)))
 
       // Notify parent for each completed reminder
       allIds.forEach((id) => {
@@ -328,9 +328,7 @@ export default function RealtimeReminderNotification({
   }
 
   const getStatusColor = (reminders: IReminder[]) => {
-    const hasOverdue = reminders.some(
-      (r) => r.reminderStatus === 'overdue'
-    )
+    const hasOverdue = reminders.some((r) => r.reminderStatus === 'overdue')
     return hasOverdue ? '#BF1737' : '#F59E0B'
   }
 
@@ -338,9 +336,7 @@ export default function RealtimeReminderNotification({
     return null
   }
 
-  const isOverdue = currentReminders.some(
-    (r) => r.reminderStatus === 'overdue'
-  )
+  const isOverdue = currentReminders.some((r) => r.reminderStatus === 'overdue')
   const statusColor = getStatusColor(currentReminders)
 
   return (
@@ -435,7 +431,11 @@ export default function RealtimeReminderNotification({
                   <View style={styles.reminderDetails}>
                     {reminder.pet_name && (
                       <View style={styles.detailRow}>
-                        <PawPrint size={12} color="#6B7280" />
+                        <Ionicons
+                          name={'paw-outline'}
+                          size={12}
+                          color={'#6b7280'}
+                        />
                         <Text style={styles.detailText} numberOfLines={1}>
                           {reminder.pet_name}
                         </Text>

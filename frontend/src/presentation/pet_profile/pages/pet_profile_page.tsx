@@ -167,6 +167,7 @@ export default function PetProfilePage() {
         : pets.filter((p) => p.status === 'DECEASED')
   const currentPet =
     displayPets.length > 0 ? displayPets[currentPetIndex] : null
+  const isCaregiverPet = currentPet?.petRole === 'CAREGIVER'
   const healthRecords = getHealthRecordsApi.data?.data || []
   const isViewingDeceased = activeTab === 'past'
 
@@ -224,6 +225,13 @@ export default function PetProfilePage() {
 
   const handleDeletePress = useCallback(() => {
     if (!currentPet) return
+    if (currentPet.petRole === 'CAREGIVER') {
+      Alert.alert(
+        'ไม่มีสิทธิ์',
+        'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถลบได้'
+      )
+      return
+    }
 
     setPetToDelete({
       id: currentPet.id,
@@ -260,15 +268,31 @@ export default function PetProfilePage() {
 
   const handleEditPetFromSelector = useCallback(
     (petId: string) => {
+      const targetPet = displayPets.find((pet) => pet.id === petId)
+      if (targetPet?.petRole === 'CAREGIVER') {
+        Alert.alert(
+          'ไม่มีสิทธิ์',
+          'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถแก้ไขข้อมูลได้'
+        )
+        return
+      }
+
       router.push(`/(tabs)/add_pet_form?petId=${petId}`)
     },
-    [router]
+    [router, displayPets]
   )
 
   const handleDeletePetFromSelector = useCallback(
     (petId: string) => {
       const pet = tabPets.find((p) => p.id === petId)
       if (!pet) return
+      if (pet.petRole === 'CAREGIVER') {
+        Alert.alert(
+          'ไม่มีสิทธิ์',
+          'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถลบได้'
+        )
+        return
+      }
 
       setPetToDelete({
         id: pet.id,
@@ -306,6 +330,14 @@ export default function PetProfilePage() {
 
   const openDeceasedModalFromCard = useCallback(() => {
     if (!currentPet) return
+    if (currentPet.petRole === 'CAREGIVER') {
+      Alert.alert(
+        'ไม่มีสิทธิ์',
+        'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถทำเครื่องหมายการเสียชีวิตได้'
+      )
+      return
+    }
+
     setPetToMarkDeceased({
       id: currentPet.id,
       name: currentPet.pet_name
@@ -370,12 +402,21 @@ export default function PetProfilePage() {
               {currentPet && (
                 <PetInfoCard
                   data={currentPet}
-                  canDelete={!isViewingDeceased && canDeletePet}
-                  onDelete={!isViewingDeceased ? handleDeletePress : undefined}
+                  canDelete={
+                    !isViewingDeceased && canDeletePet && !isCaregiverPet
+                  }
+                  onDelete={
+                    !isViewingDeceased && !isCaregiverPet
+                      ? handleDeletePress
+                      : undefined
+                  }
                   onMarkDeceased={
-                    !isViewingDeceased ? openDeceasedModalFromCard : undefined
+                    !isViewingDeceased && !isCaregiverPet
+                      ? openDeceasedModalFromCard
+                      : undefined
                   }
                   isDeceased={isViewingDeceased}
+                  readOnly={isCaregiverPet}
                 />
               )}
 

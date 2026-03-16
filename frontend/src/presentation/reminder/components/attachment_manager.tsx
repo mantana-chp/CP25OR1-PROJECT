@@ -312,10 +312,7 @@ export default function AttachmentManager({
 
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type:
-          Platform.OS === 'ios'
-            ? ['public.image', 'com.adobe.pdf']
-            : allowedTypes,
+        type: allowedTypes,
         copyToCacheDirectory: true
       })
 
@@ -470,17 +467,11 @@ export default function AttachmentManager({
       <TouchableOpacity
         style={[
           styles.addButton,
-          (disabled ||
-            isUploading ||
-            allAttachments.length >= maxFiles) &&
+          (disabled || isUploading || allAttachments.length >= maxFiles) &&
             styles.addButtonDisabled
         ]}
         onPress={handleOpenAttachmentOptions}
-        disabled={
-          disabled ||
-          isUploading ||
-          allAttachments.length >= maxFiles
-        }
+        disabled={disabled || isUploading || allAttachments.length >= maxFiles}
       >
         {isUploading ? (
           <>
@@ -531,7 +522,10 @@ export default function AttachmentManager({
             </View>
 
             <TouchableOpacity
-              style={[styles.optionItem, isPickerOpening && styles.optionItemDisabled]}
+              style={[
+                styles.optionItem,
+                isPickerOpening && styles.optionItemDisabled
+              ]}
               onPress={handlePickFromCamera}
               disabled={isPickerOpening}
             >
@@ -547,7 +541,10 @@ export default function AttachmentManager({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.optionItem, isPickerOpening && styles.optionItemDisabled]}
+              style={[
+                styles.optionItem,
+                isPickerOpening && styles.optionItemDisabled
+              ]}
               onPress={handlePickFromGallery}
               disabled={isPickerOpening}
             >
@@ -561,7 +558,10 @@ export default function AttachmentManager({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.optionItem, isPickerOpening && styles.optionItemDisabled]}
+              style={[
+                styles.optionItem,
+                isPickerOpening && styles.optionItemDisabled
+              ]}
               onPress={handlePickDocument}
               disabled={isPickerOpening}
             >

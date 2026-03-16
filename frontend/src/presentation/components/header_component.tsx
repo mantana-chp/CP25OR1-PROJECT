@@ -21,19 +21,16 @@ interface HeaderProps {
 }
 
 export default function Header(props: HeaderProps) {
-  // ------------------
-  // CONST
-  // ------------------
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  // Android needs extra padding for status bar
+  // Reduce padding and height for a shorter header
   const getTopPadding = () => {
     if (Platform.OS === 'android') {
       const statusBarHeight = StatusBar.currentHeight || 24
-      return Math.max(insets.top, statusBarHeight) + 8
+      return Math.max(insets.top, statusBarHeight) + 4 // reduced from 8
     }
-    return insets.top > 0 ? insets.top : 24
+    return insets.top > 0 ? insets.top : 16 // reduced from 24
   }
 
   const topPadding = getTopPadding()
@@ -46,20 +43,16 @@ export default function Header(props: HeaderProps) {
     }
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View
       style={[
         styles.header,
         {
           paddingTop: topPadding,
-          height: topPadding + 50
+          height: topPadding + 40 // reduced from 50
         }
       ]}
     >
-      {/* Left Section */}
       <View style={styles.leftSection}>
         {props.goBack ? (
           <Pressable onPress={handleBackPress}>
@@ -71,13 +64,9 @@ export default function Header(props: HeaderProps) {
           props.leftChildren
         ) : null}
       </View>
-
-      {/* Center Title - Absolutely positioned */}
       <View style={styles.centerSection}>
         <Text style={styles.headerTitle}>{props.title}</Text>
       </View>
-
-      {/* Right Section */}
       <View style={styles.rightSection}>
         {props.rightChildren ? props.rightChildren : null}
       </View>
@@ -90,7 +79,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#5FA7D1',
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 12, // reduced from 24
     alignItems: 'center',
     position: 'relative'
   },
@@ -101,7 +90,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 22,
+    bottom: 12, // reduced from 22
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1
