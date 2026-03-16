@@ -1,16 +1,34 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
+import { ChevronUp } from 'lucide-react-native'
 import _ from 'lodash'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
+  Animated,
   Image,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View
 } from 'react-native'
 import ActionSheet from '../../components/action-sheet'
+
+const PET_ITEM_WIDTH = 72
+const PET_ITEM_GAP = 6
+const PET_ITEM_SPAN = PET_ITEM_WIDTH + PET_ITEM_GAP
+const EXPAND_THRESHOLD = 6
+
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 interface Pet {
   id: string
@@ -40,23 +58,28 @@ export default function PetSelector({
   isViewingDeceased
 }: PetSelectorProps) {
   const router = useRouter()
+  const horizontalScrollRef = useRef<ScrollView>(null)
   const [actionMenuVisible, setActionMenuVisible] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [selectedPetForAction, setSelectedPetForAction] = useState<Pet | null>(
     null
   )
+  const chevronRotation = useChevronAnimation(isExpanded)
+  const showAddButton = pets.length < maxPets && !isViewingDeceased
+  const shouldShowExpandToggle = pets.length > EXPAND_THRESHOLD
 
-  // Debug: Log pets with image URLs
   useEffect(() => {
-    if (pets && pets.length > 0) {
-      console.log(
-        '🐕 PetSelector received pets:',
-        pets.map((p) => ({
-          name: p.pet_name,
-          profile_image_url: p.profile_image_url
-        }))
-      )
+    if (!shouldShowExpandToggle && isExpanded) {
+      setIsExpanded(false)
     }
-  }, [pets])
+  }, [shouldShowExpandToggle, isExpanded])
+
+  useEffect(() => {
+    if (isExpanded || selectedIndex < 0) return
+
+    const offset = Math.max(0, selectedIndex * PET_ITEM_SPAN - PET_ITEM_SPAN)
+    horizontalScrollRef.current?.scrollTo({ x: offset, animated: true })
+  }, [selectedIndex, isExpanded])
 
   const handleLongPress = (pet: Pet) => {
     if (pet.petRole === 'CAREGIVER') {
@@ -70,6 +93,11 @@ export default function PetSelector({
   const handleCloseMenu = () => {
     setActionMenuVisible(false)
     setSelectedPetForAction(null)
+  }
+
+  const handleToggleExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setIsExpanded((prev) => !prev)
   }
 
   const actions = [
@@ -96,51 +124,58 @@ export default function PetSelector({
     }
   ]
 
+  const renderPetItem = (pet: Pet, index: number) => (
+    <TouchableOpacity
+      key={pet.id}
+      onPress={() => onSelect(index)}
+      onLongPress={() => handleLongPress(pet)}
+      delayLongPress={500}
+      style={styles.petItem}
+    >
+      <View
+        style={[
+          styles.imageWrapper,
+          selectedIndex === index && styles.selectedImageWrapper
+        ]}
+      >
+        {pet.profile_image_url ? (
+          <Image source={{ uri: pet.profile_image_url }} style={styles.image} />
+        ) : (
+          <View style={[styles.image, styles.placeholderImage]}>
+            <MaterialCommunityIcons name="dog" size={36} color="white" />
+          </View>
+        )}
+      </View>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.petName,
+          selectedIndex === index && styles.selectedPetName
+        ]}
+      >
+        {pet.pet_name}
+      </Text>
+    </TouchableOpacity>
+  )
+
   return (
     <>
       <ScrollView
-        horizontal
+        ref={horizontalScrollRef}
+        horizontal={!isExpanded}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={isExpanded}
+        nestedScrollEnabled={isExpanded}
+        style={isExpanded ? styles.expandedScrollView : undefined}
+        contentContainerStyle={[
+          styles.container,
+          isExpanded ? styles.expandedContainer : styles.collapsedContainer
+        ]}
       >
-        {_.map(pets, (pet, index) => (
-          <TouchableOpacity
-            key={pet.id}
-            onPress={() => onSelect(index)}
-            onLongPress={() => handleLongPress(pet)}
-            delayLongPress={500}
-            style={styles.petItem}
-          >
-            <View
-              style={[
-                styles.imageWrapper,
-                selectedIndex === index && styles.selectedImageWrapper
-              ]}
-            >
-              {pet.profile_image_url ? (
-                <Image
-                  source={{ uri: pet.profile_image_url }}
-                  style={styles.image}
-                />
-              ) : (
-                <View style={[styles.image, styles.placeholderImage]}>
-                  <MaterialCommunityIcons name="dog" size={36} color="white" />
-                </View>
-              )}
-            </View>
-            <Text
-              style={[
-                styles.petName,
-                selectedIndex === index && styles.selectedPetName
-              ]}
-            >
-              {pet.pet_name}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {_.map(pets, renderPetItem)}
 
         {/* Add Pet Button */}
-        {pets.length < maxPets && !isViewingDeceased && (
+        {showAddButton && (
           <TouchableOpacity
             style={styles.petItem}
             onPress={() => router.push('/(tabs)/add_pet_form')}
@@ -152,6 +187,26 @@ export default function PetSelector({
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {shouldShowExpandToggle && (
+        <TouchableOpacity
+          style={[
+            styles.expandButton,
+            isExpanded && styles.expandButtonExpanded
+          ]}
+          onPress={handleToggleExpand}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.expandButtonText}>
+            {isExpanded
+              ? 'ย่อรายการสัตว์เลี้ยง'
+              : `แสดงทั้งหมด ${pets.length} ตัว`}
+          </Text>
+          <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
+            <ChevronUp size={20} color="#225877" />
+          </Animated.View>
+        </TouchableOpacity>
+      )}
 
       {/* Action Menu */}
       <ActionSheet
@@ -166,12 +221,23 @@ export default function PetSelector({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     paddingHorizontal: 8,
     gap: 8
   },
+  collapsedContainer: {
+    flexDirection: 'row'
+  },
+  expandedContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingBottom: 4
+  },
+  expandedScrollView: {
+    maxHeight: 240
+  },
   petItem: {
-    alignItems: 'center'
+    alignItems: 'center',
+    width: PET_ITEM_WIDTH
   },
   imageWrapper: {
     width: 60,
@@ -221,5 +287,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#5FA7D1',
     fontWeight: '300'
+  },
+  expandButton: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+    marginTop: 2
+  },
+  expandButtonExpanded: {
+    marginTop: 6
+  },
+  expandButtonText: {
+    fontSize: 12,
+    color: '#225877',
+    fontFamily: 'Prompt_500Medium'
   }
 })
