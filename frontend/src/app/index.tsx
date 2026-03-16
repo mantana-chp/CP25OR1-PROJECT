@@ -20,7 +20,7 @@ export default function StartPage() {
 
   // Redirect to onboarding if not completed
   if (!hasCompletedOnboarding) {
-    return <Redirect href="/onboarding" />
+    return <Redirect href='/onboarding' />
   }
 
   // Wait for pets to load before checking
@@ -28,10 +28,15 @@ export default function StartPage() {
     return <LoadingComponent />
   }
 
-  // Redirect to add pet form if onboarding completed but no pets exist
+  // Redirect to pet option selection if onboarding completed but no pets exist
+  // This allows user to choose between creating a pet or accepting an invitation
+  // isPostOnboarding=true indicates this is the edge case after onboarding was completed
   if (hasCompletedOnboarding && pets.length === 0) {
-    return <Redirect href="/(tabs)/add_pet_form" />
+    console.log(
+      '📍 User completed onboarding with NO pets - Showing pet option selection',
+    )
+    return <Redirect href='/onboarding/pet-options?isPostOnboarding=true' />
   }
 
-  return <Redirect href="/(tabs)" />
+  return <Redirect href='/(tabs)' />
 }

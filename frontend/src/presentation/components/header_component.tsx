@@ -8,7 +8,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -49,15 +49,15 @@ export default function Header(props: HeaderProps) {
         styles.header,
         {
           paddingTop: topPadding,
-          height: topPadding + 40 // reduced from 50
-        }
+          height: topPadding + 40, // reduced from 50
+        },
       ]}
     >
       <View style={styles.leftSection}>
         {props.goBack ? (
           <Pressable onPress={handleBackPress}>
             <Text style={styles.headerBackIcon}>
-              <ChevronLeft color="white" />
+              <ChevronLeft color='white' />
             </Text>
           </Pressable>
         ) : props.leftChildren ? (
@@ -81,10 +81,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 12, // reduced from 24
     alignItems: 'center',
-    position: 'relative'
+    position: 'relative',
   },
   leftSection: {
-    zIndex: 2
+    zIndex: 2,
   },
   centerSection: {
     position: 'absolute',
@@ -93,20 +93,20 @@ const styles = StyleSheet.create({
     bottom: 12, // reduced from 22
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1
+    zIndex: 1,
   },
   rightSection: {
     marginLeft: 'auto',
-    zIndex: 2
+    zIndex: 2,
   },
   headerBackIcon: {
     color: 'white',
     fontSize: 24,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   headerTitle: {
     color: '#ffffff',
     fontSize: 20,
-    fontFamily: 'Prompt_700Bold'
-  }
+    fontFamily: 'Prompt_700Bold',
+  },
 })
