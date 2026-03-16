@@ -25,6 +25,15 @@ export const petProfileService = {
     return apiClient.post<{ data: IPetProfileForm }>('/v1/pets', data)
   },
 
+  /**
+   * Create multiple pets in batch
+   * @param pets - Array of pet data to create
+   * @returns Response with array of created pet profiles
+   */
+  createMultiplePets: async (pets: Omit<IPetProfileForm, 'id'>[]) => {
+    return apiClient.post<{ data: IPetProfileForm[] }>('/v1/pets/bulk', { pets })
+  },
+
   updatePetProfile: async (id: string, data: Partial<IPetProfileForm>) => {
     return apiClient.patch<{ data: IPetProfileForm }>(`/v1/pets/me/${id}`, data)
   },

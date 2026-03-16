@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   createPet,
+  createMultiplePets,
   getAllPetProfilesController,
   getPetProfileByIdController,
   updatePetController,
@@ -10,20 +11,21 @@ import {
   getPastPetsController,
   getRecentlyDeletedPetsController,
   permanentDeletePetController,
-  restorePetController
+  restorePetController,
 } from './pet-controller'
 import { authGuard } from '../../middlewares/authGuard'
 import { resolvePetRole, requireOwner } from '../../middlewares/resolvePetRole'
 import { validate } from '../../middlewares/validate'
 import {
   createPetSchema,
+  createMultiplePetsSchema,
   getPetByIdSchema,
   updatePetSchema,
   updatePetProfileImageSchema,
   deletePetProfileImageSchema,
   softDeletePetSchema,
   permanentDeletePetSchema,
-  restorePetSchema
+  restorePetSchema,
 } from './pet-schema'
 
 const petRoutes = Router()
@@ -55,6 +57,54 @@ const petRoutes = Router()
  *         description: Conflict - User has reached the pet limit.
  */
 petRoutes.post('/', authGuard, validate(createPetSchema), createPet)
+
+/**
+ * @openapi
+ * /pets/bulk:
+ *   post:
+ *     tags: [Pets]
+ *     summary: Create multiple pets at once for the authenticated user (limit 30 total)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - pets
+ *             properties:
+ *               pets:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 30
+ *                 items:
+ *                   $ref: '#/components/schemas/CreatePetBody'
+ *     responses:
+ *       201:
+ *         description: Pets created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/PetProfile'
+ *       400:
+ *         description: Bad Request - Validation error.
+ *       401:
+ *         description: Unauthorized.
+ *       409:
+ *         description: Conflict - User has reached the pet limit.
+ */
+petRoutes.post(
+  '/bulk',
+  authGuard,
+  validate(createMultiplePetsSchema),
+  createMultiplePets,
+)
 
 /**
  * @openapi
@@ -117,7 +167,7 @@ petRoutes.get('/me/past', authGuard, getPastPetsController)
 petRoutes.get(
   '/me/recently-deleted',
   authGuard,
-  getRecentlyDeletedPetsController
+  getRecentlyDeletedPetsController,
 )
 
 /**
@@ -154,7 +204,7 @@ petRoutes.get(
   authGuard,
   resolvePetRole,
   validate(getPetByIdSchema),
-  getPetProfileByIdController
+  getPetProfileByIdController,
 )
 
 /**
@@ -200,7 +250,7 @@ petRoutes.patch(
   resolvePetRole,
   requireOwner,
   validate(updatePetSchema),
-  updatePetController
+  updatePetController,
 )
 
 /**
@@ -241,7 +291,7 @@ petRoutes.put(
   resolvePetRole,
   requireOwner,
   validate(updatePetProfileImageSchema),
-  updatePetProfileImageController
+  updatePetProfileImageController,
 )
 
 /**
@@ -270,7 +320,7 @@ petRoutes.delete(
   resolvePetRole,
   requireOwner,
   validate(deletePetProfileImageSchema),
-  deletePetProfileImageController
+  deletePetProfileImageController,
 )
 
 /**
@@ -326,7 +376,7 @@ petRoutes.delete(
   resolvePetRole,
   requireOwner,
   validate(softDeletePetSchema),
-  softDeletePetController
+  softDeletePetController,
 )
 
 /**
@@ -366,7 +416,7 @@ petRoutes.delete(
   resolvePetRole,
   requireOwner,
   validate(permanentDeletePetSchema),
-  permanentDeletePetController
+  permanentDeletePetController,
 )
 
 /**
@@ -403,7 +453,7 @@ petRoutes.patch(
   '/me/:id/restore',
   authGuard,
   validate(restorePetSchema),
-  restorePetController
+  restorePetController,
 )
 
 export default petRoutes
