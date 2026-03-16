@@ -69,7 +69,7 @@ export default function PendingInviteCard({
         </TouchableOpacity>
 
         <View style={styles.pendingActionsRow}>
-          <Button
+          {/* <Button
             title="แบ่งปันรหัสอีกครั้ง"
             onPress={onShare}
             variant="ghost"
@@ -77,7 +77,7 @@ export default function PendingInviteCard({
             icon={<Share2 size={iconSizes.sm} color={colors.info.dark} />}
             style={styles.shareAgainButton}
             textStyle={styles.shareAgainButtonText}
-          />
+          /> */}
 
           <Button
             title="ยกเลิก"

@@ -58,7 +58,7 @@ export default function QrModal({
               {formatExpiresIn(pendingInvite.expiresAt)}
             </Text>
 
-            <Button
+            {/* <Button
               title="แชร์รหัสเชิญ"
               onPress={onShare}
               icon={
@@ -69,7 +69,7 @@ export default function QrModal({
               }
               style={[styles.createInviteButton, styles.qrShareButton]}
               textStyle={styles.createInviteButtonText}
-            />
+            /> */}
           </>
         ) : null}
       </View>
