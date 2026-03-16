@@ -196,6 +196,7 @@ export const getAllPetProfilesForUser = async (
       await sharingRepository.findSharedActivePetsByUserId(userId)
     ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
 
+    allPets = [...allPets, ...sharedPets]
   }
 
   if (allPets.length === 0) {
