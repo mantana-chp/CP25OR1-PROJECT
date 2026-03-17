@@ -168,8 +168,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkPetProfile = async () => {
     try {
       console.log('🐾 Checking for pet profiles...')
-      const response = await petProfileService.getMyPets()
-      const hasPets = response.data && response.data.length > 0
+      const [activeResponse, pastResponse] = await Promise.all([
+        petProfileService.getMyPets(),
+        petProfileService.getPastPets(),
+      ])
+      const hasPets =
+        (activeResponse.data && activeResponse.data.length > 0) ||
+        (pastResponse.data && pastResponse.data.length > 0)
       console.log('Has pet profiles:', hasPets)
       setHasPetProfile(hasPets)
     } catch (error) {
