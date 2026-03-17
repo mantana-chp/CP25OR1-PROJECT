@@ -86,7 +86,7 @@ export default function ClaimPetSharePage() {
     isLoading: authLoading,
     completeOnboarding,
   } = useAuth()
-  const { refreshPets, activePets, deceasedPets } = usePets()
+  const { refreshPets, activePets, deceasedPets, setSelectedPetId } = usePets()
 
   const [permission, requestPermission] = useCameraPermissions()
   const facing: CameraType = 'back'
@@ -150,9 +150,14 @@ export default function ClaimPetSharePage() {
     }
 
     const claimedPets = unwrapData<IPetProfile[]>(result.data)
+    const claimedPetId = claimedPets?.[0]?.id
     const firstPetName = claimedPets?.[0]?.pet_name
 
     await refreshPets()
+
+    if (claimedPetId) {
+      setSelectedPetId(claimedPetId)
+    }
 
     // If coming from onboarding, complete it after claiming pet
     if (fromOnboarding && !isPostOnboarding) {
@@ -163,15 +168,17 @@ export default function ClaimPetSharePage() {
     Alert.alert(
       'รับคำเชิญสำเร็จ',
       firstPetName
-        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว\nคุณสามารถสแกน QR ถัดไปได้ทันที`
-        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว\nคุณสามารถสแกน QR ถัดไปได้ทันที',
+        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว`
+        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว',
+      [
+        {
+          text: 'ตกลง',
+          onPress: () => {
+            router.replace('/(tabs)/pet_profile')
+          },
+        },
+      ],
     )
-
-    if (fromOnboarding && !isPostOnboarding) {
-      router.replace('/(tabs)')
-    } else if (isFromPetOptions && isPostOnboarding) {
-      router.replace('/(tabs)')
-    }
   }
 
   const onBarcodeScanned = async (event: BarcodeScanningResult) => {
