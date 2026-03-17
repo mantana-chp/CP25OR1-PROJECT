@@ -195,6 +195,7 @@ export const getAllPetProfilesForUser = async (
     const sharedPets = (
       await sharingRepository.findSharedActivePetsByUserId(userId)
     ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
+
     allPets = [...allPets, ...sharedPets]
   }
 
@@ -424,6 +425,7 @@ export const getPastPets = async (userId: string) => {
   const sharedDeceased = (
     await sharingRepository.findSharedDeceasedPetsByUserId(userId)
   ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
+
 
   const allDeceased = [...(ownedDeceased ?? []), ...sharedDeceased]
   if (allDeceased.length === 0) return []

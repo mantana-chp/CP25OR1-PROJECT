@@ -42,6 +42,14 @@ export const petProfileValidateSchema = yup.object().shape({
   breed_id: yup.string(),
   weight: yup
     .number()
+    .transform((value, originalValue) => {
+      if (originalValue === '' || originalValue === null) {
+        return null
+      }
+      return value
+    })
+    .nullable()
+    .notRequired()
     .typeError('กรุณากรอกน้ำหนักเป็นตัวเลข')
     .min(0, 'กรุณากรอกน้ำหนักสัตว์เลี้ยงให้ถูกต้อง'),
   birth_date: yup
