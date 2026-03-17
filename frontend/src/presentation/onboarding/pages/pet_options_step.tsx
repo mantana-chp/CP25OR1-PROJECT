@@ -34,7 +34,7 @@ export default function PetOptionsStep() {
     <View style={styles.container}>
       <View style={styles.content}>
         <Image
-          source={require('@/assets/images/onboard-3.png')}
+          source={require('@/assets/images/pet-options.png')}
           style={styles.image}
           resizeMode='contain'
         />
@@ -76,9 +76,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   image: {
-    width: 300,
-    height: 300,
-    marginBottom: 40,
+    width: 340,
+    height: 340,
   },
   title: {
     fontSize: 24,
