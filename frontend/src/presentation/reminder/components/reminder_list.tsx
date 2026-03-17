@@ -94,6 +94,7 @@ export default function ReminderList({
   const [showAlreadyDeletedModal, setShowAlreadyDeletedModal] = useState(false)
   const [alreadyDeletedReminderName, setAlreadyDeletedReminderName] =
     useState('')
+  const [alreadyDeletedByName, setAlreadyDeletedByName] = useState('')
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     showErrorAlert: false,
@@ -130,6 +131,14 @@ export default function ReminderList({
     const reminder = reminders.find((r) => r.id === reminderId)
     setSelectedReminderId(reminderId)
     setSelectedReminder(reminder || null)
+  }
+
+  const getOtherActorName = (reminder?: IReminder) => {
+    if (!reminder?.created_by) return 'เจ้าของสัตว์เลี้ยง'
+    if (reminder.created_by === 'เจ้าของสัตว์เลี้ยง')
+      return 'เจ้าของสัตว์เลี้ยง'
+    if (reminder.created_by === 'คุณ') return 'เจ้าของสัตว์เลี้ยง'
+    return reminder.created_by
   }
 
   const handleDeleteReminder = useCallback(
@@ -207,6 +216,7 @@ export default function ReminderList({
           }
           if (error.statusCode === 404) {
             setAlreadyDeletedReminderName(reminder?.reminderName || 'รายการนี้')
+            setAlreadyDeletedByName(getOtherActorName(reminder))
             setShowAlreadyDeletedModal(true)
             return
           }
@@ -636,7 +646,7 @@ export default function ReminderList({
         onClose={() => setShowAlreadyDeletedModal(false)}
         icon='info'
         title='ไม่พบเตือนความจำ'
-        message={`รายการ "${alreadyDeletedReminderName}" ถูกลบโดยผู้ใช้อื่นไปแล้ว`}
+        message={`รายการ "${alreadyDeletedReminderName}" ถูกลบโดย "${alreadyDeletedByName}" ไปแล้ว`}
         confirmText='รับทราบ'
         cancelText='ปิด'
         onConfirm={() => {
