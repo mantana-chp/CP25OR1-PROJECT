@@ -744,7 +744,7 @@ export default function PetProfileForm({
                 style={styles.deleteFormButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Trash2 size={18} color='#fff' />
+                <Trash2 size={18} color='#BF1737' />
               </TouchableOpacity>
             )}
           </View>
@@ -1050,17 +1050,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   deleteFormButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteFormButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Prompt_600SemiBold',
+    padding: 4,
   },
   formDivider: {
     height: 1,
@@ -1071,14 +1061,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-    backgroundColor: '#f1f8f4',
+    backgroundColor: '#ffffff',
     marginVertical: 16,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#5FA7D1',
+    borderStyle: 'dashed',
   },
   addPetButtonText: {
-    color: '#4CAF50',
+    color: '#5FA7D1',
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
   },
