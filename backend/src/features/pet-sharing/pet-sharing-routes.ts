@@ -8,12 +8,16 @@ import {
     listCaregiversController,
     updateAliasController,
     revokeCaregiverController,
+    listInvitesController,
+    cancelInviteController,
 } from './pet-sharing-controller';
 import {
     generateInviteSchema,
     claimInviteSchema,
     updateAliasSchema,
     revokeCaregiverSchema,
+    listInvitesSchema,
+    cancelInviteSchema,
     listCaregiversSchema,
 } from './pet-sharing-schema';
 
@@ -27,6 +31,22 @@ petSharingPetRoutes.post(
     authGuard,
     validate(generateInviteSchema),
     generateInviteController,
+);
+
+// GET /v1/pets/invites  (all pending invites created by the authenticated owner)
+petSharingPetRoutes.get(
+    '/invites',
+    authGuard,
+    validate(listInvitesSchema),
+    listInvitesController,
+);
+
+// DELETE /v1/pets/invites/:inviteId
+petSharingPetRoutes.delete(
+    '/invites/:inviteId',
+    authGuard,
+    validate(cancelInviteSchema),
+    cancelInviteController,
 );
 
 // GET /v1/pets/:petId/caregivers
