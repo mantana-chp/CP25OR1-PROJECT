@@ -25,6 +25,15 @@ export const petProfileService = {
     return apiClient.post<{ data: IPetProfileForm }>('/v1/pets', data)
   },
 
+  /**
+   * Create multiple pets in batch
+   * @param pets - Array of pet data to create
+   * @returns Response with array of created pet profiles
+   */
+  createMultiplePets: async (pets: Omit<IPetProfileForm, 'id'>[]) => {
+    return apiClient.post<{ data: IPetProfileForm[] }>('/v1/pets/bulk', { pets })
+  },
+
   updatePetProfile: async (id: string, data: Partial<IPetProfileForm>) => {
     return apiClient.patch<{ data: IPetProfileForm }>(`/v1/pets/me/${id}`, data)
   },
@@ -113,6 +122,20 @@ export const petProfileService = {
     const response = await apiClient.get<{
       data: IPetProfile[]
     }>('/v1/pets/me/recently-deleted')
+    return response
+  },
+
+  /**
+   * Restore a soft-deleted pet back to ACTIVE status
+   * @param petId - Pet ID
+   * @returns Response with message and status
+   */
+  restorePet: async (petId: string) => {
+    console.log('♻️ Restoring pet:', petId)
+    const response = await apiClient.patch<{
+      data: { message: string; status: string }
+    }>(`/v1/pets/me/${petId}/restore`)
+    console.log('📥 Restore response:', response)
     return response
   },
 

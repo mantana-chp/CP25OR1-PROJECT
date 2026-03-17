@@ -4,6 +4,7 @@ import * as petService from './pet-service'
 import { sendSuccess } from '../../shared/response'
 import {
   createPetSchema,
+  createMultiplePetsSchema,
   getPetByIdSchema,
   updatePetSchema,
   updatePetProfileImageSchema,
@@ -11,6 +12,7 @@ import {
   softDeletePetSchema,
   getPetsQuerySchema,
   permanentDeletePetSchema,
+  restorePetSchema,
 } from './pet-schema'
 
 export const createPet = asyncHandler(async (req: Request, res: Response) => {
@@ -21,6 +23,17 @@ export const createPet = asyncHandler(async (req: Request, res: Response) => {
 
   sendSuccess(res, newPet, 201)
 })
+
+export const createMultiplePets = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id: userId } = req.user!
+    const { pets: petsData } = createMultiplePetsSchema.parse(req).body
+
+    const newPets = await petService.createMultiplePets(userId, petsData)
+
+    sendSuccess(res, newPets, 201)
+  },
+)
 
 export const getAllPetProfilesController = asyncHandler(
   async (req: Request, res: Response) => {
@@ -120,6 +133,17 @@ export const permanentDeletePetController = asyncHandler(
     const { id: userId } = req.user!
 
     const result = await petService.permanentDeletePet(petId, userId)
+    sendSuccess(res, result)
+  },
+)
+
+export const restorePetController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { params } = restorePetSchema.parse(req)
+    const { id: petId } = params
+    const { id: userId } = req.user!
+
+    const result = await petService.restorePet(petId, userId)
     sendSuccess(res, result)
   },
 )

@@ -64,10 +64,7 @@ export default function ReminderPage() {
     () => getRemindersApi.data?.data?.recurringRules || [],
     [getRemindersApi.data]
   )
-  const pets = useMemo(
-    () => getPetsApi.data?.data || [],
-    [getPetsApi.data]
-  )
+  const pets = useMemo(() => getPetsApi.data?.data || [], [getPetsApi.data])
   const safeReminders = useMemo(
     () => (Array.isArray(reminders) ? reminders : []),
     [reminders]

@@ -28,6 +28,7 @@ export type PetCreationData = {
 
 const formatPetProfile = async (pet: any) => {
   if (!pet) return null
+  const petRole = pet.petRole === 'CAREGIVER' ? 'CAREGIVER' : 'OWNER'
 
   // Generate presigned URL for profile image if it exists
   let profileImageUrl = null
@@ -52,6 +53,7 @@ const formatPetProfile = async (pet: any) => {
     breed: pet.breeds?.name_th || null,
     age: pet.birth_date ? formatAgeFromBirthDate(pet.birth_date) : null,
     profile_image_url: profileImageUrl,
+    petRole,
     status: pet.status,
     deceased_date: pet.deceased_date ?? null,
     deleted_at: pet.deleted_at ?? null,
@@ -61,7 +63,7 @@ const formatPetProfile = async (pet: any) => {
 
 export const createPet = async (userId: string, petData: PetCreationData) => {
   const petCount = await petRepository.countByUserId(userId)
-  if (petCount >= 10) {
+  if (petCount >= 30) {
     throw new ConflictError('You have reached the maximum limit of 10 pets.')
   }
 
@@ -76,6 +78,52 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
   }
 
   return await petRepository.create(data)
+}
+
+export const createMultiplePets = async (
+  userId: string,
+  petsData: PetCreationData[],
+) => {
+  if (petsData.length === 0) {
+    throw new BadRequestError('At least one pet is required.')
+  }
+
+  if (petsData.length > 30) {
+    throw new BadRequestError('Cannot create more than 30 pets at once.')
+  }
+
+  const currentPetCount = await petRepository.countByUserId(userId)
+  const totalPetCount = currentPetCount + petsData.length
+
+  if (totalPetCount > 30) {
+    throw new ConflictError(
+      `You can only add ${30 - currentPetCount} more pet(s). You have reached the maximum limit of 30 pets.`,
+    )
+  }
+
+  // Create all pets in a transaction
+  const createdPets = await prisma.$transaction(async (tx) => {
+    const pets = []
+    for (const petData of petsData) {
+      const data: Prisma.petsCreateInput = {
+        pet_name: petData.pet_name,
+        gender: petData.gender,
+        weight: petData.weight,
+        birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
+        user: { connect: { id: userId } },
+        species: { connect: { id: petData.species_id } },
+        ...(petData.breed_id && {
+          breeds: { connect: { id: petData.breed_id } },
+        }),
+      }
+
+      const newPet = await tx.pets.create({ data })
+      pets.push(newPet)
+    }
+    return pets
+  })
+
+  return Promise.all(createdPets.map(formatPetProfile))
 }
 
 export const updatePet = async (
@@ -137,15 +185,17 @@ export const getAllPetProfilesForUser = async (
   status?: pet_status,
 ) => {
   const resolvedStatus = status ?? pet_status.ACTIVE
-  const ownedPets = await petRepository.findAllPetProfilesByUserId(
-    userId,
-    resolvedStatus,
-  )
+  const ownedPets = (
+    await petRepository.findAllPetProfilesByUserId(userId, resolvedStatus)
+  ).map((pet) => ({ ...pet, petRole: 'OWNER' }))
 
   // For ACTIVE pets, also include pets shared with this user as a caregiver
   let allPets = ownedPets ?? []
   if (resolvedStatus === pet_status.ACTIVE) {
-    const sharedPets = await sharingRepository.findSharedActivePetsByUserId(userId)
+    const sharedPets = (
+      await sharingRepository.findSharedActivePetsByUserId(userId)
+    ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
+
     allPets = [...allPets, ...sharedPets]
   }
 
@@ -163,10 +213,15 @@ export const getPetProfileById = async (petId: string, userId: string) => {
     throw new NotFoundError('Pet not found or access denied.')
   }
 
+  const ownedPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (ownedPet) {
+    return formatPetProfile({ ...ownedPet, petRole: 'OWNER' })
+  }
+
   const pet = await petRepository.findPetProfileByIdOnly(petId)
   if (!pet) throw new NotFoundError('Pet not found.')
 
-  return formatPetProfile(pet)
+  return formatPetProfile({ ...pet, petRole: 'CAREGIVER' })
 }
 
 /**
@@ -364,11 +419,13 @@ export const softDeletePet = async (
  * Includes shared deceased pets the user has/had caregiver access to.
  */
 export const getPastPets = async (userId: string) => {
-  const ownedDeceased = await petRepository.findAllPetProfilesByUserId(
-    userId,
-    pet_status.DECEASED,
-  )
-  const sharedDeceased = await sharingRepository.findSharedDeceasedPetsByUserId(userId)
+  const ownedDeceased = (
+    await petRepository.findAllPetProfilesByUserId(userId, pet_status.DECEASED)
+  ).map((pet) => ({ ...pet, petRole: 'OWNER' }))
+  const sharedDeceased = (
+    await sharingRepository.findSharedDeceasedPetsByUserId(userId)
+  ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
+
 
   const allDeceased = [...(ownedDeceased ?? []), ...sharedDeceased]
   if (allDeceased.length === 0) return []
@@ -382,6 +439,24 @@ export const getRecentlyDeletedPets = async (userId: string) => {
   const pets = await petRepository.findRecentlyDeletedPets(userId)
   if (!pets || pets.length === 0) return []
   return Promise.all(pets.map(formatPetProfile))
+}
+
+/**
+ * Restore a soft-deleted pet back to ACTIVE status.
+ * Only works on pets with status = DELETED.
+ */
+export const restorePet = async (petId: string, userId: string) => {
+  const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
+  if (!existingPet) {
+    throw new NotFoundError('Pet not found or does not belong to this user.')
+  }
+
+  if (existingPet.status !== pet_status.DELETED) {
+    throw new BadRequestError('Only soft-deleted pets can be restored.')
+  }
+
+  await petRepository.restorePet(petId, userId)
+  return { message: 'Pet has been restored successfully.', status: 'ACTIVE' }
 }
 
 /**
@@ -405,7 +480,10 @@ export const permanentDeletePet = async (petId: string, userId: string) => {
     try {
       await deleteFile(existingPet.profile_image_key)
     } catch (error) {
-      console.error('Failed to delete profile image during permanent delete:', error)
+      console.error(
+        'Failed to delete profile image during permanent delete:',
+        error,
+      )
     }
   }
 

@@ -15,6 +15,7 @@ import ActionSheet from '../../components/action-sheet'
 interface Pet {
   id: string
   pet_name: string
+  petRole?: 'OWNER' | 'CAREGIVER'
   imageUrl?: string
   profile_image_url?: string | null
 }
@@ -58,6 +59,10 @@ export default function PetSelector({
   }, [pets])
 
   const handleLongPress = (pet: Pet) => {
+    if (pet.petRole === 'CAREGIVER') {
+      return
+    }
+
     setSelectedPetForAction(pet)
     setActionMenuVisible(true)
   }
@@ -76,7 +81,7 @@ export default function PetSelector({
           onEditPet(selectedPetForAction.id)
         }
       },
-      disabled: !onEditPet
+      disabled: !onEditPet || selectedPetForAction?.petRole === 'CAREGIVER'
     },
     {
       icon: 'delete-outline' as const,
@@ -87,7 +92,7 @@ export default function PetSelector({
         }
       },
       variant: 'error' as const,
-      disabled: !onDeletePet
+      disabled: !onDeletePet || selectedPetForAction?.petRole === 'CAREGIVER'
     }
   ]
 
@@ -163,21 +168,19 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     paddingHorizontal: 8,
-    paddingBottom: 16,
-    gap: 12
+    gap: 8
   },
   petItem: {
-    alignItems: 'center',
-    width: 80
+    alignItems: 'center'
   },
   imageWrapper: {
-    width: 72,
-    height: 72,
+    width: 60,
+    height: 60,
     borderRadius: 36,
     borderWidth: 3,
     borderColor: 'transparent',
     padding: 2,
-    marginBottom: 8
+    marginBottom: 2
   },
   selectedImageWrapper: {
     borderColor: '#5FA7D1'
@@ -203,8 +206,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_500Medium'
   },
   addPetWrapper: {
-    width: 72,
-    height: 72,
+    width: 60,
+    height: 60,
     borderRadius: 36,
     borderWidth: 2,
     borderColor: '#5FA7D1',
@@ -212,7 +215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F0F8FF',
-    marginBottom: 8
+    marginBottom: 2
   },
   addPetIcon: {
     fontSize: 32,

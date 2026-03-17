@@ -91,6 +91,23 @@ class ApiClient {
     this.failedQueue = []
   }
 
+  private extractApiErrorMessage(data: any, fallback: string): string {
+    if (!data || typeof data !== 'object') {
+      return fallback
+    }
+
+    if (typeof data.message === 'string' && data.message.trim()) {
+      return data.message.trim()
+    }
+
+    const firstErrorMessage = data.errors?.[0]?.message
+    if (typeof firstErrorMessage === 'string' && firstErrorMessage.trim()) {
+      return firstErrorMessage.trim()
+    }
+
+    return fallback
+  }
+
   private setupInterceptors() {
     this.client.interceptors.request.use(
       async (config) => {
@@ -133,6 +150,11 @@ class ApiClient {
           console.log('ERRORRRR')
 
           const { status, data } = error.response
+          const errorMessage = this.extractApiErrorMessage(
+            data,
+            'เกิดข้อผิดพลาดที่ไม่คาดคิด'
+          )
+          const errorDetails = (data as any)?.errors
           console.error('Status:', status, 'Data:', data)
 
           // Handle 401 - Token refresh logic
@@ -220,6 +242,9 @@ class ApiClient {
           }
 
           switch (status) {
+            case 400:
+              throw new ApiError(400, errorMessage, errorDetails)
+
             case 403:
               throw new ApiError(403, 'คุณไม่มีสิทธิ์ในการดำเนินการนี้')
 
@@ -240,10 +265,7 @@ class ApiClient {
               )
 
             default:
-              throw new ApiError(
-                status,
-                (data as any)?.message || 'เกิดข้อผิดพลาดที่ไม่คาดคิด'
-              )
+              throw new ApiError(status, errorMessage, errorDetails)
           }
         } else if (error.request) {
           console.error('❌ Network error - no response received')

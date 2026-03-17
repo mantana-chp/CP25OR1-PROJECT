@@ -1,7 +1,10 @@
-import { IReminder } from '@/src/domain/reminder.domain'
+import { getCategoryInfo, IReminder } from '@/src/domain/reminder.domain'
+import { Ionicons } from '@expo/vector-icons'
 import dayjs from 'dayjs'
+import 'dayjs/locale/th'
 import {
   Bug,
+  CalendarDays,
   Clock,
   FileText,
   Hospital,
@@ -16,74 +19,93 @@ interface HealthRecordCardProps {
   reminder: IReminder
 }
 
-export default function HealthRecordCard(props: HealthRecordCardProps) {
-  const { reminder } = props
+const CATEGORY_ICON: Record<string, any> = {
+  Checkup: Hospital,
+  Vaccination: Syringe,
+  Medication: Pill,
+  Deworming: Bug
+}
 
-  const getHealthRecordIcon = (category: string) => {
-    switch (category) {
-      case 'Checkup':
-      case 'ตรวจสุขภาพ':
-        return Hospital
+// Pastel background for category badge
+const hexToRgba = (hex: string, alpha: number) => {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
 
-      case 'Vaccination':
-      case 'วัคซีน':
-        return Syringe
-
-      case 'Medication':
-      case 'ยา/อาหารเสริม':
-        return Pill
-
-      case 'Deworming':
-      case 'พยาธิ/เห็บหมัด':
-        return Bug
-
-      default:
-        return FileText
-    }
-  }
-
-  const HealthRecordIcon = getHealthRecordIcon(reminder.categoryName)
+export default function HealthRecordCard({ reminder }: HealthRecordCardProps) {
+  const categoryInfo = getCategoryInfo(reminder.categoryName)
+  const CategoryIcon = CATEGORY_ICON[reminder.categoryName] || FileText
 
   const formatDate = (dateString: string) => {
-    const date = dayjs(dateString).locale('th')
-    const formattedDate = `${date.format('วันdddd DD MMM')} ${
-      date.year() + 543
-    }`
-    return formattedDate
+    return (
+      dayjs(dateString).locale('th').format('D MMM') +
+      ` ${dayjs(dateString).year() + 543}`
+    )
   }
 
-  const formatTime = (timeString: string) => {
-    return timeString.substring(0, 5) + ' น.'
-  }
+  const formatTime = (timeString: string) => timeString.substring(0, 5) + ' น.'
+
   return (
     <View style={styles.card}>
-      {/* Left Side: Hero Icon Circle */}
-      <View style={styles.iconContainer}>
-        <View style={styles.iconCircle}>
-          <HealthRecordIcon size={32} color="#FFFFFF" strokeWidth={2} />
-        </View>
+      {/* Left color accent bar */}
+      <View
+        style={[styles.accentBar, { backgroundColor: categoryInfo.color }]}
+      />
+
+      {/* Icon */}
+      <View
+        style={[
+          styles.iconCircle,
+          { backgroundColor: hexToRgba(categoryInfo.color, 0.12) }
+        ]}
+      >
+        <CategoryIcon size={20} color={categoryInfo.color} strokeWidth={2} />
       </View>
 
-      {/* Right Side: Content */}
-      <View style={styles.contentContainer}>
-        <Text style={styles.titleText} numberOfLines={1}>
+      {/* Content */}
+      <View style={styles.content}>
+        {/* Category badge */}
+        <View
+          style={[
+            styles.categoryBadge,
+            { backgroundColor: hexToRgba(categoryInfo.color, 0.1) }
+          ]}
+        >
+          <View
+            style={[
+              styles.categoryDot,
+              { backgroundColor: categoryInfo.color }
+            ]}
+          />
+          <Text style={[styles.categoryText, { color: categoryInfo.color }]}>
+            {categoryInfo.label}
+          </Text>
+        </View>
+
+        {/* Title */}
+        <Text style={styles.title} numberOfLines={1}>
           {reminder.reminderName}
         </Text>
 
-        <View style={styles.infoRow}>
-          <PawPrint size={16} color="#2E759E" />
-          <Text style={styles.infoText}>{reminder.pet_name || '-'}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Clock size={16} color="#2E759E" />
-          <Text style={[styles.infoText]}>
-            {reminder.reminderTime
-              ? `${formatDate(reminder.reminderDate)}, ${formatTime(
-                  reminder.reminderTime
-                )}`
-              : formatDate(reminder.reminderDate)}
-          </Text>
+        {/* Meta row */}
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <CalendarDays size={13} color="#9ca3af" strokeWidth={2} />
+            <Text style={styles.metaText}>
+              {formatDate(reminder.reminderDate)}
+              {reminder.reminderTime
+                ? `, ${formatTime(reminder.reminderTime)}`
+                : ''}
+            </Text>
+          </View>
+          {reminder.pet_name && (
+            <View style={styles.metaItem}> 
+              <Ionicons name={'paw-outline'} size={13} color={'#9ca3af'} />
+              <Text style={styles.metaText}>{reminder.pet_name}</Text>
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -93,49 +115,75 @@ export default function HealthRecordCard(props: HealthRecordCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 10,
+    paddingRight: 14,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 3
+    elevation: 2
   },
-  iconContainer: {
-    marginRight: 16
+  accentBar: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: 4,
+    marginRight: 10,
+    marginLeft: 0
   },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#5FA7D1',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginRight: 10
   },
-  contentContainer: {
+  content: {
     flex: 1,
-    justifyContent: 'center'
+    gap: 2
   },
-  titleText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#225877',
-    fontFamily: 'Prompt_700Bold'
-  },
-  infoRow: {
+  categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 20,
+    gap: 3
   },
-  smallIcon: {
-    marginRight: 6
+  categoryDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3
   },
-  infoText: {
+  categoryText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_500Medium'
+  },
+  title: {
     fontSize: 14,
-    color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_700Bold',
+    color: '#225877'
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 1
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3
+  },
+  metaText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af'
   }
 })

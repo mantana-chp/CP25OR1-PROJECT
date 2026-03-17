@@ -38,6 +38,7 @@ import {
 import LoadingComponent from '../../components/loading_component'
 import VaccineListSection from '../components/vaccine_list_section'
 import AttachmentPreviewModal from '../components/attachment_preview_modal'
+import { Ionicons } from '@expo/vector-icons'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -142,7 +143,7 @@ export default function ReminderDetailModal({
   const handleEdit = () => {
     onClose()
     router.push({
-      pathname: '/(tabs)/add-reminder',
+      pathname: '/(tabs)/add_reminder',
       params: { reminderId: id }
     })
   }
@@ -275,7 +276,7 @@ export default function ReminderDetailModal({
                   {reminder?.reminderName || ''}
                 </Text>
                 <View style={styles.metaRow}>
-                  <PawPrint size={14} color={'#6b7280'} />
+                  <Ionicons name={'paw-outline'} size={14} color={'#6b7280'} />
                   <Text style={styles.petNameText}>
                     {reminder?.pet_name || '-'}
                   </Text>
