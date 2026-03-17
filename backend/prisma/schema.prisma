@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // just leave it like this (it is just a recommendaion)
 }
 
 model breeds {

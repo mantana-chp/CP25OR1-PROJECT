@@ -20,7 +20,8 @@
     "@langchain/google-genai": "^2.1.8",
     "@langchain/pinecone": "^1.0.1",
     "@pinecone-database/pinecone": "^5.0.2",
-    "@prisma/client": "^6.18.0",
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
     "@types/cors": "^2.8.19",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
@@ -32,7 +33,7 @@
     "minio": "^8.0.6",
     "node-cron": "^4.2.1",
     "pg": "^8.16.3",
-    "prisma": "^6.18.0",
+    "prisma": "^7.5.0",
     "uuid": "^8.3.2",
     "zod": "^4.1.12"
   },
