@@ -26,6 +26,19 @@ export type PetCreationData = {
   birth_date?: string | null
 }
 
+const assertPetProfileObjectKey = (
+  objectKey: string,
+  userId: string,
+  petId: string,
+) => {
+  const expectedPrefix = `pet-images/${userId}/${petId}/`
+  if (!objectKey.startsWith(expectedPrefix)) {
+    throw new BadRequestError(
+      'Invalid object key for this pet profile image.',
+    )
+  }
+}
+
 const formatPetProfile = async (pet: any) => {
   if (!pet) return null
   const petRole = pet.petRole === 'CAREGIVER' ? 'CAREGIVER' : 'OWNER'
@@ -239,6 +252,9 @@ export const updatePetProfileImage = async (
   if (!existingPet) {
     throw new NotFoundError('Pet not found or does not belong to this user.')
   }
+
+  // Enforce objectKey to match the expected pet profile image namespace.
+  assertPetProfileObjectKey(objectKey, userId, petId)
 
   // Delete old profile image if it exists
   if (existingPet.profile_image_key) {

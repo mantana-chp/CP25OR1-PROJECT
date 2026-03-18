@@ -10,6 +10,17 @@ import { canAccessPet } from '../pet-sharing/pet-sharing-repository';
 const MAX_ATTACHMENTS = 2;
 const PRESIGNED_GET_EXPIRY = 3600; // 1 hour
 
+function assertReminderAttachmentObjectKey(
+    objectKey: string,
+    userId: string,
+    reminderId: string,
+): void {
+    const expectedPrefix = `attachments/${userId}/${reminderId}/`;
+    if (!objectKey.startsWith(expectedPrefix)) {
+        throw new BadRequestError('Invalid object key for this reminder attachment.');
+    }
+}
+
 export interface AttachmentDto {
     id: string;
     fileName: string;
@@ -43,6 +54,27 @@ async function assertOwner(reminderId: string, userId: string): Promise<void> {
         throw new ApiError('Forbidden', 403, [{ message: 'Access to this reminder denied' }]);
 }
 
+// ── Owners can mutate any reminder attachments; caregivers only their own ─────
+async function assertCanMutateAttachments(reminderId: string, userId: string): Promise<void> {
+    const reminder = await reminderRepository.findFullById(reminderId);
+    if (!reminder) throw new NotFoundError('Reminder not found');
+
+    const hasAccess = await canAccessPet(reminder.pet_id!, userId);
+    if (!hasAccess) {
+        throw new ApiError('Forbidden', 403, [{ message: 'Access to this reminder denied' }]);
+    }
+
+    const petOwnerId = reminder.pets?.user_id ?? reminder.user_id;
+    const creatorId = reminder.created_by_user_id ?? reminder.user_id;
+    const isPetOwner = petOwnerId === userId;
+
+    if (!isPetOwner && creatorId !== userId) {
+        throw new ApiError('Forbidden', 403, [
+            { message: 'Caregivers can only modify attachments on reminders they created themselves' },
+        ]);
+    }
+}
+
 // ── Request a presigned PUT URL (enforces ≤2 attachments) ────────────────────
 export async function requestAttachmentUploadUrl(
     reminderId: string,
@@ -50,7 +82,7 @@ export async function requestAttachmentUploadUrl(
     fileName: string,
     fileType: string,
 ): Promise<{ uploadUrl: string; objectKey: string; expiresIn: number }> {
-    await assertOwner(reminderId, userId);
+    await assertCanMutateAttachments(reminderId, userId);
 
     const count = await attachmentRepository.countByReminderId(reminderId);
     if (count >= MAX_ATTACHMENTS) {
@@ -73,7 +105,16 @@ export async function saveAttachment(
     userId: string,
     payload: { objectKey: string; fileName: string; fileType: string; fileSize: number },
 ): Promise<AttachmentDto> {
-    await assertOwner(reminderId, userId);
+    await assertCanMutateAttachments(reminderId, userId);
+
+    // Enforce objectKey to match the expected reminder attachment namespace.
+    assertReminderAttachmentObjectKey(payload.objectKey, userId, reminderId);
+
+    // Ensure the file was actually uploaded before saving metadata.
+    const objectExists = await minioClient.objectExists(payload.objectKey);
+    if (!objectExists) {
+        throw new BadRequestError('Uploaded file not found in storage. Please upload again.');
+    }
 
     const count = await attachmentRepository.countByReminderId(reminderId);
     if (count >= MAX_ATTACHMENTS) {
@@ -101,7 +142,7 @@ export async function deleteAttachment(
     attachmentId: string,
     userId: string,
 ): Promise<void> {
-    await assertOwner(reminderId, userId);
+    await assertCanMutateAttachments(reminderId, userId);
 
     const existing = await attachmentRepository.findById(attachmentId);
     if (!existing) throw new NotFoundError('Attachment not found');

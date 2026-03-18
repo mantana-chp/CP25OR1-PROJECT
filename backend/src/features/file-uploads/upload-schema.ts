@@ -27,7 +27,7 @@ export const requestUploadUrlSchema = z.object({
         fileSize: z
             .number()
             .positive('File size must be positive')
-            .max(MAX_FILE_SIZE, 'File size exceeds 5MB limit'),
+            .max(MAX_FILE_SIZE, 'File size exceeds 10MB limit'),
         category: z.enum(['pet-profile', 'reminder-attachment']),
         entityId: z.uuid('Invalid entity ID'), // petId or reminderId
     }),
