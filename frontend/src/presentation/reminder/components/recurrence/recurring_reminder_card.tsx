@@ -19,7 +19,7 @@ import {
   Stethoscope,
   Syringe,
   Tag,
-  Trash2
+  Trash2,
 } from 'lucide-react-native'
 import React, { useRef, useState } from 'react'
 import {
@@ -28,7 +28,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 import DeleteConfirmationModal from '../modal/delete_confirmation_modal'
 import VaccineCompleteModal from '../modal/vaccine_complete_modal'
@@ -42,7 +42,7 @@ const ICON_MAP: Record<string, any> = {
   Pill,
   Pipette,
   Scissors,
-  Bone
+  Bone,
 }
 
 interface RecurringInstance {
@@ -63,10 +63,12 @@ interface RecurringReminderCardProps {
   reminder: IReminder
   instances: IReminder[]
   canDelete?: boolean
+  canDeleteAccess?: boolean
+  onDeleteBlocked?: () => void
   onPress?: (id: string) => void
   onDelete?: (
     reminderId: string,
-    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
   ) => void
   onRefresh?: () => void
 }
@@ -77,7 +79,9 @@ export default function RecurringReminderCard({
   onPress,
   onDelete,
   onRefresh,
-  canDelete
+  canDelete,
+  canDeleteAccess = true,
+  onDeleteBlocked,
 }: RecurringReminderCardProps) {
   // ------------------
   // CONST
@@ -97,7 +101,7 @@ export default function RecurringReminderCard({
   const CategoryIcon = ICON_MAP[categoryInfo.icon] || Tag
 
   const updateStatusApi = useApi(reminderService.updateReminderStatus, {
-    showErrorAlert: true
+    showErrorAlert: true,
   })
 
   // Sort instances by date
@@ -109,11 +113,11 @@ export default function RecurringReminderCard({
 
   // Get next due date (first incomplete instance)
   const nextInstance = sortedInstances.find(
-    (inst) => inst.reminderStatus !== 'done'
+    (inst) => inst.reminderStatus !== 'done',
   )
 
   const completedCount = sortedInstances.filter(
-    (inst) => inst.reminderStatus === 'done'
+    (inst) => inst.reminderStatus === 'done',
   ).length
   const totalCount = sortedInstances.length
 
@@ -144,22 +148,28 @@ export default function RecurringReminderCard({
         if (gestureState.dx < -40) {
           Animated.spring(translateX, {
             toValue: -80,
-            useNativeDriver: true
+            useNativeDriver: true,
           }).start()
         } else {
           Animated.spring(translateX, {
             toValue: 0,
-            useNativeDriver: true
+            useNativeDriver: true,
           }).start()
         }
-      }
-    })
+      },
+    }),
   ).current
 
   // ------------------
   // HANDLERS
   // ------------------
   const handleDeletePress = () => {
+    if (!canDeleteAccess) {
+      closeDeleteButton()
+      onDeleteBlocked?.()
+      return
+    }
+
     setShowDeleteModal(true)
   }
 
@@ -168,7 +178,7 @@ export default function RecurringReminderCard({
     Animated.timing(translateX, {
       toValue: 0,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start(() => {
       onDelete?.(reminder.id)
     })
@@ -179,7 +189,7 @@ export default function RecurringReminderCard({
       toValue: 0,
       useNativeDriver: true,
       tension: 50,
-      friction: 7
+      friction: 7,
     }).start()
   }
 
@@ -190,7 +200,7 @@ export default function RecurringReminderCard({
   const handleToggleInstancePress = (
     instanceId: string,
     currentStatus: string,
-    index: number
+    index: number,
   ) => {
     // If in temp done state, skip
     if (tempDoneIds.includes(instanceId)) {
@@ -293,7 +303,7 @@ export default function RecurringReminderCard({
             onPress={handleDeletePress}
             activeOpacity={0.8}
           >
-            <Trash2 size={24} color="#fff" strokeWidth={1.5} />
+            <Trash2 size={24} color='#fff' strokeWidth={1.5} />
           </TouchableOpacity>
         </View>
       )}
@@ -314,7 +324,7 @@ export default function RecurringReminderCard({
               <View
                 style={[
                   styles.iconContainer,
-                  { backgroundColor: categoryInfo.color + '20' }
+                  { backgroundColor: categoryInfo.color + '20' },
                 ]}
               >
                 <CategoryIcon size={16} color={categoryInfo.color} />
@@ -328,8 +338,8 @@ export default function RecurringReminderCard({
                   styles.progressBadge,
                   {
                     backgroundColor:
-                      completedCount === totalCount ? '#E6FFFA' : '#FFF4E6'
-                  }
+                      completedCount === totalCount ? '#E6FFFA' : '#FFF4E6',
+                  },
                 ]}
               >
                 <Text
@@ -337,8 +347,8 @@ export default function RecurringReminderCard({
                     styles.progressText,
                     {
                       color:
-                        completedCount === totalCount ? '#15AD90' : '#FF9531'
-                    }
+                        completedCount === totalCount ? '#15AD90' : '#FF9531',
+                    },
                   ]}
                 >
                   {completedCount}/{totalCount}
@@ -350,9 +360,9 @@ export default function RecurringReminderCard({
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               {isExpanded ? (
-                <ChevronUp size={18} color="#A6A6A6" />
+                <ChevronUp size={18} color='#A6A6A6' />
               ) : (
-                <ChevronDown size={18} color="#A6A6A6" />
+                <ChevronDown size={18} color='#A6A6A6' />
               )}
             </TouchableOpacity>
           </View>
@@ -364,7 +374,7 @@ export default function RecurringReminderCard({
               {reminder.pet_name}
             </Text>
             <View style={styles.separator} />
-            <BriefcaseMedical size={11} color="#6B7280" />
+            <BriefcaseMedical size={11} color='#6B7280' />
             <Text style={styles.detailText} numberOfLines={1}>
               {totalCount} เข็ม
             </Text>
@@ -374,7 +384,7 @@ export default function RecurringReminderCard({
           <View style={styles.statusRow}>
             {completedCount === totalCount ? (
               <View style={styles.statusBadge}>
-                <Check size={13} color="#15AD90" />
+                <Check size={13} color='#15AD90' />
                 <Text style={[styles.statusText, { color: '#15AD90' }]}>
                   ฉีดครบแล้ว
                 </Text>
@@ -389,12 +399,12 @@ export default function RecurringReminderCard({
                         const diffDays = nextInstance
                           ? dayjs(nextInstance.reminderDate).diff(
                               dayjs(),
-                              'day'
+                              'day',
                             )
                           : 0
                         return diffDays < 0 ? '#FEE2E2' : '#FEF3C7'
-                      })()
-                    }
+                      })(),
+                    },
                   ]}
                 >
                   <Calendar
@@ -414,12 +424,12 @@ export default function RecurringReminderCard({
                           const diffDays = nextInstance
                             ? dayjs(nextInstance.reminderDate).diff(
                                 dayjs(),
-                                'day'
+                                'day',
                               )
                             : 0
                           return diffDays < 0 ? '#BF1737' : '#F59E0B'
-                        })()
-                      }
+                        })(),
+                      },
                     ]}
                   >
                     {(() => {
@@ -438,7 +448,7 @@ export default function RecurringReminderCard({
                 {nextInstance && nextInstance.reminderTime && (
                   <>
                     <View style={styles.separator} />
-                    <Clock size={11} color="#6B7280" />
+                    <Clock size={11} color='#6B7280' />
                     <Text style={styles.detailText}>
                       {formatTime(nextInstance.reminderTime)}
                     </Text>
@@ -457,7 +467,8 @@ export default function RecurringReminderCard({
                 key={instance.id}
                 style={[
                   styles.instanceRow,
-                  index === sortedInstances.length - 1 && styles.instanceRowLast
+                  index === sortedInstances.length - 1 &&
+                    styles.instanceRowLast,
                 ]}
               >
                 <TouchableOpacity
@@ -465,7 +476,7 @@ export default function RecurringReminderCard({
                     handleToggleInstancePress(
                       instance.id,
                       instance.reminderStatus,
-                      index
+                      index,
                     )
                   }
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -475,7 +486,7 @@ export default function RecurringReminderCard({
                       styles.checkbox,
                       (instance.reminderStatus === 'done' ||
                         tempDoneIds.includes(instance.id)) &&
-                        styles.checkboxCompleted
+                        styles.checkboxCompleted,
                     ]}
                   >
                     {(instance.reminderStatus === 'done' ||
@@ -491,8 +502,8 @@ export default function RecurringReminderCard({
                       style={[
                         styles.instanceLabel,
                         instance.reminderStatus === 'overdue' && {
-                          color: '#BF1737'
-                        }
+                          color: '#BF1737',
+                        },
                       ]}
                     >
                       {instance.reminderName}/{totalCount}
@@ -510,13 +521,13 @@ export default function RecurringReminderCard({
                         style={[
                           styles.instanceDate,
                           instance.reminderStatus === 'overdue' && {
-                            color: '#BF1737'
-                          }
+                            color: '#BF1737',
+                          },
                         ]}
                       >
                         {instance.reminderTime
                           ? `${formatDate(instance.reminderDate)}, ${formatTime(
-                              instance.reminderTime
+                              instance.reminderTime,
                             )}`
                           : formatDate(instance.reminderDate)}
                       </Text>
@@ -532,15 +543,15 @@ export default function RecurringReminderCard({
                         instance.reminderStatus === 'done' ||
                         tempDoneIds.includes(instance.id)
                           ? '#E6FFFA'
-                          : '#FFF4E6'
-                    }
+                          : '#FFF4E6',
+                    },
                   ]}
                 >
                   {instance.reminderStatus === 'done' ||
                   tempDoneIds.includes(instance.id) ? (
-                    <Check size={18} color="#15AD90" />
+                    <Check size={18} color='#15AD90' />
                   ) : (
-                    <Hourglass size={18} color="#FF9531" />
+                    <Hourglass size={18} color='#FF9531' />
                   )}
                 </View>
               </View>
@@ -580,7 +591,7 @@ export default function RecurringReminderCard({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 12,
-    position: 'relative'
+    position: 'relative',
   },
   deleteContainer: {
     position: 'absolute',
@@ -589,7 +600,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 100,
     justifyContent: 'center',
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
   },
   deleteButton: {
     backgroundColor: '#BF1737',
@@ -598,15 +609,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderTopRightRadius: 16,
-    borderBottomRightRadius: 16
+    borderBottomRightRadius: 16,
   },
   deleteText: {
     color: '#fff',
     fontSize: 14,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   swipeableCard: {
-    width: '100%'
+    width: '100%',
   },
   card: {
     backgroundColor: '#fff',
@@ -618,20 +629,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    gap: 3
+    gap: 3,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6
+    marginBottom: 6,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     flex: 1,
-    minWidth: 0
+    minWidth: 0,
   },
   iconContainer: {
     width: 26,
@@ -639,48 +650,48 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0
+    flexShrink: 0,
   },
   title: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#1F2937',
     flex: 1,
-    minWidth: 0
+    minWidth: 0,
   },
   progressBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
-    flexShrink: 0
+    flexShrink: 0,
   },
   progressText: {
     fontSize: 11,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     marginBottom: 4,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   detailText: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
-    color: '#6B7280'
+    color: '#6B7280',
   },
   separator: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#D1D5DB'
+    backgroundColor: '#D1D5DB',
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -689,16 +700,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#E6FFFA'
+    backgroundColor: '#E6FFFA',
   },
   statusText: {
     fontSize: 11,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 4,
   },
   instancesContainer: {
     backgroundColor: '#fff',
@@ -713,7 +724,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
-    zIndex: -1
+    zIndex: -1,
   },
   instanceRow: {
     flexDirection: 'row',
@@ -722,24 +733,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6'
+    borderBottomColor: '#f3f4f6',
   },
   instanceRowLast: {
-    borderBottomWidth: 0
+    borderBottomWidth: 0,
   },
   instanceLeft: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
     flex: 1,
-    paddingLeft: 10
+    paddingLeft: 10,
   },
   iconTimeContainer: {
     width: 34,
     height: 34,
     borderRadius: 17,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   checkbox: {
     width: 18,
@@ -749,29 +760,29 @@ const styles = StyleSheet.create({
     borderColor: '#A6A6A6',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
   },
   checkboxCompleted: {
-    borderColor: '#5FA7D1'
+    borderColor: '#5FA7D1',
   },
   checkboxInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#5FA7D1'
+    backgroundColor: '#5FA7D1',
   },
   instanceInfo: {
     flex: 1,
-    gap: 3
+    gap: 3,
   },
   instanceDate: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
-    color: '#6B7280'
+    color: '#6B7280',
   },
   instanceLabel: {
     fontSize: 12,
     fontFamily: 'Prompt_500Medium',
-    color: '#1F2937'
-  }
+    color: '#1F2937',
+  },
 })

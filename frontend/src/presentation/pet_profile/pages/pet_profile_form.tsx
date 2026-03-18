@@ -56,9 +56,17 @@ export default function PetProfileForm({
   const params = useLocalSearchParams()
   const petId = (params?.petId || '') as string
   const isEditMode = !!petId
+  const isFromPetOptions = params?.isFromPetOptions === 'true'
+  const isPostOnboarding = params?.isPostOnboarding === 'true'
+
+  useEffect(() => {
+    return () => {
+      // Cleanup
+    }
+  }, [])
 
   const { checkPetProfile, completeOnboarding } = useAuth()
-  const { refreshPets } = usePets()
+  const { refreshPets, activePets, deceasedPets } = usePets()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
@@ -144,7 +152,7 @@ export default function PetProfileForm({
       // Clear previous image state immediately to prevent flashing old image
       setSelectedImageUri(undefined)
       setOriginalImageKey(undefined)
-      
+
       const response = await petProfileService.getPetProfileById(petId)
 
       if (response) {
@@ -248,34 +256,6 @@ export default function PetProfileForm({
     setPetForms((prev) => prev.filter((form) => form.id !== formId))
   }
 
-  const getIsFormChanged = (form: IPetFormState): boolean => {
-    return form.isDirty
-  }
-
-  const handleBackPress = () => {
-    const hasChanges = petForms.some((form) => getIsFormChanged(form))
-    if (hasChanges) {
-      setShowBackModal(true)
-    } else {
-      router.push('/(tabs)/pet_profile')
-    }
-  }
-
-  const handleConfirmBack = () => {
-    setPetForms([
-      {
-        id: 'pet_form_0',
-        values: petProfileInitValue({} as IPetProfileForm),
-        selectedSpeciesId: '',
-        selectedImageUri: undefined,
-        originalImageKey: undefined,
-        isDirty: false,
-      },
-    ])
-    setShowBackModal(false)
-    router.push('/(tabs)/pet_profile')
-  }
-
   const formik = useFormik<IPetProfileForm>({
     initialValues: petProfileInitValue(
       initialPetData || ({} as IPetProfileForm),
@@ -300,8 +280,19 @@ export default function PetProfileForm({
 
         if (weight) petDataToSend.weight = Number(weight)
 
+        // Create/update pet profile first
+        let newPetId = petId
+        if (isEditMode) {
+          await petProfileService.updatePetProfile(petId, petDataToSend)
+        } else {
+          const createResponse =
+            await petProfileService.createPetProfile(petDataToSend)
+          newPetId = createResponse.data?.id || petId
+          console.log('🆔 Pet Created with ID:', newPetId)
+        }
+
         // Update pet profile
-        await petProfileService.updatePetProfile(petId, petDataToSend)
+        // await petProfileService.updatePetProfile(petId, petDataToSend)
 
         // Handle image upload/change
         const isImageChanged =
@@ -400,14 +391,20 @@ export default function PetProfileForm({
 
         router.push('/(tabs)/pet_profile')
 
-        Alert.alert('สำเร็จ!', 'แก้ไขโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว', [
-          {
-            text: 'ตกลง',
-            onPress: () => {
-              router.push('/(tabs)/pet_profile')
+        Alert.alert(
+          'สำเร็จ!',
+          isEditMode
+            ? 'แก้ไขโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว'
+            : 'บันทึกโปรไฟล์สัตว์เลี้ยงเรียบร้อยแล้ว',
+          [
+            {
+              text: 'ตกลง',
+              onPress: () => {
+                router.push('/(tabs)/pet_profile')
+              },
             },
-          },
-        ])
+          ],
+        )
 
         formik.resetForm()
         setSelectedSpeciesId('')
@@ -516,7 +513,7 @@ export default function PetProfileForm({
             console.error(`❌ Image upload failed for pet ${i + 1}:`, error)
             Alert.alert(
               'บันทึกรูปไม่สำเร็จ',
-              `สัตว์เลี้ยงที่ ${i + 1} ถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด`,
+              `สัตว์เลี้ยงตัวที่ ${i + 1} ถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด`,
             )
           } finally {
             setIsUploadingImage(false)
@@ -586,6 +583,14 @@ export default function PetProfileForm({
         name: breed.name,
       })) || []
 
+  const breedOptions =
+    speciesData
+      .find((species) => species.id === selectedSpeciesId)
+      ?.breeds.map((breed) => ({
+        id: breed.id,
+        name: breed.name,
+      })) || []
+
   const genderOptions = [
     { name: 'เพศผู้', id: 'male' },
     { name: 'เพศเมีย', id: 'female' },
@@ -599,6 +604,41 @@ export default function PetProfileForm({
       setSelectedSpeciesId(speciesId)
       formik.setFieldValue('species_id', speciesId)
       formik.setFieldValue('breed_id', '')
+    }
+  }
+
+  const handleBackPress = () => {
+    if (formik.dirty) {
+      setShowBackModal(true)
+    } else {
+      // If coming from pet options, go back to pet options page
+      if (isFromPetOptions) {
+        if (isPostOnboarding) {
+          router.push('/onboarding/pet-options?isPostOnboarding=true')
+        } else {
+          router.push('/onboarding/pet-options')
+        }
+      } else {
+        router.push('/(tabs)/pet_profile')
+      }
+    }
+  }
+
+  const handleConfirmBack = () => {
+    formik.resetForm()
+    setShowBackModal(false)
+    setSelectedImageUri(undefined)
+    setOriginalImageKey(undefined)
+    setIsDeletingImage(false)
+    // If coming from pet options, go back to pet options page
+    if (isFromPetOptions) {
+      if (isPostOnboarding) {
+        router.push('/onboarding/pet-options?isPostOnboarding=true')
+      } else {
+        router.push('/onboarding/pet-options')
+      }
+    } else {
+      router.push('/(tabs)/pet_profile')
     }
   }
 
@@ -697,14 +737,14 @@ export default function PetProfileForm({
       <View key={form.id} style={styles.petFormWrapper}>
         {showFormHeader && (
           <View style={styles.formHeader}>
-            <Text style={styles.formTitle}>สัตว์เลี้ยงที่ {index + 1}</Text>
+            <Text style={styles.formTitle}>สัตว์เลี้ยงตัวที่ {index + 1}</Text>
             {showDeleteButton && (
               <TouchableOpacity
                 onPress={() => deletePetForm(form.id)}
                 style={styles.deleteFormButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Trash2 size={18} color='#fff' />
+                <Trash2 size={18} color='#BF1737' />
               </TouchableOpacity>
             )}
           </View>
@@ -890,7 +930,7 @@ export default function PetProfileForm({
 
             <InputText
               title='น้ำหนักสัตว์เลี้ยง (กิโลกรัม)'
-              value={formik.values?.weight}
+              value={formik.values?.weight || ''}
               placeholder='น้ำหนักสัตว์เลี้ยง'
               keyboardType='numeric'
               onChangeText={handleWeightChange}
@@ -1010,17 +1050,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   deleteFormButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteFormButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Prompt_600SemiBold',
+    padding: 4,
   },
   formDivider: {
     height: 1,
@@ -1031,14 +1061,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-    backgroundColor: '#f1f8f4',
+    backgroundColor: '#ffffff',
     marginVertical: 16,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#5FA7D1',
+    borderStyle: 'dashed',
   },
   addPetButtonText: {
-    color: '#4CAF50',
+    color: '#5FA7D1',
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
   },

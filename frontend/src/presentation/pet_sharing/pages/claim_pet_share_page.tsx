@@ -3,7 +3,7 @@ import {
   colors,
   iconSizes,
   spacing,
-  typography
+  typography,
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
 import { useAuth } from '@/src/context/AuthContext'
@@ -12,12 +12,12 @@ import { ApiError } from '@/src/utils/api/api_client'
 import { petSharingService } from '@/src/utils/api/services/pet_sharing_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { extractClaimToken, unwrapData } from '@/src/utils/pet_sharing_utils'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
   BarcodeScanningResult,
   CameraType,
   CameraView,
-  useCameraPermissions
+  useCameraPermissions,
 } from 'expo-camera'
 import { ScanLine, ShieldCheck } from 'lucide-react-native'
 import React, { useMemo, useRef } from 'react'
@@ -76,8 +76,17 @@ const getClaimErrorMessage = (error: ApiError) => {
 
 export default function ClaimPetSharePage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const { refreshPets } = usePets()
+  const params = useLocalSearchParams()
+  const fromOnboarding = params?.fromOnboarding === 'true'
+  const isFromPetOptions = params?.isFromPetOptions === 'true'
+  const isPostOnboarding = params?.isPostOnboarding === 'true'
+
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    completeOnboarding,
+  } = useAuth()
+  const { refreshPets, activePets, deceasedPets, setSelectedPetId } = usePets()
 
   const [permission, requestPermission] = useCameraPermissions()
   const facing: CameraType = 'back'
@@ -88,10 +97,15 @@ export default function ClaimPetSharePage() {
   } | null>(null)
 
   const claimInviteApi = useApi(petSharingService.claimInvite, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const isBusy = claimInviteApi.loading || authLoading
+
+  // Determine if user has no pets (used to hide back button)
+  const hasNoPets =
+    (!activePets || activePets.length === 0) &&
+    (!deceasedPets || deceasedPets.length === 0)
 
   const permissionDenied = useMemo(() => {
     if (!permission) return false
@@ -99,7 +113,15 @@ export default function ClaimPetSharePage() {
   }, [permission])
 
   const onBackPress = () => {
-    router.push('/(tabs)/pet_profile')
+    if (fromOnboarding || isFromPetOptions) {
+      if (isPostOnboarding) {
+        router.push('/onboarding/pet-options?isPostOnboarding=true')
+      } else {
+        router.push('/onboarding/pet-options')
+      }
+    } else {
+      router.push('/(tabs)/pet_profile')
+    }
   }
 
   const onRequestPermission = async () => {
@@ -108,7 +130,7 @@ export default function ClaimPetSharePage() {
     if (!nextPermission.granted) {
       Alert.alert(
         'ต้องการสิทธิ์กล้อง',
-        'โปรดอนุญาตการใช้งานกล้องเพื่อสแกน QR Code คำเชิญ'
+        'โปรดอนุญาตการใช้งานกล้องเพื่อสแกน QR Code คำเชิญ',
       )
     }
   }
@@ -128,15 +150,34 @@ export default function ClaimPetSharePage() {
     }
 
     const claimedPets = unwrapData<IPetProfile[]>(result.data)
+    const claimedPetId = claimedPets?.[0]?.id
     const firstPetName = claimedPets?.[0]?.pet_name
 
     await refreshPets()
 
+    if (claimedPetId) {
+      setSelectedPetId(claimedPetId)
+    }
+
+    // If coming from onboarding, complete it after claiming pet
+    if (fromOnboarding && !isPostOnboarding) {
+      console.log('✅ Claiming pet from onboarding, completing onboarding')
+      await completeOnboarding()
+    }
+
     Alert.alert(
       'รับคำเชิญสำเร็จ',
       firstPetName
-        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว\nคุณสามารถสแกน QR ถัดไปได้ทันที`
-        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว\nคุณสามารถสแกน QR ถัดไปได้ทันที'
+        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว`
+        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว',
+      [
+        {
+          text: 'ตกลง',
+          onPress: () => {
+            router.replace('/(tabs)/pet_profile')
+          },
+        },
+      ],
     )
   }
 
@@ -162,7 +203,7 @@ export default function ClaimPetSharePage() {
     isHandlingScanRef.current = true
     lastScannedPayloadRef.current = {
       value: payload,
-      scannedAt: now
+      scannedAt: now,
     }
 
     const token = extractClaimToken(payload)
@@ -181,12 +222,12 @@ export default function ClaimPetSharePage() {
 
   return (
     <View style={styles.container}>
-      <Header title="สแกน QR Code" goBack onBackPress={onBackPress} />
+      <Header title='สแกน QR Code' goBack onBackPress={onBackPress} />
 
       <View style={styles.content}>
         {isBusy ? (
           <View style={styles.stateContainer}>
-            <ActivityIndicator size="large" color={colors.primary.light} />
+            <ActivityIndicator size='large' color={colors.primary.light} />
           </View>
         ) : !isAuthenticated ? (
           <View style={styles.stateContainer}>
@@ -201,7 +242,7 @@ export default function ClaimPetSharePage() {
           </View>
         ) : !permission ? (
           <View style={styles.stateContainer}>
-            <ActivityIndicator size="large" color={colors.primary.light} />
+            <ActivityIndicator size='large' color={colors.primary.light} />
             <Text style={styles.stateDescription}>กำลังเตรียมกล้อง...</Text>
           </View>
         ) : permissionDenied ? (
@@ -213,7 +254,7 @@ export default function ClaimPetSharePage() {
             </Text>
 
             <Button
-              title="อนุญาตใช้งานกล้อง"
+              title='อนุญาตใช้งานกล้อง'
               onPress={onRequestPermission}
               style={styles.permissionButton}
             />
@@ -228,7 +269,7 @@ export default function ClaimPetSharePage() {
                 onBarcodeScanned={onBarcodeScanned}
               />
 
-              <View pointerEvents="none" style={styles.scanFrame} />
+              <View pointerEvents='none' style={styles.scanFrame} />
             </View>
 
             <Text style={styles.helperText}>
@@ -244,12 +285,12 @@ export default function ClaimPetSharePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
     padding: spacing[4],
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   scannerCard: {
     borderRadius: borderRadius.xl,
@@ -257,10 +298,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[900],
     borderWidth: 1,
     borderColor: colors.border.light,
-    aspectRatio: 1
+    aspectRatio: 1,
   },
   camera: {
-    flex: 1
+    flex: 1,
   },
   scanFrame: {
     position: 'absolute',
@@ -271,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 2,
     borderColor: colors.background.secondary,
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   helperText: {
     marginTop: spacing[4],
@@ -279,30 +320,30 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
-    lineHeight: typography.lineHeight.normal
+    lineHeight: typography.lineHeight.normal,
   },
   stateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[3],
-    paddingHorizontal: spacing[6]
+    paddingHorizontal: spacing[6],
   },
   stateTitle: {
     fontSize: typography.fontSize['2xl'],
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.bold,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   stateDescription: {
     fontSize: typography.fontSize.base,
     color: colors.gray[600],
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.normal
+    lineHeight: typography.lineHeight.normal,
   },
   permissionButton: {
     width: '100%',
     marginTop: spacing[2],
-    backgroundColor: colors.primary.light
-  }
+    backgroundColor: colors.primary.light,
+  },
 })

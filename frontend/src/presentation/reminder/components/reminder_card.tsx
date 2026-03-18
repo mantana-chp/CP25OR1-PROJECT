@@ -11,13 +11,13 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 import Modal from '../../components/modal'
 
 import {
   convertFromBackendRecurrence,
-  formatRecurrenceText
+  formatRecurrenceText,
 } from '@/src/utils/recurrence.utils'
 import {
   Bone,
@@ -30,7 +30,7 @@ import {
   Stethoscope,
   Syringe,
   Tag,
-  Trash2
+  Trash2,
 } from 'lucide-react-native'
 import DeleteSeriesModal from './modal/delete_series_modal'
 
@@ -38,8 +38,10 @@ interface ReminderCardProps {
   reminder: IReminder
   onDelete?: (
     id: string,
-    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
   ) => void
+  canDeleteAccess?: boolean
+  onDeleteBlocked?: () => void
   isDeleting?: boolean
   canDelete?: boolean
   onPress?: (id: string) => void
@@ -55,7 +57,7 @@ const ICON_MAP: Record<string, any> = {
   Pill,
   Pipette,
   Scissors,
-  Bone
+  Bone,
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
@@ -71,12 +73,14 @@ export default function ReminderCard(props: ReminderCardProps) {
   const {
     reminder,
     onDelete,
+    canDeleteAccess = true,
+    onDeleteBlocked,
     isDeleting = false,
     canDelete,
     onPress,
     onToggleStatus,
     isTempDone = false,
-    hideToggle = false
+    hideToggle = false,
   } = props
 
   // Check if this is a virtual reminder
@@ -117,16 +121,16 @@ export default function ReminderCard(props: ReminderCardProps) {
         if (gestureState.dx < -40) {
           Animated.spring(translateX, {
             toValue: -80,
-            useNativeDriver: true
+            useNativeDriver: true,
           }).start()
         } else {
           Animated.spring(translateX, {
             toValue: 0,
-            useNativeDriver: true
+            useNativeDriver: true,
           }).start()
         }
-      }
-    })
+      },
+    }),
   ).current
 
   // ------------------
@@ -138,11 +142,17 @@ export default function ReminderCard(props: ReminderCardProps) {
       toValue: 0,
       useNativeDriver: true,
       tension: 50,
-      friction: 7
+      friction: 7,
     }).start()
   }
 
   const handleDeletePress = () => {
+    if (!canDeleteAccess) {
+      closeDeleteButton()
+      onDeleteBlocked?.()
+      return
+    }
+
     // For virtual reminders, show series modal to delete the recurring rule
     if (isVirtual) {
       if (reminder.recurrence) {
@@ -230,10 +240,10 @@ export default function ReminderCard(props: ReminderCardProps) {
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color='#fff' size='small' />
             ) : (
               <>
-                <Trash2 size={24} color="#fff" strokeWidth={1.5} />
+                <Trash2 size={24} color='#fff' strokeWidth={1.5} />
               </>
             )}
           </TouchableOpacity>
@@ -252,8 +262,8 @@ export default function ReminderCard(props: ReminderCardProps) {
               ? '#F9FAFB' // Light gray for virtual reminders
               : reminder?.reminderStatus === 'overdue'
                 ? '#FEF2F2'
-                : '#fff'
-          }
+                : '#fff',
+          },
         ]}
         {...(canDelete && !isVirtual ? panResponder.panHandlers : {})}
       >
@@ -274,7 +284,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                 style={[
                   styles.checkbox,
                   isDone && styles.checkboxCompleted,
-                  isVirtual && styles.checkboxDisabled
+                  isVirtual && styles.checkboxDisabled,
                 ]}
               >
                 {isDone && <View style={styles.checkboxInner} />}
@@ -291,7 +301,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                   reminder?.reminderStatus === 'overdue' &&
                     styles.overdueTitleText,
                   isVirtual && styles.virtualText,
-                  isDone && styles.lineThroughText
+                  isDone && styles.lineThroughText,
                 ]}
                 numberOfLines={1}
               >
@@ -299,7 +309,7 @@ export default function ReminderCard(props: ReminderCardProps) {
               </Text>
               {!isVirtual && reminder?.recurrence && (
                 <View style={styles.recurringBadge}>
-                  <Repeat size={10} color="#5FA7D1" />
+                  <Repeat size={10} color='#5FA7D1' />
                 </View>
               )}
             </View>
@@ -308,7 +318,7 @@ export default function ReminderCard(props: ReminderCardProps) {
               <View
                 style={[
                   styles.categoryBadge,
-                  { backgroundColor: categoryInfo.color + '20' }
+                  { backgroundColor: categoryInfo.color + '20' },
                 ]}
               >
                 <CategoryIcon size={10} color={categoryInfo.color} />
@@ -324,7 +334,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                   styles.petNameText,
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
                   isVirtual && styles.virtualText,
-                  isDone && styles.doneText
+                  isDone && styles.doneText,
                 ]}
                 numberOfLines={1}
               >
@@ -336,7 +346,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                   styles.dateTimeText,
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
                   isVirtual && styles.virtualText,
-                  isDone && styles.doneText
+                  isDone && styles.doneText,
                 ]}
               >
                 {formattedTime
@@ -365,7 +375,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                       reminder?.reminderStatus === 'overdue' &&
                         styles.overdueText,
                       isVirtual && styles.virtualText,
-                      isDone && styles.doneText
+                      isDone && styles.doneText,
                     ]}
                   >
                     {reminder?.attachments?.length} ไฟล์แนบ
@@ -393,13 +403,13 @@ export default function ReminderCard(props: ReminderCardProps) {
                     reminder?.reminderStatus === 'overdue' &&
                       styles.overdueText,
                     ,
-                    isDone && styles.doneText
+                    isDone && styles.doneText,
                   ]}
                   numberOfLines={1}
                 >
                   {formatRecurrenceText(
                     convertFromBackendRecurrence(reminder.recurrence),
-                    'th'
+                    'th',
                   )}
                   {reminder.occurrenceNumber &&
                     reminder.occurrenceNumber > 1 &&
@@ -428,16 +438,16 @@ export default function ReminderCard(props: ReminderCardProps) {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        variant="confirmation"
+        variant='confirmation'
         visible={showDeleteModal}
         onClose={handleCancelDelete}
-        icon="trash"
-        title="ยืนยันการลบ"
+        icon='trash'
+        title='ยืนยันการลบ'
         message={`ต้องการลบเตือนความจำ "${reminder.reminderName}" ใช่หรือไม่?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`}
-        confirmText="ลบ"
-        cancelText="ยกเลิก"
+        confirmText='ลบ'
+        cancelText='ยกเลิก'
         onConfirm={handleConfirmDelete}
-        confirmVariant="error"
+        confirmVariant='error'
         isLoading={isDeleting}
       />
 
@@ -456,7 +466,7 @@ export default function ReminderCard(props: ReminderCardProps) {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 8,
-    position: 'relative'
+    position: 'relative',
   },
   deleteButtonContainer: {
     position: 'absolute',
@@ -465,7 +475,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 100,
     justifyContent: 'center',
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
   },
   deleteButton: {
     backgroundColor: '#BF1737',
@@ -474,12 +484,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderTopRightRadius: 12,
-    borderBottomRightRadius: 12
+    borderBottomRightRadius: 12,
   },
   deleteText: {
     color: '#fff',
     fontSize: 14,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   reminderCard: {
     backgroundColor: '#fff',
@@ -491,17 +501,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-    borderLeftWidth: 3
+    borderLeftWidth: 3,
   },
   cardTouchable: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    gap: 10
+    gap: 10,
   },
   leftSection: {
-    paddingRight: 0
+    paddingRight: 0,
   },
   checkbox: {
     width: 20,
@@ -510,52 +520,52 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#A6A6A6',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   checkboxCompleted: {
-    borderColor: '#5FA7D1'
+    borderColor: '#5FA7D1',
   },
   checkboxDisabled: {
     borderColor: '#D1D5DB',
-    opacity: 0.5
+    opacity: 0.5,
   },
   checkboxInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#5FA7D1'
+    backgroundColor: '#5FA7D1',
   },
   middleSection: {
     flex: 1,
-    gap: 3
+    gap: 3,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   recurringBadge: {
     backgroundColor: '#E0F2FE',
     borderRadius: 10,
     padding: 3,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   virtualText: {
-    color: '#9CA3AF'
+    color: '#9CA3AF',
   },
   lineThroughText: {
     color: '#9CA3AF',
-    textDecorationLine: 'line-through'
+    textDecorationLine: 'line-through',
   },
   doneText: {
-    color: '#9CA3AF'
+    color: '#9CA3AF',
   },
   detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   categoryBadge: {
     flexDirection: 'row',
@@ -563,52 +573,52 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8
+    borderRadius: 8,
   },
   categoryText: {
     fontSize: 10,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   separator: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#D1D5DB'
+    backgroundColor: '#D1D5DB',
   },
   recurrenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 4,
   },
   recurrenceText: {
     fontSize: 11,
     color: '#5FA7D1',
     fontFamily: 'Prompt_400Regular',
-    flex: 1
+    flex: 1,
   },
   reminderTitle: {
     fontSize: 14,
     color: '#1F2937',
     fontFamily: 'Prompt_500Medium',
-    flex: 1
+    flex: 1,
   },
   overdueTitleText: {
-    color: '#BF1737'
+    color: '#BF1737',
   },
   petNameText: {
     fontSize: 12,
     color: '#6B7280',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   dateTimeText: {
     fontSize: 12,
     color: '#6B7280',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   overdueText: {
-    color: '#BF1737'
+    color: '#BF1737',
   },
   chevron: {
-    marginLeft: 4
-  }
+    marginLeft: 4,
+  },
 })

@@ -5,7 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState
+  useState,
 } from 'react'
 import { IDeletedPet, IPetProfile } from '../domain/pet.domain'
 import { useAuth } from './AuthContext'
@@ -34,17 +34,31 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   const [activePetsData, setActivePetsData] = useState<IPetProfile[]>([])
   const [deceasedPetsData, setDeceasedPetsData] = useState<IPetProfile[]>([])
   const [deletedPets, setDeletedPets] = useState<IDeletedPet[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
 
-  // Fetch active pets
+  const fetchActivePets = useCallback(async () => {
+    const response = await petProfileService.getMyPets()
+    return response?.data || []
+  }, [])
+
+  const fetchPastPets = useCallback(async () => {
+    const response = await petProfileService.getPastPets()
+    return response?.data || []
+  }, [])
+
+  // Fetch active + deceased pets together
   const refreshPets = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await petProfileService.getMyPets()
-      const petsData = response?.data || []
+      const [petsData, pastPetsData] = await Promise.all([
+        fetchActivePets(),
+        fetchPastPets(),
+      ])
+
       setActivePetsData(petsData)
+      setDeceasedPetsData(pastPetsData)
 
       // Update selection state after fetching, using the current selectedPetId
       // This is a closure over selectedPetId, not a dependency
@@ -62,24 +76,24 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         return currentId
       })
     } catch (error) {
-      console.error('Error fetching active pets:', error)
+      console.error('Error fetching pets:', error)
       setActivePetsData([])
+      setDeceasedPetsData([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [fetchActivePets, fetchPastPets])
 
-  // Fetch deceased pets
+  // Keep API compatibility where past-only refresh is needed
   const refreshPastPets = useCallback(async () => {
     try {
-      const response = await petProfileService.getPastPets()
-      const pastPetsData = response?.data || []
+      const pastPetsData = await fetchPastPets()
       setDeceasedPetsData(pastPetsData)
     } catch (error) {
       console.error('Error fetching past pets:', error)
       setDeceasedPetsData([])
     }
-  }, [])
+  }, [fetchPastPets])
 
   const getFirstPetId = useCallback(() => {
     return activePetsData[0]?.id || ''
@@ -100,7 +114,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         .map((pet) => ({
           ...pet,
           deleted_at: pet.deleted_at!,
-          status: 'DELETED' as const
+          status: 'DELETED' as const,
         }))
       console.log('✅ Formatted deleted pets:', formattedDeleted.length, 'pets')
       setDeletedPets(formattedDeleted)
@@ -128,7 +142,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshPets, refreshDeletedPets]
+    [refreshPets, refreshDeletedPets],
   )
 
   // Hard delete - permanently remove pet via backend API
@@ -145,7 +159,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshDeletedPets]
+    [refreshDeletedPets],
   )
 
   // Restore - call backend API, then refresh local state
@@ -161,7 +175,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshPets, refreshDeletedPets]
+    [refreshPets, refreshDeletedPets],
   )
 
   // Mark pet as deceased - call backend API
@@ -174,29 +188,21 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         // Refresh data from both APIs
         // This will automatically update selection if the deceased pet was selected
         await refreshPets()
-        await refreshPastPets()
       } catch (error) {
         console.error('Error marking pet as deceased:', error)
         throw error
       }
     },
-    [refreshPets, refreshPastPets]
+    [refreshPets],
   )
 
   useEffect(() => {
     // Only fetch pets when authentication is complete and user is authenticated
     if (!authLoading && isAuthenticated) {
       refreshPets()
-      refreshPastPets()
       refreshDeletedPets()
     }
-  }, [
-    authLoading,
-    isAuthenticated,
-    refreshPets,
-    refreshPastPets,
-    refreshDeletedPets
-  ])
+  }, [authLoading, isAuthenticated, refreshPets, refreshDeletedPets])
 
   // Combine all pets for the provider value
   const allPets = [...activePetsData, ...deceasedPetsData]
@@ -218,7 +224,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         softDeletePet,
         hardDeletePet,
         restorePet,
-        markPetDeceased
+        markPetDeceased,
       }}
     >
       {children}
