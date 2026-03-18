@@ -60,7 +60,7 @@ const calculateNextOccurrence = (
       // Find how many intervals have passed since template start
       const daysDiff = Math.floor(
         (currentDate.getTime() - templateStartDate.getTime()) /
-          (1000 * 3600 * 24),
+        (1000 * 3600 * 24),
       )
       // Calculate intervals: (+1 to account for "next interval after current period")
       const intervalsToAdd =
@@ -80,7 +80,7 @@ const calculateNextOccurrence = (
             // Calculate weeks since template start
             const weeksSinceStart = Math.floor(
               (checkDate.getTime() - templateStartDate.getTime()) /
-                (1000 * 3600 * 24 * 7),
+              (1000 * 3600 * 24 * 7),
             )
             if (rule.interval === 1 || weeksSinceStart % rule.interval === 0) {
               return checkDate
@@ -96,7 +96,7 @@ const calculateNextOccurrence = (
       const newMonthDate = new Date(templateStartDate)
       let monthsDiff =
         (currentDate.getUTCFullYear() - templateStartDate.getUTCFullYear()) *
-          12 +
+        12 +
         (currentDate.getUTCMonth() - templateStartDate.getUTCMonth())
 
       // If we're in a later month but haven't reached the occurrence day yet,
@@ -875,6 +875,26 @@ export const updateReminder = async (
     throw new ApiError('Forbidden', 403, [
       { message: 'Access to this reminder denied' },
     ])
+
+  // Owners can edit any reminder; caregivers can only edit reminders they created.
+  const pet = await prisma.pets.findUnique({
+    where: { id: reminderToUpdate.pet_id! },
+    select: { user_id: true },
+  })
+  if (!pet) throw new NotFoundError('Pet not found')
+
+  const isPetOwner = pet.user_id === userId
+  if (!isPetOwner) {
+    const creatorId = reminderToUpdate.created_by_user_id ?? reminderToUpdate.user_id
+    if (creatorId !== userId) {
+      throw new ApiError('Forbidden', 403, [
+        {
+          message:
+            'Caregivers can only update reminders they created themselves',
+        },
+      ])
+    }
+  }
 
   const isChangingDateOrRecurrence =
     updateData.reminderDate || updateData.reminderTime || updateData.recurrence
