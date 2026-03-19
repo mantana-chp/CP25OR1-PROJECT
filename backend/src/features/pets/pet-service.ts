@@ -59,7 +59,7 @@ const formatPetProfile = async (pet: any) => {
     pet_name: pet.pet_name,
     gender: pet.gender,
     birth_date: pet.birth_date,
-    weight: pet.weight,
+    weight: pet.weight ? parseFloat(pet.weight.toString()) : null,
     species_id: pet.species_id,
     species: pet.species?.name_th || null,
     breed_id: pet.breed_id,
