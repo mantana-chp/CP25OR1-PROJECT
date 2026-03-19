@@ -9,6 +9,7 @@ import healthRecordRoutes from './features/health-record/health-record-routes';
 import vaccineScheduleRoutes from './features/vaccine-schedule/vaccine-schedule-routes';
 import aiChatRoutes from './features/ai-chat/ai-chat-routes';
 import uploadRoutes from './features/file-uploads/upload-routes';
+import petMedicalDocumentRoutes from './features/pet-medical-documents/pet-medical-document-routes';
 import {
     petSharingPetRoutes,
     petSharesRoutes,
@@ -21,6 +22,7 @@ const v1Router = Router();
 v1Router.use('/auth', authRoutes);
 v1Router.use('/reminders', reminderRoutes);
 v1Router.use('/pets', petRoutes);
+v1Router.use('/pets', petMedicalDocumentRoutes);
 v1Router.use('/pets', petSharingPetRoutes);
 v1Router.use('/pet-shares', petSharesRoutes);
 v1Router.use('/owner-contacts', ownerContactsRoutes);

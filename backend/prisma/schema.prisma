@@ -59,6 +59,7 @@ model pets {
   // Pet sharing relations
   invite_pets         pet_share_invite_pets[]
   user_access         pet_user_access[]
+  medical_documents   pet_medical_documents[]
 }
 
 model push_tokens {
@@ -116,6 +117,21 @@ model reminder_attachments {
   file_size   Int
   created_at  DateTime  @default(now()) @db.Timestamptz(6)
   reminders   reminders @relation(fields: [reminder_id], references: [id], onDelete: Cascade)
+}
+
+model pet_medical_documents {
+  id                 String   @id @default(uuid()) @db.Uuid
+  pet_id             String   @db.Uuid
+  created_by_user_id String   @db.Uuid
+  object_key         String   @unique @db.VarChar
+  file_name          String   @db.VarChar
+  file_type          String   @db.VarChar
+  file_size          Int
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @updatedAt @db.Timestamptz(6)
+  pet                pets     @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+
+  @@index([pet_id])
 }
 
 model recurrence {

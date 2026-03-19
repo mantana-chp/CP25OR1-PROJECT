@@ -19,7 +19,7 @@ export interface UploadUrlResponse {
  * Format: {category}/{userId}/{entityId}/{uuid}.{extension}
  */
 export function generateObjectKey(
-    category: 'pet-profile' | 'reminder-attachment',
+    category: 'pet-profile' | 'reminder-attachment' | 'medical-document',
     userId: string,
     entityId: string,
     fileName: string
@@ -29,6 +29,8 @@ export function generateObjectKey(
 
     if (category === 'pet-profile') {
         return `pet-images/${userId}/${entityId}/${uniqueId}${extension}`;
+    } else if (category === 'medical-document') {
+        return `medical-documents/${userId}/${entityId}/${uniqueId}${extension}`;
     } else {
         return `attachments/${userId}/${entityId}/${uniqueId}${extension}`;
     }
