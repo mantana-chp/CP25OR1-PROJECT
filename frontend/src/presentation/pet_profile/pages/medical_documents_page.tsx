@@ -1292,7 +1292,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_500Medium',
     color: colors.gray[600],
     marginBottom: 8,
   },
