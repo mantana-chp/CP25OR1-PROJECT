@@ -516,6 +516,11 @@ export default function MedicalDocumentsSection({
         </Text>
       </View>
 
+      <Text style={styles.description}>
+        อัปโหลดเอกสารสุขภาพและวัคซีนของสัตว์เลี้ยง เช่น ใบรับรองการฉีดวัคซีน
+        ผลตรวจสุขภาพ หรือเอกสารจากคลินิก
+      </Text>
+
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={colors.primary.DEFAULT} />
@@ -760,6 +765,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af'
+  },
+  description: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280',
+    lineHeight: 20,
+    marginBottom: 16
   },
   loadingContainer: {
     flexDirection: 'row',
