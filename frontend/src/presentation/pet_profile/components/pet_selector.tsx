@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { ChevronUp } from 'lucide-react-native'
+import { ChevronUp, Users } from 'lucide-react-native'
 import _ from 'lodash'
 import React, { useEffect, useRef, useState } from 'react'
 import {
@@ -132,15 +132,18 @@ export default function PetSelector({
           </View>
         )}
       </View>
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.petName,
-          selectedIndex === index && styles.selectedPetName
-        ]}
-      >
-        {pet.pet_name}
-      </Text>
+      <View style={styles.petNameWrapper}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.petName,
+            selectedIndex === index && styles.selectedPetName
+          ]}
+        >
+          {pet.pet_name}
+        </Text>
+        {pet.petRole === 'CAREGIVER' && <Users size={11} color="#5FA7D1" />}
+      </View>
     </TouchableOpacity>
   )
 
@@ -258,6 +261,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     color: '#666',
     textAlign: 'center'
+  },
+  petNameWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3
   },
   selectedPetName: {
     color: '#225877',

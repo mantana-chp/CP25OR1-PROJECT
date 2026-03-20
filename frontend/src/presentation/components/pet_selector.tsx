@@ -1,6 +1,6 @@
 import { IPetProfile } from '@/src/domain/pet.domain'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { Check, X } from 'lucide-react-native'
+import { Check, X, Users } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   Image,
@@ -111,6 +111,9 @@ export default function PetSelector({
             </View>
             <Text style={styles.selectedPetName} numberOfLines={1}>
               {pet.pet_name}
+              {pet.petRole === 'CAREGIVER' && (
+                <Users size={12} color="#5FA7D1" style={{ marginLeft: 4 }} />
+              )}
             </Text>
           </View>
         ))}
@@ -162,14 +165,19 @@ export default function PetSelector({
                     onPress={() => handleSelectPet(pet.id)}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.petName,
-                          isSelected && styles.petNameSelected
-                        ]}
-                      >
-                        {pet.pet_name}
-                      </Text>
+                      <View style={styles.petNameContainer}>
+                        <Text
+                          style={[
+                            styles.petName,
+                            isSelected && styles.petNameSelected
+                          ]}
+                        >
+                          {pet.pet_name}
+                        </Text>
+                        {pet.petRole === 'CAREGIVER' && (
+                          <Users size={14} color="#5FA7D1" />
+                        )}
+                      </View>
                       <Text style={styles.petInfo}>
                         {pet.species} • {pet.breed}
                       </Text>
@@ -405,6 +413,11 @@ const styles = StyleSheet.create({
   petNameSelected: {
     color: '#5FA7D1',
     fontFamily: 'Prompt_500Medium'
+  },
+  petNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
   },
   petInfo: {
     fontSize: 14,
