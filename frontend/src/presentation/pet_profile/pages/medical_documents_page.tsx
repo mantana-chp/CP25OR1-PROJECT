@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Alert,
   ActivityIndicator,
   Platform,
@@ -14,6 +13,8 @@ import {
   ActionSheetIOS,
   Linking,
   Image,
+  FlatList,
+  RefreshControl,
 } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
@@ -22,27 +23,24 @@ import {
   Upload,
   Trash2,
   Download,
-  Eye,
   File,
   Plus,
   X,
   Camera,
   Image as ImageIcon,
+  FileHeart,
 } from 'lucide-react-native'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import {
   usePetMedicalDocuments,
   IPendingDocument,
 } from '@/src/hooks/usePetMedicalDocuments'
 import { IMedicalDocument } from '@/src/utils/api/services/pet_medical_document_service'
 import { colors } from '@/constants/design-system'
-import MedicalDocumentPreviewModal from './medical_document_preview_modal'
+import MedicalDocumentPreviewModal from '../components/medical_document_preview_modal'
 import AppModal from '../../components/modal'
-
-interface MedicalDocumentsSectionProps {
-  petId: string
-  isOwner?: boolean // Whether current user is owner (affects delete permission)
-}
+import Header from '../../components/header_component'
+import { usePets } from '@/src/context/PetContext'
 
 const ALLOWED_TYPES = [
   'application/pdf',
@@ -53,10 +51,24 @@ const ALLOWED_TYPES = [
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_FILES = 5
 
-export default function MedicalDocumentsSection({
-  petId,
-  isOwner = true,
-}: MedicalDocumentsSectionProps) {
+type FileFilter = 'all' | 'pdf' | 'image'
+
+const FILTER_TABS: { id: FileFilter; label: string }[] = [
+  { id: 'all', label: 'ทั้งหมด' },
+  { id: 'pdf', label: 'PDF' },
+  { id: 'image', label: 'รูปภาพ' },
+]
+
+export default function MedicalDocumentsPage() {
+  const router = useRouter()
+  const { petId } = useLocalSearchParams<{ petId: string }>()
+  const { activePets, deceasedPets } = usePets()
+
+  const allPets = [...activePets, ...deceasedPets]
+  const currentPet = petId ? allPets.find((p) => p.id === petId) || null : null
+  const isOwner = currentPet?.petRole !== 'CAREGIVER'
+  const isDeceased = currentPet?.status === 'DECEASED'
+
   const {
     documents,
     pendingDocuments,
@@ -67,12 +79,13 @@ export default function MedicalDocumentsSection({
     removePendingFile,
     uploadPendingFiles,
     deleteDocument,
-    clearPending,
-  } = usePetMedicalDocuments({ petId })
+  } = usePetMedicalDocuments({ petId: petId || '' })
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showUploadOptions, setShowUploadOptions] = useState(false)
   const [isPickerOpening, setIsPickerOpening] = useState(false)
+  const [selectedFilter, setSelectedFilter] = useState<FileFilter>('all')
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const isPickerActiveRef = useRef(false)
   const pickerRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -94,15 +107,24 @@ export default function MedicalDocumentsSection({
   // Load documents on mount
   useFocusEffect(
     useCallback(() => {
-      fetchDocuments()
+      if (petId) {
+        fetchDocuments()
+      }
       resetPickerState()
       return () => {
         resetPickerState()
       }
-    }, [fetchDocuments]),
+    }, [fetchDocuments, petId]),
   )
 
-  // Picker state management (same pattern as AttachmentManager)
+  // Pull to refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchDocuments()
+    setIsRefreshing(false)
+  }
+
+  // Picker state management
   const clearPickerRecoveryTimeout = () => {
     if (pickerRecoveryTimeoutRef.current) {
       clearTimeout(pickerRecoveryTimeoutRef.current)
@@ -173,13 +195,12 @@ export default function MedicalDocumentsSection({
     })
   }
 
-  // Get thumbnail URI for image files or PDF thumbnails
+  // Get thumbnail URI for image files
   const getThumbnailUri = (
     doc: IMedicalDocument | IPendingDocument,
   ): string | null => {
     const isPending = 'isPending' in doc && doc.isPending
 
-    // For images, use the image itself as thumbnail
     if (doc.fileType.startsWith('image/')) {
       if (isPending) {
         return (doc as IPendingDocument).uri
@@ -188,16 +209,15 @@ export default function MedicalDocumentsSection({
       }
     }
 
-
     return null
   }
 
   // Get file icon based on type
-  const getFileIcon = (fileType: string) => {
+  const getFileIcon = (fileType: string, size: number = 24) => {
     if (fileType.startsWith('image/')) {
-      return <ImageIcon size={20} color={colors.primary.DEFAULT} />
+      return <ImageIcon size={size} color={colors.primary.DEFAULT} />
     }
-    return <FileText size={20} color={colors.primary.DEFAULT} />
+    return <FileText size={size} color={colors.primary.DEFAULT} />
   }
 
   // Validate file
@@ -358,7 +378,6 @@ export default function MedicalDocumentsSection({
       }
 
       if (validImages.length > 0) {
-        // Check if adding these would exceed limit
         const totalAfterAdd =
           documents.length + pendingDocuments.length + validImages.length
         if (totalAfterAdd > MAX_FILES) {
@@ -394,7 +413,7 @@ export default function MedicalDocumentsSection({
     }
   }
 
-  // Handle document picker (supports multiple files)
+  // Handle document picker
   const handlePickMultipleDocuments = async () => {
     const canContinue = await beginPickerFlow()
     if (!canContinue) return
@@ -433,7 +452,6 @@ export default function MedicalDocumentsSection({
       }
 
       if (validFiles.length > 0) {
-        // Check if adding these would exceed limit
         const totalAfterAdd =
           documents.length + pendingDocuments.length + validFiles.length
         if (totalAfterAdd > MAX_FILES) {
@@ -472,9 +490,7 @@ export default function MedicalDocumentsSection({
   // Handle upload pending files
   const handleUploadPending = async () => {
     if (pendingDocuments.length === 0) return
-
-    const result = await uploadPendingFiles()
-    console.log('Upload result:', result)
+    await uploadPendingFiles()
   }
 
   // Handle delete document
@@ -532,9 +548,7 @@ export default function MedicalDocumentsSection({
       setDeletingId(pendingDeleteDocument.id)
       const result = await deleteDocument(pendingDeleteDocument.id)
 
-      // If still 403, show error (already handled in hook)
       if (result.statusCode === 403) {
-        // The hook doesn't show alert for 403, so we need to show something
         Alert.alert(
           'ไม่สามารถลบได้',
           'คุณไม่มีสิทธิ์ลบเอกสารนี้ เนื่องจากถูกอัปโหลดโดยเจ้าของสัตว์เลี้ยง',
@@ -546,17 +560,14 @@ export default function MedicalDocumentsSection({
     }
   }
 
-  // Handle preview document (opens preview modal)
+  // Handle preview document
   const handlePreviewDocument = (document: IMedicalDocument) => {
     setPreviewDocument(document)
     setShowPreview(true)
   }
 
-  // Handle direct download (from card button)
-  const handleDirectDownload = (document: IMedicalDocument, event: any) => {
-    // Stop event propagation to prevent opening preview
-    event?.stopPropagation()
-
+  // Handle direct download
+  const handleDirectDownload = (document: IMedicalDocument) => {
     try {
       if (document.downloadUrl) {
         Linking.openURL(document.downloadUrl).catch(() => {
@@ -595,176 +606,279 @@ export default function MedicalDocumentsSection({
     )
   }
 
+  // Filter documents
   const allDocuments: Array<IMedicalDocument | IPendingDocument> = [
     ...pendingDocuments,
     ...documents,
   ]
-  const totalFiles = documents.length + pendingDocuments.length
 
-  return (
-    <View style={styles.section}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <FileText size={20} color={colors.primary.DEFAULT} />
-          <Text style={styles.title}>เอกสารสุขภาพและวัคซีน</Text>
+  const filteredDocuments = allDocuments.filter((doc) => {
+    if (selectedFilter === 'all') return true
+    if (selectedFilter === 'pdf') return doc.fileType === 'application/pdf'
+    if (selectedFilter === 'image') return doc.fileType.startsWith('image/')
+    return true
+  })
+
+  const getFilterCount = (filter: FileFilter) => {
+    if (filter === 'all') return allDocuments.length
+    if (filter === 'pdf')
+      return allDocuments.filter((d) => d.fileType === 'application/pdf').length
+    if (filter === 'image')
+      return allDocuments.filter((d) => d.fileType.startsWith('image/')).length
+    return 0
+  }
+
+  const totalFiles = documents.length + pendingDocuments.length
+  const totalSize = allDocuments.reduce((sum, doc) => sum + doc.fileSize, 0)
+
+  // Render document card
+  const renderDocumentCard = ({
+    item: doc,
+  }: {
+    item: IMedicalDocument | IPendingDocument
+  }) => {
+    const isPending = 'isPending' in doc && doc.isPending
+    const isDeleting = deletingId === doc.id
+    const thumbnailUri = getThumbnailUri(doc)
+
+    return (
+      <Pressable
+        style={styles.documentCard}
+        onPress={() => {
+          if (!isPending && 'downloadUrl' in doc && doc.downloadUrl) {
+            handlePreviewDocument(doc)
+          }
+        }}
+        disabled={isPending}
+      >
+        {/* Thumbnail / Icon */}
+        <View style={styles.cardThumbnail}>
+          {thumbnailUri ? (
+            <Image
+              source={{ uri: thumbnailUri }}
+              style={styles.thumbnailImage}
+              resizeMode='cover'
+            />
+          ) : (
+            <View style={styles.iconPlaceholder}>
+              {getFileIcon(doc.fileType, 32)}
+            </View>
+          )}
+          {isPending && (
+            <View style={styles.pendingOverlay}>
+              <Text style={styles.pendingText}>รอ</Text>
+            </View>
+          )}
         </View>
-        <Text style={styles.fileCount}>
-          {totalFiles}/{MAX_FILES}
-        </Text>
+
+        {/* File Info */}
+        <View style={styles.cardContent}>
+          <Text style={styles.cardFileName} numberOfLines={2}>
+            {doc.fileName}
+          </Text>
+          <View style={styles.cardMeta}>
+            <Text style={styles.cardFileSize}>
+              {formatFileSize(doc.fileSize)}
+            </Text>
+            {!isPending && 'createdAt' in doc && (
+              <>
+                <Text style={styles.cardMetaDivider}>•</Text>
+                <Text style={styles.cardFileDate}>
+                  {formatDate(doc.createdAt)}
+                </Text>
+              </>
+            )}
+          </View>
+          {isPending && getProgressBadge(doc.uploadProgress)}
+        </View>
+
+        {/* Actions */}
+        <View style={styles.cardActions}>
+          {!isPending && 'downloadUrl' in doc && doc.downloadUrl && (
+            <TouchableOpacity
+              style={styles.cardActionButton}
+              onPress={() => handleDirectDownload(doc)}
+            >
+              <Download size={18} color={colors.primary.DEFAULT} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.cardActionButton, styles.deleteButton]}
+            onPress={() => handleDeleteDocument(doc)}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size='small' color='#BF1737' />
+            ) : (
+              <Trash2 size={18} color='#BF1737' />
+            )}
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    )
+  }
+
+  // List Header
+  const ListHeader = (
+    <>
+      {/* Stats Section */}
+      <View style={styles.statsSection}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{totalFiles}</Text>
+          <Text style={styles.statLabel}>เอกสาร</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{MAX_FILES - totalFiles}</Text>
+          <Text style={styles.statLabel}>เพิ่มได้อีก</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{formatFileSize(totalSize)}</Text>
+          <Text style={styles.statLabel}>ใช้งานแล้ว</Text>
+        </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size='small' color={colors.primary.DEFAULT} />
-          <Text style={styles.loadingText}>กำลังโหลด...</Text>
+      {/* Section Header */}
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <FileHeart size={20} color={colors.primary.DEFAULT} />
+          <Text style={styles.sectionTitle}>เอกสารทั้งหมด</Text>
         </View>
-      ) : allDocuments.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <File size={48} color='#d1d5db' strokeWidth={1.5} />
-          <Text style={styles.emptyText}>ยังไม่มีเอกสาร</Text>
-          <Text style={styles.emptySubtext}>
-            อัปโหลดเอกสารสุขภาพและวัคซีนของสัตว์เลี้ยง เช่น ใบรับรองการฉีดวัคซีน
-            ผลตรวจสุขภาพ หรือเอกสารจากคลินิก
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.documentList}
-          nestedScrollEnabled={true}
-          showsVerticalScrollIndicator={false}
-        >
-          {allDocuments.map((doc) => {
-            const isPending = 'isPending' in doc && doc.isPending
-            const isDeleting = deletingId === doc.id
+      </View>
 
-            return (
-              <Pressable
-                key={doc.id}
-                style={styles.documentItem}
-                onPress={() => {
-                  // Only open preview for non-pending documents with downloadUrl
-                  if (!isPending && 'downloadUrl' in doc && doc.downloadUrl) {
-                    handlePreviewDocument(doc)
-                  }
-                }}
-                disabled={isPending}
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        {FILTER_TABS.map((tab) => {
+          const isActive = selectedFilter === tab.id
+          const count = getFilterCount(tab.id)
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.filterChip, isActive && styles.filterChipActive]}
+              onPress={() => setSelectedFilter(tab.id)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  isActive && styles.filterChipTextActive,
+                ]}
               >
-                <View style={styles.fileInfo}>
-                  {(() => {
-                    const thumbnailUri = getThumbnailUri(doc)
-                    if (thumbnailUri) {
-                      // Show actual image/PDF thumbnail
-                      return (
-                        <View style={styles.thumbnailContainer}>
-                          <Image
-                            source={{ uri: thumbnailUri }}
-                            style={styles.thumbnail}
-                            resizeMode='cover'
-                          />
-                        </View>
-                      )
-                    }
-                    // Default file icon (for PDFs and other files)
-                    return (
-                      <View style={styles.fileIconContainer}>
-                        {getFileIcon(doc.fileType)}
-                      </View>
-                    )
-                  })()}
-                  <View style={styles.fileDetails}>
-                    <Text style={styles.fileName} numberOfLines={1}>
-                      {doc.fileName}
-                    </Text>
-                    <View style={styles.fileMetaRow}>
-                      <Text style={styles.fileSize}>
-                        {formatFileSize(doc.fileSize)}
-                      </Text>
-                      {!isPending && 'createdAt' in doc && (
-                        <>
-                          <Text style={styles.metaDivider}>•</Text>
-                          <Text style={styles.fileDate}>
-                            {formatDate(doc.createdAt)}
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                    {isPending && getProgressBadge(doc.uploadProgress)}
-                  </View>
-                </View>
-
-                <View style={styles.actionButtons}>
-                  {!isPending && 'downloadUrl' in doc && doc.downloadUrl && (
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={(e) => handleDirectDownload(doc, e)}
-                    >
-                      <Download size={16} color={colors.primary.DEFAULT} />
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleDeleteDocument(doc)}
-                    disabled={isDeleting}
+                {tab.label}
+              </Text>
+              {count > 0 && (
+                <View
+                  style={[
+                    styles.filterBadge,
+                    isActive && styles.filterBadgeActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterBadgeText,
+                      isActive && styles.filterBadgeTextActive,
+                    ]}
                   >
-                    {isDeleting ? (
-                      <ActivityIndicator size='small' color='#BF1737' />
-                    ) : (
-                      <Trash2 size={16} color='#BF1737' />
-                    )}
-                  </TouchableOpacity>
+                    {count}
+                  </Text>
                 </View>
-              </Pressable>
-            )
-          })}
-        </ScrollView>
-      )}
+              )}
+            </TouchableOpacity>
+          )
+        })}
+      </View>
 
-      {/* Upload buttons */}
-      <View style={styles.uploadButtonsContainer}>
-        {pendingDocuments.length > 0 && (
+      {/* Pending Upload Banner */}
+      {pendingDocuments.length > 0 && (
+        <View style={styles.pendingBanner}>
+          <View style={styles.pendingBannerContent}>
+            <Upload size={20} color='#92400E' />
+            <Text style={styles.pendingBannerText}>
+              {pendingDocuments.length} ไฟล์รอการอัปโหลด
+            </Text>
+          </View>
           <TouchableOpacity
             style={[
-              styles.uploadPendingButton,
-              isUploading && styles.uploadPendingButtonDisabled,
+              styles.uploadNowButton,
+              isUploading && styles.uploadNowButtonDisabled,
             ]}
             onPress={handleUploadPending}
             disabled={isUploading}
           >
             {isUploading ? (
-              <>
-                <ActivityIndicator size='small' color='#fff' />
-                <Text style={styles.uploadPendingButtonText}>
-                  กำลังอัปโหลด... ({pendingDocuments.length} ไฟล์)
-                </Text>
-              </>
+              <ActivityIndicator size='small' color='#fff' />
             ) : (
-              <>
-                <Upload size={18} color='#fff' />
-                <Text style={styles.uploadPendingButtonText}>
-                  อัปโหลดเอกสาร จำนวน {pendingDocuments.length} ไฟล์
-                </Text>
-              </>
+              <Text style={styles.uploadNowButtonText}>อัปโหลดเลย</Text>
             )}
           </TouchableOpacity>
-        )}
+        </View>
+      )}
+    </>
+  )
 
-        <TouchableOpacity
-          style={[
-            styles.addButton,
-            (isUploading || totalFiles >= MAX_FILES) &&
-              styles.addButtonDisabled,
-          ]}
-          onPress={handleOpenUploadOptions}
-          disabled={isUploading || totalFiles >= MAX_FILES}
-        >
-          <Plus size={20} color={colors.primary.DEFAULT} />
-          <Text style={styles.addButtonText}>เพิ่มเอกสาร</Text>
-        </TouchableOpacity>
+  // Empty State
+  const EmptyState = isLoading ? (
+    <View style={styles.centerState}>
+      <ActivityIndicator size='large' color={colors.primary.DEFAULT} />
+      <Text style={styles.loadingText}>กำลังโหลด...</Text>
+    </View>
+  ) : (
+    <View style={styles.centerState}>
+      <View style={styles.emptyIconWrapper}>
+        <File size={64} color={colors.gray[300]} strokeWidth={1} />
       </View>
-
-      <Text style={styles.hint}>
-        รองรับไฟล์ PDF และรูปภาพ (สูงสุด {MAX_FILE_SIZE / (1024 * 1024)} MB)
+      <Text style={styles.emptyTitle}>ยังไม่มีเอกสาร</Text>
+      <Text style={styles.emptySubtitle}>
+        อัปโหลดเอกสารสุขภาพและวัคซีนของสัตว์เลี้ยง{'\n'}
+        เช่น ใบรับรองการฉีดวัคซีน ผลตรวจสุขภาพ{'\n'}
+        หรือเอกสารจากคลินิก
       </Text>
+      <TouchableOpacity
+        style={styles.emptyAddButton}
+        onPress={handleOpenUploadOptions}
+      >
+        <Plus size={20} color='#fff' />
+        <Text style={styles.emptyAddButtonText}>เพิ่มเอกสาร</Text>
+      </TouchableOpacity>
+    </View>
+  )
+
+  return (
+    <View style={styles.container}>
+      <Header
+        title='เอกสารสุขภาพ'
+        goBack
+        onBackPress={() => router.push('/(tabs)/pet_profile')}
+      />
+
+      <FlatList
+        data={filteredDocuments}
+        keyExtractor={(item) => item.id}
+        renderItem={renderDocumentCard}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={EmptyState}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary.DEFAULT]}
+            tintColor={colors.primary.DEFAULT}
+          />
+        }
+      />
+
+      {/* FAB Add Button */}
+      {!isLoading && totalFiles < MAX_FILES && filteredDocuments.length > 0 && (
+        <TouchableOpacity
+          style={[styles.fab, isUploading && styles.fabDisabled]}
+          onPress={handleOpenUploadOptions}
+          disabled={isUploading}
+        >
+          <Plus size={28} color='#fff' />
+        </TouchableOpacity>
+      )}
 
       {/* Upload Options Modal */}
       <Modal
@@ -829,9 +943,7 @@ export default function MedicalDocumentsSection({
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>เลือกรูปภาพ</Text>
-                <Text style={styles.optionDescription}>
-                  เลือกจากคลังรูปภาพ (สูงสุด {MAX_FILES} ไฟล์)
-                </Text>
+                <Text style={styles.optionDescription}>เลือกจากคลังรูปภาพ</Text>
               </View>
             </TouchableOpacity>
 
@@ -849,10 +961,17 @@ export default function MedicalDocumentsSection({
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>เลือกเอกสาร</Text>
                 <Text style={styles.optionDescription}>
-                  เลือกไฟล์ PDF หรือรูปภาพ (สูงสุด {MAX_FILES} ไฟล์)
+                  เลือกไฟล์ PDF หรือรูปภาพ
                 </Text>
               </View>
             </TouchableOpacity>
+
+            <View style={styles.optionsFooter}>
+              <Text style={styles.optionsHint}>
+                รองรับ PDF และรูปภาพ (สูงสุด {MAX_FILE_SIZE / (1024 * 1024)} MB
+                ต่อไฟล์)
+              </Text>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -888,140 +1007,247 @@ export default function MedicalDocumentsSection({
 }
 
 const styles = StyleSheet.create({
-  section: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    marginBottom: 8,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
   },
-  header: {
+  listContent: {
+    paddingBottom: 100,
+    flexGrow: 1,
+  },
+  // Stats Section
+  statsSection: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-around',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  titleRow: {
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
+    fontFamily: 'Prompt_600SemiBold',
+    color: colors.primary.DEFAULT,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[500],
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.gray[200],
+  },
+  // Section Header
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  title: {
+  sectionTitle: {
     fontSize: 17,
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_600SemiBold',
     color: colors.primary.DEFAULT,
   },
-  fileCount: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
+  // Filter Tabs
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
   },
-  description: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  loadingContainer: {
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    gap: 6,
   },
-  loadingText: {
-    fontSize: 14,
+  filterChipActive: {
+    backgroundColor: colors.primary.DEFAULT,
+    borderColor: colors.primary.DEFAULT,
+  },
+  filterChipText: {
+    fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
+    color: colors.gray[600],
   },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 16,
+  filterChipTextActive: {
     fontFamily: 'Prompt_500Medium',
-    color: '#6b7280',
-    marginTop: 12,
+    color: '#fff',
   },
-  emptySubtext: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  documentList: {
-    maxHeight: 300,
-    marginBottom: 16,
-  },
-  documentItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  filterBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.gray[200],
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    paddingHorizontal: 6,
+  },
+  filterBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  filterBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_500Medium',
+    color: colors.gray[600],
+  },
+  filterBadgeTextActive: {
+    color: '#fff',
+  },
+  // Pending Banner
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF3C7',
+    marginHorizontal: 16,
+    marginBottom: 12,
     padding: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginBottom: 8,
   },
-  fileInfo: {
+  pendingBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
+    gap: 8,
   },
-  fileIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#E8F4F8',
-    justifyContent: 'center',
+  pendingBannerText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium',
+    color: '#92400E',
+  },
+  uploadNowButton: {
+    backgroundColor: colors.primary.DEFAULT,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  uploadNowButtonDisabled: {
+    opacity: 0.6,
+  },
+  uploadNowButtonText: {
+    fontSize: 13,
+    fontFamily: 'Prompt_500Medium',
+    color: '#fff',
+  },
+  // Document Card
+  documentCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  thumbnailContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    marginRight: 12,
+  cardThumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#f3f4f6',
   },
-  thumbnail: {
-    width: 40,
-    height: 40,
+  thumbnailImage: {
+    width: 56,
+    height: 56,
   },
-  fileDetails: {
+  iconPlaceholder: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E8F4F8',
+  },
+  pendingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingText: {
+    fontSize: 12,
+    fontFamily: 'Prompt_500Medium',
+    color: '#fff',
+  },
+  cardContent: {
     flex: 1,
+    marginLeft: 12,
   },
-  fileName: {
+  cardFileName: {
     fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877',
+    fontFamily: 'Prompt_500Medium',
+    color: colors.primary.DEFAULT,
     marginBottom: 4,
   },
-  fileMetaRow: {
+  cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  fileSize: {
+  cardFileSize: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
+    color: colors.gray[500],
   },
-  metaDivider: {
+  cardMetaDivider: {
     fontSize: 12,
-    color: '#d1d5db',
+    color: colors.gray[300],
   },
-  fileDate: {
+  cardFileDate: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
+    color: colors.gray[500],
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 8,
+  },
+  cardActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#FEE2E2',
   },
   progressBadge: {
     alignSelf: 'flex-start',
@@ -1034,65 +1260,78 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  uploadButtonsContainer: {
-    gap: 8,
-  },
-  uploadPendingButton: {
-    flexDirection: 'row',
+  // Empty State
+  centerState: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingTop: 40,
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.primary.DEFAULT,
+  },
+  emptyIconWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'Prompt_600SemiBold',
+    color: colors.gray[600],
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[500],
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  emptyAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primary.DEFAULT,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
   },
-  uploadPendingButtonDisabled: {
-    opacity: 0.6,
-  },
-  uploadPendingButtonText: {
+  emptyAddButtonText: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
     color: '#fff',
   },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary.DEFAULT,
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.primary.DEFAULT,
-    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  addButtonDisabled: {
+  fabDisabled: {
     opacity: 0.5,
-    borderColor: '#d1d5db',
   },
-  addButtonText: {
-    fontSize: 15,
-    fontFamily: 'Prompt_500Medium',
-    color: colors.primary.DEFAULT,
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af',
-    marginTop: 12,
-    textAlign: 'center',
-  },
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1155,5 +1394,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#6b7280',
+  },
+  optionsFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  optionsHint: {
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af',
+    textAlign: 'center',
   },
 })

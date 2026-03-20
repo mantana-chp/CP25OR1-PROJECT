@@ -265,8 +265,10 @@ export function usePetMedicalDocuments({
   }
 
   // Delete a document
-  const deleteDocument = async (documentId: string): Promise<void> => {
-    if (!petId) return
+  const deleteDocument = async (
+    documentId: string,
+  ): Promise<{ success: boolean; statusCode?: number }> => {
+    if (!petId) return { success: false }
 
     try {
       console.log('🗑️ Deleting document:', documentId)
@@ -279,8 +281,16 @@ export function usePetMedicalDocuments({
       onDocumentsChange?.()
 
       Alert.alert('สำเร็จ', 'ลบเอกสารเรียบร้อยแล้ว')
+      return { success: true }
     } catch (error: any) {
       console.error('Error deleting document:', error)
+
+      const statusCode = error?.response?.status
+
+      // Don't show alert for 403 - let the component handle it
+      if (statusCode === 403) {
+        return { success: false, statusCode: 403 }
+      }
 
       const errorMessage =
         error?.response?.data?.errors?.[0]?.message ||
@@ -289,7 +299,7 @@ export function usePetMedicalDocuments({
         'ไม่สามารถลบเอกสารได้'
 
       Alert.alert('เกิดข้อผิดพลาด', errorMessage)
-      throw error
+      return { success: false, statusCode }
     }
   }
 

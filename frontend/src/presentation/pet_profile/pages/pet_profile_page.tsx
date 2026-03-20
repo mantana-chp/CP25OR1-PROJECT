@@ -29,7 +29,6 @@ import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
 import RecentlyDeletedModal from '../components/recently_deleted_modal'
 import SubMenuSection from '../components/sub_menu_section'
-import MedicalDocumentsSection from '../components/medical_documents_section'
 import { colors } from '@/constants/design-system'
 
 const HEALTH_CATEGORIES = ['Vaccination', 'Checkup', 'Medication', 'Deworming']
@@ -530,14 +529,6 @@ export default function PetProfilePage() {
         </View>
 
         <SubMenuSection petId={currentPet?.id} />
-
-        {/* Medical Documents Section - Only for active pets */}
-        {!isViewingDeceased && currentPet && (
-          <MedicalDocumentsSection
-            petId={currentPet.id}
-            isOwner={currentPet.petRole !== 'CAREGIVER'}
-          />
-        )}
 
         {/* Appointments Section & Health History - Only for active pets */}
         {!isViewingDeceased && (
