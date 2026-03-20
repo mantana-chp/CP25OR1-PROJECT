@@ -869,15 +869,22 @@ export default function MedicalDocumentsPage() {
         }
       />
 
-      {/* FAB Add Button */}
-      {!isLoading && totalFiles < MAX_FILES && filteredDocuments.length > 0 && (
-        <TouchableOpacity
-          style={[styles.fab, isUploading && styles.fabDisabled]}
-          onPress={handleOpenUploadOptions}
-          disabled={isUploading}
-        >
-          <Plus size={28} color='#fff' />
-        </TouchableOpacity>
+      {/* Add Button */}
+      {!isLoading && filteredDocuments.length > 0 && (
+        <View style={styles.addButtonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              (isUploading || totalFiles >= MAX_FILES) &&
+                styles.addButtonDisabled,
+            ]}
+            onPress={handleOpenUploadOptions}
+            disabled={isUploading || totalFiles >= MAX_FILES}
+          >
+            <Plus size={20} color={colors.primary.DEFAULT} />
+            <Text style={styles.addButtonText}>เพิ่มเอกสาร</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Upload Options Modal */}
@@ -1012,7 +1019,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 20,
     flexGrow: 1,
   },
   // Stats Section
@@ -1067,7 +1074,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 17,
-    fontFamily: 'Prompt_600SemiBold',
+    fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
   },
   // Filter Tabs
@@ -1311,25 +1318,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_500Medium',
     color: '#fff',
   },
-  // FAB
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary.DEFAULT,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+  // Add Button
+  addButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  fabDisabled: {
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.primary.DEFAULT,
+    backgroundColor: '#ffffff',
+  },
+  addButtonDisabled: {
     opacity: 0.5,
+    borderColor: '#d1d5db',
+  },
+  addButtonText: {
+    fontSize: 15,
+    fontFamily: 'Prompt_500Medium',
+    color: colors.primary.DEFAULT,
   },
   // Modal
   modalOverlay: {
