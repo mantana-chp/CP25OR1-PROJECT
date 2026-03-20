@@ -222,7 +222,7 @@ export default function ClaimPetSharePage() {
 
   return (
     <View style={styles.container}>
-      <Header title='สแกน QR Code' goBack onBackPress={onBackPress} />
+      <Header title='รับสิทธิ์ดูแลร่วม' goBack onBackPress={onBackPress} />
 
       <View style={styles.content}>
         {isBusy ? (

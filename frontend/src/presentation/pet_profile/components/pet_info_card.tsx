@@ -203,8 +203,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.secondary,
     padding: 8,
     borderRadius: 12
-    // borderWidth: 1,
-    // borderColor: '#E8F4F8'
   },
   deceasedCard: {
     borderColor: '#9ca3af',

@@ -63,7 +63,7 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
               strokeWidth={1.5}
             />
           </View>
-          <Text style={styles.text}>สแกน QR Code</Text>
+          <Text style={styles.text}>รับสิทธิ์ดูแลร่วม</Text>
         </Pressable>
       </View>
     </View>

@@ -154,7 +154,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="scan_pet_share"
         options={{
-          title: 'สแกน QR Code',
+          title: 'รับสิทธิ์ดูแลร่วม',
           href: null,
           tabBarStyle: { display: 'none' }
         }}

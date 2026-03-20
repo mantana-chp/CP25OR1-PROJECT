@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   leftIcon: {
-    marginRight: spacing[2],
+    marginRight: 2,
     alignItems: 'center',
     justifyContent: 'center'
   },
   rightIcon: {
-    marginLeft: spacing[2],
+    marginLeft: 2,
     alignItems: 'center',
     justifyContent: 'center'
   },

@@ -27,8 +27,11 @@ import {
   petSharingService
 } from '@/src/utils/api/services/pet_sharing_service'
 import { useApi } from '@/src/utils/api/use_api'
+import { IPetProfile } from '@/src/domain/pet.domain'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 
 import Button from '../../components/button'
+import PetInfoCard from '../../pet_profile/components/pet_info_card'
 import Header from '../../components/header_component'
 import Modal from '../../components/modal'
 import AccessListSection from '../components/access_list_section'
@@ -51,6 +54,7 @@ export default function PetSharingPage() {
   const [pendingInvite, setPendingInvite] = useState<IPendingInvite | null>(
     null
   )
+  const [petData, setPetData] = useState<IPetProfile | null>(null)
   const [isOwner, setIsOwner] = useState(true)
   const [showAliasModal, setShowAliasModal] = useState(false)
   const [aliasInput, setAliasInput] = useState('')
@@ -70,6 +74,9 @@ export default function PetSharingPage() {
   const listInvitesApi = useApi(petSharingService.listPendingInvites, {
     showErrorAlert: false
   })
+  const getMyPetsApi = useApi(petProfileService.getMyPets, {
+    showErrorAlert: false
+  })
   const generateInviteApi = useApi(petSharingService.generateInvite, {
     showErrorAlert: false
   })
@@ -83,9 +90,10 @@ export default function PetSharingPage() {
   const loadData = useCallback(async () => {
     if (!petId) return
 
-    const [caregiversRes, invitesRes] = await Promise.all([
+    const [caregiversRes, invitesRes, petsRes] = await Promise.all([
       listCaregiversApi.execute(petId),
-      listInvitesApi.execute()
+      listInvitesApi.execute(),
+      getMyPetsApi.execute()
     ])
 
     if (caregiversRes.error) {
@@ -110,7 +118,19 @@ export default function PetSharingPage() {
       )
       setPendingInvite(inviteForPet ?? null)
     }
-  }, [petId, listCaregiversApi.execute, listInvitesApi.execute])
+
+    if (!petsRes.error) {
+      const allPets = unwrapData<IPetProfile[]>(petsRes.data)
+      const pets = Array.isArray(allPets) ? allPets : []
+      const foundPet = pets.find((pet) => pet.id === petId)
+      setPetData(foundPet ?? null)
+    }
+  }, [
+    petId,
+    listCaregiversApi.execute,
+    listInvitesApi.execute,
+    getMyPetsApi.execute
+  ])
 
   useEffect(() => {
     caregiversRef.current = caregivers
@@ -324,7 +344,8 @@ export default function PetSharingPage() {
     setCaregiverToRevoke(null)
   }
 
-  const isLoading = listCaregiversApi.loading || listInvitesApi.loading
+  const isLoading =
+    listCaregiversApi.loading || listInvitesApi.loading || getMyPetsApi.loading
   const claimLink = pendingInvite
     ? `${CLAIM_SCHEME}/${pendingInvite.inviteId}`
     : ''
@@ -373,7 +394,14 @@ export default function PetSharingPage() {
           <ActivityIndicator size="large" color={colors.primary.light} />
         </View>
       ) : caregivers.length === 0 && !pendingInvite ? (
-        <EmptyState onCreateInvite={openCreateInviteModal} />
+        <>
+          {petData && (
+            <View style={styles.petInfoSectionEmpty}>
+              <PetInfoCard data={petData} readOnly />
+            </View>
+          )}
+          <EmptyState onCreateInvite={openCreateInviteModal} />
+        </>
       ) : (
         <>
           <ScrollView
@@ -381,6 +409,12 @@ export default function PetSharingPage() {
             contentContainerStyle={styles.scrollContentContainer}
             showsVerticalScrollIndicator={false}
           >
+            {petData && (
+              <View style={styles.petInfoSection}>
+                <PetInfoCard data={petData} readOnly />
+              </View>
+            )}
+
             <AccessListSection
               caregivers={caregivers}
               revoking={revokeApi.loading}
@@ -408,7 +442,7 @@ export default function PetSharingPage() {
             ]}
           >
             <Button
-              title="สร้างรหัสเชิญใหม่"
+              title="เชิญ"
               onPress={openCreateInviteModal}
               icon={
                 <UserPlus
@@ -495,6 +529,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingTop: spacing[4],
     paddingBottom: 120
+  },
+  petInfoSection: {
+    marginBottom: spacing[4],
+    backgroundColor: colors.background.secondary
+  },
+  petInfoSectionEmpty: {
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[4],
+    marginBottom: spacing[4],
+    backgroundColor: colors.background.secondary
   },
   stickyFooter: {
     position: 'absolute',

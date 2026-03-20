@@ -14,9 +14,7 @@ interface EmptyStateProps {
   onCreateInvite: () => void
 }
 
-export default function EmptyState({
-  onCreateInvite
-}: EmptyStateProps) {
+export default function EmptyState({ onCreateInvite }: EmptyStateProps) {
   return (
     <View style={styles.container}>
       <View style={styles.imageCircle}>
@@ -34,7 +32,7 @@ export default function EmptyState({
       </Text>
 
       <Button
-        title="สร้างรหัสเชิญใหม่"
+        title="เชิญ"
         onPress={onCreateInvite}
         icon={
           <UserPlus size={iconSizes.lg} color={colors.background.secondary} />
@@ -96,7 +94,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary.light
   },
   createInviteButtonText: {
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.lg,
     color: colors.background.secondary,
     fontFamily: typography.fontFamily.bold
   }
