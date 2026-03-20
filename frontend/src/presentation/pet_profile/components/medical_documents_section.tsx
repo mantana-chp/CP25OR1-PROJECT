@@ -13,6 +13,7 @@ import {
   InteractionManager,
   ActionSheetIOS,
   Linking,
+  Image,
 } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
@@ -161,6 +162,25 @@ export default function MedicalDocumentsSection({
       month: 'short',
       day: 'numeric',
     })
+  }
+
+  // Get thumbnail URI for image files or PDF thumbnails
+  const getThumbnailUri = (
+    doc: IMedicalDocument | IPendingDocument,
+  ): string | null => {
+    const isPending = 'isPending' in doc && doc.isPending
+
+    // For images, use the image itself as thumbnail
+    if (doc.fileType.startsWith('image/')) {
+      if (isPending) {
+        return (doc as IPendingDocument).uri
+      } else {
+        return (doc as IMedicalDocument).downloadUrl || null
+      }
+    }
+
+
+    return null
   }
 
   // Get file icon based on type
@@ -581,9 +601,27 @@ export default function MedicalDocumentsSection({
                 disabled={isPending}
               >
                 <View style={styles.fileInfo}>
-                  <View style={styles.fileIconContainer}>
-                    {getFileIcon(doc.fileType)}
-                  </View>
+                  {(() => {
+                    const thumbnailUri = getThumbnailUri(doc)
+                    if (thumbnailUri) {
+                      // Show actual image/PDF thumbnail
+                      return (
+                        <View style={styles.thumbnailContainer}>
+                          <Image
+                            source={{ uri: thumbnailUri }}
+                            style={styles.thumbnail}
+                            resizeMode='cover'
+                          />
+                        </View>
+                      )
+                    }
+                    // Default file icon (for PDFs and other files)
+                    return (
+                      <View style={styles.fileIconContainer}>
+                        {getFileIcon(doc.fileType)}
+                      </View>
+                    )
+                  })()}
                   <View style={styles.fileDetails}>
                     <Text style={styles.fileName} numberOfLines={1}>
                       {doc.fileName}
@@ -878,6 +916,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  thumbnailContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    marginRight: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f3f4f6',
+  },
+  thumbnail: {
+    width: 40,
+    height: 40,
   },
   fileDetails: {
     flex: 1,
