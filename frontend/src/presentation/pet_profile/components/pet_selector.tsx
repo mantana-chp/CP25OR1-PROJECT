@@ -1,19 +1,14 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { useChevronAnimation } from '@/src/hooks/useChevronAnimation'
 import { ChevronUp } from 'lucide-react-native'
 import _ from 'lodash'
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  Animated,
   Image,
-  LayoutAnimation,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  UIManager,
   View
 } from 'react-native'
 import ActionSheet from '../../components/action-sheet'
@@ -21,14 +16,7 @@ import ActionSheet from '../../components/action-sheet'
 const PET_ITEM_WIDTH = 72
 const PET_ITEM_GAP = 6
 const PET_ITEM_SPAN = PET_ITEM_WIDTH + PET_ITEM_GAP
-const EXPAND_THRESHOLD = 6
-
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
+const EXPAND_THRESHOLD = 5
 
 interface Pet {
   id: string
@@ -64,7 +52,6 @@ export default function PetSelector({
   const [selectedPetForAction, setSelectedPetForAction] = useState<Pet | null>(
     null
   )
-  const chevronRotation = useChevronAnimation(isExpanded)
   const showAddButton = pets.length < maxPets && !isViewingDeceased
   const shouldShowExpandToggle = pets.length > EXPAND_THRESHOLD
 
@@ -78,7 +65,7 @@ export default function PetSelector({
     if (isExpanded || selectedIndex < 0) return
 
     const offset = Math.max(0, selectedIndex * PET_ITEM_SPAN - PET_ITEM_SPAN)
-    horizontalScrollRef.current?.scrollTo({ x: offset, animated: true })
+    horizontalScrollRef.current?.scrollTo({ x: offset, animated: false })
   }, [selectedIndex, isExpanded])
 
   const handleLongPress = (pet: Pet) => {
@@ -96,7 +83,6 @@ export default function PetSelector({
   }
 
   const handleToggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setIsExpanded((prev) => !prev)
   }
 
@@ -130,7 +116,7 @@ export default function PetSelector({
       onPress={() => onSelect(index)}
       onLongPress={() => handleLongPress(pet)}
       delayLongPress={500}
-      style={styles.petItem}
+      style={[styles.petItem, isExpanded && styles.expandedPetItem]}
     >
       <View
         style={[
@@ -177,7 +163,7 @@ export default function PetSelector({
         {/* Add Pet Button */}
         {showAddButton && (
           <TouchableOpacity
-            style={styles.petItem}
+            style={[styles.petItem, isExpanded && styles.expandedPetItem]}
             onPress={() => router.push('/(tabs)/add_pet_form')}
           >
             <View style={styles.addPetWrapper}>
@@ -202,9 +188,11 @@ export default function PetSelector({
               ? 'ย่อรายการสัตว์เลี้ยง'
               : `แสดงทั้งหมด ${pets.length} ตัว`}
           </Text>
-          <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
+          <View
+            style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}
+          >
             <ChevronUp size={20} color="#225877" />
-          </Animated.View>
+          </View>
         </TouchableOpacity>
       )}
 
@@ -222,7 +210,7 @@ export default function PetSelector({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 8,
-    gap: 8
+    rowGap: 8
   },
   collapsedContainer: {
     flexDirection: 'row'
@@ -230,7 +218,8 @@ const styles = StyleSheet.create({
   expandedContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingBottom: 4
+    paddingBottom: 4,
+    columnGap: 8
   },
   expandedScrollView: {
     maxHeight: 240
@@ -238,6 +227,9 @@ const styles = StyleSheet.create({
   petItem: {
     alignItems: 'center',
     width: PET_ITEM_WIDTH
+  },
+  expandedPetItem: {
+    width: '18%'
   },
   imageWrapper: {
     width: 60,
