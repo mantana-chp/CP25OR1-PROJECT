@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Alert } from 'react-native'
 import {
   petMedicalDocumentService,
-  IMedicalDocument
+  IMedicalDocument,
 } from '../utils/api/services/pet_medical_document_service'
 
 interface UsePetMedicalDocumentsProps {
@@ -22,10 +22,12 @@ export interface IPendingDocument {
 
 export function usePetMedicalDocuments({
   petId,
-  onDocumentsChange
+  onDocumentsChange,
 }: UsePetMedicalDocumentsProps) {
   const [documents, setDocuments] = useState<IMedicalDocument[]>([])
-  const [pendingDocuments, setPendingDocuments] = useState<IPendingDocument[]>([])
+  const [pendingDocuments, setPendingDocuments] = useState<IPendingDocument[]>(
+    [],
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -59,7 +61,7 @@ export function usePetMedicalDocuments({
       name: string
       size: number
       mimeType: string
-    }>
+    }>,
   ) => {
     const newPending: IPendingDocument[] = files.map((file) => ({
       id: `pending-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -68,7 +70,7 @@ export function usePetMedicalDocuments({
       fileType: file.mimeType,
       uri: file.uri,
       isPending: true,
-      uploadProgress: 'waiting'
+      uploadProgress: 'waiting',
     }))
 
     setPendingDocuments((prev) => [...prev, ...newPending])
@@ -95,15 +97,17 @@ export function usePetMedicalDocuments({
 
     try {
       // Step 1: Request presigned URLs for all files
-      console.log(`🚀 Requesting upload URLs for ${pendingDocuments.length} file(s)...`)
+      console.log(
+        `🚀 Requesting upload URLs for ${pendingDocuments.length} file(s)...`,
+      )
 
       const urlResponse = await petMedicalDocumentService.requestUploadUrls(
         petId,
         pendingDocuments.map((p) => ({
           fileName: p.fileName,
           fileType: p.fileType,
-          fileSize: p.fileSize
-        }))
+          fileSize: p.fileSize,
+        })),
       )
 
       const uploadUrls = urlResponse.data.files
@@ -116,41 +120,47 @@ export function usePetMedicalDocuments({
         // Update progress
         setPendingDocuments((prev) =>
           prev.map((p) =>
-            p.id === pending.id ? { ...p, uploadProgress: 'uploading' as const } : p
-          )
+            p.id === pending.id
+              ? { ...p, uploadProgress: 'uploading' as const }
+              : p,
+          ),
         )
 
         try {
           await petMedicalDocumentService.uploadFileToMinIO(
             urlInfo.uploadUrl,
             pending.uri,
-            pending.fileType
+            pending.fileType,
           )
 
           // Update progress to success
           setPendingDocuments((prev) =>
             prev.map((p) =>
-              p.id === pending.id ? { ...p, uploadProgress: 'success' as const } : p
-            )
+              p.id === pending.id
+                ? { ...p, uploadProgress: 'success' as const }
+                : p,
+            ),
           )
 
           return {
-            success: true,
+            success: true as const,
             pending,
-            urlInfo
+            urlInfo,
           }
         } catch (error: any) {
           // Update progress to failed
           setPendingDocuments((prev) =>
             prev.map((p) =>
-              p.id === pending.id ? { ...p, uploadProgress: 'failed' as const } : p
-            )
+              p.id === pending.id
+                ? { ...p, uploadProgress: 'failed' as const }
+                : p,
+            ),
           )
 
           return {
-            success: false,
+            success: false as const,
             pending,
-            error: error.message || 'Upload failed'
+            error: error.message || 'Upload failed',
           }
         }
       })
@@ -167,24 +177,26 @@ export function usePetMedicalDocuments({
         if (result.status === 'fulfilled' && result.value.success) {
           successfulUploads.push({
             pending: result.value.pending,
-            urlInfo: result.value.urlInfo
+            urlInfo: result.value.urlInfo,
           })
         } else if (result.status === 'fulfilled' && !result.value.success) {
           failedDocs.push({
             fileName: result.value.pending.fileName,
-            error: result.value.error || 'Upload failed'
+            error: result.value.error || 'Upload failed',
           })
         } else if (result.status === 'rejected') {
           failedDocs.push({
             fileName: pendingDocuments[index].fileName,
-            error: result.reason?.message || 'Upload failed'
+            error: result.reason?.message || 'Upload failed',
           })
         }
       })
 
       // Step 3: Save metadata for successful uploads
       if (successfulUploads.length > 0) {
-        console.log(`💾 Saving metadata for ${successfulUploads.length} file(s)...`)
+        console.log(
+          `💾 Saving metadata for ${successfulUploads.length} file(s)...`,
+        )
 
         const saveResponse = await petMedicalDocumentService.saveDocuments(
           petId,
@@ -192,8 +204,8 @@ export function usePetMedicalDocuments({
             objectKey: urlInfo.objectKey,
             fileName: pending.fileName,
             fileType: pending.fileType,
-            fileSize: pending.fileSize
-          }))
+            fileSize: pending.fileSize,
+          })),
         )
 
         successDocs.push(...(saveResponse.data.documents || []))
@@ -205,7 +217,9 @@ export function usePetMedicalDocuments({
 
       // Clear successful pending documents
       const successIds = successfulUploads.map((s) => s.pending.id)
-      setPendingDocuments((prev) => prev.filter((p) => !successIds.includes(p.id)))
+      setPendingDocuments((prev) =>
+        prev.filter((p) => !successIds.includes(p.id)),
+      )
 
       // Notify parent
       onDocumentsChange?.()
@@ -216,7 +230,7 @@ export function usePetMedicalDocuments({
       } else if (successDocs.length > 0 && failedDocs.length > 0) {
         Alert.alert(
           'บางไฟล์ไม่สำเร็จ',
-          `อัปโหลดสำเร็จ ${successDocs.length} ไฟล์\nไม่สำเร็จ ${failedDocs.length} ไฟล์`
+          `อัปโหลดสำเร็จ ${successDocs.length} ไฟล์\nไม่สำเร็จ ${failedDocs.length} ไฟล์`,
         )
       } else if (failedDocs.length > 0) {
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถอัปโหลดไฟล์ได้')
@@ -235,10 +249,16 @@ export function usePetMedicalDocuments({
 
       // Mark all as failed
       setPendingDocuments((prev) =>
-        prev.map((p) => ({ ...p, uploadProgress: 'failed' as const }))
+        prev.map((p) => ({ ...p, uploadProgress: 'failed' as const })),
       )
 
-      return { success: [], failed: pendingDocuments.map((p) => ({ fileName: p.fileName, error: errorMessage })) }
+      return {
+        success: [],
+        failed: pendingDocuments.map((p) => ({
+          fileName: p.fileName,
+          error: errorMessage,
+        })),
+      }
     } finally {
       setIsUploading(false)
     }
@@ -288,6 +308,6 @@ export function usePetMedicalDocuments({
     removePendingFile,
     uploadPendingFiles,
     deleteDocument,
-    clearPending
+    clearPending,
   }
 }

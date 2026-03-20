@@ -11,7 +11,8 @@ import {
   Modal,
   Pressable,
   InteractionManager,
-  ActionSheetIOS
+  ActionSheetIOS,
+  Linking,
 } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
@@ -20,32 +21,39 @@ import {
   Upload,
   Trash2,
   Download,
+  Eye,
   File,
   Plus,
   X,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from 'lucide-react-native'
 import { useFocusEffect } from 'expo-router'
 import {
   usePetMedicalDocuments,
-  IPendingDocument
+  IPendingDocument,
 } from '@/src/hooks/usePetMedicalDocuments'
 import { IMedicalDocument } from '@/src/utils/api/services/pet_medical_document_service'
 import { colors } from '@/constants/design-system'
+import MedicalDocumentPreviewModal from './medical_document_preview_modal'
 
 interface MedicalDocumentsSectionProps {
   petId: string
   isOwner?: boolean // Whether current user is owner (affects delete permission)
 }
 
-const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_FILES = 5
 
 export default function MedicalDocumentsSection({
   petId,
-  isOwner = true
+  isOwner = true,
 }: MedicalDocumentsSectionProps) {
   const {
     documents,
@@ -57,7 +65,7 @@ export default function MedicalDocumentsSection({
     removePendingFile,
     uploadPendingFiles,
     deleteDocument,
-    clearPending
+    clearPending,
   } = usePetMedicalDocuments({ petId })
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -65,8 +73,13 @@ export default function MedicalDocumentsSection({
   const [isPickerOpening, setIsPickerOpening] = useState(false)
   const isPickerActiveRef = useRef(false)
   const pickerRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   )
+
+  // Preview modal state
+  const [previewDocument, setPreviewDocument] =
+    useState<IMedicalDocument | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
 
   // Load documents on mount
   useFocusEffect(
@@ -76,7 +89,7 @@ export default function MedicalDocumentsSection({
       return () => {
         resetPickerState()
       }
-    }, [fetchDocuments])
+    }, [fetchDocuments]),
   )
 
   // Picker state management (same pattern as AttachmentManager)
@@ -146,7 +159,7 @@ export default function MedicalDocumentsSection({
     return date.toLocaleDateString('th-TH', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 
@@ -172,7 +185,7 @@ export default function MedicalDocumentsSection({
     if (file.size > MAX_FILE_SIZE) {
       Alert.alert(
         'ไฟล์ใหญ่เกินไป',
-        `ขนาดไฟล์ต้องไม่เกิน ${MAX_FILE_SIZE / (1024 * 1024)} MB`
+        `ขนาดไฟล์ต้องไม่เกิน ${MAX_FILE_SIZE / (1024 * 1024)} MB`,
       )
       return false
     }
@@ -180,7 +193,7 @@ export default function MedicalDocumentsSection({
     if (file.mimeType && !ALLOWED_TYPES.includes(file.mimeType)) {
       Alert.alert(
         'ประเภทไฟล์ไม่รองรับ',
-        'กรุณาเลือกไฟล์ PDF หรือรูปภาพ (JPG, PNG, WebP)'
+        'กรุณาเลือกไฟล์ PDF หรือรูปภาพ (JPG, PNG, WebP)',
       )
       return false
     }
@@ -204,7 +217,7 @@ export default function MedicalDocumentsSection({
         {
           options: ['ยกเลิก', 'ถ่ายรูป', 'เลือกรูปภาพ', 'เลือกเอกสาร'],
           cancelButtonIndex: 0,
-          userInterfaceStyle: 'light'
+          userInterfaceStyle: 'light',
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
@@ -214,7 +227,7 @@ export default function MedicalDocumentsSection({
           } else if (buttonIndex === 3) {
             void handlePickMultipleDocuments()
           }
-        }
+        },
       )
       return
     }
@@ -237,7 +250,7 @@ export default function MedicalDocumentsSection({
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.8
+        quality: 0.8,
       })
 
       if (result.canceled) return
@@ -247,7 +260,7 @@ export default function MedicalDocumentsSection({
         !validateFile({
           name: `photo_${Date.now()}.jpg`,
           size: image.fileSize,
-          mimeType: 'image/jpeg'
+          mimeType: 'image/jpeg',
         })
       ) {
         return
@@ -258,8 +271,8 @@ export default function MedicalDocumentsSection({
           uri: image.uri,
           name: `photo_${Date.now()}.jpg`,
           size: image.fileSize || 0,
-          mimeType: 'image/jpeg'
-        }
+          mimeType: 'image/jpeg',
+        },
       ])
     } catch (error) {
       console.error('Error taking photo:', error)
@@ -285,7 +298,7 @@ export default function MedicalDocumentsSection({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
-        quality: 0.8
+        quality: 0.8,
       })
 
       if (result.canceled) return
@@ -298,20 +311,19 @@ export default function MedicalDocumentsSection({
       }> = []
 
       for (const image of result.assets) {
-        const fileName =
-          image.uri.split('/').pop() || `image_${Date.now()}.jpg`
+        const fileName = image.uri.split('/').pop() || `image_${Date.now()}.jpg`
         if (
           validateFile({
             name: fileName,
             size: image.fileSize,
-            mimeType: image.mimeType || 'image/jpeg'
+            mimeType: image.mimeType || 'image/jpeg',
           })
         ) {
           validImages.push({
             uri: image.uri,
             name: fileName,
             size: image.fileSize || 0,
-            mimeType: image.mimeType || 'image/jpeg'
+            mimeType: image.mimeType || 'image/jpeg',
           })
         }
       }
@@ -321,7 +333,8 @@ export default function MedicalDocumentsSection({
         const totalAfterAdd =
           documents.length + pendingDocuments.length + validImages.length
         if (totalAfterAdd > MAX_FILES) {
-          const canAdd = MAX_FILES - (documents.length + pendingDocuments.length)
+          const canAdd =
+            MAX_FILES - (documents.length + pendingDocuments.length)
           if (canAdd > 0) {
             Alert.alert(
               'ถึงขีดจำกัด',
@@ -330,12 +343,15 @@ export default function MedicalDocumentsSection({
                 { text: 'ยกเลิก', style: 'cancel' },
                 {
                   text: 'เพิ่ม',
-                  onPress: () => addPendingFiles(validImages.slice(0, canAdd))
-                }
-              ]
+                  onPress: () => addPendingFiles(validImages.slice(0, canAdd)),
+                },
+              ],
             )
           } else {
-            Alert.alert('ถึงขีดจำกัด', `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`)
+            Alert.alert(
+              'ถึงขีดจำกัด',
+              `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`,
+            )
           }
         } else {
           addPendingFiles(validImages)
@@ -358,7 +374,7 @@ export default function MedicalDocumentsSection({
       const result = await DocumentPicker.getDocumentAsync({
         type: ALLOWED_TYPES,
         copyToCacheDirectory: true,
-        multiple: true
+        multiple: true,
       })
 
       if (result.canceled) return
@@ -375,14 +391,14 @@ export default function MedicalDocumentsSection({
           validateFile({
             name: file.name,
             size: file.size,
-            mimeType: file.mimeType
+            mimeType: file.mimeType,
           })
         ) {
           validFiles.push({
             uri: file.uri,
             name: file.name,
             size: file.size || 0,
-            mimeType: file.mimeType || 'application/octet-stream'
+            mimeType: file.mimeType || 'application/octet-stream',
           })
         }
       }
@@ -392,7 +408,8 @@ export default function MedicalDocumentsSection({
         const totalAfterAdd =
           documents.length + pendingDocuments.length + validFiles.length
         if (totalAfterAdd > MAX_FILES) {
-          const canAdd = MAX_FILES - (documents.length + pendingDocuments.length)
+          const canAdd =
+            MAX_FILES - (documents.length + pendingDocuments.length)
           if (canAdd > 0) {
             Alert.alert(
               'ถึงขีดจำกัด',
@@ -401,12 +418,15 @@ export default function MedicalDocumentsSection({
                 { text: 'ยกเลิก', style: 'cancel' },
                 {
                   text: 'เพิ่ม',
-                  onPress: () => addPendingFiles(validFiles.slice(0, canAdd))
-                }
-              ]
+                  onPress: () => addPendingFiles(validFiles.slice(0, canAdd)),
+                },
+              ],
             )
           } else {
-            Alert.alert('ถึงขีดจำกัด', `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`)
+            Alert.alert(
+              'ถึงขีดจำกัด',
+              `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`,
+            )
           }
         } else {
           addPendingFiles(validFiles)
@@ -430,47 +450,53 @@ export default function MedicalDocumentsSection({
 
   // Handle delete document
   const handleDeleteDocument = (
-    document: IMedicalDocument | IPendingDocument
+    document: IMedicalDocument | IPendingDocument,
   ) => {
     const isPending = 'isPending' in document && document.isPending
 
-    Alert.alert(
-      'ลบเอกสาร',
-      `คุณต้องการลบ "${document.fileName}" หรือไม่?`,
-      [
-        { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'ลบ',
-          style: 'destructive',
-          onPress: async () => {
-            if (isPending) {
-              removePendingFile(document.id)
-            } else {
-              try {
-                setDeletingId(document.id)
-                await deleteDocument(document.id)
-              } catch (error) {
-                // Error is already handled in hook
-              } finally {
-                setDeletingId(null)
-              }
+    Alert.alert('ลบเอกสาร', `คุณต้องการลบ "${document.fileName}" หรือไม่?`, [
+      { text: 'ยกเลิก', style: 'cancel' },
+      {
+        text: 'ลบ',
+        style: 'destructive',
+        onPress: async () => {
+          if (isPending) {
+            removePendingFile(document.id)
+          } else {
+            try {
+              setDeletingId(document.id)
+              await deleteDocument(document.id)
+            } catch (error) {
+              // Error is already handled in hook
+            } finally {
+              setDeletingId(null)
             }
           }
-        }
-      ]
-    )
+        },
+      },
+    ])
   }
 
-  // Handle download/view document
-  const handleOpenDocument = async (document: IMedicalDocument) => {
+  // Handle preview document (opens preview modal)
+  const handlePreviewDocument = (document: IMedicalDocument) => {
+    setPreviewDocument(document)
+    setShowPreview(true)
+  }
+
+  // Handle direct download (from card button)
+  const handleDirectDownload = (document: IMedicalDocument, event: any) => {
+    // Stop event propagation to prevent opening preview
+    event?.stopPropagation()
+
     try {
       if (document.downloadUrl) {
-        const { Linking } = await import('react-native')
-        await Linking.openURL(document.downloadUrl)
+        Linking.openURL(document.downloadUrl).catch(() => {
+          Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
+        })
       }
     } catch (error) {
-      console.error('Error opening document:', error)
-      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดเอกสารได้')
+      console.error('Error downloading document:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ได้')
     }
   }
 
@@ -481,16 +507,18 @@ export default function MedicalDocumentsSection({
     }
 
     const badges = {
-      uploading: { text: 'กำลังอัปโหลด', color: '#FEF3C7', textColor: '#92400E' },
+      uploading: {
+        text: 'กำลังอัปโหลด',
+        color: '#FEF3C7',
+        textColor: '#92400E',
+      },
       success: { text: 'สำเร็จ', color: '#D1FAE5', textColor: '#065F46' },
-      failed: { text: 'ล้มเหลว', color: '#FEE2E2', textColor: '#991B1B' }
+      failed: { text: 'ล้มเหลว', color: '#FEE2E2', textColor: '#991B1B' },
     }
 
     const badge = badges[progress]
     return (
-      <View
-        style={[styles.progressBadge, { backgroundColor: badge.color }]}
-      >
+      <View style={[styles.progressBadge, { backgroundColor: badge.color }]}>
         <Text style={[styles.progressBadgeText, { color: badge.textColor }]}>
           {badge.text}
         </Text>
@@ -500,7 +528,7 @@ export default function MedicalDocumentsSection({
 
   const allDocuments: Array<IMedicalDocument | IPendingDocument> = [
     ...pendingDocuments,
-    ...documents
+    ...documents,
   ]
   const totalFiles = documents.length + pendingDocuments.length
 
@@ -516,22 +544,18 @@ export default function MedicalDocumentsSection({
         </Text>
       </View>
 
-      <Text style={styles.description}>
-        อัปโหลดเอกสารสุขภาพและวัคซีนของสัตว์เลี้ยง เช่น ใบรับรองการฉีดวัคซีน
-        ผลตรวจสุขภาพ หรือเอกสารจากคลินิก
-      </Text>
-
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.primary.DEFAULT} />
+          <ActivityIndicator size='small' color={colors.primary.DEFAULT} />
           <Text style={styles.loadingText}>กำลังโหลด...</Text>
         </View>
       ) : allDocuments.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <File size={48} color="#d1d5db" strokeWidth={1.5} />
+          <File size={48} color='#d1d5db' strokeWidth={1.5} />
           <Text style={styles.emptyText}>ยังไม่มีเอกสาร</Text>
           <Text style={styles.emptySubtext}>
-            อัปโหลดเอกสารสุขภาพและใบรับรองวัคซีนของสัตว์เลี้ยง
+            อัปโหลดเอกสารสุขภาพและวัคซีนของสัตว์เลี้ยง เช่น ใบรับรองการฉีดวัคซีน
+            ผลตรวจสุขภาพ หรือเอกสารจากคลินิก
           </Text>
         </View>
       ) : (
@@ -545,7 +569,17 @@ export default function MedicalDocumentsSection({
             const isDeleting = deletingId === doc.id
 
             return (
-              <View key={doc.id} style={styles.documentItem}>
+              <Pressable
+                key={doc.id}
+                style={styles.documentItem}
+                onPress={() => {
+                  // Only open preview for non-pending documents with downloadUrl
+                  if (!isPending && 'downloadUrl' in doc && doc.downloadUrl) {
+                    handlePreviewDocument(doc)
+                  }
+                }}
+                disabled={isPending}
+              >
                 <View style={styles.fileInfo}>
                   <View style={styles.fileIconContainer}>
                     {getFileIcon(doc.fileType)}
@@ -575,7 +609,7 @@ export default function MedicalDocumentsSection({
                   {!isPending && 'downloadUrl' in doc && doc.downloadUrl && (
                     <TouchableOpacity
                       style={styles.actionButton}
-                      onPress={() => handleOpenDocument(doc)}
+                      onPress={(e) => handleDirectDownload(doc, e)}
                     >
                       <Download size={16} color={colors.primary.DEFAULT} />
                     </TouchableOpacity>
@@ -586,13 +620,13 @@ export default function MedicalDocumentsSection({
                     disabled={isDeleting}
                   >
                     {isDeleting ? (
-                      <ActivityIndicator size="small" color="#BF1737" />
+                      <ActivityIndicator size='small' color='#BF1737' />
                     ) : (
-                      <Trash2 size={16} color="#BF1737" />
+                      <Trash2 size={16} color='#BF1737' />
                     )}
                   </TouchableOpacity>
                 </View>
-              </View>
+              </Pressable>
             )
           })}
         </ScrollView>
@@ -604,23 +638,23 @@ export default function MedicalDocumentsSection({
           <TouchableOpacity
             style={[
               styles.uploadPendingButton,
-              isUploading && styles.uploadPendingButtonDisabled
+              isUploading && styles.uploadPendingButtonDisabled,
             ]}
             onPress={handleUploadPending}
             disabled={isUploading}
           >
             {isUploading ? (
               <>
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size='small' color='#fff' />
                 <Text style={styles.uploadPendingButtonText}>
                   กำลังอัปโหลด... ({pendingDocuments.length} ไฟล์)
                 </Text>
               </>
             ) : (
               <>
-                <Upload size={18} color="#fff" />
+                <Upload size={18} color='#fff' />
                 <Text style={styles.uploadPendingButtonText}>
-                  อัปโหลด จำนวน {pendingDocuments.length} ไฟล์
+                  อัปโหลดเอกสาร จำนวน {pendingDocuments.length} ไฟล์
                 </Text>
               </>
             )}
@@ -630,7 +664,8 @@ export default function MedicalDocumentsSection({
         <TouchableOpacity
           style={[
             styles.addButton,
-            (isUploading || totalFiles >= MAX_FILES) && styles.addButtonDisabled
+            (isUploading || totalFiles >= MAX_FILES) &&
+              styles.addButtonDisabled,
           ]}
           onPress={handleOpenUploadOptions}
           disabled={isUploading || totalFiles >= MAX_FILES}
@@ -648,7 +683,7 @@ export default function MedicalDocumentsSection({
       <Modal
         visible={showUploadOptions}
         transparent
-        animationType="fade"
+        animationType='fade'
         onRequestClose={() => {
           if (!isPickerOpening) {
             setShowUploadOptions(false)
@@ -671,14 +706,14 @@ export default function MedicalDocumentsSection({
                 style={styles.closeButton}
                 disabled={isPickerOpening}
               >
-                <X size={24} color="#6b7280" />
+                <X size={24} color='#6b7280' />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
               style={[
                 styles.optionItem,
-                isPickerOpening && styles.optionItemDisabled
+                isPickerOpening && styles.optionItemDisabled,
               ]}
               onPress={handlePickFromCamera}
               disabled={isPickerOpening}
@@ -697,7 +732,7 @@ export default function MedicalDocumentsSection({
             <TouchableOpacity
               style={[
                 styles.optionItem,
-                isPickerOpening && styles.optionItemDisabled
+                isPickerOpening && styles.optionItemDisabled,
               ]}
               onPress={handlePickFromGallery}
               disabled={isPickerOpening}
@@ -716,7 +751,7 @@ export default function MedicalDocumentsSection({
             <TouchableOpacity
               style={[
                 styles.optionItem,
-                isPickerOpening && styles.optionItemDisabled
+                isPickerOpening && styles.optionItemDisabled,
               ]}
               onPress={handlePickMultipleDocuments}
               disabled={isPickerOpening}
@@ -734,6 +769,16 @@ export default function MedicalDocumentsSection({
           </View>
         </Pressable>
       </Modal>
+
+      {/* Document Preview Modal */}
+      <MedicalDocumentPreviewModal
+        visible={showPreview}
+        document={previewDocument}
+        onClose={() => {
+          setShowPreview(false)
+          setPreviewDocument(null)
+        }}
+      />
     </View>
   )
 }
@@ -743,70 +788,70 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 20,
-    marginBottom: 8
+    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 16,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   title: {
     fontSize: 17,
     fontFamily: 'Prompt_500Medium',
-    color: colors.primary.DEFAULT
+    color: colors.primary.DEFAULT,
   },
   fileCount: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af'
+    color: '#9ca3af',
   },
   description: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#6b7280',
     lineHeight: 20,
-    marginBottom: 16
+    marginBottom: 16,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 32,
-    gap: 12
+    gap: 12,
   },
   loadingText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af'
+    color: '#9ca3af',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
   },
   emptyText: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
     color: '#6b7280',
-    marginTop: 12
+    marginTop: 12,
   },
   emptySubtext: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
     marginTop: 4,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   documentList: {
     maxHeight: 300,
-    marginBottom: 16
+    marginBottom: 16,
   },
   documentItem: {
     flexDirection: 'row',
@@ -817,13 +862,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    marginBottom: 8
+    marginBottom: 8,
   },
   fileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8
+    marginRight: 8,
   },
   fileIconContainer: {
     width: 40,
@@ -832,60 +877,60 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F4F8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
+    marginRight: 12,
   },
   fileDetails: {
-    flex: 1
+    flex: 1,
   },
   fileName: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    marginBottom: 4
+    marginBottom: 4,
   },
   fileMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   fileSize: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af'
+    color: '#9ca3af',
   },
   metaDivider: {
     fontSize: 12,
-    color: '#d1d5db'
+    color: '#d1d5db',
   },
   fileDate: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#9ca3af'
+    color: '#9ca3af',
   },
   progressBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    marginTop: 4
+    marginTop: 4,
   },
   progressBadgeText: {
     fontSize: 11,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
   },
   actionButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e5e7eb'
+    borderColor: '#e5e7eb',
   },
   uploadButtonsContainer: {
-    gap: 8
+    gap: 8,
   },
   uploadPendingButton: {
     flexDirection: 'row',
@@ -894,15 +939,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: colors.primary.DEFAULT
+    backgroundColor: colors.primary.DEFAULT,
   },
   uploadPendingButtonDisabled: {
-    opacity: 0.6
+    opacity: 0.6,
   },
   uploadPendingButtonText: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+    color: '#fff',
   },
   addButton: {
     flexDirection: 'row',
@@ -914,35 +959,35 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.primary.DEFAULT,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
   },
   addButtonDisabled: {
     opacity: 0.5,
-    borderColor: '#d1d5db'
+    borderColor: '#d1d5db',
   },
   addButtonText: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
-    color: colors.primary.DEFAULT
+    color: colors.primary.DEFAULT,
   },
   hint: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
     marginTop: 12,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
   },
   optionsContainer: {
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 32,
-    paddingTop: 8
+    paddingTop: 8,
   },
   optionsHeader: {
     flexDirection: 'row',
@@ -951,15 +996,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    borderBottomColor: '#e5e7eb',
   },
   optionsTitle: {
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+    color: '#225877',
   },
   closeButton: {
-    padding: 4
+    padding: 4,
   },
   optionItem: {
     flexDirection: 'row',
@@ -967,10 +1012,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6'
+    borderBottomColor: '#f3f4f6',
   },
   optionItemDisabled: {
-    opacity: 0.5
+    opacity: 0.5,
   },
   optionIcon: {
     width: 48,
@@ -979,20 +1024,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F4F8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16
+    marginRight: 16,
   },
   optionContent: {
-    flex: 1
+    flex: 1,
   },
   optionTitle: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 2
+    marginBottom: 2,
   },
   optionDescription: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280'
-  }
+    color: '#6b7280',
+  },
 })
