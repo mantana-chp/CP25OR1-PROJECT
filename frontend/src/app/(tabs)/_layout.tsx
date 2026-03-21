@@ -45,16 +45,16 @@ export default function TabLayout() {
           paddingTop: 12,
           paddingBottom: Platform.OS === 'android' ? insets.bottom : 12,
           justifyContent: 'center',
-          alignItems: 'center'
+          alignItems: 'center',
         },
         tabBarLabelStyle: {
           // Hide labels
         },
-        tabBarShowLabel: false
+        tabBarShowLabel: false,
       }}
     >
       <Tabs.Screen
-        name="index"
+        name='index'
         options={{
           title: 'Reminder',
           tabBarIcon: ({ color, focused }) => (
@@ -65,11 +65,11 @@ export default function TabLayout() {
                 color={focused ? '#fff' : color}
               />
             </View>
-          )
+          ),
         }}
       />
       <Tabs.Screen
-        name="in_app_notification"
+        name='in_app_notification'
         options={{
           title: 'In App Notification',
           tabBarIcon: ({ color, focused }) => (
@@ -79,11 +79,11 @@ export default function TabLayout() {
               focused={focused}
               badge={unreadCount}
             />
-          )
+          ),
         }}
       />
       <Tabs.Screen
-        name="chatbot"
+        name='chatbot'
         options={{
           title: 'Chatbot',
           tabBarIcon: ({ color, focused }) => (
@@ -92,11 +92,11 @@ export default function TabLayout() {
               color={color}
               focused={focused}
             />
-          )
+          ),
         }}
       />
       <Tabs.Screen
-        name="pet_profile"
+        name='pet_profile'
         options={{
           title: 'Pet Profile',
           tabBarIcon: ({ color, focused }) => (
@@ -107,56 +107,64 @@ export default function TabLayout() {
                 color={focused ? '#fff' : color}
               />
             </View>
-          )
+          ),
         }}
       />
       <Tabs.Screen
-        name="reminder-details/[id]"
+        name='reminder-details/[id]'
         options={{
           title: 'รายละเอียด',
-          href: null
+          href: null,
         }}
       />
 
       {/* === หน้าที่ซ่อนจาก Tab Bar === */}
       <Tabs.Screen
-        name="add_reminder"
+        name='add_reminder'
         options={{
           title: 'เพิ่มแจ้งเตือน',
           href: null,
-          tabBarStyle: { display: 'none' }
+          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen
-        name="add_pet_form"
+        name='add_pet_form'
         options={{
           title: 'สร้างโปรไฟล์สัตว์เลี้ยง',
           href: null,
-          tabBarStyle: { display: 'none' }
+          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen
-        name="health_record"
+        name='health_record'
         options={{
           title: 'ประวัติสุขภาพ',
           href: null,
-          tabBarStyle: { display: 'none' }
+          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen
-        name="pet_sharing"
+        name='medical_documents'
+        options={{
+          title: 'เอกสารสุขภาพ',
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name='pet_sharing'
         options={{
           title: 'จัดการผู้ดูแล',
           href: null,
-          tabBarStyle: { display: 'none' }
+          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen
-        name="scan_pet_share"
+        name='scan_pet_share'
         options={{
           title: 'รับสิทธิ์ดูแลร่วม',
           href: null,
-          tabBarStyle: { display: 'none' }
+          tabBarStyle: { display: 'none' },
         }}
       />
     </Tabs>
@@ -172,7 +180,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignContent: 'center',
     backgroundColor: 'transparent',
-    position: 'relative'
+    position: 'relative',
   },
   badge: {
     position: 'absolute',
@@ -186,12 +194,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
-    paddingHorizontal: 6
+    paddingHorizontal: 6,
   },
   badgeText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
-    textAlign: 'center'
-  }
+    textAlign: 'center',
+  },
 })

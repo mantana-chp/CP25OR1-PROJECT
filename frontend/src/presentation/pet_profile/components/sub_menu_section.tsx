@@ -1,6 +1,6 @@
 import { colors } from '@/constants/design-system'
 import { useRouter } from 'expo-router'
-import { ClipboardList, ScanQrCode, Users } from 'lucide-react-native'
+import { ClipboardList, FileHeart, ScanQrCode, Users } from 'lucide-react-native'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -43,6 +43,24 @@ export default function SubMenuSection({
         </Pressable>
 
         {/* Access list */}
+        <Pressable
+          onPress={() => {
+            router.push({
+              pathname: '/(tabs)/medical_documents',
+              params: petId ? { petId } : {}
+            })
+          }}
+          style={styles.menuButton}
+        >
+          <View style={styles.iconCircle}>
+            <FileHeart
+              size={28}
+              color={colors.primary.DEFAULT}
+              strokeWidth={1.5}
+            />
+          </View>
+          <Text style={styles.text}>เอกสารสุขภาพ</Text>
+        </Pressable>
         <Pressable
           onPress={() => {
             router.push({
@@ -95,14 +113,16 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    gap: 24,
+    flexWrap: 'wrap',
+    gap: 16,
     alignItems: 'flex-start',
     paddingHorizontal: 8,
     paddingBottom: 8
   },
   menuButton: {
     alignItems: 'center',
-    gap: 2
+    gap: 2,
+    width: 70
   },
   iconCircle: {
     width: 30,
