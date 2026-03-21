@@ -603,7 +603,6 @@ export default function MedicalDocumentsPage() {
   }
 
   const totalFiles = documents.length + pendingDocuments.length
-  const totalSize = allDocuments.reduce((sum, doc) => sum + doc.fileSize, 0)
   const petDisplayName = currentPet?.pet_name || 'สัตว์เลี้ยงของคุณ'
 
   // Render document card
@@ -720,10 +719,9 @@ export default function MedicalDocumentsPage() {
     <>
       {/* Pet Context */}
       <View style={styles.petInfoContainer}>
-        <Text style={styles.petInfoLabel}>กำลังจัดการเอกสารของ</Text>
-        <Text style={styles.petInfoName}>{petDisplayName}</Text>
-        <Text style={styles.petInfoDescription}>
-          ติดตามและเก็บเอกสารสุขภาพทั้งหมดของ {petDisplayName} ได้ที่นี่
+        <Text style={styles.petInfoLabel}>
+          กำลังจัดการเอกสารของ{' '}
+          <Text style={styles.petInfoName}>{petDisplayName}</Text>
         </Text>
       </View>
 
@@ -738,17 +736,7 @@ export default function MedicalDocumentsPage() {
           <Text style={styles.statValue}>{MAX_FILES - totalFiles}</Text>
           <Text style={styles.statLabel}>เพิ่มได้อีก</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{formatFileSize(totalSize)}</Text>
-          <Text style={styles.statLabel}>ใช้งานแล้ว</Text>
-          <Text style={styles.statSubLabel}>ขนาดรวมของไฟล์</Text>
-        </View>
       </View>
-
-      <Text style={styles.statsHint}>
-        “ใช้งานแล้ว” หมายถึงขนาดรวมของเอกสารทั้งหมดของ {petDisplayName}
-      </Text>
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
@@ -998,6 +986,7 @@ export default function MedicalDocumentsPage() {
         title='ไม่สามารถลบเอกสารได้'
         message={`คุณเป็นผู้ดูแลร่วม จึงลบได้เฉพาะเอกสารที่คุณอัปโหลดเอง\n\nไฟล์ "${blockedDocumentName}" อาจถูกอัปโหลดโดยเจ้าของสัตว์เลี้ยง`}
         confirmText='รับทราบ'
+        cancelText=''
         showCancelButton={false}
         onConfirm={() => setShowDeletePermissionModal(false)}
       />
@@ -1053,7 +1042,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1062,32 +1051,29 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
   },
   statValue: {
     fontSize: 20,
     fontFamily: 'Prompt_600SemiBold',
     color: colors.primary.DEFAULT,
+    width: '100%',
+    textAlign: 'center',
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: colors.gray[500],
     marginTop: 2,
+    width: '100%',
+    textAlign: 'center',
   },
   statSubLabel: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
     color: colors.gray[400],
     marginTop: 2,
-  },
-  statsHint: {
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    color: colors.gray[500],
-    marginHorizontal: 16,
-    marginTop: 8,
-    lineHeight: 18,
   },
   statDivider: {
     width: 1,
@@ -1112,6 +1098,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
+  },
+  sectionPetName: {
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[500],
   },
   // Filter Tabs
   filterContainer: {
