@@ -33,6 +33,7 @@ interface ConfirmationModalProps extends BaseModalProps {
   onConfirm: () => void
   confirmVariant?: 'base' | 'success' | 'error'
   isLoading?: boolean
+  showCancelButton?: boolean
 }
 
 interface DefaultModalProps extends BaseModalProps {
@@ -108,7 +109,8 @@ export default function Modal(props: ModalProps) {
         cancelText = 'ยกเลิก',
         onConfirm,
         confirmVariant = icon === 'trash' ? 'error' : 'base',
-        isLoading = false
+        isLoading = false,
+        showCancelButton = true
       } = props as ConfirmationModalProps
 
       return (
@@ -117,19 +119,21 @@ export default function Modal(props: ModalProps) {
           {title && <Text style={styles.title}>{title}</Text>}
           <Text style={styles.message}>{message}</Text>
           <View style={styles.buttonContainer}>
-            <Button
-              title={cancelText}
-              onPress={onClose}
-              variant="ghost"
-              disabled={isLoading}
-              style={styles.buttonHalf}
-            />
+            {showCancelButton && (
+              <Button
+                title={cancelText}
+                onPress={onClose}
+                variant="ghost"
+                disabled={isLoading}
+                style={styles.buttonHalf}
+              />
+            )}
             <Button
               title={confirmText}
               onPress={onConfirm}
               variant={confirmVariant}
               loading={isLoading}
-              style={styles.buttonHalf}
+              style={showCancelButton ? styles.buttonHalf : styles.buttonFull}
             />
           </View>
         </>
@@ -212,6 +216,9 @@ const styles = StyleSheet.create({
     gap: 12
   },
   buttonHalf: {
+    flex: 1
+  },
+  buttonFull: {
     flex: 1
   }
 })
