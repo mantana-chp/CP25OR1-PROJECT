@@ -6,9 +6,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 interface SubMenuSectionProps {
   petId?: string
+  isViewingDeceased?: boolean
 }
 
-export default function SubMenuSection({ petId }: SubMenuSectionProps) {
+export default function SubMenuSection({
+  petId,
+  isViewingDeceased
+}: SubMenuSectionProps) {
   const router = useRouter()
 
   // -------------
@@ -18,6 +22,7 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>เมนู</Text>
       <View style={styles.container}>
+        {/* Health Record */}
         <Pressable
           onPress={() => {
             router.push({
@@ -36,6 +41,8 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
           </View>
           <Text style={styles.text}>ประวัติสุขภาพ</Text>
         </Pressable>
+
+        {/* Access list */}
         <Pressable
           onPress={() => {
             router.push({
@@ -50,21 +57,25 @@ export default function SubMenuSection({ petId }: SubMenuSectionProps) {
           </View>
           <Text style={styles.text}>ผู้ดูแลร่วม</Text>
         </Pressable>
-        <Pressable
-          onPress={() => {
-            router.push('./scan_pet_share')
-          }}
-          style={styles.menuButton}
-        >
-          <View style={styles.iconCircle}>
-            <ScanQrCode
-              size={28}
-              color={colors.primary.DEFAULT}
-              strokeWidth={1.5}
-            />
-          </View>
-          <Text style={styles.text}>รับสิทธิ์ดูแลร่วม</Text>
-        </Pressable>
+
+        {/* Scan QR Code */}
+        {!isViewingDeceased && (
+          <Pressable
+            onPress={() => {
+              router.push('./scan_pet_share')
+            }}
+            style={styles.menuButton}
+          >
+            <View style={styles.iconCircle}>
+              <ScanQrCode
+                size={28}
+                color={colors.primary.DEFAULT}
+                strokeWidth={1.5}
+              />
+            </View>
+            <Text style={styles.text}>รับสิทธิ์ดูแลร่วม</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   )

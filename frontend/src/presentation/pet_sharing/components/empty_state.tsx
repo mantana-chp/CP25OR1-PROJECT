@@ -12,9 +12,13 @@ import Button from '../../components/button'
 
 interface EmptyStateProps {
   onCreateInvite: () => void
+  showInviteButton?: boolean
 }
 
-export default function EmptyState({ onCreateInvite }: EmptyStateProps) {
+export default function EmptyState({
+  onCreateInvite,
+  showInviteButton = true
+}: EmptyStateProps) {
   return (
     <View style={styles.container}>
       <View style={styles.imageCircle}>
@@ -27,19 +31,22 @@ export default function EmptyState({ onCreateInvite }: EmptyStateProps) {
 
       <Text style={styles.title}>ไม่มีรายชื่อผู้ดูแลร่วมกัน</Text>
       <Text style={styles.subtitle}>
-        คุณยังไม่มีผู้ดูแลร่วมสำหรับสัตว์เลี้ยงของคุณในขณะนี้{`\n`}
-        เชิญเพื่อนหรือครอบครัวมาช่วยดูแลกันเถอะ
+        {showInviteButton
+          ? 'คุณยังไม่มีผู้ดูแลร่วมสำหรับสัตว์เลี้ยงของคุณในขณะนี้\nเชิญเพื่อนหรือครอบครัวมาช่วยดูแลกันเถอะ'
+          : 'ไม่มีผู้ดูแลร่วมสำหรับสัตว์เลี้ยงของคุณ'}
       </Text>
 
-      <Button
-        title="เชิญ"
-        onPress={onCreateInvite}
-        icon={
-          <UserPlus size={iconSizes.lg} color={colors.background.secondary} />
-        }
-        style={styles.createInviteButton}
-        textStyle={styles.createInviteButtonText}
-      />
+      {showInviteButton && (
+        <Button
+          title="เชิญ"
+          onPress={onCreateInvite}
+          icon={
+            <UserPlus size={iconSizes.lg} color={colors.background.secondary} />
+          }
+          style={styles.createInviteButton}
+          textStyle={styles.createInviteButtonText}
+        />
+      )}
     </View>
   )
 }
