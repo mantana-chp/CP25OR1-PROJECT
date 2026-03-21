@@ -5,6 +5,7 @@ import {
   generateAllVirtualReminders,
   mergeRealAndVirtualReminders
 } from '@/src/utils/recurring_reminder_generator'
+import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
@@ -16,6 +17,70 @@ import Calendar from '../components/calendar_component'
 import ReminderList from '../components/reminder_list'
 
 dayjs.extend(isSameOrBefore)
+
+const DEFAULT_FORWARD_MONTHS = 12
+const DEFAULT_BACKWARD_MONTHS = 1
+const DEFAULT_MAX_OCCURRENCES = 100
+const MAX_FORWARD_MONTHS = 240
+const MAX_OCCURRENCES_CAP = 2000
+
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime())
+
+const getMonthDiff = (from: Date, to: Date) => {
+  return (
+    (to.getFullYear() - from.getFullYear()) * 12 +
+    (to.getMonth() - from.getMonth())
+  )
+}
+
+const addYears = (date: Date, years: number) => {
+  const next = new Date(date)
+  next.setFullYear(next.getFullYear() + years)
+  return next
+}
+
+const estimateRuleHorizonDate = (rule: IRecurringRule): Date | null => {
+  if (rule.endDate) {
+    const endDate = new Date(rule.endDate)
+    if (isValidDate(endDate)) {
+      return endDate
+    }
+  }
+
+  if (!rule.endAfterOccurrences || rule.endAfterOccurrences <= 0) {
+    return null
+  }
+
+  const startDate = new Date(rule.template_start_date)
+  if (!isValidDate(startDate)) {
+    return null
+  }
+
+  const interval = Math.max(1, rule.interval || 1)
+  const totalGaps = Math.max(0, rule.endAfterOccurrences - 1)
+
+  switch (rule.frequency) {
+    case 'DAILY': {
+      const next = new Date(startDate)
+      next.setDate(next.getDate() + totalGaps * interval)
+      return next
+    }
+    case 'WEEKLY': {
+      const next = new Date(startDate)
+      next.setDate(next.getDate() + totalGaps * interval * 7)
+      return next
+    }
+    case 'MONTHLY': {
+      const next = new Date(startDate)
+      next.setMonth(next.getMonth() + totalGaps * interval)
+      return next
+    }
+    case 'YEARLY':
+      return addYears(startDate, totalGaps * interval)
+    default:
+      return null
+  }
+}
 
 export default function ReminderPage() {
   // ------------------
@@ -70,15 +135,62 @@ export default function ReminderPage() {
     [reminders]
   )
 
+  const virtualGenerationConfig = useMemo(() => {
+    const now = new Date()
+    const defaultMaxDate = new Date(now.getFullYear() + 1, now.getMonth(), 1)
+
+    let generationMaxDate = new Date(defaultMaxDate)
+    let maxEndAfterOccurrences = DEFAULT_MAX_OCCURRENCES
+
+    for (const reminder of safeReminders) {
+      const reminderDate = new Date(reminder.reminderDate)
+      if (isValidDate(reminderDate) && reminderDate > generationMaxDate) {
+        generationMaxDate = reminderDate
+      }
+    }
+
+    for (const rule of recurringRules) {
+      if (rule.recurrence_status !== 'ACTIVE') continue
+
+      if (
+        typeof rule.endAfterOccurrences === 'number' &&
+        rule.endAfterOccurrences > maxEndAfterOccurrences
+      ) {
+        maxEndAfterOccurrences = rule.endAfterOccurrences
+      }
+
+      const estimatedHorizon = estimateRuleHorizonDate(rule)
+      if (estimatedHorizon && estimatedHorizon > generationMaxDate) {
+        generationMaxDate = estimatedHorizon
+      }
+    }
+
+    const monthsForward = Math.max(
+      DEFAULT_FORWARD_MONTHS,
+      Math.min(MAX_FORWARD_MONTHS, getMonthDiff(now, generationMaxDate) + 1)
+    )
+
+    const maxOccurrences = Math.min(
+      MAX_OCCURRENCES_CAP,
+      Math.max(DEFAULT_MAX_OCCURRENCES, maxEndAfterOccurrences + 10)
+    )
+
+    return {
+      monthsForward,
+      monthsBackward: DEFAULT_BACKWARD_MONTHS,
+      maxOccurrences
+    }
+  }, [safeReminders, recurringRules])
+
   // Generate virtual reminders asynchronously (AsyncStorage requires async)
   useEffect(() => {
     const loadVirtualReminders = async () => {
       const virtuals = await generateAllVirtualReminders(
         recurringRules,
         {
-          monthsForward: 6,
-          monthsBackward: 1,
-          maxOccurrences: 100
+          monthsForward: virtualGenerationConfig.monthsForward,
+          monthsBackward: virtualGenerationConfig.monthsBackward,
+          maxOccurrences: virtualGenerationConfig.maxOccurrences
         },
         safeReminders, // Pass real reminders to copy pet_name
         pets // Pass pets array for direct pet_name lookup
@@ -91,7 +203,7 @@ export default function ReminderPage() {
     } else {
       setVirtualReminders([])
     }
-  }, [recurringRules, safeReminders, pets])
+  }, [recurringRules, safeReminders, pets, virtualGenerationConfig])
 
   const remindersWithRecurrence = useMemo(
     () =>
@@ -112,13 +224,20 @@ export default function ReminderPage() {
     [safeReminders, recurringRules]
   )
 
-  // Generate virtual reminders and merge with real ones
-  // Use requirePreviousDone: true for the list to only show virtual reminders when previous instances are done
+  // Default list behavior: keep previous behavior to avoid clutter in general view.
   const allReminders = useMemo(() => {
     return mergeRealAndVirtualReminders(
       remindersWithRecurrence,
       virtualReminders,
       { requirePreviousDone: true }
+    )
+  }, [remindersWithRecurrence, virtualReminders])
+
+  // Selected-date behavior: show planned virtual instances even if previous ones are not done.
+  const allRemindersForSelectedDate = useMemo(() => {
+    return mergeRealAndVirtualReminders(
+      remindersWithRecurrence,
+      virtualReminders
     )
   }, [remindersWithRecurrence, virtualReminders])
 
@@ -172,7 +291,7 @@ export default function ReminderPage() {
   const filteredReminders = useMemo(
     () =>
       hasUserSelectedDate && selectedDate
-        ? allReminders.filter((reminder) =>
+        ? allRemindersForSelectedDate.filter((reminder) =>
             dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
           )
         : allReminders.filter((reminder) => {
@@ -180,7 +299,12 @@ export default function ReminderPage() {
 
             return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
           }),
-    [hasUserSelectedDate, selectedDate, allReminders]
+    [
+      hasUserSelectedDate,
+      selectedDate,
+      allReminders,
+      allRemindersForSelectedDate
+    ]
   )
 
   const handleResetRemindersFilters = () => {
@@ -225,7 +349,7 @@ export default function ReminderPage() {
           selectedPetId={selectedPetId}
           onSelectedPetIdChange={setSelectedPetId}
           isToday={isToday}
-          allReminders={remindersWithRecurrence}
+          allReminders={allReminders}
         />
       </View>
     </View>
