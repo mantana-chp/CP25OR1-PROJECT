@@ -100,9 +100,6 @@ export default function MedicalDocumentsPage() {
   const [showDeletePermissionModal, setShowDeletePermissionModal] =
     useState(false)
   const [blockedDocumentName, setBlockedDocumentName] = useState('')
-  const [pendingDeleteDocument, setPendingDeleteDocument] = useState<
-    IMedicalDocument | IPendingDocument | null
-  >(null)
 
   // Load documents on mount
   useFocusEffect(
@@ -502,7 +499,6 @@ export default function MedicalDocumentsPage() {
     // For caregivers trying to delete uploaded documents, show permission modal immediately
     if (!isOwner && !isPending) {
       setBlockedDocumentName(document.fileName)
-      setPendingDeleteDocument(document)
       setShowDeletePermissionModal(true)
       return
     }
@@ -536,28 +532,6 @@ export default function MedicalDocumentsPage() {
         },
       },
     ])
-  }
-
-  // Handle caregiver trying to delete after seeing permission modal
-  const handleCaregiverDeleteAttempt = async () => {
-    if (!pendingDeleteDocument) return
-
-    setShowDeletePermissionModal(false)
-
-    try {
-      setDeletingId(pendingDeleteDocument.id)
-      const result = await deleteDocument(pendingDeleteDocument.id)
-
-      if (result.statusCode === 403) {
-        Alert.alert(
-          'ไม่สามารถลบได้',
-          'คุณไม่มีสิทธิ์ลบเอกสารนี้ เนื่องจากถูกอัปโหลดโดยเจ้าของสัตว์เลี้ยง',
-        )
-      }
-    } finally {
-      setDeletingId(null)
-      setPendingDeleteDocument(null)
-    }
   }
 
   // Handle preview document
@@ -629,7 +603,7 @@ export default function MedicalDocumentsPage() {
   }
 
   const totalFiles = documents.length + pendingDocuments.length
-  const totalSize = allDocuments.reduce((sum, doc) => sum + doc.fileSize, 0)
+  const petDisplayName = currentPet?.pet_name || 'สัตว์เลี้ยงของคุณ'
 
   // Render document card
   const renderDocumentCard = ({
@@ -719,8 +693,38 @@ export default function MedicalDocumentsPage() {
   }
 
   // List Header
+  const ListFooter =
+    !isLoading && filteredDocuments.length > 0 ? (
+      <View style={styles.listFooter}>
+        <View style={styles.addButtonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              (isUploading || totalFiles >= MAX_FILES) &&
+                styles.addButtonDisabled,
+            ]}
+            onPress={handleOpenUploadOptions}
+            disabled={isUploading || totalFiles >= MAX_FILES}
+          >
+            <Plus size={20} color={colors.primary.DEFAULT} />
+            <Text style={styles.addButtonText}>เพิ่มเอกสาร</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ) : (
+      <View style={styles.listFooterSpacer} />
+    )
+
   const ListHeader = (
     <>
+      {/* Pet Context */}
+      <View style={styles.petInfoContainer}>
+        <Text style={styles.petInfoLabel}>
+          กำลังจัดการเอกสารของ{' '}
+          <Text style={styles.petInfoName}>{petDisplayName}</Text>
+        </Text>
+      </View>
+
       {/* Stats Section */}
       <View style={styles.statsSection}>
         <View style={styles.statItem}>
@@ -731,11 +735,6 @@ export default function MedicalDocumentsPage() {
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{MAX_FILES - totalFiles}</Text>
           <Text style={styles.statLabel}>เพิ่มได้อีก</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{formatFileSize(totalSize)}</Text>
-          <Text style={styles.statLabel}>ใช้งานแล้ว</Text>
         </View>
       </View>
 
@@ -857,6 +856,7 @@ export default function MedicalDocumentsPage() {
         renderItem={renderDocumentCard}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={EmptyState}
+        ListFooterComponent={ListFooter}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -868,24 +868,6 @@ export default function MedicalDocumentsPage() {
           />
         }
       />
-
-      {/* Add Button */}
-      {!isLoading && filteredDocuments.length > 0 && (
-        <View style={styles.addButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.addButton,
-              (isUploading || totalFiles >= MAX_FILES) &&
-                styles.addButtonDisabled,
-            ]}
-            onPress={handleOpenUploadOptions}
-            disabled={isUploading || totalFiles >= MAX_FILES}
-          >
-            <Plus size={20} color={colors.primary.DEFAULT} />
-            <Text style={styles.addButtonText}>เพิ่มเอกสาร</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Upload Options Modal */}
       <Modal
@@ -999,15 +981,14 @@ export default function MedicalDocumentsPage() {
         visible={showDeletePermissionModal}
         onClose={() => {
           setShowDeletePermissionModal(false)
-          setPendingDeleteDocument(null)
         }}
         icon='warning'
         title='ไม่สามารถลบเอกสารได้'
         message={`คุณเป็นผู้ดูแลร่วม จึงลบได้เฉพาะเอกสารที่คุณอัปโหลดเอง\n\nไฟล์ "${blockedDocumentName}" อาจถูกอัปโหลดโดยเจ้าของสัตว์เลี้ยง`}
-        confirmText='ลองลบ'
-        cancelText='ยกเลิก'
-        onConfirm={handleCaregiverDeleteAttempt}
-        confirmVariant='error'
+        confirmText='รับทราบ'
+        cancelText=''
+        showCancelButton={false}
+        onConfirm={() => setShowDeletePermissionModal(false)}
       />
     </View>
   )
@@ -1022,6 +1003,36 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexGrow: 1,
   },
+  petInfoContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  petInfoLabel: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[500],
+  },
+  petInfoName: {
+    fontSize: 20,
+    fontFamily: 'Prompt_600SemiBold',
+    color: colors.primary.DEFAULT,
+    marginTop: 4,
+  },
+  petInfoDescription: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[500],
+    marginTop: 8,
+    lineHeight: 20,
+  },
   // Stats Section
   statsSection: {
     flexDirection: 'row',
@@ -1031,7 +1042,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1040,17 +1051,28 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
   },
   statValue: {
     fontSize: 20,
     fontFamily: 'Prompt_600SemiBold',
     color: colors.primary.DEFAULT,
+    width: '100%',
+    textAlign: 'center',
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: colors.gray[500],
+    marginTop: 2,
+    width: '100%',
+    textAlign: 'center',
+  },
+  statSubLabel: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[400],
     marginTop: 2,
   },
   statDivider: {
@@ -1076,6 +1098,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
+  },
+  sectionPetName: {
+    fontSize: 12,
+    fontFamily: 'Prompt_400Regular',
+    color: colors.gray[500],
   },
   // Filter Tabs
   filterContainer: {
@@ -1343,6 +1370,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
+  },
+  listFooter: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  listFooterSpacer: {
+    height: 16,
   },
   // Modal
   modalOverlay: {
