@@ -12,12 +12,12 @@ import Button from '../../components/button'
 
 interface EmptyStateProps {
   onCreateInvite: () => void
-  showInviteButton?: boolean
+  isDeceasedPet?: boolean
 }
 
 export default function EmptyState({
   onCreateInvite,
-  showInviteButton = true
+  isDeceasedPet
 }: EmptyStateProps) {
   return (
     <View style={styles.container}>
@@ -31,12 +31,12 @@ export default function EmptyState({
 
       <Text style={styles.title}>ไม่มีรายชื่อผู้ดูแลร่วมกัน</Text>
       <Text style={styles.subtitle}>
-        {showInviteButton
+        {!isDeceasedPet
           ? 'คุณยังไม่มีผู้ดูแลร่วมสำหรับสัตว์เลี้ยงของคุณในขณะนี้\nเชิญเพื่อนหรือครอบครัวมาช่วยดูแลกันเถอะ'
           : 'ไม่มีผู้ดูแลร่วมสำหรับสัตว์เลี้ยงของคุณ'}
       </Text>
 
-      {showInviteButton && (
+      {!isDeceasedPet && (
         <Button
           title="เชิญ"
           onPress={onCreateInvite}

@@ -5,9 +5,13 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
-import { X } from 'lucide-react-native'
-import React from 'react'
+import { IPetProfile } from '@/src/domain/pet.domain'
+import { Check, Clock, X } from 'lucide-react-native'
+import React, { useEffect, useState } from 'react'
 import {
+  FlatList,
+  Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +20,11 @@ import {
 } from 'react-native'
 import Button from '../../components/button'
 import Modal from '../../components/modal'
+import {
+  CaregiverSuggestion,
+  filterSuggestions,
+  getCaregiverSuggestions
+} from '../../../utils/caregiver_suggestions_storage'
 
 interface AliasModalProps {
   visible: boolean
@@ -23,6 +32,10 @@ interface AliasModalProps {
   onChangeAlias: (value: string) => void
   onClose: () => void
   onConfirm: () => void
+  pets?: IPetProfile[]
+  selectedPetIds?: string[]
+  onTogglePet?: (petId: string) => void
+  currentPetId?: string
 }
 
 export default function AliasModal({
@@ -30,8 +43,81 @@ export default function AliasModal({
   aliasInput,
   onChangeAlias,
   onClose,
-  onConfirm
+  onConfirm,
+  pets = [],
+  selectedPetIds = [],
+  onTogglePet,
+  currentPetId
 }: AliasModalProps) {
+  const showPetSelector = pets && pets.length > 1 && onTogglePet
+  const [suggestions, setSuggestions] = useState<CaregiverSuggestion[]>([])
+  const [filteredSuggestions, setFilteredSuggestions] = useState<
+    CaregiverSuggestion[]
+  >([])
+
+  // Load suggestions when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadSuggestions()
+    }
+  }, [visible])
+
+  // Filter suggestions based on input
+  useEffect(() => {
+    setFilteredSuggestions(filterSuggestions(suggestions, aliasInput))
+  }, [aliasInput, suggestions])
+
+  const loadSuggestions = async () => {
+    const loaded = await getCaregiverSuggestions()
+    setSuggestions(loaded)
+  }
+
+  const handleSelectSuggestion = (alias: string) => {
+    onChangeAlias(alias)
+  }
+
+  const renderPetItem = ({ item }: { item: IPetProfile }) => {
+    const isSelected = selectedPetIds.includes(item.id)
+    const isCurrentPet = item.id === currentPetId
+
+    return (
+      <TouchableOpacity
+        style={[styles.petItem, isSelected && styles.petItemSelected]}
+        onPress={() => onTogglePet?.(item.id)}
+        disabled={!onTogglePet}
+      >
+        <View style={styles.petItemContent}>
+          {item.profile_image_url ? (
+            <Image
+              source={{ uri: item.profile_image_url }}
+              style={styles.petImage}
+            />
+          ) : (
+            <View style={styles.petImagePlaceholder}>
+              <Text style={styles.petImagePlaceholderText}>
+                {item.pet_name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <View style={styles.petInfo}>
+            <Text style={styles.petName}>{item.pet_name}</Text>
+            {isCurrentPet && (
+              <Text style={styles.currentPetLabel}>หน้านี้</Text>
+            )}
+          </View>
+        </View>
+        {isSelected && (
+          <View style={styles.checkIcon}>
+            <Check size={iconSizes.md} color={colors.background.secondary} />
+          </View>
+        )}
+      </TouchableOpacity>
+    )
+  }
+
+  const showSuggestions =
+    filteredSuggestions.length > 0 && aliasInput.length < 50
+
   return (
     <Modal
       visible={visible}
@@ -39,43 +125,93 @@ export default function AliasModal({
       maxWidth={420}
       containerStyle={styles.modalContainer}
     >
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeaderRow}>
-          <Text style={styles.modalTitle}>สร้างรหัสเชิญใหม่</Text>
-          <TouchableOpacity onPress={onClose}>
-            <X size={iconSizes.lg} color={colors.gray[500]} />
-          </TouchableOpacity>
-        </View>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeaderRow}>
+            <Text style={styles.modalTitle}>สร้างรหัสเชิญใหม่</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={iconSizes.lg} color={colors.gray[500]} />
+            </TouchableOpacity>
+          </View>
 
-        <Text style={styles.modalDescription}>
-          ระบุชื่อสำหรับผู้ดูแลที่กำลังจะเชิญ เช่น พี่สาว หรือ เพื่อนบ้าน
-        </Text>
+          <Text style={styles.modalDescription}>
+            ระบุชื่อสำหรับผู้ดูแลที่กำลังจะเชิญ เช่น พี่สาว หรือ เพื่อนบ้าน
+          </Text>
 
-        <TextInput
-          style={styles.aliasInput}
-          placeholder="ชื่อผู้ดูแล"
-          placeholderTextColor={colors.gray[400]}
-          value={aliasInput}
-          onChangeText={onChangeAlias}
-          maxLength={100}
-          autoFocus
-        />
-
-        <View style={styles.buttons}>
-          <Button
-            title="ยกเลิก"
-            onPress={onClose}
-            variant="ghost"
-            style={styles.buttonHalf}
+          <TextInput
+            style={styles.aliasInput}
+            placeholder="ชื่อผู้ดูแล"
+            placeholderTextColor={colors.gray[400]}
+            value={aliasInput}
+            onChangeText={onChangeAlias}
+            maxLength={100}
+            autoFocus
           />
-          <Button
-            title="สร้างรหัส"
-            onPress={onConfirm}
-            variant="base"
-            style={styles.buttonHalf}
-          />
+
+          {showSuggestions && (
+            <View style={styles.suggestionsContainer}>
+              <View style={styles.suggestionsHeader}>
+                <Clock size={iconSizes.sm} color={colors.gray[500]} />
+                <Text style={styles.suggestionsTitle}>ผู้ดูแลที่เคยเพิ่ม</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.suggestionsRow}>
+                  {filteredSuggestions.slice(0, 6).map((suggestion, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.suggestionChip}
+                      onPress={() => handleSelectSuggestion(suggestion.alias)}
+                    >
+                      <Text style={styles.suggestionText}>
+                        {suggestion.alias}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+
+          {showPetSelector && (
+            <View style={styles.petSelectorSection}>
+              <Text style={styles.sectionTitle}>
+                เลือกสัตว์เลี้ยงที่ต้องการแชร์ (สูงสุด 10 ตัว)
+              </Text>
+              <FlatList
+                data={pets}
+                renderItem={renderPetItem}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                ItemSeparatorComponent={() => (
+                  <View style={styles.petItemSeparator} />
+                )}
+              />
+              <Text style={styles.petCountText}>
+                เลือกแล้ว {selectedPetIds.length} จาก {pets.length} ตัว
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.buttons}>
+            <Button
+              title="ยกเลิก"
+              onPress={onClose}
+              variant="ghost"
+              style={styles.buttonHalf}
+            />
+            <Button
+              title="สร้างรหัส"
+              onPress={onConfirm}
+              variant="base"
+              style={styles.buttonHalf}
+              disabled={selectedPetIds.length === 0}
+            />
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </Modal>
   )
 }
@@ -83,6 +219,9 @@ export default function AliasModal({
 const styles = StyleSheet.create({
   modalContainer: {
     padding: spacing[4]
+  },
+  scrollView: {
+    maxHeight: 600
   },
   modalContent: {
     gap: spacing[2]
@@ -112,6 +251,113 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.gray[800],
     fontFamily: typography.fontFamily.regular
+  },
+  suggestionsContainer: {
+    gap: spacing[2]
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1]
+  },
+  suggestionsTitle: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[600],
+    fontFamily: typography.fontFamily.medium
+  },
+  suggestionsRow: {
+    flexDirection: 'row',
+    gap: spacing[2]
+  },
+  suggestionChip: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT
+  },
+  suggestionText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[700],
+    fontFamily: typography.fontFamily.regular
+  },
+  petSelectorSection: {
+    marginTop: spacing[2],
+    gap: spacing[2]
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.md,
+    color: colors.primary.DEFAULT,
+    fontFamily: typography.fontFamily.bold
+  },
+  petItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing[3],
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT,
+    backgroundColor: colors.background.secondary
+  },
+  petItemSelected: {
+    borderColor: colors.primary.light,
+    backgroundColor: colors.primary.light + '15'
+  },
+  petItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    flex: 1
+  },
+  petImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20
+  },
+  petImagePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary.light,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  petImagePlaceholderText: {
+    fontSize: typography.fontSize.lg,
+    color: colors.background.secondary,
+    fontFamily: typography.fontFamily.bold
+  },
+  petInfo: {
+    flex: 1
+  },
+  petName: {
+    fontSize: typography.fontSize.md,
+    color: colors.gray[800],
+    fontFamily: typography.fontFamily.medium
+  },
+  currentPetLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.primary.light,
+    fontFamily: typography.fontFamily.regular
+  },
+  checkIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary.light,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  petItemSeparator: {
+    height: spacing[2]
+  },
+  petCountText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[600],
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center'
   },
   buttons: {
     marginTop: spacing[2],

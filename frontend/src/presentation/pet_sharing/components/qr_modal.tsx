@@ -54,6 +54,13 @@ export default function QrModal({
               ให้ผู้ดูแลสแกน QR Code นี้เพื่อรับสิทธิ์การดูแล
             </Text>
 
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                QR Code นี้สามารถใช้ได้เพียงครั้งเดียวต่อผู้ใช้งาน {'\n'}
+                หลังจากใช้แล้วจะไม่สามารถใช้ซ้ำได้
+              </Text>
+            </View>
+
             <Text style={styles.qrFullscreenExpiry}>
               {formatExpiresIn(pendingInvite.expiresAt)}
             </Text>
@@ -104,6 +111,20 @@ const styles = StyleSheet.create({
     color: colors.gray[700],
     textAlign: 'center',
     fontFamily: typography.fontFamily.regular
+  },
+  infoBox: {
+    backgroundColor: colors.info.light || '#E0F2FE',
+    borderRadius: borderRadius.md,
+    padding: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.info.DEFAULT || '#0EA5E9'
+  },
+  infoText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.info.dark || '#075985',
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: typography.lineHeight.relaxed
   },
   qrFullscreenExpiry: {
     fontSize: typography.fontSize.base,

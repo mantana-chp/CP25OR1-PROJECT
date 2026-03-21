@@ -7,6 +7,7 @@ import {
   ScrollView,
   Share,
   StyleSheet,
+  Text,
   TouchableOpacity,
   View
 } from 'react-native'
@@ -29,6 +30,7 @@ import {
 import { useApi } from '@/src/utils/api/use_api'
 import { IPetProfile } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
+import { saveCaregiverSuggestion } from '@/src/utils/caregiver_suggestions_storage'
 
 import Button from '../../components/button'
 import PetInfoCard from '../../pet_profile/components/pet_info_card'
@@ -55,9 +57,11 @@ export default function PetSharingPage() {
     null
   )
   const [petData, setPetData] = useState<IPetProfile | null>(null)
+  const [allPets, setAllPets] = useState<IPetProfile[]>([])
   const [isOwner, setIsOwner] = useState(true)
   const [showAliasModal, setShowAliasModal] = useState(false)
   const [aliasInput, setAliasInput] = useState('')
+  const [selectedPetIds, setSelectedPetIds] = useState<string[]>([])
   const [showQrModal, setShowQrModal] = useState(false)
   const [showCancelInviteModal, setShowCancelInviteModal] = useState(false)
   const [caregiverToRevoke, setCaregiverToRevoke] = useState<ICaregiver | null>(
@@ -96,13 +100,14 @@ export default function PetSharingPage() {
       getMyPetsApi.execute()
     ])
 
+    // Try to load caregivers - if 403, user is a caregiver
     if (caregiversRes.error) {
       const statusCode = (caregiversRes.error as ApiError).statusCode
       if (statusCode === 403) {
         setIsOwner(false)
+        // Caregivers can't see other caregivers, so set empty
         setCaregivers([])
         setPendingInvite(null)
-        return
       }
     } else {
       setIsOwner(true)
@@ -110,7 +115,7 @@ export default function PetSharingPage() {
       setCaregivers(Array.isArray(caregiversData) ? caregiversData : [])
     }
 
-    if (!invitesRes.error) {
+    if (!invitesRes.error && isOwner) {
       const allInvites = unwrapData<IPendingInvite[]>(invitesRes.data)
       const invites = Array.isArray(allInvites) ? allInvites : []
       const inviteForPet = invites.find((invite) =>
@@ -122,11 +127,14 @@ export default function PetSharingPage() {
     if (!petsRes.error) {
       const allPets = unwrapData<IPetProfile[]>(petsRes.data)
       const pets = Array.isArray(allPets) ? allPets : []
+      const ownerPets = pets.filter((pet) => pet.petRole === 'OWNER')
+      setAllPets(ownerPets)
       const foundPet = pets.find((pet) => pet.id === petId)
       setPetData(foundPet ?? null)
     }
   }, [
     petId,
+    isOwner,
     listCaregiversApi.execute,
     listInvitesApi.execute,
     getMyPetsApi.execute
@@ -228,8 +236,28 @@ export default function PetSharingPage() {
   )
 
   const openCreateInviteModal = () => {
+    if (!isOwner || petData?.status === 'DECEASED' || caregivers.length === 0) {
+      return
+    }
+
     setAliasInput('')
+    setSelectedPetIds(petId ? [petId] : [])
     setShowAliasModal(true)
+  }
+
+  const handleTogglePet = (togglePetId: string) => {
+    setSelectedPetIds((prev) => {
+      if (prev.includes(togglePetId)) {
+        return prev.filter((id) => id !== togglePetId)
+      } else {
+        // Limit to 10 pets
+        if (prev.length >= 10) {
+          Alert.alert('ถึงขีดจำกัด', 'สามารถเลือกสัตว์เลี้ยงได้สูงสุด 10 ตัว')
+          return prev
+        }
+        return [...prev, togglePetId]
+      }
+    })
   }
 
   const handleBackPress = () => {
@@ -237,6 +265,8 @@ export default function PetSharingPage() {
   }
 
   const handleInfo = () => {
+    if (!isOwner) return
+
     Alert.alert(
       'การจัดการผู้ดูแลร่วม',
       'เชิญเพื่อนหรือครอบครัวมาช่วยดูแลสัตว์เลี้ยงของคุณ ผู้ดูแลร่วมสามารถดูข้อมูลสัตว์เลี้ยงได้ และเฉพาะเจ้าของเท่านั้นที่สามารถสร้างคำเชิญหรือยกเลิกสิทธิ์ผู้ดูแลได้'
@@ -244,7 +274,14 @@ export default function PetSharingPage() {
   }
 
   const handleGenerateInvite = async () => {
-    if (!petId) return
+    if (
+      !petId ||
+      !isOwner ||
+      petData?.status === 'DECEASED' ||
+      caregivers.length === 0
+    ) {
+      return
+    }
 
     const alias = aliasInput.trim()
     if (!alias) {
@@ -252,9 +289,17 @@ export default function PetSharingPage() {
       return
     }
 
+    if (selectedPetIds.length === 0) {
+      Alert.alert(
+        'กรุณาเลือกสัตว์เลี้ยง',
+        'กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว'
+      )
+      return
+    }
+
     setShowAliasModal(false)
 
-    const result = await generateInviteApi.execute([petId], alias)
+    const result = await generateInviteApi.execute(selectedPetIds, alias)
     if (result.error) {
       Alert.alert(
         'เกิดข้อผิดพลาด',
@@ -269,17 +314,23 @@ export default function PetSharingPage() {
       return
     }
 
+    // Save alias to suggestions for future use
+    await saveCaregiverSuggestion(alias)
+
     setPendingInvite({
       inviteId: invite.inviteId,
       alias: invite.alias,
       expiresAt: invite.expiresAt,
       createdAt: new Date().toISOString(),
-      pets: [{ id: petId, pet_name: '' }]
+      pets: selectedPetIds.map((id) => ({
+        id,
+        pet_name: allPets.find((p) => p.id === id)?.pet_name || ''
+      }))
     })
   }
 
   const handleShareInvite = async () => {
-    if (!pendingInvite) return
+    if (!pendingInvite || !isOwner || petData?.status === 'DECEASED') return
 
     const claimLink = `${CLAIM_SCHEME}/${pendingInvite.inviteId}`
     try {
@@ -293,7 +344,7 @@ export default function PetSharingPage() {
   }
 
   const handleCancelInvite = () => {
-    if (!pendingInvite) return
+    if (!pendingInvite || !isOwner || petData?.status === 'DECEASED') return
     setShowCancelInviteModal(true)
   }
 
@@ -303,7 +354,7 @@ export default function PetSharingPage() {
   }
 
   const handleConfirmCancelInvite = async () => {
-    if (!pendingInvite) return
+    if (!pendingInvite || !isOwner || petData?.status === 'DECEASED') return
 
     const result = await cancelInviteApi.execute(pendingInvite.inviteId)
     if (result.error) {
@@ -316,7 +367,7 @@ export default function PetSharingPage() {
   }
 
   const handleRevokeCaregiver = (caregiver: ICaregiver) => {
-    if (!petId) return
+    if (!petId || !isOwner || petData?.status === 'DECEASED') return
     setCaregiverToRevoke(caregiver)
   }
 
@@ -326,7 +377,14 @@ export default function PetSharingPage() {
   }
 
   const handleConfirmRevokeCaregiver = async () => {
-    if (!petId || !caregiverToRevoke) return
+    if (
+      !petId ||
+      !caregiverToRevoke ||
+      !isOwner ||
+      petData?.status === 'DECEASED'
+    ) {
+      return
+    }
 
     const targetCaregiver = caregiverToRevoke
     const result = await revokeApi.execute(petId, targetCaregiver.accessId)
@@ -368,14 +426,41 @@ export default function PetSharingPage() {
     )
   }
 
+  // Check if pet is deceased
+  const isDeceasedPet = petData?.status !== 'ACTIVE'
+  const hasCaregivers = caregivers.length > 0
+  const canManageAccess = isOwner && !isDeceasedPet
+  console.log('Pet Statues: ', petData?.status)
+
   if (!isOwner) {
+    // Caregiver viewing deceased pet - show read-only view
     return (
       <View style={styles.container}>
         <Header title="จัดการผู้ดูแล" goBack rightChildren={headerRight} />
-        <PetSharingStateView
-          title="คุณไม่มีสิทธิ์เข้าถึง"
-          subtitle="เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถจัดการผู้ดูแลร่วมได้"
-        />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary.light} />
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {petData && (
+              <View style={styles.petInfoSection}>
+                <PetInfoCard data={petData} readOnly />
+              </View>
+            )}
+
+            <AccessListSection
+              caregivers={caregivers}
+              revoking={false}
+              onRevoke={() => {}}
+              isOwner={false}
+            />
+          </ScrollView>
+        )}
       </View>
     )
   }
@@ -400,7 +485,10 @@ export default function PetSharingPage() {
               <PetInfoCard data={petData} readOnly />
             </View>
           )}
-          <EmptyState onCreateInvite={openCreateInviteModal} />
+          <EmptyState
+            isDeceasedPet={isDeceasedPet}
+            onCreateInvite={openCreateInviteModal}
+          />
         </>
       ) : (
         <>
@@ -419,9 +507,19 @@ export default function PetSharingPage() {
               caregivers={caregivers}
               revoking={revokeApi.loading}
               onRevoke={handleRevokeCaregiver}
+              isOwner={canManageAccess}
             />
 
-            {pendingInvite ? (
+            {isDeceasedPet && (
+              <View style={styles.deceasedNote}>
+                <Text style={styles.deceasedNoteText}>
+                  สัตว์เลี้ยงนี้ถูกทำเครื่องหมายว่าเสียชีวิตแล้ว
+                  ไม่สามารถเพิ่มผู้ดูแลร่วมใหม่ได้
+                </Text>
+              </View>
+            )}
+
+            {pendingInvite && !isDeceasedPet ? (
               <PendingInviteCard
                 pendingInvite={pendingInvite}
                 claimLink={claimLink}
@@ -433,32 +531,37 @@ export default function PetSharingPage() {
             ) : null}
           </ScrollView>
 
-          <View
-            style={[
-              styles.stickyFooter,
-              {
-                paddingBottom: Math.max(spacing[4], insets.bottom + spacing[2])
-              }
-            ]}
-          >
-            <Button
-              title="เชิญ"
-              onPress={openCreateInviteModal}
-              icon={
-                <UserPlus
-                  size={iconSizes.lg}
-                  color={colors.background.secondary}
-                />
-              }
-              loading={generateInviteApi.loading}
-              disabled={generateInviteApi.loading}
+          {canManageAccess && hasCaregivers && (
+            <View
               style={[
-                styles.createInviteButton,
-                generateInviteApi.loading && styles.createInviteButtonDisabled
+                styles.stickyFooter,
+                {
+                  paddingBottom: Math.max(
+                    spacing[4],
+                    insets.bottom + spacing[2]
+                  )
+                }
               ]}
-              textStyle={styles.createInviteButtonText}
-            />
-          </View>
+            >
+              <Button
+                title="เชิญ"
+                onPress={openCreateInviteModal}
+                icon={
+                  <UserPlus
+                    size={iconSizes.lg}
+                    color={colors.background.secondary}
+                  />
+                }
+                loading={generateInviteApi.loading}
+                disabled={generateInviteApi.loading}
+                style={[
+                  styles.createInviteButton,
+                  generateInviteApi.loading && styles.createInviteButtonDisabled
+                ]}
+                textStyle={styles.createInviteButtonText}
+              />
+            </View>
+          )}
         </>
       )}
 
@@ -468,6 +571,10 @@ export default function PetSharingPage() {
         onChangeAlias={setAliasInput}
         onClose={() => setShowAliasModal(false)}
         onConfirm={handleGenerateInvite}
+        pets={allPets}
+        selectedPetIds={selectedPetIds}
+        onTogglePet={handleTogglePet}
+        currentPetId={petId}
       />
 
       <QrModal
@@ -565,5 +672,29 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.background.secondary,
     fontFamily: typography.fontFamily.bold
+  },
+  deceasedNote: {
+    marginTop: spacing[4],
+    padding: spacing[3],
+    backgroundColor: colors.gray[100] || '#F3F4F6',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray[300] || '#D1D5DB'
+  },
+  deceasedNoteInline: {
+    marginHorizontal: spacing[4],
+    marginTop: spacing[3],
+    padding: spacing[3],
+    backgroundColor: colors.gray[100] || '#F3F4F6',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray[300] || '#D1D5DB'
+  },
+  deceasedNoteText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[700] || '#374151',
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: typography.lineHeight.relaxed
   }
 })

@@ -3,7 +3,7 @@ import {
   colors,
   iconSizes,
   spacing,
-  typography,
+  typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
 import { useAuth } from '@/src/context/AuthContext'
@@ -17,11 +17,24 @@ import {
   BarcodeScanningResult,
   CameraType,
   CameraView,
-  useCameraPermissions,
+  useCameraPermissions
 } from 'expo-camera'
-import { ScanLine, ShieldCheck } from 'lucide-react-native'
-import React, { useMemo, useRef } from 'react'
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native'
+import { Linking } from 'react-native'
+import {
+  ScanLine,
+  ShieldCheck,
+  Keyboard as KeyboardIcon
+} from 'lucide-react-native'
+import React, { useMemo, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native'
 
 import Button from '../../components/button'
 import Header from '../../components/header_component'
@@ -84,11 +97,14 @@ export default function ClaimPetSharePage() {
   const {
     isAuthenticated,
     isLoading: authLoading,
-    completeOnboarding,
+    completeOnboarding
   } = useAuth()
   const { refreshPets, activePets, deceasedPets, setSelectedPetId } = usePets()
 
   const [permission, requestPermission] = useCameraPermissions()
+  const [showManualInput, setShowManualInput] = useState(false)
+  const [manualCode, setManualCode] = useState('')
+  const [lastErrorToken, setLastErrorToken] = useState<string | null>(null)
   const facing: CameraType = 'back'
   const isHandlingScanRef = useRef(false)
   const lastScannedPayloadRef = useRef<{
@@ -97,7 +113,7 @@ export default function ClaimPetSharePage() {
   } | null>(null)
 
   const claimInviteApi = useApi(petSharingService.claimInvite, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
 
   const isBusy = claimInviteApi.loading || authLoading
@@ -130,7 +146,17 @@ export default function ClaimPetSharePage() {
     if (!nextPermission.granted) {
       Alert.alert(
         'ต้องการสิทธิ์กล้อง',
-        'โปรดอนุญาตการใช้งานกล้องเพื่อสแกน QR Code คำเชิญ',
+        'โปรดอนุญาตการใช้งานกล้องเพื่อสแกน QR Code คำเชิญ คุณสามารถเปิดการตั้งค่าเพื่ออนุญาตสิทธิ์ได้',
+        [
+          {
+            text: 'ยกเลิก',
+            style: 'cancel'
+          },
+          {
+            text: 'ไปที่การตั้งค่า',
+            onPress: () => Linking.openSettings()
+          }
+        ]
       )
     }
   }
@@ -175,9 +201,9 @@ export default function ClaimPetSharePage() {
           text: 'ตกลง',
           onPress: () => {
             router.replace('/(tabs)/pet_profile')
-          },
-        },
-      ],
+          }
+        }
+      ]
     )
   }
 
@@ -203,13 +229,25 @@ export default function ClaimPetSharePage() {
     isHandlingScanRef.current = true
     lastScannedPayloadRef.current = {
       value: payload,
-      scannedAt: now,
+      scannedAt: now
     }
 
     const token = extractClaimToken(payload)
     if (!token) {
-      Alert.alert('QR Code ไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญใน QR Code นี้')
-      isHandlingScanRef.current = false
+      // Only show error once per invalid token
+      if (lastErrorToken !== payload) {
+        setLastErrorToken(payload)
+        Alert.alert('QR Code ไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญใน QR Code นี้', [
+          {
+            text: 'ตกลง',
+            onPress: () => {
+              isHandlingScanRef.current = false
+            }
+          }
+        ])
+      } else {
+        isHandlingScanRef.current = false
+      }
       return
     }
 
@@ -220,14 +258,32 @@ export default function ClaimPetSharePage() {
     }
   }
 
+  const handleManualSubmit = async () => {
+    const trimmedCode = manualCode.trim()
+    if (!trimmedCode) {
+      Alert.alert('กรุณากรอกรหัส', 'กรุณากรอกรหัสคำเชิญหรือลิงก์')
+      return
+    }
+
+    const token = extractClaimToken(trimmedCode)
+    if (!token) {
+      Alert.alert('รหัสไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญในข้อความที่กรอก')
+      return
+    }
+
+    await onClaimInvite(token)
+    setManualCode('')
+    setShowManualInput(false)
+  }
+
   return (
     <View style={styles.container}>
-      <Header title='รับสิทธิ์ดูแลร่วม' goBack onBackPress={onBackPress} />
+      <Header title="รับสิทธิ์ดูแลร่วม" goBack onBackPress={onBackPress} />
 
       <View style={styles.content}>
         {isBusy ? (
           <View style={styles.stateContainer}>
-            <ActivityIndicator size='large' color={colors.primary.light} />
+            <ActivityIndicator size="large" color={colors.primary.light} />
           </View>
         ) : !isAuthenticated ? (
           <View style={styles.stateContainer}>
@@ -242,7 +298,7 @@ export default function ClaimPetSharePage() {
           </View>
         ) : !permission ? (
           <View style={styles.stateContainer}>
-            <ActivityIndicator size='large' color={colors.primary.light} />
+            <ActivityIndicator size="large" color={colors.primary.light} />
             <Text style={styles.stateDescription}>กำลังเตรียมกล้อง...</Text>
           </View>
         ) : permissionDenied ? (
@@ -254,27 +310,87 @@ export default function ClaimPetSharePage() {
             </Text>
 
             <Button
-              title='อนุญาตใช้งานกล้อง'
+              title="อนุญาตใช้งานกล้อง"
               onPress={onRequestPermission}
               style={styles.permissionButton}
             />
           </View>
         ) : (
           <>
-            <View style={styles.scannerCard}>
-              <CameraView
-                style={styles.camera}
-                facing={facing}
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={onBarcodeScanned}
-              />
+            {showManualInput ? (
+              <View style={styles.manualInputContainer}>
+                <Text style={styles.manualInputTitle}>กรอกรหัสคำเชิญ</Text>
+                <Text style={styles.manualInputDescription}>
+                  วางลิงก์หรือรหัสคำเชิญที่คัดลอกจากผู้เจ้าของ
+                </Text>
+                <TextInput
+                  style={styles.manualInput}
+                  placeholder="cp25or1-frontend://claim/... หรือ รหัสเชิญ"
+                  placeholderTextColor={colors.gray[400]}
+                  value={manualCode}
+                  onChangeText={setManualCode}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  multiline
+                  numberOfLines={3}
+                />
+                <View style={styles.manualInputButtons}>
+                  <Button
+                    title="ยกเลิก"
+                    onPress={() => {
+                      setShowManualInput(false)
+                      setManualCode('')
+                    }}
+                    variant="ghost"
+                    style={styles.manualInputButtonHalf}
+                  />
+                  <Button
+                    title="ยืนยัน"
+                    onPress={handleManualSubmit}
+                    loading={claimInviteApi.loading}
+                    disabled={claimInviteApi.loading || !manualCode.trim()}
+                    style={styles.manualInputButtonHalf}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowManualInput(false)}
+                  style={styles.switchModeButton}
+                >
+                  <ScanLine color={colors.primary.light} size={iconSizes.md} />
+                  <Text style={styles.switchModeText}>สลับไปสแกน QR Code</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.scannerCard}>
+                  <CameraView
+                    style={styles.camera}
+                    facing={facing}
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={onBarcodeScanned}
+                  />
 
-              <View pointerEvents='none' style={styles.scanFrame} />
-            </View>
+                  <View pointerEvents="none" style={styles.scanFrame} />
+                </View>
 
-            <Text style={styles.helperText}>
-              วาง QR Code คำเชิญให้อยู่ภายในกรอบเพื่อรับสิทธิ์ผู้ดูแลร่วม
-            </Text>
+                <Text style={styles.helperText}>
+                  วาง QR Code คำเชิญให้อยู่ภายในกรอบเพื่อรับสิทธิ์ผู้ดูแลร่วม
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => setShowManualInput(true)}
+                  style={styles.switchModeButton}
+                >
+                  <KeyboardIcon
+                    color={colors.primary.light}
+                    size={iconSizes.md}
+                  />
+                  <Text style={styles.switchModeText}>
+                    กรอกรหัสคำเชิญด้วยตนเอง
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </>
         )}
       </View>
@@ -285,12 +401,12 @@ export default function ClaimPetSharePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background.primary
   },
   content: {
     flex: 1,
     padding: spacing[4],
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   scannerCard: {
     borderRadius: borderRadius.xl,
@@ -298,10 +414,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[900],
     borderWidth: 1,
     borderColor: colors.border.light,
-    aspectRatio: 1,
+    aspectRatio: 1
   },
   camera: {
-    flex: 1,
+    flex: 1
   },
   scanFrame: {
     position: 'absolute',
@@ -312,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 2,
     borderColor: colors.background.secondary,
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent'
   },
   helperText: {
     marginTop: spacing[4],
@@ -320,30 +436,78 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
-    lineHeight: typography.lineHeight.normal,
+    lineHeight: typography.lineHeight.normal
   },
   stateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[3],
-    paddingHorizontal: spacing[6],
+    paddingHorizontal: spacing[6]
   },
   stateTitle: {
     fontSize: typography.fontSize['2xl'],
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.bold,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   stateDescription: {
     fontSize: typography.fontSize.base,
     color: colors.gray[600],
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.normal,
+    lineHeight: typography.lineHeight.normal
   },
   permissionButton: {
     width: '100%',
     marginTop: spacing[2],
-    backgroundColor: colors.primary.light,
+    backgroundColor: colors.primary.light
   },
+  manualInputContainer: {
+    gap: spacing[3]
+  },
+  manualInputTitle: {
+    fontSize: typography.fontSize['2xl'],
+    color: colors.primary.DEFAULT,
+    fontFamily: typography.fontFamily.bold,
+    textAlign: 'center'
+  },
+  manualInputDescription: {
+    fontSize: typography.fontSize.base,
+    color: colors.gray[600],
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: typography.lineHeight.normal
+  },
+  manualInput: {
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT,
+    padding: spacing[3],
+    fontSize: typography.fontSize.md,
+    color: colors.gray[800],
+    fontFamily: typography.fontFamily.regular,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    backgroundColor: colors.background.secondary
+  },
+  manualInputButtons: {
+    flexDirection: 'row',
+    gap: spacing[2]
+  },
+  manualInputButtonHalf: {
+    flex: 1
+  },
+  switchModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    marginTop: spacing[2]
+  },
+  switchModeText: {
+    fontSize: typography.fontSize.md,
+    color: colors.primary.light,
+    fontFamily: typography.fontFamily.medium
+  }
 })

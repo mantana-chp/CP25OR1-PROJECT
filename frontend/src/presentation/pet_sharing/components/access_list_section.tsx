@@ -16,6 +16,8 @@ interface PetSharingAccessListProps {
   caregivers: ICaregiver[]
   revoking: boolean
   onRevoke: (caregiver: ICaregiver) => void
+  isOwner?: boolean
+  isDeceasedPet?: boolean
 }
 
 function SectionTitle({ children }: { children: string }) {
@@ -39,7 +41,8 @@ function AvatarCircle({
 export default function AccessListSection({
   caregivers,
   revoking,
-  onRevoke
+  onRevoke,
+  isOwner = true
 }: PetSharingAccessListProps) {
   return (
     <View style={styles.sectionCard}>
@@ -70,15 +73,17 @@ export default function AccessListSection({
               </View>
             </View>
 
-            <Button
-              title="ลบผู้ดูแล"
-              onPress={() => onRevoke(caregiver)}
-              variant="ghost"
-              size="small"
-              loading={revoking}
-              style={styles.revokeButton}
-              textStyle={styles.revokeButtonText}
-            />
+            {isOwner && (
+              <Button
+                title="ลบผู้ดูแล"
+                onPress={() => onRevoke(caregiver)}
+                variant="ghost"
+                size="small"
+                loading={revoking}
+                style={styles.revokeButton}
+                textStyle={styles.revokeButtonText}
+              />
+            )}
           </View>
         </View>
       ))}
