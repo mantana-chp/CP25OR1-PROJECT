@@ -178,13 +178,13 @@ export const getVaccinesForPet = async (petId: string, userId: string) => {
       vaccine.primary_series_logic === VaccineLogicType.FIXED_COUNT
         ? vaccine.primary_target_value
         : Math.max(
-          vaccine.primary_interval_days > 0
-            ? Math.ceil(
-              vaccine.primary_target_value / vaccine.primary_interval_days,
-            )
-            : vaccine.primary_target_value,
-          vaccine.adult_primary_dose_count,
-        )
+            vaccine.primary_interval_days > 0
+              ? Math.ceil(
+                  vaccine.primary_target_value / vaccine.primary_interval_days,
+                )
+              : vaccine.primary_target_value,
+            vaccine.adult_primary_dose_count,
+          )
 
     return {
       id: vaccine.id,
