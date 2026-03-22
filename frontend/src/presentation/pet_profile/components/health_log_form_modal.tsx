@@ -18,6 +18,7 @@ import {
 } from 'react-native'
 import Button from '../../components/button'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
+import { IHealthLog } from '@/src/utils/api/services/health_log_service'
  
 
 const TYPE_OPTIONS: Array<{
@@ -34,6 +35,7 @@ interface HealthLogFormModalProps {
   visible: boolean
   loading?: boolean
   initialWeight?: string
+  editingLog?: IHealthLog | null
   onClose: () => void
   onSubmit: (values: HealthLogFormValues) => void
 }
@@ -42,16 +44,48 @@ export default function HealthLogFormModal({
   visible,
   loading = false,
   initialWeight,
+  editingLog = null,
   onClose,
   onSubmit
 }: HealthLogFormModalProps) {
+  // Parse editing log to extract type from description if backend doesn't provide it
+  const parseEditingLog = (log: IHealthLog | null): HealthLogFormValues => {
+    if (!log) {
+      return {
+        type: 'WEIGHT',
+        description: '',
+        weight: String(initialWeight ?? ''),
+        note: ''
+      }
+    }
+
+    // Check if backend provides type field, otherwise parse from description
+    let logType: HealthLogType = 'SYMPTOMS'
+    let cleanDescription = log.description
+
+    if (log.type) {
+      // Backend provides type - use it directly
+      logType = log.type
+    } else {
+      // Parse from description (backward compatibility)
+      const TYPE_PREFIX_REGEX = /^\[(WEIGHT|SYMPTOMS|BEHAVIOR)\]\s*/i
+      const match = log.description.match(TYPE_PREFIX_REGEX)
+      if (match) {
+        logType = match[1].toUpperCase() as HealthLogType
+        cleanDescription = log.description.replace(TYPE_PREFIX_REGEX, '').trim()
+      }
+    }
+
+    return {
+      type: logType,
+      description: cleanDescription,
+      weight: log.weight ? String(log.weight) : '',
+      note: log.note || ''
+    }
+  }
+
   const formik = useFormik<HealthLogFormValues>({
-    initialValues: {
-      type: 'WEIGHT',
-      description: '',
-      weight: String(initialWeight ?? ''),
-      note: ''
-    },
+    initialValues: parseEditingLog(editingLog),
     enableReinitialize: true,
     validateOnBlur: false,
     validateOnChange: false,
@@ -93,14 +127,9 @@ export default function HealthLogFormModal({
     if (!visible) return
 
     formik.resetForm({
-      values: {
-        type: 'WEIGHT',
-        description: '',
-        weight: String(initialWeight ?? ''),
-        note: ''
-      }
+      values: parseEditingLog(editingLog)
     })
-  }, [visible, initialWeight])
+  }, [visible, editingLog, initialWeight])
 
   const descriptionPlaceholder = useMemo(() => {
     if (formik.values.type === 'WEIGHT')
@@ -117,7 +146,9 @@ export default function HealthLogFormModal({
       maxWidth={460}
       containerStyle={styles.modalContainer}
     >
-      <Text style={styles.title}>บันทึกสุขภาพใหม่</Text>
+      <Text style={styles.title}>
+        {editingLog ? 'แก้ไขบันทึกสุขภาพ' : 'บันทึกสุขภาพใหม่'}
+      </Text>
       <Text style={styles.subtitle}>
         ติดตามน้ำหนัก อาการ และพฤติกรรม เพื่อดูแนวโน้มสุขภาพได้ชัดเจน
       </Text>
@@ -208,7 +239,7 @@ export default function HealthLogFormModal({
           disabled={loading}
         />
         <Button
-          title="บันทึกข้อมูล"
+          title={editingLog ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
           onPress={() => formik.handleSubmit()}
           loading={loading}
           style={styles.halfButton}

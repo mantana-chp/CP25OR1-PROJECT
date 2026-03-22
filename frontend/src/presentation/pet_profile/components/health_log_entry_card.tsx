@@ -7,9 +7,9 @@ import {
 } from '@/constants/design-system'
 import { HealthLogType } from '@/src/domain/pet.domain'
 import { IHealthLog } from '@/src/utils/api/services/health_log_service'
-import { Activity, Scale, Stethoscope } from 'lucide-react-native'
+import { Activity, Edit2, Scale, Stethoscope, Trash2 } from 'lucide-react-native'
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface ParsedHealthLog {
   type: HealthLogType
@@ -19,6 +19,10 @@ interface ParsedHealthLog {
 interface HealthLogEntryCardProps {
   log: IHealthLog
   parsed: ParsedHealthLog
+  canEdit?: boolean
+  canDelete?: boolean
+  onEdit?: (log: IHealthLog) => void
+  onDelete?: (log: IHealthLog) => void
 }
 
 const TYPE_META: Record<
@@ -64,18 +68,57 @@ const formatLoggedAt = (value: string) => {
 
 export default function HealthLogEntryCard({
   log,
-  parsed
+  parsed,
+  canEdit = false,
+  canDelete = false,
+  onEdit,
+  onDelete
 }: HealthLogEntryCardProps) {
   const meta = TYPE_META[parsed.type]
   const TypeIcon = meta.icon
+  const showActions = canEdit || canDelete
 
   return (
     <View style={styles.card}>
-      <View style={[styles.typeChip, { backgroundColor: meta.bg }]}>
-        <TypeIcon size={iconSizes.sm} color={meta.color} strokeWidth={1.8} />
-        <Text style={[styles.typeText, { color: meta.color }]}>
-          {meta.label}
-        </Text>
+      <View style={styles.headerRow}>
+        <View style={[styles.typeChip, { backgroundColor: meta.bg }]}>
+          <TypeIcon size={iconSizes.sm} color={meta.color} strokeWidth={1.8} />
+          <Text style={[styles.typeText, { color: meta.color }]}>
+            {meta.label}
+          </Text>
+        </View>
+
+        {showActions && (
+          <View style={styles.actionsRow}>
+            {canEdit && onEdit && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => onEdit(log)}
+                activeOpacity={0.7}
+              >
+                <Edit2
+                  size={iconSizes.sm}
+                  color={colors.primary.light}
+                  strokeWidth={1.8}
+                />
+              </TouchableOpacity>
+            )}
+
+            {canDelete && onDelete && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => onDelete(log)}
+                activeOpacity={0.7}
+              >
+                <Trash2
+                  size={iconSizes.sm}
+                  color={colors.danger.DEFAULT}
+                  strokeWidth={1.8}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
       <Text style={styles.description}>{parsed.description}</Text>
@@ -115,6 +158,11 @@ const styles = StyleSheet.create({
     gap: spacing[1],
     marginBottom: spacing[1]
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
   typeChip: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -127,6 +175,15 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: typography.fontSize.xs,
     fontFamily: typography.fontFamily.medium
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1]
+  },
+  actionButton: {
+    padding: 4,
+    borderRadius: borderRadius.sm
   },
   description: {
     fontSize: typography.fontSize.base,

@@ -48,6 +48,12 @@ export const healthLogService = {
     )
   },
 
+  getHealthLogById: async (petId: string, logId: string) => {
+    return apiClient.get<{ data: { log: IHealthLog } }>(
+      `/v1/pets/${petId}/health-logs/${logId}`
+    )
+  },
+
   createHealthLog: async (petId: string, payload: CreateHealthLogPayload) => {
     return apiClient.post<{ data: { log: IHealthLog } }>(
       `/v1/pets/${petId}/health-logs`,

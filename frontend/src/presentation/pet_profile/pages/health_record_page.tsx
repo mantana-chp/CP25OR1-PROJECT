@@ -18,6 +18,7 @@ import { ClipboardList, Plus, Scale } from 'lucide-react-native'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -109,9 +110,16 @@ export default function HealthRecordPage() {
   const createHealthLogApi = useApi(healthLogService.createHealthLog, {
     showErrorAlert: true
   })
+  const updateHealthLogApi = useApi(healthLogService.updateHealthLog, {
+    showErrorAlert: true
+  })
+  const deleteHealthLogApi = useApi(healthLogService.deleteHealthLog, {
+    showErrorAlert: true
+  })
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMoreLogs, setHasMoreLogs] = useState(true)
+  const [editingLog, setEditingLog] = useState<IHealthLog | null>(null)
 
   const loadHealthLogs = useCallback(
     async (append = false) => {
@@ -139,7 +147,7 @@ export default function HealthRecordPage() {
         setHasMoreLogs(newTotal < total)
       }
     },
-    [petId, getHealthLogsApi.execute, getHealthLogsApi.data?.data?.logs]
+    [petId, getHealthLogsApi.execute]
   )
 
   const loadHealthRecords = useCallback(() => {
@@ -248,7 +256,12 @@ export default function HealthRecordPage() {
     weight: string
     note: string
   }) => {
-    if (!petId || !canCreateLog || createHealthLogApi.loading) return
+    if (!petId || !canCreateLog) return
+
+    const isEditing = Boolean(editingLog)
+    const apiToUse = isEditing ? updateHealthLogApi : createHealthLogApi
+
+    if (apiToUse.loading) return
 
     const safeWeight = String(values.weight ?? '')
     const parsedWeight =
@@ -269,12 +282,55 @@ export default function HealthRecordPage() {
       loggedAt: new Date().toISOString()
     }
 
-    const result = await createHealthLogApi.execute(petId, payload)
+    let result
+    if (isEditing && editingLog) {
+      result = await updateHealthLogApi.execute(petId, editingLog.id, payload)
+    } else {
+      result = await createHealthLogApi.execute(petId, payload)
+    }
+
     if (result.error) return
 
     setShowCreateModal(false)
-    await loadHealthLogs(false) // Reload from start to show new log
+    setEditingLog(null)
+    await loadHealthLogs(false) // Reload from start to show updated log
     refreshPets()
+  }
+
+  const handleEditLog = (log: IHealthLog) => {
+    setEditingLog(log)
+    setShowCreateModal(true)
+  }
+
+  const handleDeleteLog = (log: IHealthLog) => {
+    if (!petId || deleteHealthLogApi.loading) return
+
+    Alert.alert(
+      'ลบบันทึกสุขภาพ',
+      'คุณแน่ใจหรือไม่ว่าต้องการลบบันทึกนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+      [
+        {
+          text: 'ยกเลิก',
+          style: 'cancel'
+        },
+        {
+          text: 'ลบ',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteHealthLogApi.execute(petId, log.id)
+            if (result.error) return
+
+            await loadHealthLogs(false) // Reload to reflect deletion
+            refreshPets()
+          }
+        }
+      ]
+    )
+  }
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false)
+    setEditingLog(null)
   }
 
   const listHeader = (
@@ -626,6 +682,10 @@ export default function HealthRecordPage() {
                 type: item.logType,
                 description: item.cleanDescription
               }}
+              canEdit={!isDeceased}
+              canDelete={!isDeceased}
+              onEdit={handleEditLog}
+              onDelete={handleDeleteLog}
             />
           )}
           ListHeaderComponent={listHeader}
@@ -669,9 +729,10 @@ export default function HealthRecordPage() {
 
       <HealthLogFormModal
         visible={showCreateModal}
-        loading={createHealthLogApi.loading}
+        loading={createHealthLogApi.loading || updateHealthLogApi.loading}
         initialWeight={String(currentPet?.weight ?? '')}
-        onClose={() => setShowCreateModal(false)}
+        editingLog={editingLog}
+        onClose={handleCloseModal}
         onSubmit={handleCreateLog}
       />
     </View>
