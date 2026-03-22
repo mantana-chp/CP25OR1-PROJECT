@@ -124,8 +124,7 @@ export default function PetSharingPage() {
       if (statusCode === 403) {
         canAccessOwnerActions = false
         setIsOwner(false)
-        resolvedIsOwner = false
-
+        
         const accessListRes = await listAccessListApi.execute(petId)
         if (!accessListRes.error) {
           const accessListData = unwrapData<IAccessListResponse>(
