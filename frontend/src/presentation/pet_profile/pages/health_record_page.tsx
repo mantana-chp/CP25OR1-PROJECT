@@ -29,10 +29,9 @@ import Header from '../../components/header_component'
 import Button from '../../components/button'
 import PetInfoCard from '../components/pet_info_card'
 import HealthRecordCard from '../components/health_record_card'
-import HealthLogEntryCard, {
-  HealthLogType
-} from '../components/health_log_entry_card'
 import HealthLogFormModal from '../components/health_log_form_modal'
+import { HealthLogType } from '@/src/domain/pet.domain'
+import HealthLogEntryCard from '../components/health_log_entry_card'
 
 type HealthTypeFilter = 'ALL' | HealthLogType
 type PageMode = 'records' | 'logs'
@@ -210,12 +209,19 @@ export default function HealthRecordPage() {
   }) => {
     if (!petId || !canCreateLog || createHealthLogApi.loading) return
 
+    const safeWeight = String(values.weight ?? '')
     const parsedWeight =
-      values.type === 'WEIGHT' ? parseWeightInput(values.weight) : null
+      values.type === 'WEIGHT' ? parseWeightInput(safeWeight) : null
     if (values.type === 'WEIGHT' && parsedWeight === null) return
 
+    const normalizedDescription = String(values.description ?? '').trim()
+    const descriptionForPayload =
+      values.type === 'WEIGHT' && !normalizedDescription
+        ? 'บันทึกน้ำหนัก'
+        : normalizedDescription
+
     const payload = {
-      description: encodeDescriptionType(values.type, values.description),
+      description: encodeDescriptionType(values.type, descriptionForPayload),
       weight:
         values.type === 'WEIGHT' ? (parsedWeight ?? undefined) : undefined,
       note: values.note || undefined,
@@ -252,7 +258,7 @@ export default function HealthRecordPage() {
               pageMode === 'records' && styles.modeChipTextActive
             ]}
           >
-            ประวัติสุขภาพเดิม
+            ประวัติสุขภาพ
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -359,32 +365,54 @@ export default function HealthRecordPage() {
             </View>
           </View>
 
-          <View style={styles.filterRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
             {(Object.keys(TYPE_LABEL) as HealthTypeFilter[]).map(
               (filterKey) => {
                 const active = selectedFilter === filterKey
+                const count = counts[filterKey]
                 return (
                   <TouchableOpacity
                     key={filterKey}
                     onPress={() => setSelectedFilter(filterKey)}
                     style={[
-                      styles.filterChip,
-                      active && styles.filterChipActive
+                      styles.filterChipLegacy,
+                      active && styles.logFilterChipActive
                     ]}
                   >
                     <Text
                       style={[
-                        styles.filterChipText,
-                        active && styles.filterChipTextActive
+                        styles.filterChipLegacyText,
+                        active && styles.filterChipLegacyTextActive
                       ]}
                     >
-                      {TYPE_LABEL[filterKey]} ({counts[filterKey]})
+                      {TYPE_LABEL[filterKey]}
                     </Text>
+                    {count > 0 && (
+                      <View
+                        style={[
+                          styles.chipBadge,
+                          active && styles.logChipBadgeActive
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipBadgeText,
+                            active && styles.logChipBadgeTextActive
+                          ]}
+                        >
+                          {count}
+                        </Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 )
               }
             )}
-          </View>
+          </ScrollView>
         </>
       )}
     </>
@@ -575,7 +603,7 @@ export default function HealthRecordPage() {
       <HealthLogFormModal
         visible={showCreateModal}
         loading={createHealthLogApi.loading}
-        initialWeight={currentPet?.weight || ''}
+        initialWeight={String(currentPet?.weight ?? '')}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateLog}
       />
@@ -713,31 +741,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[1]
   },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
-    marginBottom: spacing[2]
-  },
-  filterChip: {
-    paddingVertical: 7,
-    paddingHorizontal: spacing[3],
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-    backgroundColor: colors.background.secondary
-  },
-  filterChipActive: {
+  logFilterChipActive: {
     borderColor: colors.primary.light,
     backgroundColor: colors.primary.light
   },
-  filterChipText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray[600],
-    fontFamily: typography.fontFamily.medium
+  logChipBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)'
   },
-  filterChipTextActive: {
-    color: colors.background.secondary
+  logChipBadgeTextActive: {
+    color: '#fff'
   },
   centerState: {
     flex: 1,

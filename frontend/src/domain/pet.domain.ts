@@ -31,7 +31,7 @@ export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
     weight: v.weight || '',
     created_at: v.created_at || '',
     updated_at: v.updated_at || '',
-    profileImage: v?.profileImage || null,
+    profileImage: v?.profileImage || null
   }
 }
 
@@ -57,8 +57,8 @@ export const petProfileValidateSchema = yup.object().shape({
     .required('กรุณากรอกวันเกิดสัตว์เลี้ยง')
     .max(
       new Date(new Date().setHours(23, 59, 59, 999)),
-      'วันเกิดต้องไม่เกินวันปัจจุบัน',
-    ),
+      'วันเกิดต้องไม่เกินวันปัจจุบัน'
+    )
 })
 
 const parseDate = (dateValue: any): Date => {
@@ -125,4 +125,13 @@ export interface DeletePetRequest {
 export interface DeletePetResponse {
   message: string
   status: TPetStatus
+}
+
+export type HealthLogType = 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR'
+
+export interface HealthLogFormValues {
+  type: HealthLogType
+  description: string
+  weight: string
+  note: string
 }

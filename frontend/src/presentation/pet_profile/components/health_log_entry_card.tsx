@@ -5,12 +5,11 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
+import { HealthLogType } from '@/src/domain/pet.domain'
 import { IHealthLog } from '@/src/utils/api/services/health_log_service'
 import { Activity, Scale, Stethoscope } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-
-export type HealthLogType = 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR'
 
 interface ParsedHealthLog {
   type: HealthLogType
@@ -111,57 +110,60 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.light,
     borderRadius: borderRadius.lg,
-    padding: spacing[3],
-    gap: spacing[2],
-    marginBottom: spacing[2]
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    gap: spacing[1],
+    marginBottom: spacing[1]
   },
   typeChip: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[1],
+    gap: 6,
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing[2],
-    paddingVertical: 6
+    paddingVertical: 4
   },
   typeText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.xs,
     fontFamily: typography.fontFamily.medium
   },
   description: {
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.base,
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.medium,
-    lineHeight: typography.lineHeight.normal
+    lineHeight: 18
   },
   weightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[1]
+    gap: 6
   },
   weightText: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     color: colors.primary.light,
     fontFamily: typography.fontFamily.bold
   },
   noteText: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     color: colors.gray[600],
-    fontFamily: typography.fontFamily.regular
+    fontFamily: typography.fontFamily.regular,
+    lineHeight: 17
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: spacing[1]
+    gap: 4,
+    marginTop: 2
   },
   metaDot: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.xs,
     color: colors.gray[400],
     fontFamily: typography.fontFamily.regular
   },
   metaText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.xs,
     color: colors.gray[500],
     fontFamily: typography.fontFamily.regular
   }

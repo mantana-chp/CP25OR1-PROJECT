@@ -4,10 +4,11 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
+import { useFormik } from 'formik'
 import Modal from '@/src/presentation/components/modal'
 import InputText from '@/src/presentation/components/text_input'
 import { Activity, Scale, Stethoscope } from 'lucide-react-native'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import {
   ScrollView,
   StyleSheet,
@@ -16,22 +17,8 @@ import {
   View
 } from 'react-native'
 import Button from '../../components/button'
-import { HealthLogType } from './health_log_entry_card'
-
-interface HealthLogFormValues {
-  type: HealthLogType
-  description: string
-  weight: string
-  note: string
-}
-
-interface HealthLogFormModalProps {
-  visible: boolean
-  loading?: boolean
-  initialWeight?: string
-  onClose: () => void
-  onSubmit: (values: HealthLogFormValues) => void
-}
+import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
+ 
 
 const TYPE_OPTIONS: Array<{
   type: HealthLogType
@@ -43,6 +30,14 @@ const TYPE_OPTIONS: Array<{
   { type: 'BEHAVIOR', label: 'พฤติกรรม', icon: Activity }
 ]
 
+interface HealthLogFormModalProps {
+  visible: boolean
+  loading?: boolean
+  initialWeight?: string
+  onClose: () => void
+  onSubmit: (values: HealthLogFormValues) => void
+}
+
 export default function HealthLogFormModal({
   visible,
   loading = false,
@@ -50,61 +45,70 @@ export default function HealthLogFormModal({
   onClose,
   onSubmit
 }: HealthLogFormModalProps) {
-  const [type, setType] = useState<HealthLogType>('WEIGHT')
-  const [description, setDescription] = useState('')
-  const [weight, setWeight] = useState('')
-  const [note, setNote] = useState('')
-  const [errors, setErrors] = useState<{
-    description?: string
-    weight?: string
-  }>({})
+  const formik = useFormik<HealthLogFormValues>({
+    initialValues: {
+      type: 'WEIGHT',
+      description: '',
+      weight: String(initialWeight ?? ''),
+      note: ''
+    },
+    enableReinitialize: true,
+    validateOnBlur: false,
+    validateOnChange: false,
+    validate: (values) => {
+      const errors: { description?: string; weight?: string } = {}
+      const descriptionText = String(values.description ?? '').trim()
+      const weightText = String(values.weight ?? '').trim()
+
+      if (values.type !== 'WEIGHT' && !descriptionText) {
+        errors.description = 'กรุณากรอกรายละเอียด'
+      }
+
+      if (values.type === 'WEIGHT') {
+        const normalizedWeight = weightText.replace(',', '.')
+        const parsed = Number(normalizedWeight)
+        if (
+          !normalizedWeight ||
+          Number.isNaN(parsed) ||
+          parsed <= 0 ||
+          parsed > 300
+        ) {
+          errors.weight = 'กรุณากรอกน้ำหนักที่ถูกต้อง'
+        }
+      }
+
+      return errors
+    },
+    onSubmit: (values) => {
+      onSubmit({
+        type: values.type,
+        description: String(values.description ?? '').trim(),
+        weight: String(values.weight ?? '').trim(),
+        note: String(values.note ?? '').trim()
+      })
+    }
+  })
 
   useEffect(() => {
     if (!visible) return
 
-    setType('WEIGHT')
-    setDescription('')
-    setWeight(initialWeight || '')
-    setNote('')
-    setErrors({})
+    formik.resetForm({
+      values: {
+        type: 'WEIGHT',
+        description: '',
+        weight: String(initialWeight ?? ''),
+        note: ''
+      }
+    })
   }, [visible, initialWeight])
 
   const descriptionPlaceholder = useMemo(() => {
-    if (type === 'WEIGHT') return 'เช่น น้ำหนักเพิ่มขึ้นจากสัปดาห์ก่อน'
-    if (type === 'SYMPTOMS') return 'เช่น มีอาการไอ จาม หรือเบื่ออาหาร'
+    if (formik.values.type === 'WEIGHT')
+      return 'เช่น น้ำหนักเพิ่มขึ้นจากสัปดาห์ก่อน'
+    if (formik.values.type === 'SYMPTOMS')
+      return 'เช่น มีอาการไอ จาม หรือเบื่ออาหาร'
     return 'เช่น ซึม ไม่เล่น หรือกระสับกระส่าย'
-  }, [type])
-
-  const handleSubmit = () => {
-    const nextErrors: { description?: string; weight?: string } = {}
-
-    if (!description.trim()) {
-      nextErrors.description = 'กรุณากรอกรายละเอียด'
-    }
-
-    if (type === 'WEIGHT') {
-      const normalizedWeight = weight.trim().replace(',', '.')
-      const parsed = Number(normalizedWeight)
-      if (
-        !normalizedWeight ||
-        Number.isNaN(parsed) ||
-        parsed <= 0 ||
-        parsed > 300
-      ) {
-        nextErrors.weight = 'กรุณากรอกน้ำหนักที่ถูกต้อง'
-      }
-    }
-
-    setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
-
-    onSubmit({
-      type,
-      description: description.trim(),
-      weight: weight.trim(),
-      note: note.trim()
-    })
-  }
+  }, [formik.values.type])
 
   return (
     <Modal
@@ -126,13 +130,13 @@ export default function HealthLogFormModal({
         <View style={styles.typeRow}>
           {TYPE_OPTIONS.map((option) => {
             const Icon = option.icon
-            const active = option.type === type
+            const active = option.type === formik.values.type
 
             return (
               <TouchableOpacity
                 key={option.type}
                 style={[styles.typeButton, active && styles.typeButtonActive]}
-                onPress={() => setType(option.type)}
+                onPress={() => formik.setFieldValue('type', option.type)}
                 activeOpacity={0.85}
               >
                 <Icon
@@ -155,36 +159,36 @@ export default function HealthLogFormModal({
           })}
         </View>
 
-        {type === 'WEIGHT' && (
+        {formik.values.type === 'WEIGHT' && (
           <InputText
             title="น้ำหนัก (กิโลกรัม)"
-            value={weight}
+            value={formik.values.weight}
             placeholder="เช่น 4.8"
             keyboardType="numeric"
             required
-            error={errors.weight || null}
-            onChangeText={setWeight}
+            error={formik.errors.weight || null}
+            onChangeText={(text) => formik.setFieldValue('weight', text)}
           />
         )}
 
         <InputText
           title="รายละเอียด"
-          value={description}
+          value={formik.values.description}
           placeholder={descriptionPlaceholder}
           multiline
           numberOfLines={4}
-          required
-          error={errors.description || null}
-          onChangeText={setDescription}
+          required={formik.values.type !== 'WEIGHT'}
+          error={formik.errors.description || null}
+          onChangeText={(text) => formik.setFieldValue('description', text)}
         />
 
         <InputText
           title="หมายเหตุเพิ่มเติม"
-          value={note}
+          value={formik.values.note}
           placeholder="รายละเอียดที่อยากบันทึกเพิ่มเติม (ไม่บังคับ)"
           multiline
           numberOfLines={3}
-          onChangeText={setNote}
+          onChangeText={(text) => formik.setFieldValue('note', text)}
         />
 
         <View style={styles.autoTimeHintBox}>
@@ -205,7 +209,7 @@ export default function HealthLogFormModal({
         />
         <Button
           title="บันทึกข้อมูล"
-          onPress={handleSubmit}
+          onPress={() => formik.handleSubmit()}
           loading={loading}
           style={styles.halfButton}
           disabled={loading}
