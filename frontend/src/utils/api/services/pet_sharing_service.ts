@@ -28,20 +28,25 @@ export interface IGenerateInviteResponse {
   petIds: string[]
 }
 
+export interface IAccessListResponse {
+  caregivers: ICaregiver[]
+  selfAccessId: string | null
+}
+
 export const petSharingService = {
   generateInvite: async (petIds: string[], alias: string) => {
     return apiClient.post<{ data: IGenerateInviteResponse }>(
       '/v1/pets/invite',
       {
         petIds,
-        alias
-      }
+        alias,
+      },
     )
   },
 
   claimInvite: async (token: string) => {
     return apiClient.post<{ data: IPetProfile[] }>(
-      `/v1/pet-shares/claim/${token}`
+      `/v1/pet-shares/claim/${token}`,
     )
   },
 
@@ -49,9 +54,15 @@ export const petSharingService = {
     return apiClient.get<{ data: ICaregiver[] }>(`/v1/pets/${petId}/caregivers`)
   },
 
+  listAccessList: async (petId: string) => {
+    return apiClient.get<{ data: IAccessListResponse }>(
+      `/v1/pets/${petId}/access-list`,
+    )
+  },
+
   revokeCaregiver: async (petId: string, accessId: string) => {
     return apiClient.delete<{ data: { message: string } }>(
-      `/v1/pets/${petId}/caregivers/${accessId}`
+      `/v1/pets/${petId}/caregivers/${accessId}`,
     )
   },
 
@@ -61,7 +72,7 @@ export const petSharingService = {
 
   cancelInvite: async (inviteId: string) => {
     return apiClient.delete<{ data: { message: string } }>(
-      `/v1/pets/invites/${inviteId}`
+      `/v1/pets/invites/${inviteId}`,
     )
-  }
+  },
 }
