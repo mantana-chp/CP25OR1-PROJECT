@@ -6,7 +6,7 @@ import {
   IRecurrenceRule,
   IReminder,
   reminderInitValue,
-  reminderValidationSchema
+  reminderValidationSchema,
 } from '@/src/domain/reminder.domain'
 import { IDose } from '@/src/domain/vaccine.domain'
 import { useError } from '@/src/presentation/components/error_context'
@@ -14,7 +14,7 @@ import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
   convertFromBackendRecurrence,
-  convertToBackendRecurrence
+  convertToBackendRecurrence,
 } from '@/src/utils/recurrence.utils'
 
 import { usePets } from '@/src/context/PetContext'
@@ -29,7 +29,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native'
 import DatePicker from '../../components/date_picker'
 import DiscardChangesModal from '../../components/discard_changes_modal'
@@ -68,7 +68,7 @@ export default function AddReminderPage() {
     useState<boolean>(false)
   const [initialChildReminders, setInitialChildReminders] = useState<any[]>([])
   const [recurrenceRule, setRecurrenceRule] = useState<IRecurrenceRule | null>(
-    null
+    null,
   )
   const [existingReminders, setExistingReminders] = useState<IReminder[]>([])
   const [suggestions, setSuggestions] = useState<IReminder[]>([])
@@ -76,7 +76,7 @@ export default function AddReminderPage() {
   const [hasUserStartedCreateMode, setHasUserStartedCreateMode] =
     useState(false)
   const [originalPetSpecies, setOriginalPetSpecies] = useState<string | null>(
-    null
+    null,
   )
   const [childrenToDelete, setChildrenToDelete] = useState<string[]>([])
   const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([])
@@ -90,7 +90,7 @@ export default function AddReminderPage() {
   const doneChildReminderIds = new Set(
     initialChildReminders
       .filter((child) => child.reminderStatus === 'done')
-      .map((child) => child.id)
+      .map((child) => child.id),
   )
 
   // Attachment management hook
@@ -103,14 +103,14 @@ export default function AddReminderPage() {
     addAttachment: hookAddAttachment,
     deleteAttachment: hookDeleteAttachment,
     downloadAttachment,
-    uploadPendingAttachments
+    uploadPendingAttachments,
   } = useReminderAttachments({
     reminderId: reminderId || '',
     initialAttachments: initialReminderData?.attachments || [],
     onAttachmentsChange: () => {
       // Optionally refresh data if needed
       console.log('✅ Attachments updated')
-    }
+    },
   })
 
   // Attachment handlers that defer changes until form submission
@@ -129,20 +129,20 @@ export default function AddReminderPage() {
         fileType: file.mimeType,
         objectKey: '',
         uri: file.uri,
-        isPending: true
+        isPending: true,
       }
     formik.setFieldValue('pendingAttachments', [
       ...(formik.values.pendingAttachments || []),
-      pendingFile
+      pendingFile,
     ])
   }
 
   const handleDeleteAttachment = async (
-    attachmentId: string
+    attachmentId: string,
   ): Promise<void> => {
     // Check if it's a pending attachment (not yet uploaded)
     const isPending = (formik.values.pendingAttachments || []).some(
-      (a) => a.id === attachmentId
+      (a) => a.id === attachmentId,
     )
 
     if (isPending) {
@@ -150,8 +150,8 @@ export default function AddReminderPage() {
       formik.setFieldValue(
         'pendingAttachments',
         (formik.values.pendingAttachments || []).filter(
-          (a) => a.id !== attachmentId
-        )
+          (a) => a.id !== attachmentId,
+        ),
       )
     } else {
       // It's an existing attachment - mark for deletion on submit
@@ -172,7 +172,7 @@ export default function AddReminderPage() {
     usePets()
 
   const getRemindersApi = useApi(reminderService.getReminders, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const createReminderApi = useApi(reminderService.createReminder, {
@@ -190,7 +190,7 @@ export default function AddReminderPage() {
       ) {
         await uploadPendingAttachments(
           createdReminderId,
-          formik.values.pendingAttachments
+          formik.values.pendingAttachments,
         )
       }
 
@@ -203,7 +203,7 @@ export default function AddReminderPage() {
       } else {
         showError(error.message || 'ไม่สามารถสร้างเตือนความจำได้')
       }
-    }
+    },
   })
 
   const updateReminderApi = useApi(reminderService.updateReminder, {
@@ -215,7 +215,7 @@ export default function AddReminderPage() {
       // Process attachment deletions
       if (attachmentsToDelete.length > 0 && reminderId) {
         console.log(
-          `🗑️ Deleting ${attachmentsToDelete.length} attachment(s)...`
+          `🗑️ Deleting ${attachmentsToDelete.length} attachment(s)...`,
         )
         for (const attachmentId of attachmentsToDelete) {
           try {
@@ -235,7 +235,7 @@ export default function AddReminderPage() {
         console.log('📤 Uploading pending attachments...')
         await uploadPendingAttachments(
           reminderId,
-          formik.values.pendingAttachments
+          formik.values.pendingAttachments,
         )
       }
 
@@ -248,7 +248,7 @@ export default function AddReminderPage() {
       } else {
         showError(error.message || 'ไม่สามารถแก้ไขเตือนความจำได้')
       }
-    }
+    },
   })
 
   const formik = useFormik<IReminder>({
@@ -269,12 +269,12 @@ export default function AddReminderPage() {
           updatedAt: initialReminderData.updatedAt || '',
           children: initialReminderData.children || [],
           pendingAttachments: [],
-          attachments: initialReminderData.attachments || []
+          attachments: initialReminderData.attachments || [],
         }
       : {
           ...reminderInitValue({} as IReminder),
           petId: getFirstPetId(),
-          pendingAttachments: []
+          pendingAttachments: [],
         },
     enableReinitialize: true,
     validationSchema: reminderValidationSchema,
@@ -305,7 +305,7 @@ export default function AddReminderPage() {
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime || '',
         categoryName: values.categoryName || 'General',
-        petId: isEditMode ? values.petId : selectedPetIds
+        petId: isEditMode ? values.petId : selectedPetIds,
       }
 
       if (recurrenceRule && recurrenceRule.type !== 'none') {
@@ -323,7 +323,7 @@ export default function AddReminderPage() {
         doses.length > 0
       ) {
         const syncedDoses = doses.map((dose) =>
-          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose
+          dose.doseNumber === 1 ? { ...dose, date: values.reminderDate } : dose,
         )
         const children: any[] = syncedDoses
           .filter((dose) => {
@@ -343,7 +343,7 @@ export default function AddReminderPage() {
               description: values.description,
               reminderDate: dose.date,
               reminderTime: dose.time || '',
-              categoryName: 'Vaccination'
+              categoryName: 'Vaccination',
             }
             if (dose.childReminderId) {
               childData.id = dose.childReminderId
@@ -361,7 +361,7 @@ export default function AddReminderPage() {
             .map((child) => child.id)
 
           const allChildrenToDelete = [
-            ...new Set([...calculatedChildrenToDelete, ...childrenToDelete])
+            ...new Set([...calculatedChildrenToDelete, ...childrenToDelete]),
           ]
 
           if (allChildrenToDelete.length > 0) {
@@ -399,7 +399,7 @@ export default function AddReminderPage() {
           formik.resetForm()
         }
       }
-    }
+    },
   })
 
   const isSubmitting = createReminderApi.loading || updateReminderApi.loading
@@ -413,13 +413,13 @@ export default function AddReminderPage() {
         if (reminderData) {
           const formattedReminderData = {
             ...reminderData,
-            reminderTime: (reminderData.reminderTime || '').substring(0, 5)
+            reminderTime: (reminderData.reminderTime || '').substring(0, 5),
           }
           setInitialReminderData(formattedReminderData)
 
           if (reminderData.recurrence) {
             const convertedRecurrence = convertFromBackendRecurrence(
-              reminderData.recurrence
+              reminderData.recurrence,
             )
             setRecurrenceRule(convertedRecurrence)
           }
@@ -439,11 +439,11 @@ export default function AddReminderPage() {
                 const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
                 const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
                 return { ...child, extractedDoseNumber: doseNumber }
-              }
+              },
             )
 
             const sortedChildren = childrenWithDoseNumbers.sort(
-              (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
+              (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
             )
 
             const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
@@ -452,7 +452,7 @@ export default function AddReminderPage() {
               time: (child.reminderTime || '').substring(0, 5),
               isAutoCalculated: child.extractedDoseNumber > 1,
               isEdited: child.extractedDoseNumber > 1,
-              childReminderId: child.id
+              childReminderId: child.id,
             }))
             setDoses(childrenDoses)
             const firstChildName = reminderData.children[0]?.reminderName || ''
@@ -518,13 +518,13 @@ export default function AddReminderPage() {
             if (reminderData) {
               const formattedReminderData = {
                 ...reminderData,
-                reminderTime: (reminderData.reminderTime || '').substring(0, 5)
+                reminderTime: (reminderData.reminderTime || '').substring(0, 5),
               }
               setInitialReminderData(formattedReminderData)
 
               if (reminderData.petId) {
                 const originalPet = pets.find(
-                  (p) => p.id === reminderData.petId
+                  (p) => p.id === reminderData.petId,
                 )
                 if (originalPet) {
                   setOriginalPetSpecies(originalPet.species)
@@ -533,7 +533,7 @@ export default function AddReminderPage() {
 
               if (reminderData.recurrence) {
                 const convertedRecurrence = convertFromBackendRecurrence(
-                  reminderData.recurrence
+                  reminderData.recurrence,
                 )
                 setRecurrenceRule(convertedRecurrence)
               }
@@ -549,11 +549,11 @@ export default function AddReminderPage() {
                       ? parseInt(doseMatch[1], 10)
                       : 0
                     return { ...child, extractedDoseNumber: doseNumber }
-                  }
+                  },
                 )
 
                 const sortedChildren = childrenWithDoseNumbers.sort(
-                  (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
+                  (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
                 )
 
                 const childrenDoses: IDose[] = sortedChildren.map(
@@ -563,8 +563,8 @@ export default function AddReminderPage() {
                     time: (child.reminderTime || '').substring(0, 5),
                     isAutoCalculated: child.extractedDoseNumber > 1,
                     isEdited: child.extractedDoseNumber > 1,
-                    childReminderId: child.id
-                  })
+                    childReminderId: child.id,
+                  }),
                 )
                 setDoses(childrenDoses)
                 const firstChildName =
@@ -590,8 +590,8 @@ export default function AddReminderPage() {
       reminderId,
       showError,
       initialReminderData,
-      hasUserStartedCreateMode
-    ])
+      hasUserStartedCreateMode,
+    ]),
   )
 
   // Fetch existing reminders for suggestions - refresh on screen focus
@@ -607,7 +607,7 @@ export default function AddReminderPage() {
         }
       }
       fetchReminders()
-    }, [])
+    }, []),
   )
 
   useEffect(() => {
@@ -636,10 +636,7 @@ export default function AddReminderPage() {
   const currentPet = pets.find((p) => p.id === formik.values.petId)
 
   const canUseVaccineSchedule =
-    currentPet &&
-    (currentPet.species?.includes('สุนัข') ||
-      currentPet.species?.includes('แมว')) &&
-    !!currentPet.age
+    currentPet && !currentPet.species?.includes('แฮมสเตอร์') && !!currentPet.age
 
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
   const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
@@ -687,7 +684,7 @@ export default function AddReminderPage() {
       () => {
         handleBack()
         return true
-      }
+      },
     )
 
     return () => backHandler.remove()
@@ -715,7 +712,7 @@ export default function AddReminderPage() {
     if (value.trim().length >= 2) {
       const filtered = existingReminders
         .filter((reminder) =>
-          reminder.reminderName.toLowerCase().includes(value.toLowerCase())
+          reminder.reminderName.toLowerCase().includes(value.toLowerCase()),
         )
         .slice(0, 5)
 
@@ -744,7 +741,7 @@ export default function AddReminderPage() {
     // Set recurrence if exists
     if (reminder.recurrence) {
       const convertedRecurrence = convertFromBackendRecurrence(
-        reminder.recurrence
+        reminder.recurrence,
       )
       setRecurrenceRule(convertedRecurrence)
     } else {
@@ -767,7 +764,7 @@ export default function AddReminderPage() {
       })
 
       const sortedChildren = childrenWithDoseNumbers.sort(
-        (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
+        (a, b) => a.extractedDoseNumber - b.extractedDoseNumber,
       )
 
       const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
@@ -776,7 +773,7 @@ export default function AddReminderPage() {
         time: child.reminderTime || '',
         isAutoCalculated: child.extractedDoseNumber > 1,
         isEdited: false,
-        childReminderId: undefined // New reminder, so no existing child IDs
+        childReminderId: undefined, // New reminder, so no existing child IDs
       }))
       setDoses(childrenDoses)
 
@@ -811,7 +808,7 @@ export default function AddReminderPage() {
           <ScrollView
             style={styles.scrollView}
             nestedScrollEnabled={true}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps='handled'
             contentContainerStyle={{ flexGrow: 1 }}
           >
             <View style={styles.formCard}>
@@ -831,7 +828,7 @@ export default function AddReminderPage() {
                   <Text
                     style={[
                       styles.addText,
-                      (!canSubmit || isSubmitting) && styles.submittingText
+                      (!canSubmit || isSubmitting) && styles.submittingText,
                     ]}
                   >
                     {isSubmitting
@@ -860,8 +857,8 @@ export default function AddReminderPage() {
               <InputText
                 value={formik.values.reminderName}
                 onChangeText={handleReminderNameChange}
-                placeholder="หัวข้อเตือนความจำ"
-                title="หัวข้อ"
+                placeholder='หัวข้อเตือนความจำ'
+                title='หัวข้อ'
                 required={true}
                 error={formik.errors.reminderName}
               />
@@ -897,7 +894,7 @@ export default function AddReminderPage() {
                         }
                       }
                 }
-                label="สัตว์เลี้ยง"
+                label='สัตว์เลี้ยง'
                 required={true}
                 disabled={isEditMode || isSubmitting}
               />
@@ -905,8 +902,8 @@ export default function AddReminderPage() {
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
                   <DatePicker
-                    title="วันที่เตือนความจำ"
-                    placeholder="วัน/เดือน/ปี"
+                    title='วันที่เตือนความจำ'
+                    placeholder='วัน/เดือน/ปี'
                     value={
                       formik.values.reminderDate
                         ? new Date(formik.values.reminderDate)
@@ -923,8 +920,8 @@ export default function AddReminderPage() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <TimePicker
-                    title="เวลาที่เตือนความจำ"
-                    placeholder="เลือกเวลา"
+                    title='เวลาที่เตือนความจำ'
+                    placeholder='เลือกเวลา'
                     value={formik.values.reminderTime}
                     onChange={(v) => formik.setFieldValue('reminderTime', v)}
                   />
@@ -948,7 +945,7 @@ export default function AddReminderPage() {
                         recurrenceRule || {
                           type: 'none',
                           interval: 1,
-                          endType: 'never'
+                          endType: 'never',
                         }
                       }
                       onChange={setRecurrenceRule}
@@ -1002,7 +999,7 @@ export default function AddReminderPage() {
               <View>
                 <TextInput
                   style={[styles.input, styles.textarea]}
-                  placeholder="รายละเอียดอื่นๆ"
+                  placeholder='รายละเอียดอื่นๆ'
                   multiline
                   numberOfLines={4}
                   value={formik.values.description}
@@ -1021,7 +1018,7 @@ export default function AddReminderPage() {
               {/* {(isEditMode || selectedPetIds.length <= 1) && ( */}
               <AttachmentManager
                 attachments={attachments.filter(
-                  (att) => !attachmentsToDelete.includes(att.id)
+                  (att) => !attachmentsToDelete.includes(att.id),
                 )}
                 pendingAttachments={formik.values.pendingAttachments || []}
                 onAddAttachment={handleAddAttachment}
@@ -1043,7 +1040,7 @@ export default function AddReminderPage() {
         visible={showDiscardModal}
         onClose={() => setShowDiscardModal(false)}
         onDiscard={confirmBack}
-        variant="reminder"
+        variant='reminder'
       />
     </View>
   )
@@ -1052,20 +1049,20 @@ export default function AddReminderPage() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#e5e7eb'
+    backgroundColor: '#e5e7eb',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e5e7eb'
+    backgroundColor: '#e5e7eb',
   },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -1076,26 +1073,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
-    elevation: 1
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18
+    marginBottom: 18,
   },
   cancelText: {
     color: '#6b7280',
     fontSize: 18,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   addText: {
     color: '#2E759E',
     fontSize: 18,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   submittingText: {
-    color: '#6b7280'
+    color: '#6b7280',
   },
   input: {
     borderWidth: 1,
@@ -1105,33 +1102,33 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48
+    minHeight: 48,
   },
   errorText: {
     color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4
+    marginLeft: 4,
   },
   textarea: {
     height: 100,
     textAlignVertical: 'top',
     paddingVertical: 12,
-    marginBottom: 12
+    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
   },
   label: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 10
+    marginBottom: 10,
   },
   required: {
-    color: '#dc2626'
+    color: '#dc2626',
   },
   petSelector: {
     borderWidth: 1,
@@ -1140,12 +1137,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#fff',
-    marginBottom: 12
+    marginBottom: 12,
   },
   petSelectorText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDisplay: {
     borderWidth: 1,
@@ -1154,12 +1151,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: '#f9fafb',
-    marginBottom: 12
+    marginBottom: 12,
   },
   petDisplayText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDropdownMenu: {
     borderWidth: 1,
@@ -1167,25 +1164,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fff',
     marginBottom: 12,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   petDropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
+    borderBottomColor: '#f0f0f0',
   },
   petDropdownItemSelected: {
-    backgroundColor: '#e3f2fd'
+    backgroundColor: '#e3f2fd',
   },
   petDropdownItemText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
   },
   petDropdownItemTextSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   duplicateErrorToast: {
     flexDirection: 'row',
@@ -1197,17 +1194,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 12
+    marginBottom: 12,
   },
   duplicateErrorText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#B91C1C',
-    flex: 1
+    flex: 1,
   },
   duplicateErrorDismiss: {
     fontSize: 16,
     color: '#B91C1C',
-    paddingLeft: 8
-  }
+    paddingLeft: 8,
+  },
 })
