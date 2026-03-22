@@ -110,10 +110,37 @@ export default function HealthRecordPage() {
     showErrorAlert: true
   })
 
-  const loadHealthLogs = useCallback(() => {
-    if (!petId) return
-    getHealthLogsApi.execute(petId, { limit: 100, offset: 0 })
-  }, [petId, getHealthLogsApi.execute])
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMoreLogs, setHasMoreLogs] = useState(true)
+
+  const loadHealthLogs = useCallback(
+    async (append = false) => {
+      if (!petId) return
+
+      const currentLogs = getHealthLogsApi.data?.data?.logs || []
+      const offset = append ? currentLogs.length : 0
+
+      if (append) {
+        setIsLoadingMore(true)
+      }
+
+      const result = await getHealthLogsApi.execute(petId, {
+        limit: 50,
+        offset
+      })
+
+      if (append) {
+        setIsLoadingMore(false)
+      }
+
+      if (result.data?.data) {
+        const { logs, total } = result.data.data
+        const newTotal = append ? currentLogs.length + logs.length : logs.length
+        setHasMoreLogs(newTotal < total)
+      }
+    },
+    [petId, getHealthLogsApi.execute, getHealthLogsApi.data?.data?.logs]
+  )
 
   const loadHealthRecords = useCallback(() => {
     getHealthRecordsApi.execute({})
@@ -122,7 +149,7 @@ export default function HealthRecordPage() {
   useFocusEffect(
     useCallback(() => {
       loadHealthRecords()
-      loadHealthLogs()
+      loadHealthLogs(false)
     }, [loadHealthRecords, loadHealthLogs])
   )
 
@@ -167,11 +194,25 @@ export default function HealthRecordPage() {
   const parsedLogs = useMemo(() => {
     return [...rawLogs]
       .map((log) => {
-        const parsed = parseDescriptionType(log.description)
+        // Prefer API type field when backend provides it, fallback to parsing description
+        let logType: HealthLogType
+        let cleanDescription: string
+
+        if (log.type) {
+          // Backend provides type field - use it directly
+          logType = log.type
+          cleanDescription = log.description
+        } else {
+          // Fallback: parse from description (backward compatibility)
+          const parsed = parseDescriptionType(log.description)
+          logType = parsed.type
+          cleanDescription = parsed.cleanDescription
+        }
+
         return {
           ...log,
-          logType: parsed.type,
-          cleanDescription: parsed.cleanDescription
+          logType,
+          cleanDescription
         }
       })
       .sort(
@@ -232,7 +273,7 @@ export default function HealthRecordPage() {
     if (result.error) return
 
     setShowCreateModal(false)
-    loadHealthLogs()
+    await loadHealthLogs(false) // Reload from start to show new log
     refreshPets()
   }
 
@@ -452,6 +493,23 @@ export default function HealthRecordPage() {
       </View>
     )
 
+  const listFooter =
+    pageMode === 'logs' && hasMoreLogs && !getHealthLogsApi.loading ? (
+      <View style={styles.loadMoreContainer}>
+        <Button
+          title="โหลดเพิ่มเติม"
+          variant="ghost"
+          onPress={() => loadHealthLogs(true)}
+          loading={isLoadingMore}
+          disabled={isLoadingMore}
+        />
+      </View>
+    ) : pageMode === 'logs' && isLoadingMore ? (
+      <View style={styles.loadMoreContainer}>
+        <ActivityIndicator size="small" color={colors.primary.light} />
+      </View>
+    ) : null
+
   if (!petId) {
     return (
       <View style={styles.container}>
@@ -484,7 +542,11 @@ export default function HealthRecordPage() {
             ข้อมูลอาจถูกอัปเดต กรุณาลองกลับและเลือกใหม่
           </Text>
           <View style={styles.retryButtonWrap}>
-            <Button title="โหลดใหม่" onPress={loadHealthLogs} variant="ghost" />
+            <Button
+              title="โหลดใหม่"
+              onPress={() => loadHealthLogs(false)}
+              variant="ghost"
+            />
           </View>
         </View>
       </View>
@@ -532,7 +594,11 @@ export default function HealthRecordPage() {
           <View style={styles.retryButtonWrap}>
             <Button
               title="ลองอีกครั้ง"
-              onPress={pageMode === 'logs' ? loadHealthLogs : loadHealthRecords}
+              onPress={
+                pageMode === 'logs'
+                  ? () => loadHealthLogs(false)
+                  : loadHealthRecords
+              }
               variant="ghost"
             />
           </View>
@@ -564,6 +630,7 @@ export default function HealthRecordPage() {
           )}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
+          ListFooterComponent={listFooter}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -793,5 +860,9 @@ const styles = StyleSheet.create({
   },
   retryButtonWrap: {
     marginTop: spacing[3]
+  },
+  loadMoreContainer: {
+    paddingVertical: spacing[4],
+    alignItems: 'center'
   }
 })

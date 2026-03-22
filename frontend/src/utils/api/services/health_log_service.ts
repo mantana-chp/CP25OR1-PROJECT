@@ -6,6 +6,7 @@ export interface IHealthLog {
   createdByUserId: string
   createdBy: string
   description: string
+  type?: 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR' // Will be provided by backend in future
   weight?: number
   note?: string
   loggedAt: string
