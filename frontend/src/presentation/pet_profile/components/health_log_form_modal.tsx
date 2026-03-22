@@ -19,7 +19,6 @@ import {
 import Button from '../../components/button'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import { IHealthLog } from '@/src/utils/api/services/health_log_service'
- 
 
 const TYPE_OPTIONS: Array<{
   type: HealthLogType

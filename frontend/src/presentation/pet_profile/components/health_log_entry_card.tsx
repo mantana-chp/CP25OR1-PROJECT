@@ -7,7 +7,13 @@ import {
 } from '@/constants/design-system'
 import { HealthLogType } from '@/src/domain/pet.domain'
 import { IHealthLog } from '@/src/utils/api/services/health_log_service'
-import { Activity, Edit2, Scale, Stethoscope, Trash2 } from 'lucide-react-native'
+import {
+  Activity,
+  Edit2,
+  Scale,
+  Stethoscope,
+  Trash2
+} from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
