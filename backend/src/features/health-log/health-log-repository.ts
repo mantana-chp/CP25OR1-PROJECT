@@ -1,12 +1,12 @@
-import prisma from '../../libs/db';
-import { Prisma } from '../../generated/prisma/client';
+import prisma from '../../libs/db'
+import { Prisma } from '../../generated/prisma/client'
 
 export const create = async (data: {
-  pet_id: string;
-  created_by_user_id: string;
-  description: string;
-  weight?: number;
-  note?: string;
+  pet_id: string
+  created_by_user_id: string
+  description: string
+  weight?: number
+  note?: string
 }) => {
   return await prisma.health_logs.create({
     data: {
@@ -14,18 +14,18 @@ export const create = async (data: {
       created_by_user_id: data.created_by_user_id,
       description: data.description,
       weight: data.weight ? new Prisma.Decimal(data.weight) : null,
-      note: data.note || null,
+      note: data.note || null
     },
     include: {
       created_by: {
         select: {
           id: true,
-          current_installation_id: true,
-        },
-      },
-    },
-  });
-};
+          current_installation_id: true
+        }
+      }
+    }
+  })
+}
 
 export const findByPetId = async (
   petId: string,
@@ -34,82 +34,87 @@ export const findByPetId = async (
 ) => {
   return await prisma.health_logs.findMany({
     where: {
-      pet_id: petId,
+      pet_id: petId
     },
     include: {
       created_by: {
         select: {
           id: true,
-          current_installation_id: true,
-        },
+          current_installation_id: true
+        }
       },
       pet: {
         select: {
-          user_id: true,
-        },
-      },
+          user_id: true
+        }
+      }
     },
     orderBy: {
-      logged_at: 'desc',
+      logged_at: 'desc'
     },
     take: limit,
-    skip: offset,
-  });
-};
+    skip: offset
+  })
+}
 
 export const findById = async (logId: string) => {
   return await prisma.health_logs.findUnique({
     where: {
-      id: logId,
+      id: logId
     },
     include: {
       pet: {
         select: {
           id: true,
-          user_id: true,
-        },
+          user_id: true
+        }
       },
       created_by: {
         select: {
           id: true,
-          current_installation_id: true,
-        },
-      },
-    },
-  });
-};
+          current_installation_id: true
+        }
+      }
+    }
+  })
+}
 
 export const deleteById = async (logId: string) => {
   return await prisma.health_logs.delete({
     where: {
-      id: logId,
-    },
-  });
-};
+      id: logId
+    }
+  })
+}
 
 export const countByPetId = async (petId: string) => {
   return await prisma.health_logs.count({
     where: {
-      pet_id: petId,
-    },
-  });
-};
+      pet_id: petId
+    }
+  })
+}
 
 export const update = async (
   logId: string,
   data: {
-    description?: string;
-    note?: string | null;
+    description?: string
+    note?: string | null
+    loggedAt?: Date
   }
 ) => {
-  const updateData: any = {};
+  const updateData: any = {}
 
   if (data.description !== undefined) {
-    updateData.description = data.description;
+    updateData.description = data.description
   }
 
   if (data.note !== undefined) {
-    updateData.note = data.note;
+    updateData.note = data.note
+  }
+
+  if (data.loggedAt !== undefined) {
+    updateData.logged_at = data.loggedAt
   }
 
   return await prisma.health_logs.update({
@@ -119,9 +124,9 @@ export const update = async (
       created_by: {
         select: {
           id: true,
-          current_installation_id: true,
-        },
-      },
-    },
-  });
-};
+          current_installation_id: true
+        }
+      }
+    }
+  })
+}

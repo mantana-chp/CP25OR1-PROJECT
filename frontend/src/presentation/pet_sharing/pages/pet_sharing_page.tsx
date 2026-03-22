@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { Info, UserPlus } from 'lucide-react-native'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import {
   spacing,
   typography,
 } from '@/constants/design-system'
+import { usePets } from '@/src/context/PetContext'
 import { ApiError } from '@/src/utils/api/api_client'
 import {
   IAccessListResponse,
@@ -29,8 +30,6 @@ import {
   petSharingService,
 } from '@/src/utils/api/services/pet_sharing_service'
 import { useApi } from '@/src/utils/api/use_api'
-import { IPetProfile } from '@/src/domain/pet.domain'
-import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { saveCaregiverSuggestion } from '@/src/utils/caregiver_suggestions_storage'
 
 import Button from '../../components/button'
@@ -52,13 +51,12 @@ export default function PetSharingPage() {
     petId?: string | string[]
   }>()
   const petId = Array.isArray(rawPetId) ? rawPetId[0] : rawPetId
+  const { activePets, deceasedPets, loading: petsLoading } = usePets()
 
   const [caregivers, setCaregivers] = useState<ICaregiver[]>([])
   const [pendingInvite, setPendingInvite] = useState<IPendingInvite | null>(
     null,
   )
-  const [petData, setPetData] = useState<IPetProfile | null>(null)
-  const [allPets, setAllPets] = useState<IPetProfile[]>([])
   const [isOwner, setIsOwner] = useState(true)
   const [selfAccessId, setSelfAccessId] = useState<string | undefined>(
     undefined,
@@ -85,9 +83,6 @@ export default function PetSharingPage() {
   const listInvitesApi = useApi(petSharingService.listPendingInvites, {
     showErrorAlert: false,
   })
-  const getMyPetsApi = useApi(petProfileService.getMyPets, {
-    showErrorAlert: false,
-  })
   const generateInviteApi = useApi(petSharingService.generateInvite, {
     showErrorAlert: false,
   })
@@ -98,34 +93,36 @@ export default function PetSharingPage() {
     showErrorAlert: false,
   })
 
+  const allPets = useMemo(
+    () => [...activePets, ...deceasedPets],
+    [activePets, deceasedPets]
+  )
+
+  const currentPet = useMemo(() => {
+    if (!petId) return null
+    return allPets.find((pet) => String(pet.id) === String(petId)) || null
+  }, [allPets, petId])
+
+  const ownerPets = useMemo(
+    () => allPets.filter((pet) => pet.petRole === 'OWNER'),
+    [allPets]
+  )
+
   const loadData = useCallback(async () => {
     if (!petId) return
 
-    const [caregiversRes, invitesRes, petsRes] = await Promise.all([
+    const [caregiversRes, invitesRes] = await Promise.all([
       listCaregiversApi.execute(petId),
-      listInvitesApi.execute(),
-      getMyPetsApi.execute(),
+      listInvitesApi.execute()
     ])
 
-    let resolvedIsOwner = true
-
-    if (!petsRes.error) {
-      const allPets = unwrapData<IPetProfile[]>(petsRes.data)
-      const pets = Array.isArray(allPets) ? allPets : []
-      const ownerPets = pets.filter((pet) => pet.petRole === 'OWNER')
-      setAllPets(ownerPets)
-
-      const foundPet = pets.find((pet) => pet.id === petId)
-      setPetData(foundPet ?? null)
-
-      resolvedIsOwner = foundPet?.petRole !== 'CAREGIVER'
-      setIsOwner(resolvedIsOwner)
-    }
+    let canAccessOwnerActions = true
 
     // Try to load caregivers - if 403, user is a caregiver
     if (caregiversRes.error) {
       const statusCode = (caregiversRes.error as ApiError).statusCode
       if (statusCode === 403) {
+        canAccessOwnerActions = false
         setIsOwner(false)
         resolvedIsOwner = false
 
@@ -148,28 +145,23 @@ export default function PetSharingPage() {
         setPendingInvite(null)
       }
     } else {
+      canAccessOwnerActions = true
+      setIsOwner(true)
       const caregiversData = unwrapData<ICaregiver[]>(caregiversRes.data)
       setCaregivers(Array.isArray(caregiversData) ? caregiversData : [])
       setSelfAccessId(undefined)
     }
 
-    if (!invitesRes.error && resolvedIsOwner) {
+    if (!invitesRes.error && canAccessOwnerActions) {
       const allInvites = unwrapData<IPendingInvite[]>(invitesRes.data)
       const invites = Array.isArray(allInvites) ? allInvites : []
       const inviteForPet = invites.find((invite) =>
-        invite.pets.some((pet) => pet.id === petId),
+        invite.pets.some((pet) => String(pet.id) === String(petId))
       )
       setPendingInvite(inviteForPet ?? null)
-    } else {
-      setPendingInvite(null)
     }
-  }, [
-    petId,
-    listCaregiversApi.execute,
-    listAccessListApi.execute,
-    listInvitesApi.execute,
-    getMyPetsApi.execute,
-  ])
+  }, [petId, listCaregiversApi.execute, listInvitesApi.execute])
+
 
   useEffect(() => {
     caregiversRef.current = caregivers
@@ -267,7 +259,7 @@ export default function PetSharingPage() {
   )
 
   const openCreateInviteModal = () => {
-    if (!isOwner || petData?.status === 'DECEASED' || caregivers.length === 0) {
+    if (!isOwner || currentPet?.status === 'DECEASED') {
       return
     }
 
@@ -305,12 +297,7 @@ export default function PetSharingPage() {
   }
 
   const handleGenerateInvite = async () => {
-    if (
-      !petId ||
-      !isOwner ||
-      petData?.status === 'DECEASED' ||
-      caregivers.length === 0
-    ) {
+    if (!petId || !isOwner || currentPet?.status === 'DECEASED') {
       return
     }
 
@@ -355,13 +342,14 @@ export default function PetSharingPage() {
       createdAt: new Date().toISOString(),
       pets: selectedPetIds.map((id) => ({
         id,
-        pet_name: allPets.find((p) => p.id === id)?.pet_name || '',
-      })),
+        pet_name: ownerPets.find((p) => p.id === id)?.pet_name || ''
+      }))
+
     })
   }
 
   const handleShareInvite = async () => {
-    if (!pendingInvite || !isOwner || petData?.status === 'DECEASED') return
+    if (!pendingInvite || !isOwner || currentPet?.status === 'DECEASED') return
 
     const claimLink = `${CLAIM_SCHEME}/${pendingInvite.inviteId}`
     try {
@@ -375,7 +363,7 @@ export default function PetSharingPage() {
   }
 
   const handleCancelInvite = () => {
-    if (!pendingInvite || !isOwner || petData?.status === 'DECEASED') return
+    if (!pendingInvite || !isOwner || currentPet?.status === 'DECEASED') return
     setShowCancelInviteModal(true)
   }
 
@@ -385,7 +373,7 @@ export default function PetSharingPage() {
   }
 
   const handleConfirmCancelInvite = async () => {
-    if (!pendingInvite || !isOwner || petData?.status === 'DECEASED') return
+    if (!pendingInvite || !isOwner || currentPet?.status === 'DECEASED') return
 
     const result = await cancelInviteApi.execute(pendingInvite.inviteId)
     if (result.error) {
@@ -398,7 +386,7 @@ export default function PetSharingPage() {
   }
 
   const handleRevokeCaregiver = (caregiver: ICaregiver) => {
-    if (!petId || !isOwner || petData?.status === 'DECEASED') return
+    if (!petId || !isOwner || currentPet?.status === 'DECEASED') return
     setCaregiverToRevoke(caregiver)
   }
 
@@ -412,7 +400,7 @@ export default function PetSharingPage() {
       !petId ||
       !caregiverToRevoke ||
       !isOwner ||
-      petData?.status === 'DECEASED'
+      currentPet?.status === 'DECEASED'
     ) {
       return
     }
@@ -434,7 +422,7 @@ export default function PetSharingPage() {
   }
 
   const isLoading =
-    listCaregiversApi.loading || listInvitesApi.loading || getMyPetsApi.loading
+    listCaregiversApi.loading || listInvitesApi.loading || petsLoading
   const claimLink = pendingInvite
     ? `${CLAIM_SCHEME}/${pendingInvite.inviteId}`
     : ''
@@ -457,11 +445,10 @@ export default function PetSharingPage() {
     )
   }
 
-  // Check if pet is deceased
-  const isDeceasedPet = petData?.status !== 'ACTIVE'
+  // Treat as deceased only when backend explicitly marks it as DECEASED.
+  const isDeceasedPet = currentPet?.status === 'DECEASED'
   const hasCaregivers = caregivers.length > 0
   const canManageAccess = isOwner && !isDeceasedPet
-  console.log('Pet Statues: ', petData?.status)
 
   if (!isOwner) {
     // Caregiver viewing deceased pet - show read-only view
@@ -478,9 +465,9 @@ export default function PetSharingPage() {
             contentContainerStyle={styles.scrollContentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {petData && (
+            {currentPet && (
               <View style={styles.petInfoSection}>
-                <PetInfoCard data={petData} readOnly />
+                <PetInfoCard data={currentPet} readOnly />
               </View>
             )}
 
@@ -512,9 +499,9 @@ export default function PetSharingPage() {
         </View>
       ) : caregivers.length === 0 && !pendingInvite ? (
         <>
-          {petData && (
+          {currentPet && (
             <View style={styles.petInfoSectionEmpty}>
-              <PetInfoCard data={petData} readOnly />
+              <PetInfoCard data={currentPet} readOnly />
             </View>
           )}
           <EmptyState
@@ -529,9 +516,9 @@ export default function PetSharingPage() {
             contentContainerStyle={styles.scrollContentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {petData && (
+            {currentPet && (
               <View style={styles.petInfoSection}>
-                <PetInfoCard data={petData} readOnly />
+                <PetInfoCard data={currentPet} readOnly />
               </View>
             )}
 
@@ -605,7 +592,7 @@ export default function PetSharingPage() {
         onChangeAlias={setAliasInput}
         onClose={() => setShowAliasModal(false)}
         onConfirm={handleGenerateInvite}
-        pets={allPets}
+        pets={ownerPets}
         selectedPetIds={selectedPetIds}
         onTogglePet={handleTogglePet}
         currentPetId={petId}

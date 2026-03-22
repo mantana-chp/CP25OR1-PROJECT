@@ -1,11 +1,21 @@
-import { colors } from '@/constants/design-system'
+import {
+  borderRadius,
+  colors,
+  iconSizes,
+  spacing,
+  typography
+} from '@/constants/design-system'
 import { usePets } from '@/src/context/PetContext'
 import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
+import {
+  healthLogService,
+  IHealthLog
+} from '@/src/utils/api/services/health_log_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
-import { ClipboardList } from 'lucide-react-native'
-import React, { useCallback, useState } from 'react'
+import { ClipboardList, Plus, Scale } from 'lucide-react-native'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -16,11 +26,15 @@ import {
   View
 } from 'react-native'
 import Header from '../../components/header_component'
-import HealthRecordCard from '../components/health_record_card'
+import Button from '../../components/button'
 import PetInfoCard from '../components/pet_info_card'
+import HealthRecordCard from '../components/health_record_card'
+import HealthLogFormModal from '../components/health_log_form_modal'
+import { HealthLogType } from '@/src/domain/pet.domain'
+import HealthLogEntryCard from '../components/health_log_entry_card'
 
-// Only medical/health categories
-const HEALTH_CATEGORIES = ['Vaccination', 'Checkup', 'Medication', 'Deworming']
+type HealthTypeFilter = 'ALL' | HealthLogType
+type PageMode = 'records' | 'logs'
 
 type CategoryFilter =
   | 'All'
@@ -28,6 +42,8 @@ type CategoryFilter =
   | 'Checkup'
   | 'Medication'
   | 'Deworming'
+
+const HEALTH_CATEGORIES = ['Vaccination', 'Checkup', 'Medication', 'Deworming']
 
 const FILTER_TABS: { id: CategoryFilter; label: string; color: string }[] = [
   { id: 'All', label: 'ทั้งหมด', color: colors.primary.light },
@@ -37,170 +53,626 @@ const FILTER_TABS: { id: CategoryFilter; label: string; color: string }[] = [
   { id: 'Deworming', label: 'พยาธิ/เห็บหมัด', color: '#F59E0B' }
 ]
 
+const TYPE_LABEL: Record<HealthTypeFilter, string> = {
+  ALL: 'ทั้งหมด',
+  WEIGHT: 'น้ำหนัก',
+  SYMPTOMS: 'อาการป่วย',
+  BEHAVIOR: 'พฤติกรรม'
+}
+
+const TYPE_PREFIX_REGEX = /^\[(WEIGHT|SYMPTOMS|BEHAVIOR)\]\s*/i
+
+const parseDescriptionType = (description: string) => {
+  const text = description || ''
+  const match = text.match(TYPE_PREFIX_REGEX)
+  const parsedType = (match?.[1]?.toUpperCase() || 'SYMPTOMS') as HealthLogType
+
+  return {
+    type: parsedType,
+    cleanDescription: text.replace(TYPE_PREFIX_REGEX, '').trim() || text
+  }
+}
+
+const encodeDescriptionType = (type: HealthLogType, description: string) => {
+  return `[${type}] ${description.trim()}`
+}
+
+const parseWeightInput = (raw: string) => {
+  const normalized = raw.trim().replace(',', '.')
+  const parsed = Number(normalized)
+  if (!normalized || Number.isNaN(parsed)) return null
+  return parsed
+}
+
 export default function HealthRecordPage() {
   const router = useRouter()
   const { petId } = useLocalSearchParams<{ petId: string }>()
-  const { activePets, deceasedPets } = usePets()
+  const { activePets, deceasedPets, refreshPets } = usePets()
+
+  const [pageMode, setPageMode] = useState<PageMode>('records')
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>('All')
+  const [selectedFilter, setSelectedFilter] = useState<HealthTypeFilter>('ALL')
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const allPets = [...activePets, ...deceasedPets]
   const currentPet = petId ? allPets.find((p) => p.id === petId) || null : null
   const isDeceased = currentPet?.status === 'DECEASED'
+  const canCreateLog = Boolean(petId && currentPet && !isDeceased)
 
   const getHealthRecordsApi = useApi(healthRecordService.getHealthRecords, {
     showErrorAlert: false
   })
+  const getHealthLogsApi = useApi(healthLogService.getHealthLogs, {
+    showErrorAlert: false
+  })
+  const createHealthLogApi = useApi(healthLogService.createHealthLog, {
+    showErrorAlert: true
+  })
+
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMoreLogs, setHasMoreLogs] = useState(true)
+
+  const loadHealthLogs = useCallback(
+    async (append = false) => {
+      if (!petId) return
+
+      const currentLogs = getHealthLogsApi.data?.data?.logs || []
+      const offset = append ? currentLogs.length : 0
+
+      if (append) {
+        setIsLoadingMore(true)
+      }
+
+      const result = await getHealthLogsApi.execute(petId, {
+        limit: 50,
+        offset
+      })
+
+      if (append) {
+        setIsLoadingMore(false)
+      }
+
+      if (result.data?.data) {
+        const { logs, total } = result.data.data
+        const newTotal = append ? currentLogs.length + logs.length : logs.length
+        setHasMoreLogs(newTotal < total)
+      }
+    },
+    [petId, getHealthLogsApi.execute, getHealthLogsApi.data?.data?.logs]
+  )
+
+  const loadHealthRecords = useCallback(() => {
+    getHealthRecordsApi.execute({})
+  }, [getHealthRecordsApi.execute])
 
   useFocusEffect(
     useCallback(() => {
-      getHealthRecordsApi.execute({})
-    }, [])
+      loadHealthRecords()
+      loadHealthLogs(false)
+    }, [loadHealthRecords, loadHealthLogs])
   )
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
 
-  const getFilteredRecords = (category: CategoryFilter) =>
-    allHealthRecords
-      .filter((record) => {
-        const isCategoryMatch =
-          category === 'All'
-            ? HEALTH_CATEGORIES.includes(record.categoryName)
-            : record.categoryName === category
-        const isDone = record.reminderStatus === 'done'
-        const isPetMatch = petId ? record.petId === petId : true
-        return isCategoryMatch && isDone && isPetMatch
-      })
-      .sort((a, b) => {
-        const ts = (d: string, t: string) => {
-          const date = new Date(d)
-          if (t) {
-            const [h, m, s] = t.split(':').map(Number)
-            date.setHours(h || 0, m || 0, s || 0, 0)
+  const getFilteredRecords = useCallback(
+    (category: CategoryFilter) =>
+      allHealthRecords
+        .filter((record) => {
+          const isCategoryMatch =
+            category === 'All'
+              ? HEALTH_CATEGORIES.includes(record.categoryName)
+              : record.categoryName === category
+          const isDone = record.reminderStatus === 'done'
+          const isPetMatch = petId ? record.petId === petId : true
+          return isCategoryMatch && isDone && isPetMatch
+        })
+        .sort((a, b) => {
+          const ts = (d: string, t: string) => {
+            const date = new Date(d)
+            if (t) {
+              const [h, m, s] = t.split(':').map(Number)
+              date.setHours(h || 0, m || 0, s || 0, 0)
+            }
+            return date.getTime()
           }
-          return date.getTime()
+          return (
+            ts(b.reminderDate, b.reminderTime) -
+            ts(a.reminderDate, a.reminderTime)
+          )
+        }),
+    [allHealthRecords, petId]
+  )
+
+  const filteredRecords = useMemo(
+    () => getFilteredRecords(selectedCategory),
+    [getFilteredRecords, selectedCategory]
+  )
+
+  const rawLogs: IHealthLog[] = getHealthLogsApi.data?.data?.logs || []
+
+  const parsedLogs = useMemo(() => {
+    return [...rawLogs]
+      .map((log) => {
+        // Prefer API type field when backend provides it, fallback to parsing description
+        let logType: HealthLogType
+        let cleanDescription: string
+
+        if (log.type) {
+          // Backend provides type field - use it directly
+          logType = log.type
+          cleanDescription = log.description
+        } else {
+          // Fallback: parse from description (backward compatibility)
+          const parsed = parseDescriptionType(log.description)
+          logType = parsed.type
+          cleanDescription = parsed.cleanDescription
         }
-        return (
-          ts(b.reminderDate, b.reminderTime) -
-          ts(a.reminderDate, a.reminderTime)
-        )
+
+        return {
+          ...log,
+          logType,
+          cleanDescription
+        }
       })
+      .sort(
+        (a, b) =>
+          new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
+      )
+  }, [rawLogs])
 
-  const filteredRecords = getFilteredRecords(selectedCategory)
+  const filteredLogs = useMemo(() => {
+    if (selectedFilter === 'ALL') return parsedLogs
+    return parsedLogs.filter((log) => log.logType === selectedFilter)
+  }, [parsedLogs, selectedFilter])
 
-  const getCategoryCount = (cat: CategoryFilter) =>
-    getFilteredRecords(cat).length
+  const latestWeight = useMemo(() => {
+    const firstWeighted = parsedLogs.find(
+      (log) => typeof log.weight === 'number'
+    )
+    return firstWeighted?.weight
+  }, [parsedLogs])
 
-  const ListHeader = (
+  const counts = useMemo(() => {
+    return {
+      ALL: parsedLogs.length,
+      WEIGHT: parsedLogs.filter((l) => l.logType === 'WEIGHT').length,
+      SYMPTOMS: parsedLogs.filter((l) => l.logType === 'SYMPTOMS').length,
+      BEHAVIOR: parsedLogs.filter((l) => l.logType === 'BEHAVIOR').length
+    }
+  }, [parsedLogs])
+
+  const handleCreateLog = async (values: {
+    type: HealthLogType
+    description: string
+    weight: string
+    note: string
+  }) => {
+    if (!petId || !canCreateLog || createHealthLogApi.loading) return
+
+    const safeWeight = String(values.weight ?? '')
+    const parsedWeight =
+      values.type === 'WEIGHT' ? parseWeightInput(safeWeight) : null
+    if (values.type === 'WEIGHT' && parsedWeight === null) return
+
+    const normalizedDescription = String(values.description ?? '').trim()
+    const descriptionForPayload =
+      values.type === 'WEIGHT' && !normalizedDescription
+        ? 'บันทึกน้ำหนัก'
+        : normalizedDescription
+
+    const payload = {
+      description: encodeDescriptionType(values.type, descriptionForPayload),
+      weight:
+        values.type === 'WEIGHT' ? (parsedWeight ?? undefined) : undefined,
+      note: values.note || undefined,
+      loggedAt: new Date().toISOString()
+    }
+
+    const result = await createHealthLogApi.execute(petId, payload)
+    if (result.error) return
+
+    setShowCreateModal(false)
+    await loadHealthLogs(false) // Reload from start to show new log
+    refreshPets()
+  }
+
+  const listHeader = (
     <>
-      {/* Pet Info Card */}
       {currentPet && (
         <View style={styles.petCardWrapper}>
           <PetInfoCard data={currentPet} readOnly isDeceased={isDeceased} />
         </View>
       )}
 
-      {/* Section header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>บันทึกสุขภาพ</Text>
-        <View style={styles.totalBadge}>
-          <Text style={styles.totalBadgeText}>
-            {getCategoryCount(selectedCategory)} รายการ
+      <View style={styles.modeSwitchRow}>
+        <TouchableOpacity
+          style={[
+            styles.modeChip,
+            pageMode === 'records' && styles.modeChipActive
+          ]}
+          onPress={() => setPageMode('records')}
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              pageMode === 'records' && styles.modeChipTextActive
+            ]}
+          >
+            ประวัติสุขภาพ
           </Text>
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.modeChip,
+            pageMode === 'logs' && styles.modeChipActive
+          ]}
+          onPress={() => setPageMode('logs')}
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              pageMode === 'logs' && styles.modeChipTextActive
+            ]}
+          >
+            บันทึกสุขภาพใหม่
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Category Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {FILTER_TABS.map((tab) => {
-          const isActive = selectedCategory === tab.id
-          const count = getCategoryCount(tab.id)
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={[
-                styles.filterChip,
-                isActive && {
-                  backgroundColor: tab.color,
-                  borderColor: tab.color
-                }
-              ]}
-              onPress={() => setSelectedCategory(tab.id)}
-              activeOpacity={0.75}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  isActive && styles.filterChipTextActive
-                ]}
-              >
-                {tab.label}
+      {pageMode === 'records' && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
+            <View style={styles.totalBadge}>
+              <Text style={styles.totalBadgeText}>
+                {filteredRecords.length} รายการ
               </Text>
-              {count > 0 && (
-                <View
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
+            {FILTER_TABS.map((tab) => {
+              const isActive = selectedCategory === tab.id
+              const count = getFilteredRecords(tab.id).length
+
+              return (
+                <TouchableOpacity
+                  key={tab.id}
                   style={[
-                    styles.chipBadge,
-                    isActive && { backgroundColor: 'rgba(255,255,255,0.3)' }
+                    styles.filterChipLegacy,
+                    isActive && {
+                      backgroundColor: tab.color,
+                      borderColor: tab.color
+                    }
                   ]}
+                  onPress={() => setSelectedCategory(tab.id)}
+                  activeOpacity={0.75}
                 >
                   <Text
                     style={[
-                      styles.chipBadgeText,
-                      isActive && { color: '#fff' }
+                      styles.filterChipLegacyText,
+                      isActive && styles.filterChipLegacyTextActive
                     ]}
                   >
-                    {count}
+                    {tab.label}
                   </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
+                  {count > 0 && (
+                    <View
+                      style={[
+                        styles.chipBadge,
+                        isActive && { backgroundColor: 'rgba(255,255,255,0.3)' }
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipBadgeText,
+                          isActive && { color: '#fff' }
+                        ]}
+                      >
+                        {count}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        </>
+      )}
+
+      {pageMode === 'logs' && (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>บันทึกทั้งหมด</Text>
+              <Text style={styles.summaryValue}>{counts.ALL}</Text>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <View style={styles.weightHeaderRow}>
+                <Scale size={iconSizes.sm} color={colors.info.dark} />
+                <Text style={styles.summaryLabel}>น้ำหนักล่าสุด</Text>
+              </View>
+              <Text style={styles.summaryValue}>
+                {typeof latestWeight === 'number'
+                  ? `${latestWeight.toFixed(2)} กก.`
+                  : '-'}
+              </Text>
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
+            {(Object.keys(TYPE_LABEL) as HealthTypeFilter[]).map(
+              (filterKey) => {
+                const active = selectedFilter === filterKey
+                const count = counts[filterKey]
+                return (
+                  <TouchableOpacity
+                    key={filterKey}
+                    onPress={() => setSelectedFilter(filterKey)}
+                    style={[
+                      styles.filterChipLegacy,
+                      active && styles.logFilterChipActive
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipLegacyText,
+                        active && styles.filterChipLegacyTextActive
+                      ]}
+                    >
+                      {TYPE_LABEL[filterKey]}
+                    </Text>
+                    {count > 0 && (
+                      <View
+                        style={[
+                          styles.chipBadge,
+                          active && styles.logChipBadgeActive
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipBadgeText,
+                            active && styles.logChipBadgeTextActive
+                          ]}
+                        >
+                          {count}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )
+              }
+            )}
+          </ScrollView>
+        </>
+      )}
     </>
   )
 
-  const EmptyState = getHealthRecordsApi.loading ? (
-    <View style={styles.centerState}>
-      <ActivityIndicator size="large" color={colors.primary.light} />
-      <Text style={styles.centerText}>กำลังโหลด...</Text>
-    </View>
-  ) : (
-    <View style={styles.centerState}>
-      <ClipboardList size={52} color={colors.gray[300]} strokeWidth={1.5} />
-      <Text style={styles.emptyTitle}>ยังไม่มีประวัติสุขภาพ</Text>
-      <Text style={styles.emptySubtitle}>
-        {selectedCategory === 'All'
-          ? 'เมื่อทำเครื่องหมายว่าเสร็จสิ้นแล้ว\nรายการจะปรากฏที่นี่'
-          : `ยังไม่มีประวัติ${CATEGORY_MAP[selectedCategory]?.label || selectedCategory}`}
-      </Text>
-    </View>
-  )
+  const listEmpty =
+    pageMode === 'records' ? (
+      getHealthRecordsApi.loading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.primary.light} />
+          <Text style={styles.emptySubtitle}>กำลังโหลดประวัติสุขภาพ...</Text>
+        </View>
+      ) : (
+        <View style={styles.centerState}>
+          <ClipboardList size={56} color={colors.gray[300]} strokeWidth={1.6} />
+          <Text style={styles.emptyTitle}>ยังไม่มีประวัติสุขภาพ</Text>
+          <Text style={styles.emptySubtitle}>
+            {selectedCategory === 'All'
+              ? 'เมื่อทำเครื่องหมายว่าเสร็จสิ้นแล้ว รายการจากระบบเตือนความจำจะปรากฏที่นี่'
+              : `ยังไม่มีประวัติ${CATEGORY_MAP[selectedCategory]?.label || selectedCategory}`}
+          </Text>
+        </View>
+      )
+    ) : getHealthLogsApi.loading ? (
+      <View style={styles.centerState}>
+        <ActivityIndicator size="large" color={colors.primary.light} />
+        <Text style={styles.emptySubtitle}>กำลังโหลดข้อมูลสุขภาพ...</Text>
+      </View>
+    ) : (
+      <View style={styles.centerState}>
+        <ClipboardList size={56} color={colors.gray[300]} strokeWidth={1.6} />
+        <Text style={styles.emptyTitle}>ยังไม่มีบันทึกสุขภาพ</Text>
+        <Text style={styles.emptySubtitle}>
+          เริ่มบันทึกน้ำหนัก อาการ หรือพฤติกรรม
+          เพื่อดูแนวโน้มสุขภาพของสัตว์เลี้ยง
+        </Text>
+      </View>
+    )
+
+  const listFooter =
+    pageMode === 'logs' && hasMoreLogs && !getHealthLogsApi.loading ? (
+      <View style={styles.loadMoreContainer}>
+        <Button
+          title="โหลดเพิ่มเติม"
+          variant="ghost"
+          onPress={() => loadHealthLogs(true)}
+          loading={isLoadingMore}
+          disabled={isLoadingMore}
+        />
+      </View>
+    ) : pageMode === 'logs' && isLoadingMore ? (
+      <View style={styles.loadMoreContainer}>
+        <ActivityIndicator size="small" color={colors.primary.light} />
+      </View>
+    ) : null
+
+  if (!petId) {
+    return (
+      <View style={styles.container}>
+        <Header
+          title="บันทึกและติดตามสุขภาพ"
+          goBack
+          onBackPress={() => router.push('/(tabs)/pet_profile')}
+        />
+        <View style={styles.centerState}>
+          <Text style={styles.emptyTitle}>ไม่พบสัตว์เลี้ยง</Text>
+          <Text style={styles.emptySubtitle}>
+            กรุณาเลือกสัตว์เลี้ยงจากหน้าโปรไฟล์อีกครั้ง
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
+  if (!currentPet) {
+    return (
+      <View style={styles.container}>
+        <Header
+          title="บันทึกและติดตามสุขภาพ"
+          goBack
+          onBackPress={() => router.push('/(tabs)/pet_profile')}
+        />
+        <View style={styles.centerState}>
+          <Text style={styles.emptyTitle}>ไม่พบข้อมูลสัตว์เลี้ยง</Text>
+          <Text style={styles.emptySubtitle}>
+            ข้อมูลอาจถูกอัปเดต กรุณาลองกลับและเลือกใหม่
+          </Text>
+          <View style={styles.retryButtonWrap}>
+            <Button
+              title="โหลดใหม่"
+              onPress={() => loadHealthLogs(false)}
+              variant="ghost"
+            />
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  if (getHealthLogsApi.error && !getHealthLogsApi.loading) {
+    if (pageMode !== 'logs') {
+      return (
+        <View style={styles.container}>
+          <Header
+            title="บันทึกและติดตามสุขภาพ"
+            goBack
+            onBackPress={() => router.push('/(tabs)/pet_profile')}
+          />
+          <View style={styles.centerState}>
+            <Text style={styles.emptyTitle}>โหลดข้อมูลไม่สำเร็จ</Text>
+            <Text style={styles.emptySubtitle}>
+              กรุณาตรวจสอบอินเทอร์เน็ต แล้วลองใหม่อีกครั้ง
+            </Text>
+            <View style={styles.retryButtonWrap}>
+              <Button
+                title="ลองอีกครั้ง"
+                onPress={loadHealthRecords}
+                variant="ghost"
+              />
+            </View>
+          </View>
+        </View>
+      )
+    }
+
+    return (
+      <View style={styles.container}>
+        <Header
+          title="บันทึกและติดตามสุขภาพ"
+          goBack
+          onBackPress={() => router.push('/(tabs)/pet_profile')}
+        />
+        <View style={styles.centerState}>
+          <Text style={styles.emptyTitle}>โหลดข้อมูลไม่สำเร็จ</Text>
+          <Text style={styles.emptySubtitle}>
+            กรุณาตรวจสอบอินเทอร์เน็ต แล้วลองใหม่อีกครั้ง
+          </Text>
+          <View style={styles.retryButtonWrap}>
+            <Button
+              title="ลองอีกครั้ง"
+              onPress={
+                pageMode === 'logs'
+                  ? () => loadHealthLogs(false)
+                  : loadHealthRecords
+              }
+              variant="ghost"
+            />
+          </View>
+        </View>
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
       <Header
-        title="ประวัติสุขภาพ"
+        title="บันทึกและติดตามสุขภาพ"
         goBack
         onBackPress={() => router.push('/(tabs)/pet_profile')}
       />
 
-      <FlatList
-        data={filteredRecords}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.cardWrapper}>
-            <HealthRecordCard reminder={item} />
-          </View>
-        )}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={EmptyState}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
+      {pageMode === 'logs' ? (
+        <FlatList
+          data={filteredLogs}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <HealthLogEntryCard
+              log={item}
+              parsed={{
+                type: item.logType,
+                description: item.cleanDescription
+              }}
+            />
+          )}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          ListFooterComponent={listFooter}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <FlatList
+          data={filteredRecords}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <HealthRecordCard reminder={item} />}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      {pageMode === 'logs' && (
+        <View style={styles.fabContainer}>
+          <Button
+            title="เพิ่มบันทึกสุขภาพ"
+            onPress={() => setShowCreateModal(true)}
+            icon={
+              <Plus size={iconSizes.md} color={colors.background.secondary} />
+            }
+            disabled={!canCreateLog}
+            style={styles.fabButton}
+          />
+          {!canCreateLog && (
+            <Text style={styles.disabledHintText}>
+              {isDeceased
+                ? 'สัตว์เลี้ยงที่อยู่ในความทรงจำไม่สามารถเพิ่มบันทึกสุขภาพใหม่ได้'
+                : 'ไม่สามารถเพิ่มบันทึกสุขภาพได้ในขณะนี้'}
+            </Text>
+          )}
+        </View>
+      )}
+
+      <HealthLogFormModal
+        visible={showCreateModal}
+        loading={createHealthLogApi.loading}
+        initialWeight={String(currentPet?.weight ?? '')}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreateLog}
       />
     </View>
   )
@@ -212,26 +684,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary
   },
   listContent: {
-    paddingBottom: 32,
+    paddingHorizontal: spacing[4],
+    paddingBottom: 110,
     flexGrow: 1
   },
   petCardWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 4,
-    backgroundColor: colors.background.secondary,
+    marginTop: spacing[4],
+    marginBottom: spacing[3],
+    backgroundColor: colors.background.secondary
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginBottom: spacing[3]
+  },
+  modeSwitchRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.gray[100],
+    borderRadius: borderRadius.full,
+    padding: 4,
+    marginBottom: spacing[3],
+    gap: 4
+  },
+  modeChip: {
+    flex: 1,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8
+  },
+  modeChipActive: {
+    backgroundColor: colors.background.secondary
+  },
+  modeChipText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[600],
+    fontFamily: typography.fontFamily.medium
+  },
+  modeChipTextActive: {
+    color: colors.primary.DEFAULT
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 12
+    marginBottom: spacing[2]
   },
   sectionTitle: {
-    fontSize: 17,
-    fontFamily: 'Prompt_700Bold',
+    fontSize: typography.fontSize.xl,
+    fontFamily: typography.fontFamily.bold,
     color: colors.primary.DEFAULT
   },
   totalBadge: {
@@ -241,16 +742,15 @@ const styles = StyleSheet.create({
     borderRadius: 20
   },
   totalBadgeText: {
-    fontSize: 12,
-    fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.background.secondary
   },
   filterScroll: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 4
+    paddingBottom: spacing[2],
+    gap: spacing[1]
   },
-  filterChip: {
+  filterChipLegacy: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -261,14 +761,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.secondary,
     gap: 6
   },
-  filterChipText: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
+  filterChipLegacyText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
     color: colors.gray[600]
   },
-  filterChipTextActive: {
-    fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+  filterChipLegacyTextActive: {
+    fontFamily: typography.fontFamily.medium,
+    color: colors.background.secondary
   },
   chipBadge: {
     minWidth: 18,
@@ -281,37 +781,88 @@ const styles = StyleSheet.create({
   },
   chipBadgeText: {
     fontSize: 10,
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: typography.fontFamily.medium,
     color: colors.gray[600]
   },
-  cardWrapper: {
-    marginHorizontal: 16
+  summaryCard: {
+    flex: 1,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+    padding: spacing[3],
+    gap: spacing[1]
+  },
+  summaryLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[500],
+    fontFamily: typography.fontFamily.regular
+  },
+  summaryValue: {
+    fontSize: typography.fontSize.xl,
+    color: colors.primary.DEFAULT,
+    fontFamily: typography.fontFamily.bold
+  },
+  weightHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1]
+  },
+  logFilterChipActive: {
+    borderColor: colors.primary.light,
+    backgroundColor: colors.primary.light
+  },
+  logChipBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)'
+  },
+  logChipBadgeTextActive: {
+    color: '#fff'
   },
   centerState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 32
-  },
-  centerText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
-    color: colors.primary.DEFAULT
+    paddingHorizontal: spacing[6],
+    paddingTop: spacing[10]
   },
   emptyTitle: {
-    marginTop: 16,
-    fontSize: 16,
-    fontFamily: 'Prompt_500Medium',
-    color: colors.gray[500]
+    marginTop: spacing[3],
+    fontSize: typography.fontSize.lg,
+    color: colors.gray[600],
+    fontFamily: typography.fontFamily.medium,
+    textAlign: 'center'
   },
   emptySubtitle: {
-    marginTop: 8,
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: colors.gray[400],
+    marginTop: spacing[2],
+    fontSize: typography.fontSize.base,
+    color: colors.gray[500],
+    fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: 20
+    lineHeight: typography.lineHeight.normal
+  },
+  fabContainer: {
+    position: 'absolute',
+    left: spacing[4],
+    right: spacing[4],
+    bottom: spacing[4]
+  },
+  fabButton: {
+    borderRadius: borderRadius.full,
+    minHeight: 52,
+    backgroundColor: colors.primary.light
+  },
+  disabledHintText: {
+    marginTop: spacing[2],
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[500],
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center'
+  },
+  retryButtonWrap: {
+    marginTop: spacing[3]
+  },
+  loadMoreContainer: {
+    paddingVertical: spacing[4],
+    alignItems: 'center'
   }
 })

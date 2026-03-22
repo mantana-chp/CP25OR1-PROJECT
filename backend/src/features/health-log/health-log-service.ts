@@ -1,11 +1,31 @@
-import * as healthLogRepository from './health-log-repository';
-import { toDto } from './health-log-mapper';
-import { NotFoundError, BadRequestError, ForbiddenError, ApiError } from '../../shared/errors';
-import { canAccessPet } from '../pet-sharing/pet-sharing-repository';
-import prisma from '../../libs/db';
-import { HealthLogDto, CreateHealthLogInput } from './health-log-types';
-import { Prisma } from '../../generated/prisma/client';
-import { UpdateHealthLogPayload } from './health-log-schema';
+import * as healthLogRepository from './health-log-repository'
+import { toDto } from './health-log-mapper'
+import {
+  NotFoundError,
+  BadRequestError,
+  ForbiddenError,
+  ApiError
+} from '../../shared/errors'
+import { canAccessPet } from '../pet-sharing/pet-sharing-repository'
+import prisma from '../../libs/db'
+import { HealthLogDto, CreateHealthLogInput } from './health-log-types'
+import { Prisma } from '../../generated/prisma/client'
+import { UpdateHealthLogPayload } from './health-log-schema'
+
+const validateLoggedAt = (loggedAt?: Date) => {
+  if (!loggedAt) return
+
+  const timestamp = loggedAt.getTime()
+  if (Number.isNaN(timestamp)) {
+    throw new BadRequestError('Invalid loggedAt date')
+  }
+
+  // Allow small clock skew between client and server.
+  const nowWithTolerance = Date.now() + 5 * 60 * 1000
+  if (timestamp > nowWithTolerance) {
+    throw new BadRequestError('loggedAt cannot be in the future')
+  }
+}
 
 /**
  * Helper to determine the createdBy display value
@@ -30,14 +50,14 @@ const resolveCreatedBy = async (
     where: {
       owner_user_id_caregiver_user_id: {
         owner_user_id: ownerId,
-        caregiver_user_id: creatorId,
-      },
+        caregiver_user_id: creatorId
+      }
     },
-    select: { alias: true },
-  });
+    select: { alias: true }
+  })
 
-  return contact?.alias ?? 'ผู้ดูแล'; // Caregiver's alias or fallback "Caregiver"
-};
+  return contact?.alias ?? 'ผู้ดูแล' // Caregiver's alias or fallback "Caregiver"
+}
 
 /**
  * Create a new health log for a pet.
@@ -48,10 +68,12 @@ export const createHealthLog = async (
   userId: string,
   input: CreateHealthLogInput
 ): Promise<HealthLogDto> => {
+  validateLoggedAt(input.loggedAt)
+
   // 1. Validate access
-  const hasAccess = await canAccessPet(petId, userId);
+  const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
-    throw new BadRequestError('Access denied to this pet');
+    throw new BadRequestError('Access denied to this pet')
   }
 
   // 2. Get pet owner ID
@@ -74,6 +96,7 @@ export const createHealthLog = async (
         description: input.description,
         weight: input.weight ? new Prisma.Decimal(input.weight) : null,
         note: input.note || null,
+        logged_at: input.loggedAt || undefined
       },
       include: {
         created_by: {
@@ -126,28 +149,32 @@ export const getHealthLogs = async (
   });
 
   if (!pet) {
-    throw new NotFoundError('Pet not found');
+    throw new NotFoundError('Pet not found')
   }
 
   // 3. Fetch logs
   const [logs, total] = await Promise.all([
     healthLogRepository.findByPetId(petId, limit, offset),
-    healthLogRepository.countByPetId(petId),
-  ]);
+    healthLogRepository.countByPetId(petId)
+  ])
 
   // 4. Resolve createdBy for each log
   const logsWithCreatedBy = await Promise.all(
     logs.map(async (log) => {
-      const createdBy = await resolveCreatedBy(log.created_by_user_id, pet.user_id, userId);
-      return toDto(log, createdBy);
+      const createdBy = await resolveCreatedBy(
+        log.created_by_user_id,
+        pet.user_id,
+        userId
+      )
+      return toDto(log, createdBy)
     })
-  );
+  )
 
   return {
     logs: logsWithCreatedBy,
-    total,
-  };
-};
+    total
+  }
+}
 
 /**
  * Get a single health log by ID.
@@ -157,38 +184,42 @@ export const getHealthLogById = async (
   petId: string,
   userId: string
 ): Promise<HealthLogDto> => {
-  const log = await healthLogRepository.findById(logId);
+  const log = await healthLogRepository.findById(logId)
 
   if (!log) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Verify the log belongs to the specified pet
   if (log.pet_id !== petId) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Verify access to the pet
-  const hasAccess = await canAccessPet(petId, userId);
+  const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Get pet owner ID for createdBy resolution
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
-    select: { user_id: true },
-  });
+    select: { user_id: true }
+  })
 
   if (!pet) {
-    throw new NotFoundError('Pet not found');
+    throw new NotFoundError('Pet not found')
   }
 
   // Resolve createdBy display value
-  const createdBy = await resolveCreatedBy(log.created_by_user_id, pet.user_id, userId);
+  const createdBy = await resolveCreatedBy(
+    log.created_by_user_id,
+    pet.user_id,
+    userId
+  )
 
-  return toDto(log, createdBy);
-};
+  return toDto(log, createdBy)
+}
 
 /**
  * Update a health log.
@@ -200,50 +231,53 @@ export const updateHealthLog = async (
   userId: string,
   updateData: UpdateHealthLogPayload
 ): Promise<HealthLogDto> => {
-  const log = await healthLogRepository.findById(logId);
+  validateLoggedAt(updateData.loggedAt)
+
+  const log = await healthLogRepository.findById(logId)
 
   if (!log) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Verify the log belongs to the specified pet
   if (log.pet_id !== petId) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Verify access to the pet
-  const hasAccess = await canAccessPet(petId, userId);
+  const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new ApiError('Forbidden', 403, [
-      { message: 'Access to this pet denied' },
-    ]);
+      { message: 'Access to this pet denied' }
+    ])
   }
 
   // Check if user is owner or creator
   // Owners can edit any log; caregivers can only edit logs they created
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
-    select: { user_id: true },
-  });
+    select: { user_id: true }
+  })
 
   if (!pet) {
-    throw new NotFoundError('Pet not found');
+    throw new NotFoundError('Pet not found')
   }
 
-  const isPetOwner = pet.user_id === userId;
+  const isPetOwner = pet.user_id === userId
   if (!isPetOwner) {
-    const creatorId = log.created_by_user_id;
+    const creatorId = log.created_by_user_id
     if (creatorId !== userId) {
       throw new ApiError('Forbidden', 403, [
         {
-          message: 'Caregivers can only update health logs they created themselves',
-        },
-      ]);
+          message:
+            'Caregivers can only update health logs they created themselves'
+        }
+      ])
     }
   }
 
   // Update in transaction if weight needs to be updated
-  let updatedLog;
+  let updatedLog
 
   if (updateData.weight !== undefined) {
     // Weight is provided, update both log and pet's weight
@@ -255,40 +289,46 @@ export const updateHealthLog = async (
           description: updateData.description,
           weight: new Prisma.Decimal(updateData.weight!),
           note: updateData.note,
+          logged_at: updateData.loggedAt
         },
         include: {
           created_by: {
             select: {
               id: true,
-              current_installation_id: true,
-            },
-          },
-        },
-      });
+              current_installation_id: true
+            }
+          }
+        }
+      })
 
       // Update the pet's weight
       await tx.pets.update({
         where: { id: petId },
         data: {
-          weight: new Prisma.Decimal(updateData.weight!),
-        },
-      });
+          weight: new Prisma.Decimal(updateData.weight!)
+        }
+      })
 
-      return updated;
-    });
+      return updated
+    })
   } else {
     // Weight not provided, just update description and/or note
     updatedLog = await healthLogRepository.update(logId, {
       description: updateData.description,
       note: updateData.note,
-    });
+      loggedAt: updateData.loggedAt
+    })
   }
 
   // Resolve createdBy display value
-  const createdBy = await resolveCreatedBy(updatedLog.created_by_user_id, pet.user_id, userId);
+  const createdBy = await resolveCreatedBy(
+    updatedLog.created_by_user_id,
+    pet.user_id,
+    userId
+  )
 
-  return toDto(updatedLog, createdBy);
-};
+  return toDto(updatedLog, createdBy)
+}
 
 /**
  * Delete a health log.
@@ -299,47 +339,48 @@ export const deleteHealthLog = async (
   petId: string,
   userId: string
 ): Promise<void> => {
-  const log = await healthLogRepository.findById(logId);
+  const log = await healthLogRepository.findById(logId)
 
   if (!log) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Verify the log belongs to the specified pet
   if (log.pet_id !== petId) {
-    throw new NotFoundError('Health log not found');
+    throw new NotFoundError('Health log not found')
   }
 
   // Verify access to the pet
-  const hasAccess = await canAccessPet(petId, userId);
+  const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new ApiError('Forbidden', 403, [
-      { message: 'Access to this pet denied' },
-    ]);
+      { message: 'Access to this pet denied' }
+    ])
   }
 
   // Check if user is owner or creator
   // Owners can delete any log; caregivers can only delete logs they created
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
-    select: { user_id: true },
-  });
+    select: { user_id: true }
+  })
 
   if (!pet) {
-    throw new NotFoundError('Pet not found');
+    throw new NotFoundError('Pet not found')
   }
 
-  const isPetOwner = pet.user_id === userId;
+  const isPetOwner = pet.user_id === userId
   if (!isPetOwner) {
-    const creatorId = log.created_by_user_id;
+    const creatorId = log.created_by_user_id
     if (creatorId !== userId) {
       throw new ApiError('Forbidden', 403, [
         {
-          message: 'Caregivers can only delete health logs they created themselves',
-        },
-      ]);
+          message:
+            'Caregivers can only delete health logs they created themselves'
+        }
+      ])
     }
   }
 
-  await healthLogRepository.deleteById(logId);
-};
+  await healthLogRepository.deleteById(logId)
+}
