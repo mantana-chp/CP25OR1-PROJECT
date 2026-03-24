@@ -134,4 +134,5 @@ export interface HealthLogFormValues {
   description: string
   weight: string
   note: string
+  loggedAt: string
 }

@@ -5,7 +5,9 @@ import {
   typography
 } from '@/constants/design-system'
 import { useFormik } from 'formik'
+import DatePicker from '@/src/presentation/components/date_picker'
 import Modal from '@/src/presentation/components/modal'
+import TimePicker from '@/src/presentation/components/time_picker'
 import InputText from '@/src/presentation/components/text_input'
 import { Activity, Scale, Stethoscope } from 'lucide-react-native'
 import React, { useEffect, useMemo } from 'react'
@@ -39,6 +41,47 @@ interface HealthLogFormModalProps {
   onSubmit: (values: HealthLogFormValues) => void
 }
 
+const toIsoStringSafe = (date: Date) => {
+  return Number.isNaN(date.getTime())
+    ? new Date().toISOString()
+    : date.toISOString()
+}
+
+const parseIsoToDate = (isoValue?: string | null) => {
+  if (!isoValue) return undefined
+  const parsed = new Date(isoValue)
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+const formatTimeFromDate = (date: Date) => {
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+const combineDateAndTime = (baseDate: Date, timeValue: string) => {
+  const [hours, minutes] = timeValue.split(':').map(Number)
+  const merged = new Date(baseDate)
+  merged.setHours(hours || 0, minutes || 0, 0, 0)
+  return merged
+}
+
+const isSameDay = (left: Date, right: Date) => {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+const clampToNowIfToday = (dateValue: Date) => {
+  const now = new Date()
+  if (isSameDay(dateValue, now) && dateValue.getTime() > now.getTime()) {
+    return now
+  }
+  return dateValue
+}
+
 export default function HealthLogFormModal({
   visible,
   loading = false,
@@ -48,13 +91,17 @@ export default function HealthLogFormModal({
   onSubmit
 }: HealthLogFormModalProps) {
   // Parse editing log to extract type from description if backend doesn't provide it
-  const parseEditingLog = (log: IHealthLog | null): HealthLogFormValues => {
+  const parseEditingLog = (
+    log: IHealthLog | null,
+    fallbackLoggedAt: string
+  ): HealthLogFormValues => {
     if (!log) {
       return {
         type: 'WEIGHT',
         description: '',
         weight: String(initialWeight ?? ''),
-        note: ''
+        note: '',
+        loggedAt: fallbackLoggedAt
       }
     }
 
@@ -79,12 +126,15 @@ export default function HealthLogFormModal({
       type: logType,
       description: cleanDescription,
       weight: log.weight ? String(log.weight) : '',
-      note: log.note || ''
+      note: log.note || '',
+      loggedAt: log.loggedAt || fallbackLoggedAt
     }
   }
 
+  const defaultLoggedAt = useMemo(() => new Date().toISOString(), [visible])
+
   const formik = useFormik<HealthLogFormValues>({
-    initialValues: parseEditingLog(editingLog),
+    initialValues: parseEditingLog(editingLog, defaultLoggedAt),
     enableReinitialize: true,
     validateOnBlur: false,
     validateOnChange: false,
@@ -117,16 +167,30 @@ export default function HealthLogFormModal({
         type: values.type,
         description: String(values.description ?? '').trim(),
         weight: String(values.weight ?? '').trim(),
-        note: String(values.note ?? '').trim()
+        note: String(values.note ?? '').trim(),
+        loggedAt: values.loggedAt
       })
     }
   })
+
+  const selectedLoggedAtDate = useMemo(() => {
+    return parseIsoToDate(formik.values.loggedAt) ?? new Date()
+  }, [formik.values.loggedAt])
+
+  const selectedLoggedAtTime = useMemo(() => {
+    return formatTimeFromDate(selectedLoggedAtDate)
+  }, [selectedLoggedAtDate])
+
+  const maxSelectableTime = useMemo(() => {
+    const now = new Date()
+    return isSameDay(selectedLoggedAtDate, now) ? now : undefined
+  }, [selectedLoggedAtDate])
 
   useEffect(() => {
     if (!visible) return
 
     formik.resetForm({
-      values: parseEditingLog(editingLog)
+      values: parseEditingLog(editingLog, new Date().toISOString())
     })
   }, [visible, editingLog, initialWeight])
 
@@ -221,11 +285,44 @@ export default function HealthLogFormModal({
           onChangeText={(text) => formik.setFieldValue('note', text)}
         />
 
-        <View style={styles.autoTimeHintBox}>
-          <Text style={styles.autoTimeHintTitle}>วันเวลาอัตโนมัติ</Text>
-          <Text style={styles.autoTimeHintText}>
-            ระบบจะบันทึกวันและเวลาปัจจุบันอัตโนมัติเมื่อกดบันทึก
-          </Text>
+        <Text style={styles.sectionLabel}>วันเวลาที่บันทึก</Text>
+        <View style={styles.dateTimeRow}>
+          <View style={styles.dateTimeItem}>
+            <DatePicker
+              title="วันที่"
+              value={selectedLoggedAtDate}
+              onChange={(nextDate) => {
+                const next = new Date(selectedLoggedAtDate)
+                next.setFullYear(
+                  nextDate.getFullYear(),
+                  nextDate.getMonth(),
+                  nextDate.getDate()
+                )
+                formik.setFieldValue(
+                  'loggedAt',
+                  toIsoStringSafe(clampToNowIfToday(next))
+                )
+              }}
+              maximumDate={new Date()}
+            />
+          </View>
+          <View style={styles.dateTimeItem}>
+            <TimePicker
+              title="เวลา"
+              value={selectedLoggedAtTime}
+              maximumTime={maxSelectableTime}
+              onChange={(timeValue) => {
+                const merged = combineDateAndTime(
+                  selectedLoggedAtDate,
+                  timeValue
+                )
+                formik.setFieldValue(
+                  'loggedAt',
+                  toIsoStringSafe(clampToNowIfToday(merged))
+                )
+              }}
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -282,6 +379,13 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     marginBottom: spacing[3]
   },
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: spacing[2]
+  },
+  dateTimeItem: {
+    flex: 1
+  },
   typeButton: {
     flex: 1,
     borderWidth: 1,
@@ -312,25 +416,5 @@ const styles = StyleSheet.create({
   },
   halfButton: {
     flex: 1
-  },
-  autoTimeHintBox: {
-    marginBottom: spacing[2],
-    borderWidth: 1,
-    borderColor: colors.border.light,
-    backgroundColor: colors.gray[50],
-    borderRadius: borderRadius.md,
-    padding: spacing[2],
-    gap: 2
-  },
-  autoTimeHintTitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.medium
-  },
-  autoTimeHintText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray[600],
-    fontFamily: typography.fontFamily.regular,
-    lineHeight: typography.lineHeight.normal
   }
 })

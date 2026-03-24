@@ -31,7 +31,7 @@ import Button from '../../components/button'
 import PetInfoCard from '../components/pet_info_card'
 import HealthRecordCard from '../components/health_record_card'
 import HealthLogFormModal from '../components/health_log_form_modal'
-import { HealthLogType } from '@/src/domain/pet.domain'
+import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import HealthLogEntryCard from '../components/health_log_entry_card'
 
 type HealthTypeFilter = 'ALL' | HealthLogType
@@ -250,12 +250,7 @@ export default function HealthRecordPage() {
     }
   }, [parsedLogs])
 
-  const handleCreateLog = async (values: {
-    type: HealthLogType
-    description: string
-    weight: string
-    note: string
-  }) => {
+  const handleCreateLog = async (values: HealthLogFormValues) => {
     if (!petId || !canCreateLog) return
 
     const isEditing = Boolean(editingLog)
@@ -279,7 +274,7 @@ export default function HealthRecordPage() {
       weight:
         values.type === 'WEIGHT' ? (parsedWeight ?? undefined) : undefined,
       note: values.note || undefined,
-      loggedAt: new Date().toISOString()
+      loggedAt: values.loggedAt || new Date().toISOString()
     }
 
     let result
