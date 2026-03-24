@@ -8,7 +8,7 @@ export const createHealthLogSchema = z.object({
     description: z.string().min(1, 'Description is required').max(5000, 'Description is too long'),
     weight: z.number().positive('Weight must be positive').optional(),
     note: z.string().max(2000, 'Note is too long').optional(),
-    loggedAt: z.coerce.date().optional()
+    loggedAt: z.coerce.date().max(new Date(), 'Date cannot be in the future').optional()
   }).superRefine((data, ctx) => {
     if (data.category === 'WEIGHT' && (data.weight === undefined || data.weight === null)) {
       ctx.addIssue({
@@ -26,7 +26,7 @@ export const updateHealthLogSchema = z.object({
     description: z.string().min(1, 'Description is required').max(5000, 'Description is too long').optional(),
     weight: z.number().positive('Weight must be positive').optional(),
     note: z.string().max(2000, 'Note is too long').optional().nullable(),
-    loggedAt: z.coerce.date().optional()
+    loggedAt: z.coerce.date().max(new Date(), 'Date cannot be in the future').optional()
   }).superRefine((data, ctx) => {
     // If category is being updated to WEIGHT, weight must be provided
     if (data.category === 'WEIGHT' && (data.weight === undefined || data.weight === null)) {
