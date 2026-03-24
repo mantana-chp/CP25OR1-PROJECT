@@ -1,5 +1,5 @@
 import { health_logs } from '../../generated/prisma/client';
-import { HealthLogDto } from './health-log-types';
+import { HealthLogDto, HealthLogCategory } from './health-log-types';
 
 type HealthLogWithCreator = health_logs & {
   created_by: {
@@ -14,6 +14,7 @@ export const toDto = (log: HealthLogWithCreator, createdBy: string): HealthLogDt
     petId: log.pet_id,
     createdByUserId: log.created_by_user_id,
     createdBy,
+    category: log.category as HealthLogCategory,
     description: log.description,
     weight: log.weight ? parseFloat(log.weight.toString()) : undefined,
     note: log.note || undefined,

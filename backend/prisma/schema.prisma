@@ -136,15 +136,16 @@ model pet_medical_documents {
 }
 
 model health_logs {
-  id                 String   @id @default(uuid()) @db.Uuid
-  pet_id             String   @db.Uuid
-  created_by_user_id String   @db.Uuid
-  description        String   @db.Text
-  weight             Decimal? @db.Decimal
-  note               String?  @db.Text
-  logged_at          DateTime @default(now()) @db.Timestamptz(6)
-  created_at         DateTime @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime @updatedAt @db.Timestamptz(6)
+  id                 String            @id @default(uuid()) @db.Uuid
+  pet_id             String            @db.Uuid
+  created_by_user_id String            @db.Uuid
+  category           HealthLogCategory
+  description        String            @db.Text
+  weight             Decimal?          @db.Decimal
+  note               String?           @db.Text
+  logged_at          DateTime          @default(now()) @db.Timestamptz(6)
+  created_at         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime          @updatedAt @db.Timestamptz(6)
 
   pet         pets  @relation(fields: [pet_id], references: [id], onDelete: Cascade)
   created_by  users @relation(fields: [created_by_user_id], references: [id], onDelete: Cascade)
@@ -346,6 +347,12 @@ enum invite_status {
   PENDING
   ACCEPTED
   EXPIRED
+}
+
+enum HealthLogCategory {
+  WEIGHT
+  SYMPTOMS
+  BEHAVIOR
 }
 
 // ─── Pet Sharing Models ───────────────────────────────────────────────────────

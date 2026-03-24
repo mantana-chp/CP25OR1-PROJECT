@@ -1,9 +1,10 @@
 import prisma from '../../libs/db'
-import { Prisma } from '../../generated/prisma/client'
+import { Prisma, HealthLogCategory } from '../../generated/prisma/client'
 
 export const create = async (data: {
   pet_id: string
   created_by_user_id: string
+  category: HealthLogCategory
   description: string
   weight?: number
   note?: string
@@ -12,6 +13,7 @@ export const create = async (data: {
     data: {
       pet_id: data.pet_id,
       created_by_user_id: data.created_by_user_id,
+      category: data.category,
       description: data.description,
       weight: data.weight ? new Prisma.Decimal(data.weight) : null,
       note: data.note || null
@@ -98,12 +100,17 @@ export const countByPetId = async (petId: string) => {
 export const update = async (
   logId: string,
   data: {
+    category?: HealthLogCategory
     description?: string
     note?: string | null
     loggedAt?: Date
   }
 ) => {
   const updateData: any = {}
+
+  if (data.category !== undefined) {
+    updateData.category = data.category
+  }
 
   if (data.description !== undefined) {
     updateData.description = data.description

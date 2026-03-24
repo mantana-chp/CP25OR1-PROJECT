@@ -61,7 +61,7 @@ const resolveCreatedBy = async (
 
 /**
  * Create a new health log for a pet.
- * If weight is provided, also update the pet's current weight.
+ * If category is WEIGHT and weight is provided, also update the pet's current weight.
  */
 export const createHealthLog = async (
   petId: string,
@@ -93,6 +93,7 @@ export const createHealthLog = async (
       data: {
         pet_id: petId,
         created_by_user_id: userId,
+        category: input.category,
         description: input.description,
         weight: input.weight ? new Prisma.Decimal(input.weight) : null,
         note: input.note || null,
@@ -108,8 +109,8 @@ export const createHealthLog = async (
       },
     });
 
-    // If weight is provided, update the pet's weight
-    if (input.weight !== undefined && input.weight !== null) {
+    // Only update pet's weight if category is WEIGHT and weight is provided
+    if (input.category === 'WEIGHT' && input.weight !== undefined && input.weight !== null) {
       await tx.pets.update({
         where: { id: petId },
         data: {
@@ -276,16 +277,20 @@ export const updateHealthLog = async (
     }
   }
 
+  // Determine the category (use updated value or fallback to existing)
+  const finalCategory = updateData.category || log.category
+
   // Update in transaction if weight needs to be updated
   let updatedLog
 
   if (updateData.weight !== undefined) {
-    // Weight is provided, update both log and pet's weight
+    // Weight is provided, update both log and pet's weight (if category is WEIGHT)
     updatedLog = await prisma.$transaction(async (tx) => {
       // Update the health log
       const updated = await tx.health_logs.update({
         where: { id: logId },
         data: {
+          category: updateData.category,
           description: updateData.description,
           weight: new Prisma.Decimal(updateData.weight!),
           note: updateData.note,
@@ -301,22 +306,36 @@ export const updateHealthLog = async (
         }
       })
 
-      // Update the pet's weight
-      await tx.pets.update({
-        where: { id: petId },
-        data: {
-          weight: new Prisma.Decimal(updateData.weight!)
-        }
-      })
+      // Only update the pet's weight if the final category is WEIGHT
+      if (finalCategory === 'WEIGHT') {
+        await tx.pets.update({
+          where: { id: petId },
+          data: {
+            weight: new Prisma.Decimal(updateData.weight!)
+          }
+        })
+      }
 
       return updated
     })
   } else {
-    // Weight not provided, just update description and/or note
-    updatedLog = await healthLogRepository.update(logId, {
-      description: updateData.description,
-      note: updateData.note,
-      loggedAt: updateData.loggedAt
+    // Weight not provided, just update category/description/note
+    updatedLog = await prisma.health_logs.update({
+      where: { id: logId },
+      data: {
+        category: updateData.category,
+        description: updateData.description,
+        note: updateData.note,
+        logged_at: updateData.loggedAt
+      },
+      include: {
+        created_by: {
+          select: {
+            id: true,
+            current_installation_id: true
+          }
+        }
+      }
     })
   }
 

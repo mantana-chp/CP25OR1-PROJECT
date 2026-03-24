@@ -1,8 +1,11 @@
+export type HealthLogCategory = 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR';
+
 export interface HealthLogDto {
   id: string
   petId: string
   createdByUserId: string
   createdBy: string
+  category: HealthLogCategory
   description: string
   weight?: number
   note?: string
@@ -12,6 +15,7 @@ export interface HealthLogDto {
 }
 
 export interface CreateHealthLogInput {
+  category: HealthLogCategory
   description: string
   weight?: number
   note?: string
