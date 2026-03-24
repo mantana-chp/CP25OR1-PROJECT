@@ -197,7 +197,7 @@ export default function PetSelector({
               : `แสดงทั้งหมด ${pets.length} ตัว`}
           </Text>
           <View
-            style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}
+            style={{ transform: [{ rotate: isExpanded ? '0deg' : '180deg' }] }}
           >
             <ChevronUp size={20} color="#225877" />
           </View>
