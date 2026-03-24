@@ -159,14 +159,6 @@ export default function ReminderList({
           // Pass the date to add to excluded_dates array
           excludeDate = reminder.reminderDate
 
-          // console.log('[Recurring Deletion]', {
-          //   isVirtual: reminder.isVirtual,
-          //   reminderDate: reminder.reminderDate,
-          //   recurrenceId: reminder.recurrence.id,
-          //   reminderId: id,
-          //   excludeDateToSend: excludeDate
-          // })
-
           // For virtual reminders, use the rule ID instead of the reminder ID
           if (reminder.isVirtual) {
             deleteId = reminder.recurrence.id
@@ -193,13 +185,6 @@ export default function ReminderList({
             reminder.recurrence.id
           )
         }
-
-        // console.log('[About to DELETE]', {
-        //   deleteId,
-        //   deleteScope,
-        //   excludeDate,
-        //   originalReminderId: id
-        // })
 
         const { error } = await deleteReminderApi.execute(
           deleteId,

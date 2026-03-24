@@ -85,23 +85,14 @@ export default function ChatbotPage() {
         resolvedPetId,
         chatHistory
       )
-      console.log(response.data)
 
       // Always update resolvedPetId with what server returns
       // - New pet detected → server returns new uuid → state updates
       // - Same pet continuing → server echoes same uuid → no change
       // - No pet in query → server returns undefined → state resets to undefined
       setResolvedPetId(response.data.resolvedPetId)
-
-      // Check if AI requires severity input
-      console.log('[Chatbot] API response data:', JSON.stringify(response.data))
+      
       const requiresSeverity = response.data.severityFlag === true
-      console.log(
-        '[Chatbot] severityFlag:',
-        response.data.severityFlag,
-        '| requiresSeverity:',
-        requiresSeverity
-      )
 
       // Update chat history with this exchange
       setChatHistory((prev) => [

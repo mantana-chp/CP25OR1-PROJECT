@@ -5,7 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useState
 } from 'react'
 import { IDeletedPet, IPetProfile } from '../domain/pet.domain'
 import { useAuth } from './AuthContext'
@@ -54,7 +54,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
       setLoading(true)
       const [petsData, pastPetsData] = await Promise.all([
         fetchActivePets(),
-        fetchPastPets(),
+        fetchPastPets()
       ])
 
       setActivePetsData(petsData)
@@ -114,7 +114,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         .map((pet) => ({
           ...pet,
           deleted_at: pet.deleted_at!,
-          status: 'DELETED' as const,
+          status: 'DELETED' as const
         }))
       console.log('✅ Formatted deleted pets:', formattedDeleted.length, 'pets')
       setDeletedPets(formattedDeleted)
@@ -128,10 +128,8 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   const softDeletePet = useCallback(
     async (petId: string) => {
       try {
-        console.log('🗑️ Soft deleting pet:', petId)
         // Call backend API to soft delete
-        const response = await petProfileService.softDeletePet(petId)
-        console.log('✅ Soft delete response:', response)
+        await petProfileService.softDeletePet(petId)
 
         // Refresh data from all APIs
         // This will automatically update selection if the deleted pet was selected
@@ -142,7 +140,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshPets, refreshDeletedPets],
+    [refreshPets, refreshDeletedPets]
   )
 
   // Hard delete - permanently remove pet via backend API
@@ -159,23 +157,21 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshDeletedPets],
+    [refreshDeletedPets]
   )
 
   // Restore - call backend API, then refresh local state
   const restorePet = useCallback(
     async (petId: string) => {
       try {
-        console.log('♻️ Restoring pet:', petId)
         await petProfileService.restorePet(petId)
-        console.log('✅ Pet restored')
         await Promise.all([refreshPets(), refreshDeletedPets()])
       } catch (error) {
         console.error('❌ Error restoring pet:', error)
         throw error
       }
     },
-    [refreshPets, refreshDeletedPets],
+    [refreshPets, refreshDeletedPets]
   )
 
   // Mark pet as deceased - call backend API
@@ -193,7 +189,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [refreshPets],
+    [refreshPets]
   )
 
   useEffect(() => {
@@ -224,7 +220,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         softDeletePet,
         hardDeletePet,
         restorePet,
-        markPetDeceased,
+        markPetDeceased
       }}
     >
       {children}
