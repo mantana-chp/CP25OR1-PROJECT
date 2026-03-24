@@ -75,7 +75,100 @@ export const generateInvite = async (
   }
 }
 
-// ─── 2. Claim Invite ──────────────────────────────────────────────────────────
+// ─── 2. Preview Invite ────────────────────────────────────────────────────────
+
+export const previewInvite = async (token: string, userId: string) => {
+  const invite = await repo.findInviteById(token)
+
+  if (!invite) {
+    throw new NotFoundError('Invalid code')
+  }
+
+  // Check if invite is valid
+  if (
+    invite.status !== invite_status.PENDING ||
+    invite.expires_at < new Date()
+  ) {
+    throw new BadRequestError('Code expired or already used')
+  }
+
+  // Check if the user is the owner of any pet in the invite
+  const ownerIds = [...new Set(invite.invite_pets.map((ip) => ip.pet.user_id))]
+  if (ownerIds.includes(userId)) {
+    throw new BadRequestError('You are already the owner of one of these pets')
+  }
+
+  // Categorize pets: to be added vs. already shared
+  const toBeAddedPetIds: string[] = []
+  const alreadySharedPetIds: string[] = []
+
+  for (const { pet } of invite.invite_pets) {
+    // Check if pet is still active
+    const petRecord = await prisma.pets.findUnique({
+      where: { id: pet.id },
+      select: { status: true, deleted_at: true },
+    })
+
+    if (
+      !petRecord ||
+      petRecord.status !== 'ACTIVE' ||
+      petRecord.deleted_at !== null
+    ) {
+      // Skip inactive pets silently
+      continue
+    }
+
+    // Check if user already has access
+    const existing = await repo.findActiveAccess(pet.id, userId)
+    if (existing) {
+      alreadySharedPetIds.push(pet.id)
+    } else {
+      toBeAddedPetIds.push(pet.id)
+    }
+  }
+
+  // Fetch full profiles for both categories
+  const [toBeAddedPets, alreadySharedPets] = await Promise.all([
+    Promise.all(
+      toBeAddedPetIds.map((petId) =>
+        prisma.pets.findUnique({
+          where: { id: petId },
+          include: {
+            species: { select: { name_th: true } },
+            breeds: { select: { name_th: true } },
+          },
+        }),
+      ),
+    ),
+    Promise.all(
+      alreadySharedPetIds.map((petId) =>
+        prisma.pets.findUnique({
+          where: { id: petId },
+          include: {
+            species: { select: { name_th: true } },
+            breeds: { select: { name_th: true } },
+          },
+        }),
+      ),
+    ),
+  ])
+
+  // Format pet profiles
+  const toBeAddedProfiles = await Promise.all(
+    toBeAddedPets.filter(Boolean).map(formatPetProfile),
+  )
+  const alreadySharedProfiles = await Promise.all(
+    alreadySharedPets.filter(Boolean).map(formatPetProfile),
+  )
+
+  return {
+    expiresAt: invite.expires_at,
+    toBeAdded: toBeAddedProfiles,
+    alreadyShared: alreadySharedProfiles,
+  }
+}
+
+// ─── 3. Claim Invite ──────────────────────────────────────────────────────────
 
 export const claimInvite = async (
   token: string,
@@ -106,7 +199,15 @@ export const claimInvite = async (
       ),
     )
 
-    return Promise.all(alreadyClaimedPets.filter(Boolean).map(formatPetProfile))
+    const profiles = await Promise.all(
+      alreadyClaimedPets.filter(Boolean).map(formatPetProfile),
+    )
+
+    // For idempotent case, all pets are considered already shared
+    return {
+      added: [],
+      alreadyShared: profiles,
+    }
   }
 
   if (
@@ -122,18 +223,9 @@ export const claimInvite = async (
     throw new BadRequestError('You are already the owner of one of these pets')
   }
 
-  const invitePetIds = invite.invite_pets.map((invitePet) => invitePet.pet.id)
-  const existingActiveAccessCount = await prisma.pet_user_access.count({
-    where: {
-      user_id: userId,
-      revoked_at: null,
-      pet_id: { in: invitePetIds },
-    },
-  })
-
-  if (existingActiveAccessCount === invitePetIds.length) {
-    throw new BadRequestError('You are already a caregiver for this pet')
-  }
+  // Track which pets were newly added vs. already shared
+  const addedPetIds: string[] = []
+  const alreadySharedPetIds: string[] = []
 
   // Transaction: for each unique owner ensure a contact, then create access per pet
   await prisma.$transaction(async (tx) => {
@@ -159,13 +251,16 @@ export const claimInvite = async (
         petRecord.status !== 'ACTIVE' ||
         petRecord.deleted_at !== null
       ) {
-        throw new BadRequestError(
-          'One or more pets in this invite are no longer active. Please ask the owner to generate a new invite.',
-        )
+        // Skip inactive pets silently - continue processing others
+        continue
       }
 
       const existing = await repo.findActiveAccess(pet.id, userId)
-      if (existing) continue // already has access — skip silently
+      if (existing) {
+        // Already has access — track and skip
+        alreadySharedPetIds.push(pet.id)
+        continue
+      }
 
       const contactId = contactByOwner.get(pet.user_id)
       if (!contactId) continue
@@ -178,28 +273,55 @@ export const claimInvite = async (
         inviteId: invite.id,
         installationId,
       })
+
+      // Track newly added pet
+      addedPetIds.push(pet.id)
     }
 
     await repo.markInviteAccepted(tx, invite.id, userId)
   })
 
-  // Return full profiles for all pets granted in this invite
-  const pets = await Promise.all(
-    invite.invite_pets.map(({ pet }) =>
-      prisma.pets.findUnique({
-        where: { id: pet.id },
-        include: {
-          species: { select: { name_th: true } },
-          breeds: { select: { name_th: true } },
-        },
-      }),
+  // Fetch full profiles for added and already shared pets
+  const [addedPets, alreadySharedPets] = await Promise.all([
+    Promise.all(
+      addedPetIds.map((petId) =>
+        prisma.pets.findUnique({
+          where: { id: petId },
+          include: {
+            species: { select: { name_th: true } },
+            breeds: { select: { name_th: true } },
+          },
+        }),
+      ),
     ),
+    Promise.all(
+      alreadySharedPetIds.map((petId) =>
+        prisma.pets.findUnique({
+          where: { id: petId },
+          include: {
+            species: { select: { name_th: true } },
+            breeds: { select: { name_th: true } },
+          },
+        }),
+      ),
+    ),
+  ])
+
+  // Format pet profiles
+  const addedProfiles = await Promise.all(
+    addedPets.filter(Boolean).map(formatPetProfile),
+  )
+  const alreadySharedProfiles = await Promise.all(
+    alreadySharedPets.filter(Boolean).map(formatPetProfile),
   )
 
-  return Promise.all(pets.filter(Boolean).map(formatPetProfile))
+  return {
+    added: addedProfiles,
+    alreadyShared: alreadySharedProfiles,
+  }
 }
 
-// ─── 3. List Caregivers ───────────────────────────────────────────────────────
+// ─── 4. List Caregivers ───────────────────────────────────────────────────────
 
 export const listCaregivers = async (petId: string) => {
   const rows = await repo.findCaregiversByPetId(petId)
@@ -236,7 +358,7 @@ export const listAccessList = async (
   }
 }
 
-// ─── 4. Update Alias ─────────────────────────────────────────────────────────
+// ─── 5. Update Alias ─────────────────────────────────────────────────────────
 
 export const updateAlias = async (
   contactId: string,
@@ -259,7 +381,7 @@ export const updateAlias = async (
   })
 }
 
-// ─── 5. Revoke Caregiver ──────────────────────────────────────────────────────
+// ─── 6. Revoke Caregiver ──────────────────────────────────────────────────────
 
 export const revokeCaregiver = async (
   petId: string,
@@ -283,7 +405,7 @@ export const revokeCaregiver = async (
   return { message: 'Caregiver access revoked.' }
 }
 
-// ─── 6. List Pending Invites ──────────────────────────────────────────────────
+// ─── 7. List Pending Invites ──────────────────────────────────────────────────
 
 export const listPendingInvites = async (userId: string) => {
   const invites = await repo.findPendingInvitesByCreator(userId)
@@ -299,7 +421,7 @@ export const listPendingInvites = async (userId: string) => {
   }))
 }
 
-// ─── 7. Cancel Invite ─────────────────────────────────────────────────────────
+// ─── 8. Cancel Invite ─────────────────────────────────────────────────────────
 
 export const cancelInvite = async (inviteId: string, userId: string) => {
   const invite = await prisma.pet_share_invites.findFirst({
@@ -318,7 +440,7 @@ export const cancelInvite = async (inviteId: string, userId: string) => {
   return { message: 'Invite cancelled.' }
 }
 
-// ─── 8. Has Accessible Pets (startup check) ───────────────────────────────────
+// ─── 9. Has Accessible Pets (startup check) ───────────────────────────────────
 
 export const hasAccessiblePets = async (userId: string): Promise<boolean> => {
   return repo.hasAnyAccessiblePet(userId)

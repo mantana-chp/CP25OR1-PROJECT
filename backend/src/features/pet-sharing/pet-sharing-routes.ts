@@ -5,6 +5,7 @@ import { resolvePetRole, requireOwner } from '../../middlewares/resolvePetRole'
 import {
   generateInviteController,
   claimInviteController,
+  previewInviteController,
   listCaregiversController,
   listAccessListController,
   updateAliasController,
@@ -15,6 +16,7 @@ import {
 import {
   generateInviteSchema,
   claimInviteSchema,
+  previewInviteSchema,
   updateAliasSchema,
   revokeCaregiverSchema,
   listInvitesSchema,
@@ -81,8 +83,16 @@ petSharingPetRoutes.delete(
 )
 
 // ─── Mounted under /pet-shares ────────────────────────────────────────────────
+// GET /v1/pet-shares/preview/:token
 // POST /v1/pet-shares/claim/:token
 export const petSharesRoutes = Router()
+
+petSharesRoutes.get(
+  '/preview/:token',
+  authGuard,
+  validate(previewInviteSchema),
+  previewInviteController,
+)
 
 petSharesRoutes.post(
   '/claim/:token',

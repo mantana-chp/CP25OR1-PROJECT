@@ -21,6 +21,13 @@ export const claimInviteSchema = z.object({
   }),
 })
 
+// GET /v1/pet-shares/preview/:token
+export const previewInviteSchema = z.object({
+  params: z.object({
+    token: z.uuid('Invalid invite token'),
+  }),
+})
+
 // GET /v1/pets/:petId/caregivers
 export const listCaregiversSchema = z.object({
   params: z.object({

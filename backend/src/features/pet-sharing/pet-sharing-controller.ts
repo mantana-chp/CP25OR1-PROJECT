@@ -5,6 +5,7 @@ import * as service from './pet-sharing-service'
 import {
   generateInviteSchema,
   claimInviteSchema,
+  previewInviteSchema,
   updateAliasSchema,
   revokeCaregiverSchema,
   listInvitesSchema,
@@ -31,6 +32,16 @@ export const claimInviteController = asyncHandler(
     const installationId = req.headers['x-installation-id'] as string
     const pet = await service.claimInvite(params.token, userId, installationId)
     sendSuccess(res, pet, 200)
+  },
+)
+
+// GET /v1/pet-shares/preview/:token
+export const previewInviteController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { params } = previewInviteSchema.parse(req)
+    const { id: userId } = req.user!
+    const result = await service.previewInvite(params.token, userId)
+    sendSuccess(res, result, 200)
   },
 )
 
