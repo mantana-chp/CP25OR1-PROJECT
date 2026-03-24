@@ -197,12 +197,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_500Medium',
-    marginBottom: 8
+    marginBottom: 4
   },
   card: {
-    backgroundColor: colors.background.secondary,
     padding: 8,
-    borderRadius: 12
+    borderRadius: 12,
+    backgroundColor: colors.background.secondary
   },
   deceasedCard: {
     borderColor: '#9ca3af',

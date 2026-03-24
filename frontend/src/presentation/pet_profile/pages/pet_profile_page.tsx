@@ -8,7 +8,7 @@ import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   Pressable,
@@ -18,7 +18,7 @@ import {
   View
 } from 'react-native'
 
-import { Trash2 } from 'lucide-react-native'
+import { ScanQrCode, Trash2, UserPlus, Users } from 'lucide-react-native'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
 import DeceasedPetModal from '../components/deceased_pet_modal'
@@ -50,10 +50,7 @@ export default function PetProfilePage() {
     markPetDeceased
   } = usePets()
 
-  // Tab state: 'active' or 'past'
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active')
-
-  // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showRecentlyDeletedModal, setShowRecentlyDeletedModal] =
     useState(false)
@@ -90,7 +87,6 @@ export default function PetProfilePage() {
   })
 
   useEffect(() => {
-    console.log('📡 Initial mount - Loading pets on component mount')
     getPetsApi.execute()
   }, [])
 
@@ -363,28 +359,6 @@ export default function PetProfilePage() {
                 paddingVertical: 16
               }}
             >
-              {/* Selected Pet Info */}
-              {currentPet && (
-                <PetInfoCard
-                  data={currentPet}
-                  canDelete={
-                    !isViewingDeceased && canDeletePet && !isCaregiverPet
-                  }
-                  onDelete={
-                    !isViewingDeceased && !isCaregiverPet
-                      ? handleDeletePress
-                      : undefined
-                  }
-                  onMarkDeceased={
-                    !isViewingDeceased && !isCaregiverPet
-                      ? openDeceasedModalFromCard
-                      : undefined
-                  }
-                  isDeceased={isViewingDeceased}
-                  readOnly={isCaregiverPet}
-                />
-              )}
-
               <View style={styles.sectionHeader}>
                 <View style={styles.tabContainer}>
                   <Pressable
@@ -400,7 +374,7 @@ export default function PetProfilePage() {
                         activeTab === 'active' && styles.activeTabText
                       ]}
                     >
-                      สัตว์เลี้ยงของฉัน
+                      สัตว์เลี้ยง
                     </Text>
                     {activePets.length > 0 && (
                       <View
@@ -430,7 +404,7 @@ export default function PetProfilePage() {
                         activeTab === 'past' && styles.pastTabText
                       ]}
                     >
-                      🕊️ ในความทรงจำ
+                      ในความทรงจำ
                     </Text>
                     {contextDeceasedPets.length > 0 && (
                       <View
@@ -450,21 +424,34 @@ export default function PetProfilePage() {
                       </View>
                     )}
                   </Pressable>
+
+                  {deletedPets.length > 0 && (
+                    <Pressable
+                      style={styles.recentlyDeletedButton}
+                      onPress={() => setShowRecentlyDeletedModal(true)}
+                    >
+                      <Trash2 size={14} color="#BF1737" />
+                      <View style={styles.deletedBadge}>
+                        <Text style={styles.deletedBadgeText}>
+                          {deletedPets.length}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  )}
                 </View>
-                {deletedPets.length > 0 && (
-                  <Pressable
-                    style={styles.recentlyDeletedButton}
-                    onPress={() => setShowRecentlyDeletedModal(true)}
-                  >
-                    <Trash2 size={14} color="#BF1737" />
-                    <View style={styles.deletedBadge}>
-                      <Text style={styles.deletedBadgeText}>
-                        {deletedPets.length}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
+
+                <Pressable onPress={() => {}}>
+                  <UserPlus size={14} color={colors.primary.light} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    router.push('./scan_pet_share')
+                  }}
+                >
+                  <ScanQrCode size={14} color={colors.primary.light} />
+                </Pressable>
               </View>
+
               <PetSelector
                 pets={displayPets}
                 selectedIndex={currentPetIndex}
@@ -489,11 +476,40 @@ export default function PetProfilePage() {
           )}
         </View>
 
-        {displayPets.length > 0 && (
-          <SubMenuSection
-            petId={currentPet?.id}
-            isViewingDeceased={isViewingDeceased}
-          />
+        {/* Selected Pet Info */}
+        {currentPet && (
+          <View
+            style={{
+              backgroundColor: colors.background.secondary,
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+              gap: 2
+            }}
+          >
+            <PetInfoCard
+              data={currentPet}
+              canDelete={!isViewingDeceased && canDeletePet && !isCaregiverPet}
+              onDelete={
+                !isViewingDeceased && !isCaregiverPet
+                  ? handleDeletePress
+                  : undefined
+              }
+              onMarkDeceased={
+                !isViewingDeceased && !isCaregiverPet
+                  ? openDeceasedModalFromCard
+                  : undefined
+              }
+              isDeceased={isViewingDeceased}
+              readOnly={isCaregiverPet}
+            />
+
+            {displayPets.length > 0 && (
+              <SubMenuSection
+                petId={currentPet?.id}
+                isViewingDeceased={isViewingDeceased}
+              />
+            )}
+          </View>
         )}
 
         {/* Appointments Section & Health History - Only for active pets */}
@@ -556,7 +572,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginVertical: 12
+    marginVertical: 12,
+    gap: 8
   },
   tabContainer: {
     flexDirection: 'row',
