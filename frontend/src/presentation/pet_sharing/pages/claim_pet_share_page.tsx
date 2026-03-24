@@ -325,7 +325,7 @@ export default function ClaimPetSharePage() {
                 </Text>
                 <TextInput
                   style={styles.manualInput}
-                  placeholder="cp25or1-frontend://claim/... หรือ รหัสเชิญ"
+                  placeholder="รหัสเชิญ"
                   placeholderTextColor={colors.gray[400]}
                   value={manualCode}
                   onChangeText={setManualCode}
