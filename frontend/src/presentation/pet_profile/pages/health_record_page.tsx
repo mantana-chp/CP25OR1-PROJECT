@@ -341,6 +341,20 @@ export default function HealthRecordPage() {
         </View>
       )}
 
+      {/* <View style={styles.summaryRow}>
+        <View style={styles.summaryCard}>
+          <View style={styles.weightHeaderRow}>
+            <Scale size={iconSizes.sm} color={colors.info.dark} />
+            <Text style={styles.summaryLabel}>น้ำหนักล่าสุด</Text>
+          </View>
+          <Text style={styles.summaryValue}>
+            {typeof latestWeight === 'number'
+              ? `${latestWeight.toFixed(2)} กก.`
+              : '-'}
+          </Text>
+        </View>
+      </View> */}
+
       <View style={styles.modeSwitchRow}>
         <TouchableOpacity
           style={[
@@ -371,22 +385,13 @@ export default function HealthRecordPage() {
               pageMode === 'logs' && styles.modeChipTextActive
             ]}
           >
-            บันทึกสุขภาพใหม่
+            บันทึกสุขภาพ
           </Text>
         </TouchableOpacity>
       </View>
 
       {pageMode === 'records' && (
         <>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
-            <View style={styles.totalBadge}>
-              <Text style={styles.totalBadgeText}>
-                {filteredRecords.length} รายการ
-              </Text>
-            </View>
-          </View>
-
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -443,25 +448,6 @@ export default function HealthRecordPage() {
 
       {pageMode === 'logs' && (
         <>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>บันทึกทั้งหมด</Text>
-              <Text style={styles.summaryValue}>{counts.ALL}</Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <View style={styles.weightHeaderRow}>
-                <Scale size={iconSizes.sm} color={colors.info.dark} />
-                <Text style={styles.summaryLabel}>น้ำหนักล่าสุด</Text>
-              </View>
-              <Text style={styles.summaryValue}>
-                {typeof latestWeight === 'number'
-                  ? `${latestWeight.toFixed(2)} กก.`
-                  : '-'}
-              </Text>
-            </View>
-          </View>
-
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
