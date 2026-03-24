@@ -113,9 +113,14 @@ export default function PetSelector({
   const renderPetItem = (pet: Pet, index: number) => (
     <TouchableOpacity
       key={pet.id}
-      onPress={() => onSelect(index)}
+      onPress={() => {
+        onSelect(index)
+        if (isExpanded) {
+          setIsExpanded(false)
+        }
+      }}
       onLongPress={() => handleLongPress(pet)}
-      delayLongPress={500}
+      delayLongPress={300}
       style={[styles.petItem, isExpanded && styles.expandedPetItem]}
     >
       <View
