@@ -6,9 +6,9 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPendingInvite } from '@/src/utils/api/services/pet_sharing_service'
-import { Share2, X } from 'lucide-react-native'
-import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { AlertCircle, X } from 'lucide-react-native'
+import React, { useEffect, useState } from 'react'
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Button from '../../components/button'
 import Modal from '../../components/modal'
 import QRCode from 'react-native-qrcode-svg'
@@ -29,6 +29,44 @@ export default function QrModal({
   onClose,
   onShare
 }: QrModalProps) {
+  const [isExpired, setIsExpired] = useState(false)
+
+  // Check if the invite is expired
+  useEffect(() => {
+    if (!pendingInvite || !pendingInvite.expiresAt) {
+      setIsExpired(false)
+      return
+    }
+
+    const checkExpiry = () => {
+      const now = new Date()
+      const expiresAt = new Date(pendingInvite.expiresAt)
+      const expired = now >= expiresAt
+
+      if (expired && !isExpired) {
+        setIsExpired(true)
+        Alert.alert(
+          'QR Code หมดอายุ',
+          'QR Code นี้หมดอายุแล้ว กรุณาสร้างรหัสเชิญใหม่',
+          [
+            {
+              text: 'ตกลง',
+              onPress: onClose
+            }
+          ]
+        )
+      }
+    }
+
+    // Check immediately
+    checkExpiry()
+
+    // Check every 5 seconds while modal is visible
+    const interval = setInterval(checkExpiry, 5000)
+
+    return () => clearInterval(interval)
+  }, [pendingInvite, visible, isExpired, onClose])
+
   return (
     <Modal
       visible={visible}
@@ -64,19 +102,6 @@ export default function QrModal({
             <Text style={styles.qrFullscreenExpiry}>
               {formatExpiresIn(pendingInvite.expiresAt)}
             </Text>
-
-            {/* <Button
-              title="แชร์รหัสเชิญ"
-              onPress={onShare}
-              icon={
-                <Share2
-                  size={iconSizes.md}
-                  color={colors.background.secondary}
-                />
-              }
-              style={[styles.createInviteButton, styles.qrShareButton]}
-              textStyle={styles.createInviteButtonText}
-            /> */}
           </>
         ) : null}
       </View>
@@ -131,22 +156,5 @@ const styles = StyleSheet.create({
     color: colors.warning.dark,
     textAlign: 'center',
     fontFamily: typography.fontFamily.medium
-  },
-  createInviteButton: {
-    minHeight: spacing[12],
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: spacing[2],
-    backgroundColor: colors.primary.light
-  },
-  createInviteButtonText: {
-    fontSize: typography.fontSize.md,
-    color: colors.background.secondary,
-    fontFamily: typography.fontFamily.bold
-  },
-  qrShareButton: {
-    marginTop: 2
   }
 })
