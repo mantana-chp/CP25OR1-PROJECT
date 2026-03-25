@@ -90,7 +90,7 @@ export default function HealthLogFormModal({
   onClose,
   onSubmit
 }: HealthLogFormModalProps) {
-  // Parse editing log to extract type from description if backend doesn't provide it
+  // Parse editing log to extract category from backend
   const parseEditingLog = (
     log: IHealthLog | null,
     fallbackLoggedAt: string
@@ -105,26 +105,9 @@ export default function HealthLogFormModal({
       }
     }
 
-    // Check if backend provides type field, otherwise parse from description
-    let logType: HealthLogType = 'SYMPTOMS'
-    let cleanDescription = log.description
-
-    if (log.type) {
-      // Backend provides type - use it directly
-      logType = log.type
-    } else {
-      // Parse from description (backward compatibility)
-      const TYPE_PREFIX_REGEX = /^\[(WEIGHT|SYMPTOMS|BEHAVIOR)\]\s*/i
-      const match = log.description.match(TYPE_PREFIX_REGEX)
-      if (match) {
-        logType = match[1].toUpperCase() as HealthLogType
-        cleanDescription = log.description.replace(TYPE_PREFIX_REGEX, '').trim()
-      }
-    }
-
     return {
-      type: logType,
-      description: cleanDescription,
+      type: log.category,
+      description: log.description,
       weight: log.weight ? String(log.weight) : '',
       note: log.note || '',
       loggedAt: log.loggedAt || fallbackLoggedAt

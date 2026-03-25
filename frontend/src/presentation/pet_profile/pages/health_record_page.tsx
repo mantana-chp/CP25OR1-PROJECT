@@ -31,6 +31,7 @@ import Button from '../../components/button'
 import PetInfoCard from '../components/pet_info_card'
 import HealthRecordCard from '../components/health_record_card'
 import HealthLogFormModal from '../components/health_log_form_modal'
+import HealthRecordDetailModal from '../components/health_record_detail_modal'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import HealthLogEntryCard from '../components/health_log_entry_card'
 
@@ -61,23 +62,6 @@ const TYPE_LABEL: Record<HealthTypeFilter, string> = {
   BEHAVIOR: 'พฤติกรรม'
 }
 
-const TYPE_PREFIX_REGEX = /^\[(WEIGHT|SYMPTOMS|BEHAVIOR)\]\s*/i
-
-const parseDescriptionType = (description: string) => {
-  const text = description || ''
-  const match = text.match(TYPE_PREFIX_REGEX)
-  const parsedType = (match?.[1]?.toUpperCase() || 'SYMPTOMS') as HealthLogType
-
-  return {
-    type: parsedType,
-    cleanDescription: text.replace(TYPE_PREFIX_REGEX, '').trim() || text
-  }
-}
-
-const encodeDescriptionType = (type: HealthLogType, description: string) => {
-  return `[${type}] ${description.trim()}`
-}
-
 const parseWeightInput = (raw: string) => {
   const normalized = raw.trim().replace(',', '.')
   const parsed = Number(normalized)
@@ -95,6 +79,8 @@ export default function HealthRecordPage() {
     useState<CategoryFilter>('All')
   const [selectedFilter, setSelectedFilter] = useState<HealthTypeFilter>('ALL')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showRecordDetailModal, setShowRecordDetailModal] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<IReminder | null>(null)
 
   const allPets = [...activePets, ...deceasedPets]
   const currentPet = petId ? allPets.find((p) => p.id === petId) || null : null
@@ -163,6 +149,8 @@ export default function HealthRecordPage() {
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
 
+  // console.log(allHealthRecords)
+
   const getFilteredRecords = useCallback(
     (category: CategoryFilter) =>
       allHealthRecords
@@ -202,25 +190,10 @@ export default function HealthRecordPage() {
   const parsedLogs = useMemo(() => {
     return [...rawLogs]
       .map((log) => {
-        // Prefer API type field when backend provides it, fallback to parsing description
-        let logType: HealthLogType
-        let cleanDescription: string
-
-        if (log.type) {
-          // Backend provides type field - use it directly
-          logType = log.type
-          cleanDescription = log.description
-        } else {
-          // Fallback: parse from description (backward compatibility)
-          const parsed = parseDescriptionType(log.description)
-          logType = parsed.type
-          cleanDescription = parsed.cleanDescription
-        }
-
         return {
           ...log,
-          logType,
-          cleanDescription
+          logType: log.category,
+          cleanDescription: log.description
         }
       })
       .sort(
@@ -270,7 +243,8 @@ export default function HealthRecordPage() {
         : normalizedDescription
 
     const payload = {
-      description: encodeDescriptionType(values.type, descriptionForPayload),
+      category: values.type,
+      description: descriptionForPayload,
       weight:
         values.type === 'WEIGHT' ? (parsedWeight ?? undefined) : undefined,
       note: values.note || undefined,
@@ -326,6 +300,16 @@ export default function HealthRecordPage() {
   const handleCloseModal = () => {
     setShowCreateModal(false)
     setEditingLog(null)
+  }
+
+  const handleOpenRecordDetail = (record: IReminder) => {
+    setSelectedRecord(record)
+    setShowRecordDetailModal(true)
+  }
+
+  const handleCloseRecordDetail = () => {
+    setShowRecordDetailModal(false)
+    setSelectedRecord(null)
   }
 
   const listHeader = (
@@ -647,7 +631,7 @@ export default function HealthRecordPage() {
   return (
     <View style={styles.container}>
       <Header
-        title="บันทึกและติดตามสุขภาพ"
+        title="ประวัติและบันทึกสุขภาพ"
         goBack
         onBackPress={() => router.push('/(tabs)/pet_profile')}
       />
@@ -679,7 +663,12 @@ export default function HealthRecordPage() {
         <FlatList
           data={filteredRecords}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <HealthRecordCard reminder={item} />}
+          renderItem={({ item }) => (
+            <HealthRecordCard
+              reminder={item}
+              onPress={() => handleOpenRecordDetail(item)}
+            />
+          )}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           contentContainerStyle={styles.listContent}
@@ -716,6 +705,14 @@ export default function HealthRecordPage() {
         onClose={handleCloseModal}
         onSubmit={handleCreateLog}
       />
+
+      {selectedRecord && (
+        <HealthRecordDetailModal
+          visible={showRecordDetailModal}
+          reminder={selectedRecord}
+          onClose={handleCloseRecordDetail}
+        />
+      )}
     </View>
   )
 }

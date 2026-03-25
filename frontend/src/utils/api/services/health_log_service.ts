@@ -1,12 +1,14 @@
 import { apiClient } from '../api_client'
 
+export type HealthLogCategory = 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR'
+
 export interface IHealthLog {
   id: string
   petId: string
   createdByUserId: string
   createdBy: string
+  category: HealthLogCategory
   description: string
-  type?: 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR' // Will be provided by backend in future
   weight?: number
   note?: string
   loggedAt: string
@@ -22,6 +24,7 @@ export interface GetHealthLogsResponse {
 }
 
 export interface CreateHealthLogPayload {
+  category: HealthLogCategory
   description: string
   weight?: number
   note?: string
@@ -29,6 +32,7 @@ export interface CreateHealthLogPayload {
 }
 
 export interface UpdateHealthLogPayload {
+  category?: HealthLogCategory
   description?: string
   weight?: number
   note?: string | null
