@@ -6,9 +6,22 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPendingInvite } from '@/src/utils/api/services/pet_sharing_service'
-import { Clock3, QrCode, Share2 } from 'lucide-react-native'
-import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import {
+  Clock3,
+  Copy,
+  PawPrint,
+  QrCode,
+  Share2,
+  User
+} from 'lucide-react-native'
+import React, { useState } from 'react'
+import {
+  Clipboard,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native'
 import Button from '../../components/button'
 import QRCode from 'react-native-qrcode-svg'
 import { formatExpiresIn } from '../../../utils/pet_sharing_utils'
@@ -22,10 +35,6 @@ interface PendingInviteCardProps {
   onCancel: () => void
 }
 
-function SectionTitle({ children }: { children: string }) {
-  return <Text style={styles.sectionTitle}>{children}</Text>
-}
-
 export default function PendingInviteCard({
   pendingInvite,
   claimLink,
@@ -34,11 +43,69 @@ export default function PendingInviteCard({
   onShare,
   onCancel
 }: PendingInviteCardProps) {
+  const [isCopied, setIsCopied] = useState(false)
+  const petCount = pendingInvite.pets?.length ?? 0
+
+  const handleCopyCode = () => {
+    if (!pendingInvite?.inviteId) return
+
+    Clipboard.setString(pendingInvite.inviteId)
+    setIsCopied(true)
+
+    // Reset the copied state after 2 seconds
+    setTimeout(() => {
+      setIsCopied(false)
+    }, 2000)
+  }
+
   return (
-    <View style={styles.wrapper}>
-      <SectionTitle>คำเชิญที่รอดำเนินการ</SectionTitle>
+    <View>
+      <Text style={styles.sectionTitle}>คำเชิญที่รอดำเนินการ</Text>
 
       <View style={styles.pendingCard}>
+        <View style={styles.inviteMetaSection}>
+          <View>
+            <View style={styles.metaLabelRow}>
+              <User size={iconSizes.xs} color={colors.gray[500]} />
+              <Text style={styles.metaLabel}>ผู้รับเชิญ</Text>
+            </View>
+            <View style={styles.recipientBadge}>
+              <Text style={styles.recipientText} numberOfLines={1}>
+                {pendingInvite.alias || '-'}
+              </Text>
+            </View>
+          </View>
+
+          <View>
+            <View style={styles.metaLabelRow}>
+              <PawPrint size={iconSizes.xs} color={colors.gray[500]} />
+              <Text style={styles.metaLabel}>สัตว์เลี้ยงที่แชร์</Text>
+              <Text style={styles.petCountText}>ทั้งหมด {petCount} ตัว</Text>
+            </View>
+            <View style={styles.petListContainer}>
+              {petCount ? (
+                <>
+                  <View style={styles.petChipRow}>
+                    {pendingInvite.pets.map((pet) => (
+                      <View key={pet.id} style={styles.petChip}>
+                        <Text style={styles.petChipText} numberOfLines={1}>
+                          {pet.pet_name}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.metaSubtleValue}>
+                  ไม่พบข้อมูลสัตว์เลี้ยง
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
         <View style={styles.pendingCardHeader}>
           <View>
             <Text style={styles.pendingCodeText}>รหัสคำเชิญ</Text>
@@ -48,11 +115,6 @@ export default function PendingInviteCard({
                 {formatExpiresIn(pendingInvite.expiresAt)}
               </Text>
             </View>
-          </View>
-
-          <View style={styles.pendingBadge}>
-            <View style={styles.pendingBadgeDot} />
-            <Text style={styles.pendingBadgeText}>รอดำเนินการ</Text>
           </View>
         </View>
 
@@ -68,17 +130,40 @@ export default function PendingInviteCard({
           </View>
         </TouchableOpacity>
 
+        <View style={styles.codeContainer}>
+          <Text style={styles.codeText} numberOfLines={1}>
+            {pendingInvite.inviteId}
+          </Text>
+          <TouchableOpacity
+            onPress={handleCopyCode}
+            style={styles.copyButton}
+            activeOpacity={0.7}
+          >
+            <Copy
+              size={iconSizes.md}
+              color={isCopied ? colors.success.DEFAULT : colors.primary.light}
+            />
+            <Text
+              style={[
+                styles.copyButtonText,
+                isCopied && styles.copyButtonTextSuccess
+              ]}
+            >
+              {isCopied ? 'คัดลอกแล้ว' : 'คัดลอก'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.pendingActionsRow}>
-          {/* <Button
-            title="แบ่งปันรหัสอีกครั้ง"
+          <Button
+            title="แชร์รหัส"
             onPress={onShare}
             variant="ghost"
             size="small"
             icon={<Share2 size={iconSizes.sm} color={colors.info.dark} />}
             style={styles.shareAgainButton}
             textStyle={styles.shareAgainButtonText}
-          /> */}
-
+          />
           <Button
             title="ยกเลิก"
             onPress={onCancel}
@@ -95,9 +180,6 @@ export default function PendingInviteCard({
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginTop: spacing[3] + 2
-  },
   sectionTitle: {
     fontSize: typography.fontSize.xl,
     fontFamily: typography.fontFamily.bold,
@@ -107,10 +189,72 @@ const styles = StyleSheet.create({
   pendingCard: {
     backgroundColor: colors.background.secondary,
     borderRadius: borderRadius.lg + 2,
-    borderTopWidth: 4,
-    borderColor: colors.primary.light,
+    borderWidth: 1,
+    borderColor: colors.border.light,
     padding: spacing[3] + 2,
     gap: spacing[3]
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border.light
+  },
+  inviteMetaSection: {
+    gap: spacing[3]
+  },
+  metaLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[500],
+    fontFamily: typography.fontFamily.medium
+  },
+  metaLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    marginBottom: spacing[1]
+  },
+  recipientBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing[2] + 2,
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary.light + '1A',
+    borderWidth: 1,
+    borderColor: colors.primary.light + '33'
+  },
+  recipientText: {
+    fontSize: typography.fontSize.base,
+    color: colors.primary.DEFAULT,
+    fontFamily: typography.fontFamily.bold
+  },
+  metaSubtleValue: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[500],
+    fontFamily: typography.fontFamily.regular
+  },
+  petListContainer: {
+    gap: spacing[1]
+  },
+  petChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: spacing[1]
+  },
+  petChip: {
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary.light + '1F'
+  },
+  petChipText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary.DEFAULT,
+    fontFamily: typography.fontFamily.medium
+  },
+  petCountText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.gray[500],
+    fontFamily: typography.fontFamily.regular
   },
   pendingCardHeader: {
     flexDirection: 'row',
@@ -154,6 +298,39 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.warning.dark,
     fontFamily: typography.fontFamily.medium
+  },
+  codeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.gray[50] || '#F9FAFB',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT,
+    padding: spacing[3]
+  },
+  codeText: {
+    flex: 1,
+    fontSize: typography.fontSize.base,
+    color: colors.gray[800],
+    fontFamily: typography.fontFamily.regular || typography.fontFamily.regular
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[1],
+    paddingHorizontal: spacing[2],
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary.light + '15'
+  },
+  copyButtonText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary.light,
+    fontFamily: typography.fontFamily.medium
+  },
+  copyButtonTextSuccess: {
+    color: colors.success.DEFAULT
   },
   qrContainer: {
     alignItems: 'center',

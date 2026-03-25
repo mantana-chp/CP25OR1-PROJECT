@@ -69,7 +69,7 @@ export default function SubMenuSection({
         <Pressable
           onPress={() => {
             router.push({
-              pathname: '/(tabs)/pet_sharing',
+              pathname: '/(tabs)/access_list',
               params: petId ? { petId } : {}
             })
           }}

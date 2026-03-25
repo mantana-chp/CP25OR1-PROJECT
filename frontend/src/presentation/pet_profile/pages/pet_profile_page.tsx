@@ -440,15 +440,19 @@ export default function PetProfilePage() {
                   )}
                 </View>
 
-                <Pressable onPress={() => {}}>
-                  <UserPlus size={14} color={colors.primary.light} />
+                <Pressable
+                  onPress={() => {
+                    router.push('/(tabs)/pet_sharing')
+                  }}
+                >
+                  <UserPlus size={18} color={colors.primary.light} />
                 </Pressable>
                 <Pressable
                   onPress={() => {
                     router.push('./scan_pet_share')
                   }}
                 >
-                  <ScanQrCode size={14} color={colors.primary.light} />
+                  <ScanQrCode size={18} color={colors.primary.light} />
                 </Pressable>
               </View>
 

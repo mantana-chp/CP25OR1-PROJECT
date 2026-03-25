@@ -152,9 +152,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name='pet_sharing'
+        name='access_list'
         options={{
           title: 'จัดการผู้ดูแล',
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name='pet_sharing'
+        options={{
+          title: 'เชิญดูแลร่วม',
           href: null,
           tabBarStyle: { display: 'none' },
         }}
