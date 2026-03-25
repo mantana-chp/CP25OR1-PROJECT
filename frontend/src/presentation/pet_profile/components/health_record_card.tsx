@@ -13,10 +13,11 @@ import {
   Syringe
 } from 'lucide-react-native'
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface HealthRecordCardProps {
   reminder: IReminder
+  onPress?: () => void
 }
 
 const CATEGORY_ICON: Record<string, any> = {
@@ -34,7 +35,10 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-export default function HealthRecordCard({ reminder }: HealthRecordCardProps) {
+export default function HealthRecordCard({
+  reminder,
+  onPress
+}: HealthRecordCardProps) {
   const categoryInfo = getCategoryInfo(reminder.categoryName)
   const CategoryIcon = CATEGORY_ICON[reminder.categoryName] || FileText
 
@@ -48,7 +52,12 @@ export default function HealthRecordCard({ reminder }: HealthRecordCardProps) {
   const formatTime = (timeString: string) => timeString.substring(0, 5) + ' น.'
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={!onPress}
+    >
       {/* Left color accent bar */}
       <View
         style={[styles.accentBar, { backgroundColor: categoryInfo.color }]}
@@ -101,14 +110,14 @@ export default function HealthRecordCard({ reminder }: HealthRecordCardProps) {
             </Text>
           </View>
           {reminder.pet_name && (
-            <View style={styles.metaItem}> 
+            <View style={styles.metaItem}>
               <Ionicons name={'paw-outline'} size={13} color={'#9ca3af'} />
               <Text style={styles.metaText}>{reminder.pet_name}</Text>
             </View>
           )}
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 }
 

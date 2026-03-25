@@ -38,6 +38,7 @@ import {
 
 import Button from '../../components/button'
 import Header from '../../components/header_component'
+import ClaimedPetsModal from '../components/claimed_pets_modal'
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000
 
@@ -105,6 +106,8 @@ export default function ClaimPetSharePage() {
   const [showManualInput, setShowManualInput] = useState(false)
   const [manualCode, setManualCode] = useState('')
   const [lastErrorToken, setLastErrorToken] = useState<string | null>(null)
+  const [claimedPets, setClaimedPets] = useState<IPetProfile[]>([])
+  const [showClaimedPetsModal, setShowClaimedPetsModal] = useState(false)
   const facing: CameraType = 'back'
   const isHandlingScanRef = useRef(false)
   const lastScannedPayloadRef = useRef<{
@@ -175,9 +178,8 @@ export default function ClaimPetSharePage() {
       return
     }
 
-    const claimedPets = unwrapData<IPetProfile[]>(result.data)
-    const claimedPetId = claimedPets?.[0]?.id
-    const firstPetName = claimedPets?.[0]?.pet_name
+    const receivedPets = unwrapData<IPetProfile[]>(result.data)
+    const claimedPetId = receivedPets?.[0]?.id
 
     await refreshPets()
 
@@ -191,20 +193,14 @@ export default function ClaimPetSharePage() {
       await completeOnboarding()
     }
 
-    Alert.alert(
-      'รับคำเชิญสำเร็จ',
-      firstPetName
-        ? `เพิ่ม "${firstPetName}" ไปยังรายการสัตว์เลี้ยงเรียบร้อยแล้ว`
-        : 'เพิ่มสัตว์เลี้ยงที่แชร์แล้วไปยังรายการของคุณเรียบร้อยแล้ว',
-      [
-        {
-          text: 'ตกลง',
-          onPress: () => {
-            router.replace('/(tabs)/pet_profile')
-          }
-        }
-      ]
-    )
+    // Show claimed pets modal
+    if (receivedPets && receivedPets.length > 0) {
+      setClaimedPets(receivedPets)
+      setShowClaimedPetsModal(true)
+    } else {
+      // Fallback to navigate directly if no pets data
+      router.replace('/(tabs)/pet_profile')
+    }
   }
 
   const onBarcodeScanned = async (event: BarcodeScanningResult) => {
@@ -394,6 +390,15 @@ export default function ClaimPetSharePage() {
           </>
         )}
       </View>
+
+      <ClaimedPetsModal
+        visible={showClaimedPetsModal}
+        pets={claimedPets}
+        onClose={() => {
+          setShowClaimedPetsModal(false)
+          router.replace('/(tabs)/pet_profile')
+        }}
+      />
     </View>
   )
 }

@@ -1,6 +1,11 @@
 import { colors } from '@/constants/design-system'
 import { useRouter } from 'expo-router'
-import { ClipboardList, FileHeart, ScanQrCode, Users } from 'lucide-react-native'
+import {
+  ClipboardList,
+  FileHeart,
+  ScanQrCode,
+  Users
+} from 'lucide-react-native'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -64,7 +69,7 @@ export default function SubMenuSection({
         <Pressable
           onPress={() => {
             router.push({
-              pathname: '/(tabs)/pet_sharing',
+              pathname: '/(tabs)/access_list',
               params: petId ? { petId } : {}
             })
           }}
@@ -75,25 +80,6 @@ export default function SubMenuSection({
           </View>
           <Text style={styles.text}>ผู้ดูแลร่วม</Text>
         </Pressable>
-
-        {/* Scan QR Code */}
-        {!isViewingDeceased && (
-          <Pressable
-            onPress={() => {
-              router.push('./scan_pet_share')
-            }}
-            style={styles.menuButton}
-          >
-            <View style={styles.iconCircle}>
-              <ScanQrCode
-                size={28}
-                color={colors.primary.DEFAULT}
-                strokeWidth={1.5}
-              />
-            </View>
-            <Text style={styles.text}>รับสิทธิ์ดูแลร่วม</Text>
-          </Pressable>
-        )}
       </View>
     </View>
   )
@@ -101,9 +87,7 @@ export default function SubMenuSection({
 
 const styles = StyleSheet.create({
   section: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: colors.background.secondary
   },
   sectionTitle: {
     fontSize: 17,

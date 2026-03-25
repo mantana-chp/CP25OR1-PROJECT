@@ -113,9 +113,14 @@ export default function PetSelector({
   const renderPetItem = (pet: Pet, index: number) => (
     <TouchableOpacity
       key={pet.id}
-      onPress={() => onSelect(index)}
+      onPress={() => {
+        onSelect(index)
+        if (isExpanded) {
+          setIsExpanded(false)
+        }
+      }}
       onLongPress={() => handleLongPress(pet)}
-      delayLongPress={500}
+      delayLongPress={300}
       style={[styles.petItem, isExpanded && styles.expandedPetItem]}
     >
       <View
@@ -192,7 +197,7 @@ export default function PetSelector({
               : `แสดงทั้งหมด ${pets.length} ตัว`}
           </Text>
           <View
-            style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}
+            style={{ transform: [{ rotate: isExpanded ? '0deg' : '180deg' }] }}
           >
             <ChevronUp size={20} color="#225877" />
           </View>
