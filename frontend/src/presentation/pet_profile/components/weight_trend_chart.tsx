@@ -139,7 +139,7 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
               </Text>
               <Text style={styles.weightStatText}>
                 <Scale size={12} color={colors.info.DEFAULT} />{' '}
-                เปลี่ยนแปลงล่าสุด:{' '}
+                ความต่างล่าสุด:{' '}
                 {chartMeta.latest !== null && chartMeta.prev !== null
                   ? `${(chartMeta.latest - chartMeta.prev).toFixed(2)} กก.`
                   : '-'}
