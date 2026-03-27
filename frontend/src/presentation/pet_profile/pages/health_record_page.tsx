@@ -14,7 +14,7 @@ import {
 } from '@/src/utils/api/services/health_log_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
-import { ClipboardList, Plus, Scale } from 'lucide-react-native'
+import { ClipboardList, Plus } from 'lucide-react-native'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -34,6 +34,7 @@ import HealthLogFormModal from '../components/health_log_form_modal'
 import HealthRecordDetailModal from '../components/health_record_detail_modal'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import HealthLogEntryCard from '../components/health_log_entry_card'
+import WeightTrendChart from '../components/weight_trend_chart'
 
 type HealthTypeFilter = 'ALL' | HealthLogType
 type PageMode = 'records' | 'logs'
@@ -207,13 +208,6 @@ export default function HealthRecordPage() {
     return parsedLogs.filter((log) => log.logType === selectedFilter)
   }, [parsedLogs, selectedFilter])
 
-  const latestWeight = useMemo(() => {
-    const firstWeighted = parsedLogs.find(
-      (log) => typeof log.weight === 'number'
-    )
-    return firstWeighted?.weight
-  }, [parsedLogs])
-
   const counts = useMemo(() => {
     return {
       ALL: parsedLogs.length,
@@ -320,19 +314,7 @@ export default function HealthRecordPage() {
         </View>
       )}
 
-      {/* <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
-          <View style={styles.weightHeaderRow}>
-            <Scale size={iconSizes.sm} color={colors.info.dark} />
-            <Text style={styles.summaryLabel}>น้ำหนักล่าสุด</Text>
-          </View>
-          <Text style={styles.summaryValue}>
-            {typeof latestWeight === 'number'
-              ? `${latestWeight.toFixed(2)} กก.`
-              : '-'}
-          </Text>
-        </View>
-      </View> */}
+      <WeightTrendChart logs={parsedLogs} />
 
       <View style={styles.modeSwitchRow}>
         <TouchableOpacity
@@ -732,11 +714,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing[3],
     backgroundColor: colors.background.secondary
   },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: spacing[2],
-    marginBottom: spacing[3]
-  },
   modeSwitchRow: {
     flexDirection: 'row',
     backgroundColor: colors.gray[100],
@@ -822,30 +799,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: typography.fontFamily.medium,
     color: colors.gray[600]
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.light,
-    padding: spacing[3],
-    gap: spacing[1]
-  },
-  summaryLabel: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray[500],
-    fontFamily: typography.fontFamily.regular
-  },
-  summaryValue: {
-    fontSize: typography.fontSize.xl,
-    color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.bold
-  },
-  weightHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1]
   },
   logFilterChipActive: {
     borderColor: colors.primary.light,
