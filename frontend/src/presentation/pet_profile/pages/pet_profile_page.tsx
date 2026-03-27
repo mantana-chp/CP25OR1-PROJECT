@@ -82,20 +82,12 @@ export default function PetProfilePage() {
     showErrorAlert: false
   })
 
-  const getHealthRecordsApi = useApi(healthRecordService.getHealthRecords, {
-    showErrorAlert: false
-  })
-
   useEffect(() => {
     getPetsApi.execute()
   }, [])
 
   const loadReminders = useCallback(() => {
     getRemindersApi.execute({})
-  }, [])
-
-  const loadHealthRecords = useCallback(() => {
-    getHealthRecordsApi.execute({})
   }, [])
 
   const loadPets = useCallback(async () => {
@@ -109,9 +101,8 @@ export default function PetProfilePage() {
     useCallback(() => {
       console.log('🔄 Pet Profile Page Focused - Reloading data')
       loadReminders()
-      loadHealthRecords()
       loadPets()
-    }, [loadReminders, loadHealthRecords, loadPets])
+    }, [loadReminders, loadPets])
   )
 
   useEffect(() => {
