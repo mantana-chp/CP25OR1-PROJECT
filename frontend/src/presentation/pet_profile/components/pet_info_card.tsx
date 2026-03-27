@@ -10,6 +10,11 @@ import {
 } from '@expo/vector-icons'
 import { Cake, Edit2, Ribbon, Trash2, VenusAndMars } from 'lucide-react-native'
 import { colors } from '@/constants/design-system'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon,
+  PET_AVATAR_COLOR_OPTIONS
+} from '@/src/utils/pet_avatar'
 
 interface PetInfoCardProps {
   data: IPetProfile
@@ -18,6 +23,8 @@ interface PetInfoCardProps {
   onMarkDeceased?: () => void
   isDeceased?: boolean
   readOnly?: boolean
+  avatarBackgroundColor?: string
+  onAvatarBackgroundColorChange?: (color: string) => void
 }
 
 export default function PetInfoCard({
@@ -26,7 +33,9 @@ export default function PetInfoCard({
   onDelete,
   onMarkDeceased,
   isDeceased = false,
-  readOnly = false
+  readOnly = false,
+  avatarBackgroundColor,
+  onAvatarBackgroundColorChange
 }: PetInfoCardProps) {
   // Debug: Log pet data when received
   useEffect(() => {
@@ -79,13 +88,20 @@ export default function PetInfoCard({
     return parseFloat(weight.toString()).toFixed(2)
   }
 
+  const resolvedAvatarBackgroundColor =
+    avatarBackgroundColor || getDefaultAvatarBackgroundColorBySpecies(data.species)
+
   return (
     <View>
       <Text style={styles.sectionTitle}>ข้อมูลสัตว์เลี้ยง</Text>
       <View style={[styles.card, isDeceased && styles.deceasedCard]}>
         <View style={styles.cardHeader}>
           <View
-            style={[styles.petAvatar, isDeceased && styles.deceasedPetAvatar]}
+            style={[
+              styles.petAvatar,
+              { backgroundColor: resolvedAvatarBackgroundColor },
+              isDeceased && styles.deceasedPetAvatar
+            ]}
           >
             {data.profile_image_url ? (
               <Image
@@ -93,7 +109,11 @@ export default function PetInfoCard({
                 style={styles.avatarImage}
               />
             ) : (
-              <MaterialCommunityIcons name="dog" size={28} color="white" />
+              <MaterialCommunityIcons
+                name={getPetPlaceholderIcon(data.species)}
+                size={28}
+                color="white"
+              />
             )}
           </View>
           <View style={styles.cardHeaderText}>
@@ -186,6 +206,7 @@ export default function PetInfoCard({
             </Text>
           </View>
         </View>
+
       </View>
     </View>
   )
@@ -216,7 +237,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#5BA3D0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -305,6 +325,33 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: 2
+  },
+  avatarColorPickerRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  avatarColorPickerLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontFamily: 'Prompt_400Regular'
+  },
+  avatarColorOptions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  avatarColorOption: {
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e5e7eb'
+  },
+  avatarColorOptionActive: {
+    borderWidth: 2,
+    borderColor: '#111827'
   },
   editButton: {
     padding: 4
