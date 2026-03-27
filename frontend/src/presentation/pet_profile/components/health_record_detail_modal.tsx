@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
-import { StyleSheet, Text, View, Pressable, Modal } from 'react-native'
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  Modal,
+  ActivityIndicator
+} from 'react-native'
 
 import {
   getCategoryInfo,
@@ -64,13 +71,15 @@ const parseApiTime = (timeString: string): Date => {
 
 interface HealthRecordDetailModalProps {
   visible: boolean
-  reminder: IReminder
+  reminder: IReminder | null
+  loading?: boolean
   onClose: () => void
 }
 
 export default function HealthRecordDetailModal({
   visible,
   reminder,
+  loading = false,
   onClose
 }: HealthRecordDetailModalProps) {
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
@@ -89,6 +98,7 @@ export default function HealthRecordDetailModal({
   }
 
   if (!visible) return null
+  console.log(reminder)
 
   return (
     <Modal
@@ -114,118 +124,141 @@ export default function HealthRecordDetailModal({
 
           {/* Form Card */}
           <View style={styles.formCard}>
-            {/* Title with Category */}
-            <View style={styles.titleRow}>
-              <View style={styles.titleContainer}>
-                <Text style={styles.reminderTitle}>
-                  {reminder?.reminderName || 'ไม่มีชื่อ'}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Ionicons name={'paw-outline'} size={14} color={'#6b7280'} />
-                  <Text style={styles.petNameText}>
-                    {reminder?.pet_name || '-'}
-                  </Text>
-                  {categoryInfo && (
-                    <>
-                      <View style={styles.dot} />
-                      {CategoryIcon && (
-                        <CategoryIcon size={14} color={categoryInfo.color} />
+            {loading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator size="large" color="#5FA7D1" />
+                <Text style={styles.loadingText}>กำลังโหลดรายละเอียด...</Text>
+              </View>
+            ) : !reminder ? (
+              <View style={styles.loadingWrap}>
+                <Text style={styles.loadingText}>ไม่พบข้อมูลรายการนี้</Text>
+              </View>
+            ) : (
+              <>
+                {/* Title with Category */}
+                <View style={styles.titleRow}>
+                  <View style={styles.titleContainer}>
+                    <Text style={styles.reminderTitle}>
+                      {reminder?.reminderName || 'ไม่มีชื่อ'}
+                    </Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons
+                        name={'paw-outline'}
+                        size={14}
+                        color={'#6b7280'}
+                      />
+                      <Text style={styles.petNameText}>
+                        {reminder?.pet_name || '-'}
+                      </Text>
+                      {categoryInfo && (
+                        <>
+                          <View style={styles.dot} />
+                          {CategoryIcon && (
+                            <CategoryIcon
+                              size={14}
+                              color={categoryInfo.color}
+                            />
+                          )}
+                          <Text
+                            style={[
+                              styles.categoryInlineText,
+                              { color: categoryInfo.color }
+                            ]}
+                          >
+                            {categoryInfo.label}
+                          </Text>
+                        </>
                       )}
-                      <Text
-                        style={[
-                          styles.categoryInlineText,
-                          { color: categoryInfo.color }
-                        ]}
-                      >
-                        {categoryInfo.label}
-                      </Text>
-                    </>
-                  )}
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
 
-            {/* Date & Time - Compact */}
-            {!reminder?.children && (
-              <View style={styles.dateTimeCard}>
-                <View style={styles.dateTimeRow}>
-                  <CalendarDays size={16} color="#5FA7D1" />
-                  <Text style={styles.dateTimeText}>
-                    {reminder?.reminderDate
-                      ? new Date(reminder.reminderDate).toLocaleDateString(
-                          'th-TH',
-                          {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          }
-                        )
-                      : '-'}
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.dateTimeRow}>
-                  <Clock size={16} color="#5FA7D1" />
-                  <Text style={styles.dateTimeText}>
-                    {reminder?.reminderTime
-                      ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
-                      : '-'}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Recurring Information - Compact */}
-            {reminder?.recurrence && (
-              <View style={styles.recurringCard}>
-                <Repeat size={14} color="#5FA7D1" />
-                <Text style={styles.recurringText}>
-                  {formatRecurrenceText(
-                    convertFromBackendRecurrence(reminder.recurrence)
-                  )}
-                  {reminder.occurrenceNumber
-                    ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
-                    : ''}
-                </Text>
-              </View>
-            )}
-
-            {/* Description */}
-            {reminder?.description && (
-              <View style={styles.descriptionSection}>
-                <Text style={styles.descriptionLabel}>รายละเอียด</Text>
-                <Text style={styles.descriptionText}>
-                  {reminder?.description}
-                </Text>
-              </View>
-            )}
-
-            {/* Attachments Section */}
-            {reminder?.attachments && reminder.attachments.length > 0 && (
-              <View style={styles.attachmentsSection}>
-                <Text style={styles.attachmentsSectionLabel}>
-                  ไฟล์แนบ ({reminder.attachments.length})
-                </Text>
-                {reminder.attachments.map((attachment) => (
-                  <Pressable
-                    key={attachment.id}
-                    style={styles.attachmentItem}
-                    onPress={() => handleAttachmentPress(attachment)}
-                  >
-                    <File size={20} color="#5FA7D1" />
-                    <View style={styles.attachmentInfo}>
-                      <Text style={styles.attachmentFileName} numberOfLines={1}>
-                        {attachment.fileName}
-                      </Text>
-                      <Text style={styles.attachmentFileSize}>
-                        {formatFileSize(attachment.fileSize)}
+                {/* Date & Time - Compact */}
+                {reminder?.reminderDate && (
+                  <View style={styles.dateTimeCard}>
+                    <View style={styles.dateTimeRow}>
+                      <CalendarDays size={16} color="#5FA7D1" />
+                      <Text style={styles.dateTimeText}>
+                        {reminder?.reminderDate
+                          ? new Date(reminder.reminderDate).toLocaleDateString(
+                              'th-TH',
+                              {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              }
+                            )
+                          : '-'}
                       </Text>
                     </View>
-                    <Download size={18} color="#6b7280" />
-                  </Pressable>
-                ))}
-              </View>
+                    <View style={styles.divider} />
+                    <View style={styles.dateTimeRow}>
+                      <Clock size={16} color="#5FA7D1" />
+                      <Text style={styles.dateTimeText}>
+                        {reminder?.reminderTime
+                          ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
+                          : '-'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Recurring Information - Compact */}
+                {reminder?.recurrence && (
+                  <View style={styles.recurringCard}>
+                    <Repeat size={14} color="#5FA7D1" />
+                    <Text style={styles.recurringText}>
+                      {formatRecurrenceText(
+                        convertFromBackendRecurrence(reminder.recurrence)
+                      )}
+                      {reminder.occurrenceNumber
+                        ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
+                        : ''}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Description */}
+                {reminder?.description && (
+                  <View style={styles.descriptionSection}>
+                    <Text style={styles.descriptionLabel}>รายละเอียด</Text>
+                    <Text style={styles.descriptionText}>
+                      {reminder?.description}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Attachments Section */}
+                {reminder?.attachments && reminder.attachments.length > 0 && (
+                  <View style={styles.attachmentsSection}>
+                    <Text style={styles.attachmentsSectionLabel}>
+                      ไฟล์แนบ ({reminder.attachments.length})
+                    </Text>
+                    {reminder.attachments.map((attachment) => (
+                      <Pressable
+                        key={attachment.id}
+                        style={styles.attachmentItem}
+                        onPress={() => handleAttachmentPress(attachment)}
+                      >
+                        <File size={20} color="#5FA7D1" />
+                        <View style={styles.attachmentInfo}>
+                          <Text
+                            style={styles.attachmentFileName}
+                            numberOfLines={1}
+                          >
+                            {attachment.fileName}
+                          </Text>
+                          <Text style={styles.attachmentFileSize}>
+                            {formatFileSize(attachment.fileSize)}
+                          </Text>
+                        </View>
+                        <Download size={18} color="#6b7280" />
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -316,6 +349,17 @@ const styles = StyleSheet.create({
   formCard: {
     padding: 16,
     gap: 12
+  },
+  loadingWrap: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280'
   },
   titleRow: {
     gap: 4

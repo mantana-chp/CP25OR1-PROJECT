@@ -5,10 +5,8 @@ import 'dayjs/locale/th'
 import {
   Bug,
   CalendarDays,
-  Clock,
   FileText,
   Hospital,
-  PawPrint,
   Pill,
   Syringe
 } from 'lucide-react-native'

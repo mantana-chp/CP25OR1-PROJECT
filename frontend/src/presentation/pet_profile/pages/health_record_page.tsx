@@ -91,6 +91,12 @@ export default function HealthRecordPage() {
   const getHealthRecordsApi = useApi(healthRecordService.getHealthRecords, {
     showErrorAlert: false
   })
+  const getHealthRecordByIdApi = useApi(
+    healthRecordService.getHealthRecordById,
+    {
+      showErrorAlert: true
+    }
+  )
   const getHealthLogsApi = useApi(healthLogService.getHealthLogs, {
     showErrorAlert: false
   })
@@ -149,8 +155,6 @@ export default function HealthRecordPage() {
   )
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
-
-  // console.log(allHealthRecords)
 
   const getFilteredRecords = useCallback(
     (category: CategoryFilter) =>
@@ -296,9 +300,14 @@ export default function HealthRecordPage() {
     setEditingLog(null)
   }
 
-  const handleOpenRecordDetail = (record: IReminder) => {
-    setSelectedRecord(record)
+  const handleOpenRecordDetail = async (record: IReminder) => {
+    setSelectedRecord(null)
     setShowRecordDetailModal(true)
+
+    const result = await getHealthRecordByIdApi.execute(record.id)
+    if (result.data?.data) {
+      setSelectedRecord(result.data.data)
+    }
   }
 
   const handleCloseRecordDetail = () => {
@@ -688,13 +697,12 @@ export default function HealthRecordPage() {
         onSubmit={handleCreateLog}
       />
 
-      {selectedRecord && (
-        <HealthRecordDetailModal
-          visible={showRecordDetailModal}
-          reminder={selectedRecord}
-          onClose={handleCloseRecordDetail}
-        />
-      )}
+      <HealthRecordDetailModal
+        visible={showRecordDetailModal}
+        reminder={selectedRecord}
+        loading={getHealthRecordByIdApi.loading}
+        onClose={handleCloseRecordDetail}
+      />
     </View>
   )
 }
