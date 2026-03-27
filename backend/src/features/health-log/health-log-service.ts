@@ -11,6 +11,12 @@ import prisma from '../../libs/db'
 import { HealthLogDto, CreateHealthLogInput } from './health-log-types'
 import { Prisma } from '../../generated/prisma/client'
 import { UpdateHealthLogPayload } from './health-log-schema'
+import { logger } from '../../libs/logger'
+import * as healthInsightDetection from '../health-insights/health-insight-detection-service'
+import * as healthInsightGeneration from '../health-insights/health-insight-generation-service'
+import * as healthInsightRepository from '../health-insights/health-insight-repository'
+import * as notificationService from '../notifications/notification-service'
+import { getSeverityEmoji } from '../health-insights/health-insight-types'
 
 const validateLoggedAt = (loggedAt?: Date) => {
   if (!loggedAt) return
@@ -124,6 +130,77 @@ export const createHealthLog = async (
 
   // 4. Resolve createdBy display value
   const createdBy = await resolveCreatedBy(userId, pet.user_id, userId);
+
+  // 5. Check for immediate critical symptom alerts (fire-and-forget, non-blocking)
+  if (input.category === 'SYMPTOMS') {
+    setImmediate(async () => {
+      try {
+        logger.info(`[ImmediateAlert] Checking for critical symptoms in health log ${result.id}`);
+
+        // Detect abnormal symptom
+        const abnormalPattern = await healthInsightDetection.detectAbnormalSymptom(
+          petId,
+          result.id,
+          input.description,
+          result.logged_at
+        );
+
+        if (abnormalPattern) {
+          logger.info(`[ImmediateAlert] Critical symptom detected for pet ${petId}: "${abnormalPattern.symptom}"`);
+
+          // Get pet details for AI generation
+          const petDetails = await prisma.pets.findUnique({
+            where: { id: petId },
+            include: {
+              species: true,
+              breeds: true,
+            },
+          });
+
+          if (petDetails) {
+            // Generate AI insight
+            const aiInsight = await healthInsightGeneration.generateInsightWithAI({
+              petName: petDetails.pet_name,
+              species: petDetails.species.name,
+              breed: petDetails.breeds?.name || null,
+              pattern: abnormalPattern,
+            });
+
+            // Add severity emoji
+            const titleWithEmoji = `${getSeverityEmoji(abnormalPattern.severity)} ${aiInsight.title.replace(/^[🚨⚠️💡ℹ️📌📝📋]\s*/, '')}`;
+
+            // Save insight
+            const savedInsight = await healthInsightRepository.create({
+              pet_id: petId,
+              insight_type: abnormalPattern.type,
+              severity: abnormalPattern.severity,
+              title: titleWithEmoji,
+              description: aiInsight.description,
+              context_data: abnormalPattern,
+            });
+
+            logger.info(`[ImmediateAlert] Created immediate insight ${savedInsight.id}`);
+
+            // Send notifications immediately
+            await notificationService.sendHealthInsightNotification(
+              petId,
+              savedInsight.id,
+              titleWithEmoji,
+              aiInsight.description
+            );
+
+            // Mark as notified
+            await healthInsightRepository.markAsNotified(savedInsight.id);
+
+            logger.info(`[ImmediateAlert] Immediate notification sent for insight ${savedInsight.id}`);
+          }
+        }
+      } catch (error) {
+        // Log but don't throw - this is fire-and-forget
+        logger.error('[ImmediateAlert] Error processing immediate alert:', error as Error);
+      }
+    });
+  }
 
   return toDto(result, createdBy);
 };

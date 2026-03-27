@@ -740,6 +740,132 @@ This document outlines test cases for key features in the PetCare backend, cover
 
 ---
 
+## 12. Health Insights Notifications
+
+### Normal Cases
+
+#### TC-12.1: Immediate Critical Symptom Alert on Log Create
+- **Action:** Create SYMPTOMS log with critical keyword (example: "อาเจียนเป็นเลือด")
+- **Expected Result:**
+  - Health log API returns success without waiting for insight generation
+  - Background task detects abnormal symptom immediately
+  - Insight is saved to `health_insights`
+  - Notification sent to pet owner and active caregivers within a few seconds
+
+#### TC-12.2: Daily Recurring Symptom Detection (3+ in 7 Days)
+- **Action:** Create 3 SYMPTOMS logs with same description in last 7 days, then run daily job
+- **Expected Result:**
+  - Pattern detected as recurring symptom
+  - Insight title/description generated and persisted
+  - Notification sent once for that detection cycle
+
+#### TC-12.3: Daily Rapid Weight Loss Detection
+- **Action:** For dog, log weight drop >= 10% within 14 days, then run daily job
+- **Expected Result:**
+  - Pattern detected as rapid weight loss
+  - Severity reflects configured threshold (MEDIUM/HIGH)
+  - Notification generated and delivered to owner/caregivers
+
+#### TC-12.4: Daily Rapid Weight Gain Detection
+- **Action:** For cat, log weight gain above threshold within 14 days, then run daily job
+- **Expected Result:**
+  - Pattern detected as rapid weight gain
+  - Insight includes change amount and time window context
+  - Notification delivered successfully
+
+#### TC-12.5: Daily Recurring Behavior Detection
+- **Action:** Create 3+ BEHAVIOR logs with identical description in 7 days, then run daily job
+- **Expected Result:**
+  - Recurring behavior pattern detected
+  - AI/fallback message generated in expected format
+  - Notification reaches intended recipients
+
+#### TC-12.6: No Recent Logs Reminder with Active Reminder Context
+- **Action:** Ensure pet has active reminders but no health logs for >= 7 days, then run daily job
+- **Expected Result:**
+  - "No recent logs" pattern detected
+  - Low-severity reminder insight generated
+  - Notification sent once for current weekly window
+
+#### TC-12.7: Follow-up Reminder After Warning Symptom
+- **Action:** Log warning symptom (example: "ท้องเสีย"), wait/simulate 2 days with no follow-up, run daily job
+- **Expected Result:**
+  - Follow-up pattern detected
+  - Insight asks whether condition improved/resolved
+  - Notification sent to owner and active caregivers
+
+#### TC-12.8: Recipient Fan-out for Shared Pets
+- **Action:** Trigger any valid health insight on a pet shared with caregivers
+- **Expected Result:**
+  - Owner receives notification
+  - All active caregivers receive notification
+  - Notification records map correctly to recipient users
+
+### Edge Cases
+
+#### TC-12.9: Recurring Symptom Below Threshold (2 in 7 Days)
+- **Action:** Create same symptom only 2 times in 7 days, then run daily job
+- **Expected Result:**
+  - No recurring symptom insight generated
+  - No false-positive notification sent
+
+#### TC-12.10: Non-SYMPTOMS Log Does Not Trigger Immediate Abnormal Check
+- **Action:** Create BEHAVIOR or WEIGHT log containing critical-like text
+- **Expected Result:**
+  - Immediate abnormal alert path is not executed
+  - Any insight can only come from daily analyzer logic
+
+#### TC-12.11: Disabled Critical Keyword Is Ignored
+- **Action:** Disable a keyword in `health-alert-keywords.json`, create SYMPTOMS log containing it
+- **Expected Result:**
+  - Immediate abnormal detection does not trigger for disabled keyword
+  - No abnormal immediate notification sent
+
+#### TC-12.12: Weight Change Exactly at Threshold Boundary
+- **Action:** Create logs where change percent equals threshold exactly (example: dog -10%)
+- **Expected Result:**
+  - Detection still triggers (boundary inclusive)
+  - Insight categorized according to configured severity rules
+
+#### TC-12.13: Weight Change Outside Time Window
+- **Action:** Create significant weight change but with logs outside species time window
+- **Expected Result:**
+  - No rapid weight anomaly insight generated
+  - Prevents stale-data false positives
+
+#### TC-12.14: Multiple Patterns Present, Highest Priority Selected
+- **Action:** Prepare data so pet matches recurring symptom and weight anomaly on same run
+- **Expected Result:**
+  - Only highest-priority pattern is selected for that cycle
+  - Generated insight corresponds to configured priority order
+
+#### TC-12.15: No Recent Logs Without Active Reminders
+- **Action:** No health logs for >= 7 days, but pet has no active reminders
+- **Expected Result:**
+  - "No recent logs" insight is not generated
+  - Avoids noise for pets not currently being tracked
+
+#### TC-12.16: No Recent Logs Weekly Rate Limit
+- **Action:** Trigger no-recent-logs insight, then run daily job again within 7 days
+- **Expected Result:**
+  - Second notification is suppressed within same weekly window
+  - System sends again only after rate-limit window passes
+
+#### TC-12.17: AI Generation Failure Falls Back to Template
+- **Action:** Simulate Gemini/API failure during insight generation for a detected pattern
+- **Expected Result:**
+  - Fallback title/description template is used
+  - Insight still saved and notification still sent
+  - System logs AI failure without crashing job
+
+#### TC-12.18: Inactive or Deleted Pets Excluded from Daily Analysis
+- **Action:** Mark pet inactive/deleted and run daily health insight cron
+- **Expected Result:**
+  - Pet is skipped in analysis query
+  - No insights or notifications produced for excluded pet
+
+---
+
 ## Test Coverage Summary
 
 ### Feature Reliability Metrics
@@ -757,6 +883,7 @@ This document outlines test cases for key features in the PetCare backend, cover
 | Pet Sharing | 4 | 7 | Invite, Claim, Revoke, Partial Access |
 | Health Documents | 4 | 6 | Upload, List, Delete, Permissions |
 | Health Logging | 5 | 11 | CRUD, Categories, Validation, Permissions |
+| Health Insights Notifications | 8 | 10 | Immediate Alerts, Daily Patterns, Priority, Fallback, Rate Limits |
 
 ### Key Testing Principles Applied
 
@@ -802,5 +929,5 @@ This document outlines test cases for key features in the PetCare backend, cover
 ---
 
 *Document Version: 1.0*
-*Last Updated: 2026-03-26*
-*Coverage: 11 Features, 108 Test Cases*
+*Last Updated: 2026-03-27*
+*Coverage: 12 Features, 109 Test Cases*
