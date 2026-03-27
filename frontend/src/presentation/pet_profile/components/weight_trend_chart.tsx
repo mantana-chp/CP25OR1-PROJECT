@@ -4,6 +4,7 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
+import { MoveDown, MoveUp, Scale } from 'lucide-react-native'
 import React, { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { LineChart } from 'react-native-chart-kit'
@@ -129,12 +130,15 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
 
             <View style={styles.weightStatsRow}>
               <Text style={styles.weightStatText}>
-                ต่ำสุด: {chartMeta.min.toFixed(2)} กก.
+                <MoveDown size={12} color={colors.danger.DEFAULT} /> ต่ำสุด:{' '}
+                {chartMeta.min.toFixed(2)} กก.
               </Text>
               <Text style={styles.weightStatText}>
-                สูงสุด: {chartMeta.max.toFixed(2)} กก.
+                <MoveUp size={12} color={colors.success.DEFAULT} /> สูงสุด:{' '}
+                {chartMeta.max.toFixed(2)} กก.
               </Text>
               <Text style={styles.weightStatText}>
+                <Scale size={12} color={colors.info.DEFAULT} />{' '}
                 เปลี่ยนแปลงล่าสุด:{' '}
                 {chartMeta.latest !== null && chartMeta.prev !== null
                   ? `${(chartMeta.latest - chartMeta.prev).toFixed(2)} กก.`
@@ -193,8 +197,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md
   },
   weightStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: spacing[1],
-    gap: 2
   },
   weightStatText: {
     fontSize: typography.fontSize.xs,
