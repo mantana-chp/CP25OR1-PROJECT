@@ -117,7 +117,7 @@ export default function PetInfoCard({
                       style={styles.editButton}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Edit2 size={16} color="#5FA7D1" />
+                      <Edit2 size={18} color="#5FA7D1" />
                     </TouchableOpacity>
                   </Link>
                 )}
@@ -135,7 +135,7 @@ export default function PetInfoCard({
                       onPress={onMarkDeceased}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Ribbon size={16} color="#6b7280" />
+                      <Ribbon size={18} color="#6b7280" />
                     </TouchableOpacity>
                   )}
                   {canDelete && onDelete && (
@@ -144,7 +144,7 @@ export default function PetInfoCard({
                       onPress={onDelete}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Trash2 size={16} color="#BF1737" />
+                      <Trash2 size={18} color="#BF1737" />
                     </TouchableOpacity>
                   )}
                 </View>
