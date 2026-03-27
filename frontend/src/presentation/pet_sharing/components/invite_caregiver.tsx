@@ -10,15 +10,15 @@ import React from 'react'
 import { Image, StyleSheet, Text, View } from 'react-native'
 import Button from '../../components/button'
 
-interface EmptyStateProps {
+interface InviteCaregiverProps {
   onCreateInvite: () => void
   isDeceasedPet?: boolean
 }
 
-export default function EmptyState({
+export default function InviteCaregiver({
   onCreateInvite,
   isDeceasedPet
-}: EmptyStateProps) {
+}: InviteCaregiverProps) {
   return (
     <View style={styles.container}>
       <View style={styles.imageCircle}>

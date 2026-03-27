@@ -24,7 +24,7 @@ import { saveCaregiverSuggestion } from '@/src/utils/caregiver_suggestions_stora
 import Header from '../../components/header_component'
 import Modal from '../../components/modal'
 import AliasModal from '../components/alias_modal'
-import EmptyState from '../components/empty_state'
+import InviteCaregiver from '../components/invite_caregiver'
 import QrModal from '../components/qr_modal'
 import PetSharingStateView from '../components/state_view'
 import { CLAIM_SCHEME, unwrapData } from '../../../utils/pet_sharing_utils'
@@ -297,7 +297,7 @@ export default function PetSharingPage() {
         </View>
       ) : pendingInvites.length === 0 ? (
         canCreateInvite ? (
-          <EmptyState onCreateInvite={openCreateInviteModal} />
+          <InviteCaregiver onCreateInvite={openCreateInviteModal} />
         ) : (
           <PetSharingStateView
             title="ยังไม่มีสัตว์เลี้ยงที่แชร์ได้"
