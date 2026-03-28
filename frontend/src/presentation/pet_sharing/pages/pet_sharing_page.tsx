@@ -229,7 +229,7 @@ export default function PetSharingPage() {
   const handleShareInvite = async (invite: IPendingInvite) => {
     try {
       await Share.share({
-        message: `🐾 คุณได้รับคำเชิญเป็นผู้ดูแลสัตว์เลี้ยง\n\n📋 รหัสคำเชิญ:\n${invite.inviteId}\n\nคัดลอกรหัสด้านบนและนำไปกรอกในแอพ PetSpace เพื่อเข้าร่วมเป็นผู้ดูแล`
+        message: `🐾 คุณได้รับคำเชิญเป็นผู้ดูแลสัตว์เลี้ยง\n\n📋 รหัสคำเชิญ:\n${invite.inviteId}\n\nคัดลอกรหัสด้านบนและนำไปกรอกในแอพเพื่อเข้าร่วมเป็นผู้ดูแล`
       })
     } catch {
       // User can close native share sheet; no action needed.
