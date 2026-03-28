@@ -109,7 +109,7 @@ export default function AccessListPage() {
 
   return (
     <View style={styles.container}>
-      <Header title="จัดการผู้ดูแลร่วม" goBack/>
+      <Header title="จัดการผู้ดูแลร่วม" goBack />
 
       {!petId ? (
         <PetSharingStateView
@@ -190,7 +190,9 @@ const styles = StyleSheet.create({
   },
   petInfoSection: {
     marginBottom: spacing[4],
-    backgroundColor: colors.background.secondary
+    backgroundColor: colors.background.secondary,
+    borderRadius: 12,
+    padding: spacing[3]
   },
   deceasedNote: {
     marginTop: spacing[4],

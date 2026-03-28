@@ -28,13 +28,6 @@ export default function PetInfoCard({
   isDeceased = false,
   readOnly = false
 }: PetInfoCardProps) {
-  // Debug: Log pet data when received
-  useEffect(() => {
-    console.log('🎯 PetInfoCard received pet:', {
-      name: data.pet_name,
-      profile_image_url: data.profile_image_url
-    })
-  }, [data.id])
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
 
