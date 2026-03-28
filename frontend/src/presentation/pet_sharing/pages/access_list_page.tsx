@@ -14,7 +14,7 @@ import {
   ICaregiver,
   petSharingService
 } from '@/src/utils/api/services/pet_sharing_service'
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useApi } from '@/src/utils/api/use_api'
 import { unwrapData } from '@/src/utils/pet_sharing_utils'
 import { usePets } from '@/src/context/PetContext'
@@ -29,6 +29,7 @@ import {
 import PetSharingStateView from '../components/state_view'
 
 export default function AccessListPage() {
+  const router = useRouter()
   const { petId } = useLocalSearchParams<{ petId?: string }>()
   const { activePets, deceasedPets, loading: petsLoading } = usePets()
 
@@ -109,7 +110,11 @@ export default function AccessListPage() {
 
   return (
     <View style={styles.container}>
-      <Header title="จัดการผู้ดูแลร่วม" goBack />
+      <Header
+        title="จัดการผู้ดูแลร่วม"
+        goBack
+        onBackPress={() => router.push('/(tabs)/pet_profile')}
+      />
 
       {!petId ? (
         <PetSharingStateView
