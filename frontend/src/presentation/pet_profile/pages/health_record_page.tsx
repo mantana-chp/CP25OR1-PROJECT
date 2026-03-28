@@ -720,7 +720,9 @@ const styles = StyleSheet.create({
   petCardWrapper: {
     marginTop: spacing[4],
     marginBottom: spacing[3],
-    backgroundColor: colors.background.secondary
+    backgroundColor: colors.background.secondary,
+    borderRadius: 12,
+    padding: spacing[3]
   },
   modeSwitchRow: {
     flexDirection: 'row',

@@ -24,6 +24,7 @@ export interface INotification {
       id: string
       userId: string
       petName: string
+      profileImageUrl?: string | null
       speciesId: string
       breedId: string
       gender: string
@@ -40,5 +41,6 @@ export interface INotification {
   petInfo?: {
     id: string
     name: string
+    profileImageUrl?: string | null
   }
 }
