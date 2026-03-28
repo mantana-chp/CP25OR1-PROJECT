@@ -20,7 +20,7 @@ import {
 
 import { usePets } from '@/src/context/PetContext'
 import { useLocalSearchParams } from 'expo-router'
-import { Plus } from 'lucide-react-native'
+import { Plus, Trash2 } from 'lucide-react-native'
 import {
   BackHandler,
   KeyboardAvoidingView,
@@ -376,7 +376,7 @@ const CreateReminderFormCard = React.forwardRef<
                 disabled={isSubmitting}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={styles.deleteFormText}>ลบ</Text>
+                <Trash2 size={18} color='#BF1737' />
               </Pressable>
             )}
           </View>
@@ -580,6 +580,8 @@ export default function AddReminderPage() {
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const apiSuccessRef = useRef(false)
   const createFormIdCounterRef = useRef(1)
+  const scrollViewRef = useRef<ScrollView>(null)
+  const pendingScrollToFormIdRef = useRef<number | null>(null)
   const createFormRefs = useRef<
     Record<number, CreateReminderFormHandle | null>
   >({})
@@ -1426,6 +1428,7 @@ export default function AddReminderPage() {
           />
 
           <ScrollView
+            ref={scrollViewRef}
             style={styles.scrollView}
             nestedScrollEnabled={true}
             keyboardShouldPersistTaps='handled'
@@ -1623,7 +1626,19 @@ export default function AddReminderPage() {
               <>
                 {createFormIds.map((formId, index) => (
                   <React.Fragment key={formId}>
-                    <View style={styles.formCard}>
+                    <View
+                      style={styles.formCard}
+                      onLayout={(event) => {
+                        if (pendingScrollToFormIdRef.current === formId) {
+                          const y = event.nativeEvent.layout.y
+                          scrollViewRef.current?.scrollTo({
+                            y: Math.max(y - 8, 0),
+                            animated: true,
+                          })
+                          pendingScrollToFormIdRef.current = null
+                        }
+                      }}
+                    >
                       {index === 0 ? (
                         <View style={styles.cardHeader}>
                           <Pressable
@@ -1702,7 +1717,7 @@ export default function AddReminderPage() {
                       />
                     </View>
 
-                    {index === 0 && (
+                    {index === createFormIds.length - 1 && (
                       <View style={styles.addFormContainer}>
                         <Pressable
                           style={({ pressed }) => [
@@ -1713,6 +1728,7 @@ export default function AddReminderPage() {
                           onPress={() => {
                             const nextId = createFormIdCounterRef.current
                             createFormIdCounterRef.current += 1
+                            pendingScrollToFormIdRef.current = nextId
                             setCreateFormIds((prev) => [...prev, nextId])
                           }}
                         >
@@ -1797,10 +1813,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 10,
     marginBottom: 12,
   },
   createFormHeaderText: {
-    color: '#225877',
+    color: '#2E759E',
     fontSize: 16,
     fontFamily: 'Prompt_700Bold',
   },
@@ -1937,8 +1956,8 @@ const styles = StyleSheet.create({
   },
   addFormContainer: {
     marginHorizontal: 16,
-    marginBottom: -4,
-    marginTop: -4,
+    marginTop: 16,
+    marginBottom: 16,
   },
   addFormButton: {
     backgroundColor: '#ffffff',
