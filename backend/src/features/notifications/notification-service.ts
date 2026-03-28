@@ -508,3 +508,109 @@ export const sendStatusChangeNotification = async (
     logger.error('[StatusChangeNotification] Unexpected error:', error instanceof Error ? error : new Error(String(error)));
   }
 };
+
+/**
+ * Sends a health insight notification to pet owner and all active caregivers.
+ * Called by the health insight detection cron job.
+ *
+ * @param petId The ID of the pet the insight is about
+ * @param insightId The ID of the health_insights record
+ * @param title The insight notification title (includes emoji based on severity)
+ * @param description The insight description/explanation
+ */
+export const sendHealthInsightNotification = async (
+  petId: string,
+  insightId: string,
+  title: string,
+  description: string,
+): Promise<void> => {
+  try {
+    logger.info(`[HealthInsightNotification] Preparing notification for insight ${insightId}, pet ${petId}`);
+
+    // Get pet owner
+    const pet = await prisma.pets.findUnique({
+      where: { id: petId },
+      include: {
+        user: { include: { push_tokens: true } },
+      },
+    });
+
+    if (!pet) {
+      logger.error(`[HealthInsightNotification] Pet ${petId} not found`);
+      return;
+    }
+
+    // Get all active caregivers
+    const caregiverAccess = await prisma.pet_user_access.findMany({
+      where: { pet_id: petId, revoked_at: null, role: 'CAREGIVER' },
+      include: { user: { include: { push_tokens: true } } },
+    });
+
+    // Build recipient list: owner + caregivers
+    const recipients = [
+      { userId: pet.user_id, pushTokens: pet.user.push_tokens },
+      ...caregiverAccess.map(a => ({ userId: a.user_id, pushTokens: a.user.push_tokens })),
+    ];
+
+    logger.info(`[HealthInsightNotification] Sending to ${recipients.length} recipients (owner + ${caregiverAccess.length} caregivers)`);
+
+    for (const recipient of recipients) {
+      let finalStatus: notification_status = notification_status.sent;
+      let sentAt: Date | null = new Date();
+
+      // Create notification record
+      const notification = await notificationRepository.create({
+        id: uuidv4(),
+        status: notification_status.pending,
+        user: { connect: { id: recipient.userId } },
+        pet: { connect: { id: petId } },
+        health_insight: { connect: { id: insightId } },
+        tips_title: title,
+        tips_desc: description,
+      });
+
+      const messagesToSend: PushMessage[] = [];
+
+      if (recipient.pushTokens && recipient.pushTokens.length > 0) {
+        for (const token of recipient.pushTokens) {
+          messagesToSend.push({
+            to: token.token,
+            sound: 'default',
+            title: title,
+            body: description,
+            data: { petId, healthInsightId: insightId, notificationId: notification.id },
+          });
+        }
+      } else {
+        logger.info(`[HealthInsightNotification] No push tokens for user ${recipient.userId}. Notification ${notification.id} saved for in-app only.`);
+      }
+
+      // Send push notifications if any were prepared
+      if (messagesToSend.length > 0) {
+        try {
+          logger.info(`[HealthInsightNotification] Sending ${messagesToSend.length} push notifications for notification ID: ${notification.id}`);
+          await expoPushService.send(messagesToSend);
+          logger.info(`[HealthInsightNotification] Push notifications sent successfully for ${notification.id}.`);
+        } catch (error: unknown) {
+          logger.error(
+            `[HealthInsightNotification] Failed to send push for notification ${notification.id}:`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+          finalStatus = notification_status.failed;
+          sentAt = null;
+        }
+      }
+
+      // Update notification to final state
+      await notificationRepository.update(notification.id, {
+        status: finalStatus,
+        sent_at: sentAt,
+      });
+      logger.info(`[HealthInsightNotification] Marked notification ${notification.id} as ${finalStatus}.`);
+    }
+
+    logger.info(`[HealthInsightNotification] Completed notification delivery for insight ${insightId}`);
+  } catch (error) {
+    logger.error('[HealthInsightNotification] Unexpected error:', error instanceof Error ? error : new Error(String(error)));
+  }
+};
