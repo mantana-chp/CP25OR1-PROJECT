@@ -1,7 +1,13 @@
 import { useRouter } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native'
 
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
 import { INotification } from '@/src/domain/notification.domain'
@@ -14,12 +20,14 @@ import NotificationCard from './notification_card'
 interface NotificationListProps {
   notifications: INotification[]
   isLoading?: boolean
+  isRefreshing?: boolean
   onRefresh?: () => void
 }
 
 export default function NotificationList({
   notifications,
   isLoading,
+  isRefreshing = false,
   onRefresh
 }: NotificationListProps) {
   const router = useRouter()
@@ -73,6 +81,14 @@ export default function NotificationList({
           style={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => onRefresh?.()}
+              colors={['#FF8A65']}
+              tintColor="#FF8A65"
+            />
+          }
         >
           {_.size(notifications) === 0 ? (
             <View style={styles.emptyContainer}>

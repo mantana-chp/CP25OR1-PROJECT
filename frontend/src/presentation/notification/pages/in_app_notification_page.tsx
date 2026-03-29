@@ -1,4 +1,5 @@
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { notificationService } from '@/src/utils/api/services/notification_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect } from 'expo-router'
@@ -14,8 +15,10 @@ export default function InAppNotificationPage() {
   })
 
   const loadNotifications = useCallback(() => {
-    getNotificationsApi.execute()
-  }, [])
+    return getNotificationsApi.execute()
+  }, [getNotificationsApi.execute])
+
+  const { isRefreshing, onRefresh } = usePullToRefresh(loadNotifications)
 
   useFocusEffect(
     useCallback(() => {
@@ -40,7 +43,8 @@ export default function InAppNotificationPage() {
       <NotificationList
         notifications={notifications}
         isLoading={isLoading}
-        onRefresh={loadNotifications}
+        isRefreshing={isRefreshing}
+        onRefresh={onRefresh}
       />
     </View>
   )

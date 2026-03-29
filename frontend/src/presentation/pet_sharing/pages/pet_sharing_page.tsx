@@ -13,11 +13,7 @@ import {
 
 import { colors, iconSizes, spacing } from '@/constants/design-system'
 import { usePets } from '@/src/context/PetContext'
-import {
-  IGenerateInviteResponse,
-  IPendingInvite,
-  petSharingService
-} from '@/src/utils/api/services/pet_sharing_service'
+import { petSharingService } from '@/src/utils/api/services/pet_sharing_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { saveCaregiverSuggestion } from '@/src/utils/caregiver_suggestions_storage'
 
@@ -29,6 +25,10 @@ import QrModal from '../components/qr_modal'
 import PetSharingStateView from '../components/state_view'
 import { CLAIM_SCHEME, unwrapData } from '../../../utils/pet_sharing_utils'
 import PendingInviteCard from '../components/pending_invite_card'
+import {
+  IGenerateInviteResponse,
+  IPendingInvite
+} from '@/src/domain/pet_sharing.domain'
 
 export default function PetSharingPage() {
   const router = useRouter()
@@ -116,7 +116,14 @@ export default function PetSharingPage() {
           setShowQrModal(false)
         }
 
-        Alert.alert('ผู้ดูแลรับคำเชิญแล้ว', 'มีผู้ดูแลเข้าร่วมเรียบร้อยแล้ว')
+        Alert.alert('ผู้ดูแลรับคำเชิญแล้ว', 'มีผู้ดูแลเข้าร่วมเรียบร้อยแล้ว', [
+          {
+            text: 'รับทราบ',
+            onPress: () => {
+              router.push('/(tabs)/pet_profile')
+            }
+          }
+        ])
       }
     } catch (error) {
       // Handle error silently
@@ -158,14 +165,18 @@ export default function PetSharingPage() {
       if (prev.includes(togglePetId)) {
         return prev.filter((id) => id !== togglePetId)
       } else {
-        // Limit to 10 pets
-        if (prev.length >= 10) {
-          Alert.alert('ถึงขีดจำกัด', 'สามารถเลือกสัตว์เลี้ยงได้สูงสุด 10 ตัว')
-          return prev
-        }
         return [...prev, togglePetId]
       }
     })
+  }
+
+  const handleToggleSelectAllPets = (selectAll: boolean) => {
+    if (selectAll) {
+      setSelectedPetIds(ownerShareablePets.map((pet) => pet.id))
+      return
+    }
+
+    setSelectedPetIds([])
   }
 
   const handleBackPress = () => {
@@ -336,6 +347,7 @@ export default function PetSharingPage() {
         pets={ownerShareablePets}
         selectedPetIds={selectedPetIds}
         onTogglePet={handleTogglePet}
+        onToggleSelectAllPets={handleToggleSelectAllPets}
       />
 
       <QrModal

@@ -1,6 +1,7 @@
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import {
   generateAllVirtualReminders,
   mergeRealAndVirtualReminders
@@ -107,12 +108,16 @@ export default function ReminderPage() {
   })
 
   const loadReminders = useCallback(() => {
-    getRemindersApi.execute({})
-  }, [])
+    return getRemindersApi.execute({})
+  }, [getRemindersApi.execute])
 
   const loadPets = useCallback(() => {
-    getPetsApi.execute()
-  }, [])
+    return getPetsApi.execute()
+  }, [getPetsApi.execute])
+
+  const { isRefreshing, onRefresh } = usePullToRefresh(async () => {
+    await Promise.all([loadReminders(), loadPets()])
+  })
 
   useFocusEffect(
     useCallback(() => {
@@ -342,7 +347,8 @@ export default function ReminderPage() {
           reminders={filteredReminders}
           pets={pets}
           isLoading={getRemindersApi.loading}
-          onRefresh={loadReminders}
+          isRefreshing={isRefreshing}
+          onRefresh={onRefresh}
           initialReminderId={params.reminderId}
           selectedCategory={selectedCategory}
           onSelectedCategoryChange={setSelectedCategory}

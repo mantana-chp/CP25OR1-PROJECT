@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native'
 import {
   Modal as RNModal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -54,6 +55,7 @@ interface ReminderListProps {
   reminders: any[]
   pets?: IPetProfile[]
   isLoading?: boolean
+  isRefreshing?: boolean
   onRefresh?: () => void
   initialReminderId?: string | null
   selectedCategory?: string | null
@@ -68,6 +70,7 @@ export default function ReminderList({
   reminders,
   pets = [],
   isLoading,
+  isRefreshing = false,
   onRefresh,
   initialReminderId,
   selectedCategory = null,
@@ -438,6 +441,14 @@ export default function ReminderList({
           style={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => onRefresh?.()}
+              colors={['#FF8A65']}
+              tintColor="#FF8A65"
+            />
+          }
         >
           {_.size(filteredReminders) === 0 ? (
             <View style={styles.emptyContainer}>

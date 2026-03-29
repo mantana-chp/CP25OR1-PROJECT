@@ -5,7 +5,6 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
-import { IPendingInvite } from '@/src/utils/api/services/pet_sharing_service'
 import {
   Clock3,
   Copy,
@@ -25,6 +24,7 @@ import {
 import Button from '../../components/button'
 import QRCode from 'react-native-qrcode-svg'
 import { formatExpiresIn } from '../../../utils/pet_sharing_utils'
+import { IPendingInvite } from '@/src/domain/pet_sharing.domain'
 
 interface PendingInviteCardProps {
   pendingInvite: IPendingInvite
@@ -152,6 +152,13 @@ export default function PendingInviteCard({
               {isCopied ? 'คัดลอกแล้ว' : 'คัดลอก'}
             </Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            QR Code นี้สามารถใช้ได้เพียงครั้งเดียวต่อผู้ใช้งาน {'\n'}
+            หลังจากใช้แล้วจะไม่สามารถใช้ซ้ำได้
+          </Text>
         </View>
 
         <View style={styles.pendingActionsRow}>
@@ -384,5 +391,19 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     color: colors.danger.DEFAULT,
     fontFamily: typography.fontFamily.medium
+  },
+  infoBox: {
+    backgroundColor: colors.info.light || '#E0F2FE',
+    borderRadius: borderRadius.md,
+    padding: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.info.DEFAULT || '#0EA5E9'
+  },
+  infoText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.info.dark || '#075985',
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: typography.lineHeight.relaxed
   }
 })
