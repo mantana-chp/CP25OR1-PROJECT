@@ -13,9 +13,7 @@ import {
 
 import { colors, iconSizes, spacing } from '@/constants/design-system'
 import { usePets } from '@/src/context/PetContext'
-import {
-  IGenerateInviteResponse,
-  IPendingInvite,
+import { 
   petSharingService
 } from '@/src/utils/api/services/pet_sharing_service'
 import { useApi } from '@/src/utils/api/use_api'
@@ -29,6 +27,7 @@ import QrModal from '../components/qr_modal'
 import PetSharingStateView from '../components/state_view'
 import { CLAIM_SCHEME, unwrapData } from '../../../utils/pet_sharing_utils'
 import PendingInviteCard from '../components/pending_invite_card'
+import { IGenerateInviteResponse, IPendingInvite } from '@/src/domain/pet_sharing.domain'
 
 export default function PetSharingPage() {
   const router = useRouter()
@@ -116,7 +115,14 @@ export default function PetSharingPage() {
           setShowQrModal(false)
         }
 
-        Alert.alert('ผู้ดูแลรับคำเชิญแล้ว', 'มีผู้ดูแลเข้าร่วมเรียบร้อยแล้ว')
+        Alert.alert('ผู้ดูแลรับคำเชิญแล้ว', 'มีผู้ดูแลเข้าร่วมเรียบร้อยแล้ว', [
+          {
+            text: 'รับทราบ',
+            onPress: () => {
+              router.push('/(tabs)/pet_profile')
+            }
+          }
+        ])
       }
     } catch (error) {
       // Handle error silently
