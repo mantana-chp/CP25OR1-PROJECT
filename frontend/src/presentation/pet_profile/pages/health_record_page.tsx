@@ -35,9 +35,10 @@ import HealthRecordDetailModal from '../components/health_record_detail_modal'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import HealthLogEntryCard from '../components/health_log_entry_card'
 import WeightTrendChart from '../components/weight_trend_chart'
+import MedicalDocumentsPage from './medical_documents_page'
 
 type HealthTypeFilter = 'ALL' | HealthLogType
-type PageMode = 'records' | 'logs'
+type PageMode = 'records' | 'logs' | 'documents'
 
 type CategoryFilter =
   | 'All'
@@ -70,12 +71,24 @@ const parseWeightInput = (raw: string) => {
   return parsed
 }
 
+const parseInitialPageMode = (value?: string): PageMode => {
+  if (value === 'logs') return 'logs'
+  if (value === 'documents') return 'documents'
+  return 'records'
+}
+
 export default function HealthRecordPage() {
   const router = useRouter()
-  const { petId } = useLocalSearchParams<{ petId: string }>()
+  const { petId, mode, subTab } = useLocalSearchParams<{
+    petId: string
+    mode?: string
+    subTab?: string
+  }>()
   const { activePets, deceasedPets, refreshPets } = usePets()
 
-  const [pageMode, setPageMode] = useState<PageMode>('records')
+  const [pageMode, setPageMode] = useState<PageMode>(() =>
+    parseInitialPageMode(mode || subTab)
+  )
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>('All')
   const [selectedFilter, setSelectedFilter] = useState<HealthTypeFilter>('ALL')
@@ -358,6 +371,22 @@ export default function HealthRecordPage() {
             บันทึกสุขภาพ
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.modeChip,
+            pageMode === 'documents' && styles.modeChipActive
+          ]}
+          onPress={() => setPageMode('documents')}
+        >
+          <Text
+            style={[
+              styles.modeChipText,
+              pageMode === 'documents' && styles.modeChipTextActive
+            ]}
+          >
+            เอกสารสุขภาพ
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {pageMode === 'records' && (
@@ -565,32 +594,11 @@ export default function HealthRecordPage() {
     )
   }
 
-  if (getHealthLogsApi.error && !getHealthLogsApi.loading) {
-    if (pageMode !== 'logs') {
-      return (
-        <View style={styles.container}>
-          <Header
-            title="บันทึกและติดตามสุขภาพ"
-            goBack
-            onBackPress={() => router.push('/(tabs)/pet_profile')}
-          />
-          <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>โหลดข้อมูลไม่สำเร็จ</Text>
-            <Text style={styles.emptySubtitle}>
-              กรุณาตรวจสอบอินเทอร์เน็ต แล้วลองใหม่อีกครั้ง
-            </Text>
-            <View style={styles.retryButtonWrap}>
-              <Button
-                title="ลองอีกครั้ง"
-                onPress={loadHealthRecords}
-                variant="ghost"
-              />
-            </View>
-          </View>
-        </View>
-      )
-    }
-
+  if (
+    pageMode === 'logs' &&
+    getHealthLogsApi.error &&
+    !getHealthLogsApi.loading
+  ) {
     return (
       <View style={styles.container}>
         <Header
@@ -606,11 +614,7 @@ export default function HealthRecordPage() {
           <View style={styles.retryButtonWrap}>
             <Button
               title="ลองอีกครั้ง"
-              onPress={
-                pageMode === 'logs'
-                  ? () => loadHealthLogs(false)
-                  : loadHealthRecords
-              }
+              onPress={() => loadHealthLogs(false)}
               variant="ghost"
             />
           </View>
@@ -627,7 +631,13 @@ export default function HealthRecordPage() {
         onBackPress={() => router.push('/(tabs)/pet_profile')}
       />
 
-      {pageMode === 'logs' ? (
+      {pageMode === 'documents' ? (
+        <MedicalDocumentsPage
+          petIdOverride={petId}
+          isEmbedded
+          headerContent={listHeader}
+        />
+      ) : pageMode === 'logs' ? (
         <FlatList
           data={filteredLogs}
           keyExtractor={(item) => item.id}
@@ -714,7 +724,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing[4],
-    paddingBottom: 110,
+    paddingBottom: 90,
     flexGrow: 1
   },
   petCardWrapper: {
