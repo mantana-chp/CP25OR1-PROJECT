@@ -12,6 +12,10 @@ import {
   View
 } from 'react-native'
 import ActionSheet from '../../components/action-sheet'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
 
 const PET_ITEM_WIDTH = 72
 const PET_ITEM_GAP = 6
@@ -21,6 +25,7 @@ const EXPAND_THRESHOLD = 5
 interface Pet {
   id: string
   pet_name: string
+  species?: string
   petRole?: 'OWNER' | 'CAREGIVER'
   imageUrl?: string
   profile_image_url?: string | null
@@ -34,6 +39,7 @@ interface PetSelectorProps {
   onEditPet?: (petId: string) => void
   onDeletePet?: (petId: string) => void
   isViewingDeceased?: boolean
+  avatarColorsByPetId?: Record<string, string>
 }
 
 export default function PetSelector({
@@ -43,7 +49,8 @@ export default function PetSelector({
   maxPets,
   onEditPet,
   onDeletePet,
-  isViewingDeceased
+  isViewingDeceased,
+  avatarColorsByPetId = {}
 }: PetSelectorProps) {
   const router = useRouter()
   const horizontalScrollRef = useRef<ScrollView>(null)
@@ -84,6 +91,13 @@ export default function PetSelector({
 
   const handleToggleExpand = () => {
     setIsExpanded((prev) => !prev)
+  }
+
+  const getPetAvatarBackgroundColor = (pet: Pet) => {
+    return (
+      avatarColorsByPetId[pet.id] ||
+      getDefaultAvatarBackgroundColorBySpecies(pet.species)
+    )
   }
 
   const actions = [
@@ -132,8 +146,18 @@ export default function PetSelector({
         {pet.profile_image_url ? (
           <Image source={{ uri: pet.profile_image_url }} style={styles.image} />
         ) : (
-          <View style={[styles.image, styles.placeholderImage]}>
-            <MaterialCommunityIcons name="dog" size={36} color="white" />
+          <View
+            style={[
+              styles.image,
+              styles.placeholderImage,
+              { backgroundColor: getPetAvatarBackgroundColor(pet) }
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={getPetPlaceholderIcon(pet.species)}
+              size={36}
+              color="white"
+            />
           </View>
         )}
       </View>
@@ -254,8 +278,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 33,
-    backgroundColor: '#5FA7D1'
+    borderRadius: 33
   },
   placeholderImage: {
     justifyContent: 'center',

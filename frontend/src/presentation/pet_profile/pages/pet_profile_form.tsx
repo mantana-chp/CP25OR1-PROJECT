@@ -1,4 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFormik } from 'formik'
 import React, { useCallback, useEffect, useState } from 'react'
 
@@ -19,6 +20,11 @@ import {
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { uploadService } from '@/src/utils/api/services/upload_service'
+import {
+  DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
+  getPetPlaceholderIcon,
+  PET_AVATAR_COLOR_OPTIONS,
+} from '@/src/utils/pet_avatar'
 import { useLocalSearchParams } from 'expo-router'
 import {
   Alert,
@@ -33,11 +39,14 @@ import {
 import PrimaryButton from '../../components/primary_button'
 import { Trash2 } from 'lucide-react-native'
 
+const PET_AVATAR_COLORS_STORAGE_KEY = 'pet-avatar-colors'
+
 interface IPetFormState {
   id: string
   values: IPetProfileForm
   selectedSpeciesId: string
   selectedImageUri: string | undefined
+  selectedAvatarColor: string
   originalImageKey: string | undefined
   isDirty: boolean
 }
@@ -83,6 +92,9 @@ export default function PetProfileForm({
   const [selectedImageUri, setSelectedImageUri] = useState<string | undefined>(
     undefined,
   )
+  const [selectedAvatarColor, setSelectedAvatarColor] = useState<string>(
+    DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
+  )
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [originalImageKey, setOriginalImageKey] = useState<string | undefined>(
     undefined,
@@ -115,6 +127,7 @@ export default function PetProfileForm({
         values: petProfileInitValue({} as IPetProfileForm),
         selectedSpeciesId: '',
         selectedImageUri: undefined,
+        selectedAvatarColor: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
         originalImageKey: undefined,
         isDirty: false,
       }
@@ -131,6 +144,7 @@ export default function PetProfileForm({
           values: petProfileInitValue({} as IPetProfileForm),
           selectedSpeciesId: '',
           selectedImageUri: undefined,
+          selectedAvatarColor: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
           originalImageKey: undefined,
           isDirty: false,
         }
@@ -165,6 +179,22 @@ export default function PetProfileForm({
         if (response.data.profile_image_url) {
           setSelectedImageUri(response.data.profile_image_url)
           setOriginalImageKey(response.data.profile_image_key || undefined)
+        }
+
+        try {
+          const stored = await AsyncStorage.getItem(
+            PET_AVATAR_COLORS_STORAGE_KEY,
+          )
+          if (stored) {
+            const parsed = JSON.parse(stored)
+            setSelectedAvatarColor(
+              parsed[petId] || DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
+            )
+          } else {
+            setSelectedAvatarColor(DEFAULT_PET_AVATAR_BACKGROUND_COLOR)
+          }
+        } catch {
+          setSelectedAvatarColor(DEFAULT_PET_AVATAR_BACKGROUND_COLOR)
         }
       }
     } catch (error) {
@@ -235,6 +265,20 @@ export default function PetProfileForm({
     )
   }
 
+  const updatePetFormAvatarColor = (formId: string, color: string) => {
+    setPetForms((prevForms) =>
+      prevForms.map((form) =>
+        form.id === formId
+          ? {
+              ...form,
+              selectedAvatarColor: color,
+              isDirty: true,
+            }
+          : form,
+      ),
+    )
+  }
+
   const addPetForm = () => {
     const newFormId = `pet_form_${Date.now()}`
     const newForm: IPetFormState = {
@@ -242,6 +286,7 @@ export default function PetProfileForm({
       values: petProfileInitValue({} as IPetProfileForm),
       selectedSpeciesId: '',
       selectedImageUri: undefined,
+      selectedAvatarColor: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
       originalImageKey: undefined,
       isDirty: false,
     }
@@ -284,6 +329,18 @@ export default function PetProfileForm({
         let newPetId = petId
         if (isEditMode) {
           await petProfileService.updatePetProfile(petId, petDataToSend)
+
+          const stored = await AsyncStorage.getItem(
+            PET_AVATAR_COLORS_STORAGE_KEY,
+          )
+          const parsed = stored ? JSON.parse(stored) : {}
+          await AsyncStorage.setItem(
+            PET_AVATAR_COLORS_STORAGE_KEY,
+            JSON.stringify({
+              ...parsed,
+              [petId]: selectedAvatarColor,
+            }),
+          )
         } else {
           const createResponse =
             await petProfileService.createPetProfile(petDataToSend)
@@ -470,6 +527,26 @@ export default function PetProfileForm({
       }
 
       console.log(`🆔 Created ${createdPets.length} pets`)
+
+      try {
+        const stored = await AsyncStorage.getItem(PET_AVATAR_COLORS_STORAGE_KEY)
+        const parsed = stored ? JSON.parse(stored) : {}
+        const nextColors = { ...parsed }
+
+        createdPets.forEach((pet, index) => {
+          if (!pet?.id) return
+          nextColors[pet.id] =
+            petForms[index]?.selectedAvatarColor ||
+            DEFAULT_PET_AVATAR_BACKGROUND_COLOR
+        })
+
+        await AsyncStorage.setItem(
+          PET_AVATAR_COLORS_STORAGE_KEY,
+          JSON.stringify(nextColors),
+        )
+      } catch (error) {
+        console.error('❌ Failed to save avatar colors after create:', error)
+      }
 
       // Upload images for each created pet
       for (let i = 0; i < petForms.length; i++) {
@@ -723,6 +800,11 @@ export default function PetProfileForm({
     updatePetFormField(formId, 'weight', cleaned)
   }
 
+  const getSpeciesNameById = (speciesId?: string) => {
+    if (!speciesId) return undefined
+    return speciesData.find((species) => species.id === speciesId)?.name
+  }
+
   // ------------------
   // RENDER
   // ------------------
@@ -756,6 +838,13 @@ export default function PetProfileForm({
           imageUri={form.selectedImageUri}
           disabled={isSubmitting || isUploadingImage}
           placeholder='เลือกรูปภาพสัตว์เลี้ยง'
+          placeholderPreviewIconName={getPetPlaceholderIcon(
+            getSpeciesNameById(form.selectedSpeciesId),
+          )}
+          placeholderPreviewBackgroundColor={form.selectedAvatarColor}
+          colorOptions={PET_AVATAR_COLOR_OPTIONS}
+          selectedColor={form.selectedAvatarColor}
+          onSelectColor={(color) => updatePetFormAvatarColor(form.id, color)}
         />
 
         <InputText
@@ -863,6 +952,13 @@ export default function PetProfileForm({
               imageUri={selectedImageUri}
               disabled={isSubmitting || isUploadingImage || isDeletingImage}
               placeholder='เลือกรูปภาพสัตว์เลี้ยง'
+              placeholderPreviewIconName={getPetPlaceholderIcon(
+                getSpeciesNameById(selectedSpeciesId),
+              )}
+              placeholderPreviewBackgroundColor={selectedAvatarColor}
+              colorOptions={PET_AVATAR_COLOR_OPTIONS}
+              selectedColor={selectedAvatarColor}
+              onSelectColor={setSelectedAvatarColor}
             />
             <InputText
               title='ชื่อสัตว์เลี้ยง'
