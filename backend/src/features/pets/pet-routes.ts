@@ -413,8 +413,6 @@ petRoutes.delete(
 petRoutes.delete(
   '/me/:id/permanent',
   authGuard,
-  resolvePetRole,
-  requireOwner,
   validate(permanentDeletePetSchema),
   permanentDeletePetController,
 )
