@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2]
   },
   petListContent: {
-    gap: spacing[3]
+    gap: spacing[2]
   },
   petCard: {
     flexDirection: 'row',
@@ -244,13 +244,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.border.light,
-    padding: spacing[3],
+    padding: spacing[2],
     gap: spacing[3],
     alignItems: 'center'
   },
   petImageContainer: {
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
     borderRadius: 80,
     overflow: 'hidden'
   },
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   petInfo: {
     flex: 1,
-    gap: spacing[1]
+    // gap: spacing[1]
   },
   infoRow: {
     flexDirection: 'row',
