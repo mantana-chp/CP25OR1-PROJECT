@@ -6,7 +6,7 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
-import { Cake,  CheckCircle2, PawPrint, X } from 'lucide-react-native'
+import { Cake, CheckCircle2, PawPrint, X } from 'lucide-react-native'
 import React from 'react'
 import {
   FlatList,
@@ -61,13 +61,14 @@ export default function ClaimedPetsModal({
     const age = calculateAge(item.age)
     const breed = item.breed || 'ไม่ระบุสายพันธุ์'
     const petName = item.pet_name || 'ไม่ระบุชื่อ'
+    const imageUri = item.profile_image_url || item.imageUrl
 
     return (
       <View style={styles.petCard}>
         <View style={styles.petImageContainer}>
-          {item.imageUrl ? (
+          {imageUri ? (
             <Image
-              source={{ uri: item.imageUrl }}
+              source={{ uri: imageUri }}
               style={styles.petImage}
               resizeMode="cover"
             />
@@ -89,7 +90,7 @@ export default function ClaimedPetsModal({
               {breed}
             </Text>
           </View>
-          <View style={styles.infoRow}> 
+          <View style={styles.infoRow}>
             <Cake size={iconSizes.xs} color={colors.gray[500]} />
             <Text style={styles.petAge}>{age}</Text>
           </View>
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
   petImageContainer: {
     width: 64,
     height: 64,
-    borderRadius: borderRadius.md,
+    borderRadius: 80,
     overflow: 'hidden'
   },
   petImage: {
