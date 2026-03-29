@@ -6,6 +6,10 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  IClaimInviteResponse,
+  TClaimInvitePayload
+} from '@/src/domain/pet_sharing.domain'
 import { useAuth } from '@/src/context/AuthContext'
 import { usePets } from '@/src/context/PetContext'
 import { ApiError } from '@/src/utils/api/api_client'
@@ -41,6 +45,19 @@ import Header from '../../components/header_component'
 import ClaimedPetsModal from '../components/claimed_pets_modal'
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000
+
+const normalizeClaimedPets = (payload: TClaimInvitePayload) => {
+  if (!payload) return []
+
+  if (Array.isArray(payload)) {
+    return payload
+  }
+
+  const added = payload.added ?? []
+  const alreadyShared = payload.alreadyShared ?? []
+
+  return [...added, ...alreadyShared]
+}
 
 const getClaimErrorMessage = (error: ApiError) => {
   const message = error.message?.toLowerCase() ?? ''
@@ -178,8 +195,12 @@ export default function ClaimPetSharePage() {
       return
     }
 
-    const receivedPets = unwrapData<IPetProfile[]>(result.data)
-    const claimedPetId = receivedPets?.[0]?.id
+    const claimPayload = unwrapData<IPetProfile[] | IClaimInviteResponse>(
+      result.data
+    )
+
+    const receivedPets = normalizeClaimedPets(claimPayload)
+    const claimedPetId = receivedPets[0]?.id
 
     await refreshPets()
 
@@ -194,7 +215,7 @@ export default function ClaimPetSharePage() {
     }
 
     // Show claimed pets modal
-    if (receivedPets && receivedPets.length > 0) {
+    if (receivedPets.length > 0) {
       setClaimedPets(receivedPets)
       setShowClaimedPetsModal(true)
     } else {
