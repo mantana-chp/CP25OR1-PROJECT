@@ -62,13 +62,6 @@ export default function ClaimedPetsModal({
   const addedCount = addedPets.length
   const alreadySharedCount = alreadySharedPets.length
 
-  const title =
-    addedCount > 0 && alreadySharedCount > 0
-      ? 'รับคำเชิญบางส่วนสำเร็จ'
-      : addedCount > 0
-        ? 'รับคำเชิญสำเร็จ!'
-        : 'มีสิทธิ์ดูแลอยู่แล้ว'
-
   const subtitle =
     addedCount > 0 && alreadySharedCount > 0
       ? `เพิ่มสิทธิ์ใหม่ ${addedCount} ตัว และมีสิทธิ์อยู่แล้ว ${alreadySharedCount} ตัว`
@@ -137,7 +130,7 @@ export default function ClaimedPetsModal({
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title}>{'รับคำเชิญสำเร็จ!'}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
 
       <ScrollView
@@ -271,7 +264,7 @@ const styles = StyleSheet.create({
     color: colors.background.secondary
   },
   petInfo: {
-    flex: 1,
+    flex: 1
     // gap: spacing[1]
   },
   infoRow: {
