@@ -51,7 +51,7 @@ export default function AliasModal({
   onToggleSelectAllPets,
   currentPetId
 }: AliasModalProps) {
-  const showPetSelector = pets && pets.length > 1 && onTogglePet
+  const showPetSelector = pets && pets.length > 0 && onTogglePet
   const [suggestions, setSuggestions] = useState<CaregiverSuggestion[]>([])
   const [filteredSuggestions, setFilteredSuggestions] = useState<
     CaregiverSuggestion[]
