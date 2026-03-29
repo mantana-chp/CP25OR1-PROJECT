@@ -217,19 +217,20 @@ const petProfileSelect = {
 };
 
 export const findSharedActivePetsByUserId = async (userId: string) => {
-    const rows = await prisma.pet_user_access.findMany({
-        where: {
-            user_id: userId,
-            revoked_at: null,
-            pet: {
-                status: pet_status.ACTIVE,
-                deleted_at: null,
-            },
-        },
-        include: { pet: { select: petProfileSelect } },
-    });
-    return rows.map((r) => r.pet);
-};
+  const rows = await prisma.pet_user_access.findMany({
+    where: {
+      user_id: userId,
+      revoked_at: null,
+      pet: {
+        status: pet_status.ACTIVE,
+        deleted_at: null
+      }
+    },
+    include: { pet: { select: petProfileSelect } },
+    orderBy: { granted_at: 'asc' }
+  })
+  return rows.map((r) => r.pet)
+}
 
 export const hasAnyAccessiblePet = async (userId: string): Promise<boolean> => {
     const owned = await prisma.pets.count({

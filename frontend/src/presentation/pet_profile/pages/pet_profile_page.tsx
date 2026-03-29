@@ -118,10 +118,6 @@ export default function PetProfilePage() {
     getRemindersApi.execute({})
   }, [])
 
-  const loadHealthRecords = useCallback(() => {
-    getHealthRecordsApi.execute({})
-  }, [])
-
   const loadPets = useCallback(async () => {
     console.log('📡 Loading pets from API...')
     // await refreshPets()
@@ -134,7 +130,6 @@ export default function PetProfilePage() {
       console.log('🔄 Pet Profile Page Focused - Reloading data')
       loadStoredAvatarColors()
       loadReminders()
-      loadHealthRecords()
       loadPets()
     }, [loadStoredAvatarColors, loadReminders, loadHealthRecords, loadPets]),
   )
@@ -389,9 +384,6 @@ export default function PetProfilePage() {
   // Can delete only if more than 1 active pet
   const canDeletePet = activePets.length > 1
 
-  console.log(isViewingDeceased)
-  console.log(displayPets.length)
-
   // ------------------
   // REDER
   // ------------------
@@ -501,15 +493,17 @@ export default function PetProfilePage() {
                   onPress={() => {
                     router.push('/(tabs)/pet_sharing')
                   }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <UserPlus size={18} color={colors.primary.light} />
+                  <UserPlus size={20} color={colors.primary.light} />
                 </Pressable>
                 <Pressable
                   onPress={() => {
                     router.push('./scan_pet_share')
                   }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <ScanQrCode size={18} color={colors.primary.light} />
+                  <ScanQrCode size={20} color={colors.primary.light} />
                 </Pressable>
               </View>
 
@@ -652,8 +646,7 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
     gap: 4,

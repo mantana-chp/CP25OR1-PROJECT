@@ -1,37 +1,11 @@
-import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  IAccessListResponse,
+  ICaregiver,
+  IClaimInviteResponse,
+  IGenerateInviteResponse,
+  IPendingInvite
+} from '@/src/domain/pet_sharing.domain'
 import { apiClient } from '../api_client'
-
-export interface ICaregiver {
-  accessId: string
-  contactId: string
-  alias: string
-  grantedAt: string
-}
-
-export interface IPendingInvitePet {
-  id: string
-  pet_name: string
-}
-
-export interface IPendingInvite {
-  inviteId: string
-  alias: string
-  expiresAt: string
-  createdAt: string
-  pets: IPendingInvitePet[]
-}
-
-export interface IGenerateInviteResponse {
-  inviteId: string
-  expiresAt: string
-  alias: string
-  petIds: string[]
-}
-
-export interface IAccessListResponse {
-  caregivers: ICaregiver[]
-  selfAccessId: string | null
-}
 
 export const petSharingService = {
   generateInvite: async (petIds: string[], alias: string) => {
@@ -39,14 +13,14 @@ export const petSharingService = {
       '/v1/pets/invite',
       {
         petIds,
-        alias,
-      },
+        alias
+      }
     )
   },
 
   claimInvite: async (token: string) => {
-    return apiClient.post<{ data: IPetProfile[] }>(
-      `/v1/pet-shares/claim/${token}`,
+    return apiClient.post<{ data: IClaimInviteResponse }>(
+      `/v1/pet-shares/claim/${token}`
     )
   },
 
@@ -56,13 +30,13 @@ export const petSharingService = {
 
   listAccessList: async (petId: string) => {
     return apiClient.get<{ data: IAccessListResponse }>(
-      `/v1/pets/${petId}/access-list`,
+      `/v1/pets/${petId}/access-list`
     )
   },
 
   revokeCaregiver: async (petId: string, accessId: string) => {
     return apiClient.delete<{ data: { message: string } }>(
-      `/v1/pets/${petId}/caregivers/${accessId}`,
+      `/v1/pets/${petId}/caregivers/${accessId}`
     )
   },
 
@@ -72,7 +46,7 @@ export const petSharingService = {
 
   cancelInvite: async (inviteId: string) => {
     return apiClient.delete<{ data: { message: string } }>(
-      `/v1/pets/invites/${inviteId}`,
+      `/v1/pets/invites/${inviteId}`
     )
-  },
+  }
 }

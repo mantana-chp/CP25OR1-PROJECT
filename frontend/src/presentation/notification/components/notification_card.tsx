@@ -1,12 +1,13 @@
 import { INotification } from '@/src/domain/notification.domain'
 import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/th'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import utc from 'dayjs/plugin/utc'
 import { AlertCircle, Bell, ChevronRight, Lightbulb } from 'lucide-react-native'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 dayjs.extend(utc)
 dayjs.extend(relativeTime)
@@ -18,63 +19,6 @@ interface NotificationCardProps {
   isRead: boolean
 }
 
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case 'overdue':
-      return { label: 'เลยกำหนด', color: '#BF1737', bgColor: '#FEE2E2' }
-    case 'pending':
-      return { label: 'วันนี้', color: '#F59E0B', bgColor: '#FEF3C7' }
-    case 'done':
-      return { label: 'เสร็จแล้ว', color: '#059669', bgColor: '#D1FAE5' }
-    default:
-      return null
-  }
-}
-
-const formatRelativeTime = (date: string, time?: string) => {
-  const now = dayjs()
-  const reminderDate = dayjs(date)
-  const diffDays = reminderDate.diff(now, 'day')
-  const diffHours = reminderDate.diff(now, 'hour')
-
-  // If it's today
-  if (diffDays === 0) {
-    if (time) {
-      return `วันนี้ ${time.substring(0, 5)} น.`
-    }
-    return 'วันนี้'
-  }
-
-  // If it's tomorrow
-  if (diffDays === 1) {
-    if (time) {
-      return `พรุ่งนี้ ${time.substring(0, 5)} น.`
-    }
-    return 'พรุ่งนี้'
-  }
-
-  // If it's within a week
-  if (diffDays > 0 && diffDays < 7) {
-    const dayName = reminderDate.locale('th').format('dddd')
-    if (time) {
-      return `${dayName} ${time.substring(0, 5)} น.`
-    }
-    return dayName
-  }
-
-  // If it's in the past
-  if (diffHours < 0 && diffHours > -24) {
-    return `${Math.abs(diffHours)} ชั่วโมงที่แล้ว`
-  }
-
-  // Default format
-  const formatted = reminderDate.locale('th').format('D MMM')
-  if (time) {
-    return `${formatted} ${time.substring(0, 5)} น.`
-  }
-  return formatted
-}
-
 export default function NotificationCard({
   notification,
   onPress,
@@ -82,6 +26,71 @@ export default function NotificationCard({
 }: NotificationCardProps) {
   const { reminder, petTips, petInfo } = notification
 
+  const getPetImageUri = (notification: INotification) => {
+    return (
+      notification.petInfo?.profileImageUrl ||
+      notification.reminder?.pets?.profileImageUrl ||
+      null
+    )
+  }
+  const petImageUri = getPetImageUri(notification)
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'overdue':
+        return { label: 'เลยกำหนด', color: '#BF1737', bgColor: '#FEE2E2' }
+      case 'pending':
+        return { label: 'วันนี้', color: '#F59E0B', bgColor: '#FEF3C7' }
+      case 'done':
+        return { label: 'เสร็จแล้ว', color: '#059669', bgColor: '#D1FAE5' }
+      default:
+        return null
+    }
+  }
+
+  const formatRelativeTime = (date: string, time?: string) => {
+    const now = dayjs()
+    const reminderDate = dayjs(date)
+    const diffDays = reminderDate.diff(now, 'day')
+    const diffHours = reminderDate.diff(now, 'hour')
+
+    // If it's today
+    if (diffDays === 0) {
+      if (time) {
+        return `วันนี้ ${time.substring(0, 5)} น.`
+      }
+      return 'วันนี้'
+    }
+
+    // If it's tomorrow
+    if (diffDays === 1) {
+      if (time) {
+        return `พรุ่งนี้ ${time.substring(0, 5)} น.`
+      }
+      return 'พรุ่งนี้'
+    }
+
+    // If it's within a week
+    if (diffDays > 0 && diffDays < 7) {
+      const dayName = reminderDate.locale('th').format('dddd')
+      if (time) {
+        return `${dayName} ${time.substring(0, 5)} น.`
+      }
+      return dayName
+    }
+
+    // If it's in the past
+    if (diffHours < 0 && diffHours > -24) {
+      return `${Math.abs(diffHours)} ชั่วโมงที่แล้ว`
+    }
+
+    // Default format
+    const formatted = reminderDate.locale('th').format('D MMM')
+    if (time) {
+      return `${formatted} ${time.substring(0, 5)} น.`
+    }
+    return formatted
+  }
   // Tips Notification
   if (petTips && !reminder) {
     return (
@@ -91,13 +100,14 @@ export default function NotificationCard({
         onPress={() => onPress(notification)}
       >
         <View style={styles.cardContent}>
-          {/* Icon and Badge */}
-          <View style={styles.iconContainer}>
-            <Lightbulb
-              size={18}
-              color={isRead ? '#9CA3AF' : '#F59E0B'}
-              fill={isRead ? '#9CA3AF' : '#F59E0B'}
-            />
+          <View style={styles.leadingColumn}>
+            <View style={styles.iconContainer}>
+              <Lightbulb
+                size={18}
+                color={isRead ? '#9CA3AF' : '#F59E0B'}
+                fill={isRead ? '#9CA3AF' : '#F59E0B'}
+              />
+            </View>
           </View>
 
           {/* Content */}
@@ -162,13 +172,19 @@ export default function NotificationCard({
       onPress={() => onPress(notification)}
     >
       <View style={styles.cardContent}>
-        {/* Icon and Status Badge */}
-        <View style={styles.iconContainer}>
-          {isOverdue ? (
-            <AlertCircle size={18} color={isRead ? '#9CA3AF' : '#BF1737'} />
-          ) : (
-            <Bell size={18} color={isRead ? '#9CA3AF' : '#2E759E'} />
-          )}
+        <View style={styles.leadingColumn}>
+          <View style={styles.petAvatarWrap}>
+            {petImageUri ? (
+              <Image
+                source={{ uri: petImageUri }}
+                style={styles.petAvatarImage}
+              />
+            ) : (
+              <View style={[styles.image, styles.placeholderImage]}>
+                <MaterialCommunityIcons name="dog" size={24} color="white" />
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Content */}
@@ -257,6 +273,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10
+  },
+  leadingColumn: {
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 1
+  },
+  petAvatarWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden'
+  },
+  petAvatarImage: {
+    width: '100%',
+    height: '100%'
+  },
+  petAvatarFallbackText: {
+    fontFamily: 'Prompt_500Medium',
+    fontSize: 12,
+    color: '#6B7280'
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 33,
+    backgroundColor: '#5FA7D1'
+  },
+  placeholderImage: {
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   iconContainer: {
     width: 32,

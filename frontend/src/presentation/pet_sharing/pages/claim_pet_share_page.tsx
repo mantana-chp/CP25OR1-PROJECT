@@ -6,6 +6,11 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  IClaimInviteResponse,
+  INormalizedClaimInviteResult,
+  TClaimInvitePayload
+} from '@/src/domain/pet_sharing.domain'
 import { useAuth } from '@/src/context/AuthContext'
 import { usePets } from '@/src/context/PetContext'
 import { ApiError } from '@/src/utils/api/api_client'
@@ -19,7 +24,7 @@ import {
   CameraView,
   useCameraPermissions
 } from 'expo-camera'
-import { Linking } from 'react-native'
+import { KeyboardAvoidingView, Linking, Platform } from 'react-native'
 import {
   ScanLine,
   ShieldCheck,
@@ -41,6 +46,23 @@ import Header from '../../components/header_component'
 import ClaimedPetsModal from '../components/claimed_pets_modal'
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000
+
+const normalizeClaimResult = (
+  payload: TClaimInvitePayload
+): INormalizedClaimInviteResult => {
+  if (!payload) {
+    return { added: [], alreadyShared: [] }
+  }
+
+  if (Array.isArray(payload)) {
+    return { added: payload, alreadyShared: [] }
+  }
+
+  return {
+    added: payload.added ?? [],
+    alreadyShared: payload.alreadyShared ?? []
+  }
+}
 
 const getClaimErrorMessage = (error: ApiError) => {
   const message = error.message?.toLowerCase() ?? ''
@@ -106,7 +128,10 @@ export default function ClaimPetSharePage() {
   const [showManualInput, setShowManualInput] = useState(false)
   const [manualCode, setManualCode] = useState('')
   const [lastErrorToken, setLastErrorToken] = useState<string | null>(null)
-  const [claimedPets, setClaimedPets] = useState<IPetProfile[]>([])
+  const [claimResult, setClaimResult] = useState<INormalizedClaimInviteResult>({
+    added: [],
+    alreadyShared: []
+  })
   const [showClaimedPetsModal, setShowClaimedPetsModal] = useState(false)
   const facing: CameraType = 'back'
   const isHandlingScanRef = useRef(false)
@@ -178,8 +203,13 @@ export default function ClaimPetSharePage() {
       return
     }
 
-    const receivedPets = unwrapData<IPetProfile[]>(result.data)
-    const claimedPetId = receivedPets?.[0]?.id
+    const claimPayload = unwrapData<IPetProfile[] | IClaimInviteResponse>(
+      result.data
+    )
+
+    const normalizedResult = normalizeClaimResult(claimPayload)
+    const claimedPetId =
+      normalizedResult.added[0]?.id ?? normalizedResult.alreadyShared[0]?.id
 
     await refreshPets()
 
@@ -194,8 +224,11 @@ export default function ClaimPetSharePage() {
     }
 
     // Show claimed pets modal
-    if (receivedPets && receivedPets.length > 0) {
-      setClaimedPets(receivedPets)
+    if (
+      normalizedResult.added.length > 0 ||
+      normalizedResult.alreadyShared.length > 0
+    ) {
+      setClaimResult(normalizedResult)
       setShowClaimedPetsModal(true)
     } else {
       // Fallback to navigate directly if no pets data
@@ -273,133 +306,144 @@ export default function ClaimPetSharePage() {
   }
 
   return (
-    <View style={styles.container}>
-      <Header title="รับสิทธิ์ดูแลร่วม" goBack onBackPress={onBackPress} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <View style={styles.container}>
+        <Header title="รับสิทธิ์ดูแลร่วม" goBack onBackPress={onBackPress} />
 
-      <View style={styles.content}>
-        {isBusy ? (
-          <View style={styles.stateContainer}>
-            <ActivityIndicator size="large" color={colors.primary.light} />
-          </View>
-        ) : !isAuthenticated ? (
-          <View style={styles.stateContainer}>
-            <ShieldCheck
-              color={colors.warning.DEFAULT}
-              size={iconSizes['4xl']}
-            />
-            <Text style={styles.stateTitle}>กรุณาเข้าสู่ระบบก่อน</Text>
-            <Text style={styles.stateDescription}>
-              คุณต้องเข้าสู่ระบบก่อนรับคำเชิญผู้ดูแลร่วม
-            </Text>
-          </View>
-        ) : !permission ? (
-          <View style={styles.stateContainer}>
-            <ActivityIndicator size="large" color={colors.primary.light} />
-            <Text style={styles.stateDescription}>กำลังเตรียมกล้อง...</Text>
-          </View>
-        ) : permissionDenied ? (
-          <View style={styles.stateContainer}>
-            <ScanLine color={colors.primary.light} size={iconSizes['4xl']} />
-            <Text style={styles.stateTitle}>อนุญาตการใช้งานกล้อง</Text>
-            <Text style={styles.stateDescription}>
-              เพื่อสแกน QR Code คำเชิญผู้ดูแลร่วม
-            </Text>
+        <View style={styles.content}>
+          {isBusy ? (
+            <View style={styles.stateContainer}>
+              <ActivityIndicator size="large" color={colors.primary.light} />
+            </View>
+          ) : !isAuthenticated ? (
+            <View style={styles.stateContainer}>
+              <ShieldCheck
+                color={colors.warning.DEFAULT}
+                size={iconSizes['4xl']}
+              />
+              <Text style={styles.stateTitle}>กรุณาเข้าสู่ระบบก่อน</Text>
+              <Text style={styles.stateDescription}>
+                คุณต้องเข้าสู่ระบบก่อนรับคำเชิญผู้ดูแลร่วม
+              </Text>
+            </View>
+          ) : !permission ? (
+            <View style={styles.stateContainer}>
+              <ActivityIndicator size="large" color={colors.primary.light} />
+              <Text style={styles.stateDescription}>กำลังเตรียมกล้อง...</Text>
+            </View>
+          ) : permissionDenied ? (
+            <View style={styles.stateContainer}>
+              <ScanLine color={colors.primary.light} size={iconSizes['4xl']} />
+              <Text style={styles.stateTitle}>อนุญาตการใช้งานกล้อง</Text>
+              <Text style={styles.stateDescription}>
+                เพื่อสแกน QR Code คำเชิญผู้ดูแลร่วม
+              </Text>
 
-            <Button
-              title="อนุญาตใช้งานกล้อง"
-              onPress={onRequestPermission}
-              style={styles.permissionButton}
-            />
-          </View>
-        ) : (
-          <>
-            {showManualInput ? (
-              <View style={styles.manualInputContainer}>
-                <Text style={styles.manualInputTitle}>กรอกรหัสคำเชิญ</Text>
-                <Text style={styles.manualInputDescription}>
-                  วางลิงก์หรือรหัสคำเชิญที่คัดลอกจากผู้เจ้าของ
-                </Text>
-                <TextInput
-                  style={styles.manualInput}
-                  placeholder="รหัสเชิญ"
-                  placeholderTextColor={colors.gray[400]}
-                  value={manualCode}
-                  onChangeText={setManualCode}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  multiline
-                  numberOfLines={3}
-                />
-                <View style={styles.manualInputButtons}>
-                  <Button
-                    title="ยกเลิก"
-                    onPress={() => {
-                      setShowManualInput(false)
-                      setManualCode('')
-                    }}
-                    variant="ghost"
-                    style={styles.manualInputButtonHalf}
-                  />
-                  <Button
-                    title="ยืนยัน"
-                    onPress={handleManualSubmit}
-                    loading={claimInviteApi.loading}
-                    disabled={claimInviteApi.loading || !manualCode.trim()}
-                    style={styles.manualInputButtonHalf}
-                  />
-                </View>
-                <TouchableOpacity
-                  onPress={() => setShowManualInput(false)}
-                  style={styles.switchModeButton}
-                >
-                  <ScanLine color={colors.primary.light} size={iconSizes.md} />
-                  <Text style={styles.switchModeText}>สลับไปสแกน QR Code</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                <View style={styles.scannerCard}>
-                  <CameraView
-                    style={styles.camera}
-                    facing={facing}
-                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                    onBarcodeScanned={onBarcodeScanned}
-                  />
-
-                  <View pointerEvents="none" style={styles.scanFrame} />
-                </View>
-
-                <Text style={styles.helperText}>
-                  วาง QR Code คำเชิญให้อยู่ภายในกรอบเพื่อรับสิทธิ์ผู้ดูแลร่วม
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => setShowManualInput(true)}
-                  style={styles.switchModeButton}
-                >
-                  <KeyboardIcon
-                    color={colors.primary.light}
-                    size={iconSizes.md}
-                  />
-                  <Text style={styles.switchModeText}>
-                    กรอกรหัสคำเชิญด้วยตนเอง
+              <Button
+                title="อนุญาตใช้งานกล้อง"
+                onPress={onRequestPermission}
+                style={styles.permissionButton}
+              />
+            </View>
+          ) : (
+            <>
+              {showManualInput ? (
+                <View style={styles.manualInputContainer}>
+                  <Text style={styles.manualInputTitle}>กรอกรหัสคำเชิญ</Text>
+                  <Text style={styles.manualInputDescription}>
+                    วางลิงก์หรือรหัสคำเชิญที่คัดลอกจากผู้เจ้าของ
                   </Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </>
-        )}
-      </View>
+                  <TextInput
+                    style={styles.manualInput}
+                    placeholder="รหัสเชิญ"
+                    placeholderTextColor={colors.gray[400]}
+                    value={manualCode}
+                    onChangeText={setManualCode}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    numberOfLines={2}
+                  />
+                  <View style={styles.manualInputButtons}>
+                    <Button
+                      title="ยกเลิก"
+                      onPress={() => {
+                        setShowManualInput(false)
+                        setManualCode('')
+                      }}
+                      variant="ghost"
+                      style={styles.manualInputButtonHalf}
+                    />
+                    <Button
+                      title="ยืนยัน"
+                      onPress={handleManualSubmit}
+                      loading={claimInviteApi.loading}
+                      disabled={claimInviteApi.loading || !manualCode.trim()}
+                      style={styles.manualInputButtonHalf}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setShowManualInput(false)}
+                    style={styles.switchModeButton}
+                  >
+                    <ScanLine
+                      color={colors.primary.light}
+                      size={iconSizes.md}
+                    />
+                    <Text style={styles.switchModeText}>
+                      สลับไปสแกน QR Code
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.scannerCard}>
+                    <CameraView
+                      style={styles.camera}
+                      facing={facing}
+                      barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                      onBarcodeScanned={onBarcodeScanned}
+                    />
 
-      <ClaimedPetsModal
-        visible={showClaimedPetsModal}
-        pets={claimedPets}
-        onClose={() => {
-          setShowClaimedPetsModal(false)
-          router.replace('/(tabs)/pet_profile')
-        }}
-      />
-    </View>
+                    <View pointerEvents="none" style={styles.scanFrame} />
+                  </View>
+
+                  <Text style={styles.helperText}>
+                    วาง QR Code คำเชิญให้อยู่ภายในกรอบเพื่อรับสิทธิ์ผู้ดูแลร่วม
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => setShowManualInput(true)}
+                    style={styles.switchModeButton}
+                  >
+                    <KeyboardIcon
+                      color={colors.primary.light}
+                      size={iconSizes.md}
+                    />
+                    <Text style={styles.switchModeText}>
+                      กรอกรหัสคำเชิญด้วยตนเอง
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          )}
+        </View>
+
+        <ClaimedPetsModal
+          visible={showClaimedPetsModal}
+          addedPets={claimResult.added}
+          alreadySharedPets={claimResult.alreadyShared}
+          onClose={() => {
+            setShowClaimedPetsModal(false)
+            router.replace('/(tabs)/pet_profile')
+          }}
+        />
+      </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -491,7 +535,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.gray[800],
     fontFamily: typography.fontFamily.regular,
-    minHeight: 100,
+    minHeight: 50,
     textAlignVertical: 'top',
     backgroundColor: colors.background.secondary
   },

@@ -19,20 +19,22 @@ model breeds {
 }
 
 model notifications {
-  id          String              @id @db.Uuid
-  user_id     String              @db.Uuid
-  reminder_id String?             @db.Uuid
-  pet_id      String?             @db.Uuid
-  sent_at     DateTime?           @db.Timestamptz(6)
-  status      notification_status
-  read_at     DateTime?           @db.Timestamptz(6)
-  created_at  DateTime?           @default(now()) @db.Timestamptz(6)
-  tips_title  String?
-  tips_desc   String?
-  retry_count Int                 @default(0)
-  reminders   reminders?          @relation(fields: [reminder_id], references: [id], onUpdate: NoAction)
-  user        users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  pet         pets?               @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  id                String              @id @db.Uuid
+  user_id           String              @db.Uuid
+  reminder_id       String?             @db.Uuid
+  pet_id            String?             @db.Uuid
+  health_insight_id String?             @db.Uuid
+  sent_at           DateTime?           @db.Timestamptz(6)
+  status            notification_status
+  read_at           DateTime?           @db.Timestamptz(6)
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  tips_title        String?
+  tips_desc         String?
+  retry_count       Int                 @default(0)
+  reminders         reminders?          @relation(fields: [reminder_id], references: [id], onUpdate: NoAction)
+  user              users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pet               pets?               @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  health_insight    health_insights?    @relation(fields: [health_insight_id], references: [id], onDelete: Cascade)
 }
 
 model pets {
@@ -61,6 +63,7 @@ model pets {
   user_access         pet_user_access[]
   medical_documents   pet_medical_documents[]
   health_logs         health_logs[]
+  health_insights     health_insights[]
 }
 
 model push_tokens {
@@ -153,6 +156,29 @@ model health_logs {
   @@index([pet_id])
   @@index([created_by_user_id])
   @@map("health_logs")
+}
+
+model health_insights {
+  id                String              @id @default(uuid()) @db.Uuid
+  pet_id            String              @db.Uuid
+  insight_type      HealthInsightType
+  severity          HealthInsightSeverity @default(MEDIUM)
+  title             String              @db.Text
+  description       String              @db.Text
+  context_data      Json                // Stores relevant health log IDs, measurements, etc.
+  detected_at       DateTime            @default(now()) @db.Timestamptz(6)
+  notified_at       DateTime?           @db.Timestamptz(6)
+  resolved_at       DateTime?           @db.Timestamptz(6)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @updatedAt @db.Timestamptz(6)
+
+  pet               pets                @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  notifications     notifications[]
+
+  @@index([pet_id])
+  @@index([detected_at])
+  @@index([insight_type])
+  @@map("health_insights")
 }
 
 model recurrence {
@@ -353,6 +379,23 @@ enum HealthLogCategory {
   WEIGHT
   SYMPTOMS
   BEHAVIOR
+}
+
+enum HealthInsightType {
+  RECURRING_SYMPTOM
+  ABNORMAL_SYMPTOM
+  RAPID_WEIGHT_LOSS
+  RAPID_WEIGHT_GAIN
+  RECURRING_BEHAVIOR
+  NO_RECENT_LOGS
+  FOLLOW_UP_REMINDER
+}
+
+enum HealthInsightSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 // ─── Pet Sharing Models ───────────────────────────────────────────────────────
