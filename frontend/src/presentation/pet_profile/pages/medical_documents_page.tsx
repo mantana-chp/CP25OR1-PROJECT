@@ -34,6 +34,7 @@ import {
   usePetMedicalDocuments,
   IPendingDocument
 } from '@/src/hooks/usePetMedicalDocuments'
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { IMedicalDocument } from '@/src/utils/api/services/pet_medical_document_service'
 import {
   borderRadius,
@@ -97,7 +98,6 @@ export default function MedicalDocumentsPage({
   const [showUploadOptions, setShowUploadOptions] = useState(false)
   const [isPickerOpening, setIsPickerOpening] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState<FileFilter>('all')
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const isPickerActiveRef = useRef(false)
   const pickerRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -126,12 +126,8 @@ export default function MedicalDocumentsPage({
     }, [fetchDocuments, petId])
   )
 
-  // Pull to refresh
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await fetchDocuments()
-    setIsRefreshing(false)
-  }
+  const { isRefreshing, onRefresh: handleRefresh } =
+    usePullToRefresh(fetchDocuments)
 
   // Picker state management
   const clearPickerRecoveryTimeout = () => {

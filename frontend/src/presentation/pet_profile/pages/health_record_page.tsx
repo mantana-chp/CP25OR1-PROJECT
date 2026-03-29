@@ -7,6 +7,7 @@ import {
 } from '@/constants/design-system'
 import { usePets } from '@/src/context/PetContext'
 import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import {
   healthLogService,
@@ -20,6 +21,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -156,9 +158,13 @@ export default function HealthRecordPage() {
     [petId, getHealthLogsApi.execute]
   )
 
-  const loadHealthRecords = useCallback(() => {
-    getHealthRecordsApi.execute({})
+  const loadHealthRecords = useCallback(async () => {
+    await getHealthRecordsApi.execute({})
   }, [getHealthRecordsApi.execute])
+
+  const { isRefreshing, onRefresh } = usePullToRefresh(async () => {
+    await Promise.all([loadHealthRecords(), loadHealthLogs(false)])
+  })
 
   useFocusEffect(
     useCallback(() => {
@@ -659,6 +665,14 @@ export default function HealthRecordPage() {
           ListFooterComponent={listFooter}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary.light]}
+              tintColor={colors.primary.light}
+            />
+          }
         />
       ) : (
         <FlatList
@@ -674,6 +688,14 @@ export default function HealthRecordPage() {
           ListEmptyComponent={listEmpty}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary.light]}
+              tintColor={colors.primary.light}
+            />
+          }
         />
       )}
 
