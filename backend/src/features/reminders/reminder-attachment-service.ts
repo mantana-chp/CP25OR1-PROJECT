@@ -70,7 +70,7 @@ async function assertCanMutateAttachments(reminderId: string, userId: string): P
 
     if (!isPetOwner && creatorId !== userId) {
         throw new ApiError('Forbidden', 403, [
-            { message: 'Caregivers can only modify attachments on reminders they created themselves' },
+            { message: 'Caregivers can only modify attachments on reminders they created themselves', code: 403 },
         ]);
     }
 }
