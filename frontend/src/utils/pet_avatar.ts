@@ -1,4 +1,3 @@
-import { colors } from '@/constants/design-system'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import type { ComponentProps } from 'react'
 
@@ -16,16 +15,17 @@ const SPECIES_ICON_MAP: Record<string, IconName> = {
   สุนัข: 'dog',
   dog: 'dog',
   แฮมสเตอร์: 'rodent',
-  hamster: 'rodent',
+  hamster: 'rodent'
 }
 
 export const PET_AVATAR_COLOR_OPTIONS = [
   DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
-  colors.info.DEFAULT,
-  colors.success.DEFAULT,
-  colors.warning.DEFAULT,
-  colors.danger.DEFAULT,
-  colors.gray[500],
+  '#F6B26B',
+  '#F29BA2',
+  '#8ECBF3',
+  '#BCA7F5',
+  '#7BC6A4',
+  '#9AA6B2'
 ]
 
 const SPECIES_DEFAULT_COLOR_MAP: Record<string, string> = {
@@ -38,7 +38,7 @@ const SPECIES_DEFAULT_COLOR_MAP: Record<string, string> = {
   สุนัข: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
   dog: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
   แฮมสเตอร์: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
-  hamster: DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
+  hamster: DEFAULT_PET_AVATAR_BACKGROUND_COLOR
 }
 
 export const getPetPlaceholderIcon = (species?: string | null): IconName => {
@@ -49,7 +49,7 @@ export const getPetPlaceholderIcon = (species?: string | null): IconName => {
 }
 
 export const getDefaultAvatarBackgroundColorBySpecies = (
-  species?: string | null,
+  species?: string | null
 ): string => {
   if (!species) return DEFAULT_PET_AVATAR_BACKGROUND_COLOR
 
