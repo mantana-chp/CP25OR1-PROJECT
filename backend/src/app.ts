@@ -11,7 +11,35 @@ const app = express();
 
 app.use(express.json());
 // app.use(cors());
-app.use(helmet()); // Use helmet for security
+
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'none'"], // Deny all by default
+                frameAncestors: ["'none'"], // Prevent clickjacking
+                formAction: ["'none'"], // Fixes ZAP alert - No form submissions
+            },
+        },
+        crossOriginEmbedderPolicy: false,
+        crossOriginOpenerPolicy: false,
+        crossOriginResourcePolicy: false,
+        frameguard: { action: 'deny' },
+        hidePoweredBy: true,
+        // HSTS only in production with HTTPS
+        hsts:
+            process.env.NODE_ENV === 'production'
+                ? {
+                    maxAge: 31536000, // 1 year
+                    includeSubDomains: true,
+                    preload: true,
+                }
+                : false,
+        ieNoOpen: true,
+        noSniff: true, // X-Content-Type-Options: nosniff
+        referrerPolicy: { policy: 'no-referrer' }, // Don't leak referrer info
+    })
+);
 
 // Request Logger
 app.use(requestLogger);
