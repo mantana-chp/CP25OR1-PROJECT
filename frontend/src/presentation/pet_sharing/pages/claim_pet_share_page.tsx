@@ -8,6 +8,7 @@ import {
 import { IPetProfile } from '@/src/domain/pet.domain'
 import {
   IClaimInviteResponse,
+  INormalizedClaimInviteResult,
   TClaimInvitePayload
 } from '@/src/domain/pet_sharing.domain'
 import { useAuth } from '@/src/context/AuthContext'
@@ -46,17 +47,21 @@ import ClaimedPetsModal from '../components/claimed_pets_modal'
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000
 
-const normalizeClaimedPets = (payload: TClaimInvitePayload) => {
-  if (!payload) return []
-
-  if (Array.isArray(payload)) {
-    return payload
+const normalizeClaimResult = (
+  payload: TClaimInvitePayload
+): INormalizedClaimInviteResult => {
+  if (!payload) {
+    return { added: [], alreadyShared: [] }
   }
 
-  const added = payload.added ?? []
-  const alreadyShared = payload.alreadyShared ?? []
+  if (Array.isArray(payload)) {
+    return { added: payload, alreadyShared: [] }
+  }
 
-  return [...added, ...alreadyShared]
+  return {
+    added: payload.added ?? [],
+    alreadyShared: payload.alreadyShared ?? []
+  }
 }
 
 const getClaimErrorMessage = (error: ApiError) => {
@@ -123,7 +128,10 @@ export default function ClaimPetSharePage() {
   const [showManualInput, setShowManualInput] = useState(false)
   const [manualCode, setManualCode] = useState('')
   const [lastErrorToken, setLastErrorToken] = useState<string | null>(null)
-  const [claimedPets, setClaimedPets] = useState<IPetProfile[]>([])
+  const [claimResult, setClaimResult] = useState<INormalizedClaimInviteResult>({
+    added: [],
+    alreadyShared: []
+  })
   const [showClaimedPetsModal, setShowClaimedPetsModal] = useState(false)
   const facing: CameraType = 'back'
   const isHandlingScanRef = useRef(false)
@@ -199,8 +207,9 @@ export default function ClaimPetSharePage() {
       result.data
     )
 
-    const receivedPets = normalizeClaimedPets(claimPayload)
-    const claimedPetId = receivedPets[0]?.id
+    const normalizedResult = normalizeClaimResult(claimPayload)
+    const claimedPetId =
+      normalizedResult.added[0]?.id ?? normalizedResult.alreadyShared[0]?.id
 
     await refreshPets()
 
@@ -215,8 +224,11 @@ export default function ClaimPetSharePage() {
     }
 
     // Show claimed pets modal
-    if (receivedPets.length > 0) {
-      setClaimedPets(receivedPets)
+    if (
+      normalizedResult.added.length > 0 ||
+      normalizedResult.alreadyShared.length > 0
+    ) {
+      setClaimResult(normalizedResult)
       setShowClaimedPetsModal(true)
     } else {
       // Fallback to navigate directly if no pets data
@@ -423,7 +435,8 @@ export default function ClaimPetSharePage() {
 
         <ClaimedPetsModal
           visible={showClaimedPetsModal}
-          pets={claimedPets}
+          addedPets={claimResult.added}
+          alreadySharedPets={claimResult.alreadyShared}
           onClose={() => {
             setShowClaimedPetsModal(false)
             router.replace('/(tabs)/pet_profile')

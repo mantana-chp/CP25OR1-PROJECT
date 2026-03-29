@@ -9,8 +9,8 @@ import { IPetProfile } from '@/src/domain/pet.domain'
 import { Cake, CheckCircle2, PawPrint, X } from 'lucide-react-native'
 import React from 'react'
 import {
-  FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -21,7 +21,8 @@ import Modal from '../../components/modal'
 
 interface ClaimedPetsModalProps {
   visible: boolean
-  pets: IPetProfile[]
+  addedPets: IPetProfile[]
+  alreadySharedPets: IPetProfile[]
   onClose: () => void
 }
 
@@ -54,9 +55,27 @@ const calculateAge = (ageInDays: number | undefined): string => {
 
 export default function ClaimedPetsModal({
   visible,
-  pets,
+  addedPets,
+  alreadySharedPets,
   onClose
 }: ClaimedPetsModalProps) {
+  const addedCount = addedPets.length
+  const alreadySharedCount = alreadySharedPets.length
+
+  const title =
+    addedCount > 0 && alreadySharedCount > 0
+      ? 'รับคำเชิญบางส่วนสำเร็จ'
+      : addedCount > 0
+        ? 'รับคำเชิญสำเร็จ!'
+        : 'มีสิทธิ์ดูแลอยู่แล้ว'
+
+  const subtitle =
+    addedCount > 0 && alreadySharedCount > 0
+      ? `เพิ่มสิทธิ์ใหม่ ${addedCount} ตัว และมีสิทธิ์อยู่แล้ว ${alreadySharedCount} ตัว`
+      : addedCount > 0
+        ? `คุณได้รับสิทธิ์ดูแลสัตว์เลี้ยง ${addedCount} ตัว`
+        : `บัญชีนี้มีสิทธิ์ดูแลสัตว์เลี้ยง ${alreadySharedCount} ตัวอยู่แล้ว`
+
   const renderPetItem = ({ item }: { item: IPetProfile }) => {
     const age = calculateAge(item.age)
     const breed = item.breed || 'ไม่ระบุสายพันธุ์'
@@ -118,19 +137,44 @@ export default function ClaimedPetsModal({
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>รับคำเชิญสำเร็จ!</Text>
-      <Text style={styles.subtitle}>
-        คุณได้รับสิทธิ์ดูแลสัตว์เลี้ยง {pets.length} ตัว
-      </Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
 
-      <FlatList
-        data={pets}
-        renderItem={renderPetItem}
-        keyExtractor={(item) => item.id}
-        style={styles.petList}
-        contentContainerStyle={styles.petListContent}
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      />
+      >
+        {addedCount > 0 ? (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>
+              เพิ่มสิทธิ์ดูแลใหม่ ({addedCount})
+            </Text>
+            <View style={styles.petListContent}>
+              {addedPets.map((pet) => (
+                <View key={`added-${pet.id}`}>
+                  {renderPetItem({ item: pet })}
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {alreadySharedCount > 0 ? (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitleWarning}>
+              มีสิทธิ์ดูแลอยู่แล้ว ({alreadySharedCount})
+            </Text>
+            <View style={styles.petListContent}>
+              {alreadySharedPets.map((pet) => (
+                <View key={`shared-${pet.id}`}>
+                  {renderPetItem({ item: pet })}
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
 
       <Button title="ปิด" onPress={onClose} style={styles.closeButtonFull} />
     </Modal>
@@ -168,10 +212,28 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     color: colors.gray[600],
     textAlign: 'center',
-    marginBottom: spacing[4]
+    marginBottom: spacing[3]
   },
-  petList: {
-    maxHeight: 400
+  scrollArea: {
+    maxHeight: 380
+  },
+  scrollContent: {
+    paddingBottom: spacing[2]
+  },
+  sectionContainer: {
+    marginBottom: spacing[3]
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.success.DEFAULT,
+    marginBottom: spacing[2]
+  },
+  sectionTitleWarning: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.warning.DEFAULT,
+    marginBottom: spacing[2]
   },
   petListContent: {
     gap: spacing[3]

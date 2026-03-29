@@ -37,4 +37,9 @@ export interface IClaimInviteResponse {
   alreadyShared: IPetProfile[]
 }
 
+export interface INormalizedClaimInviteResult {
+  added: IPetProfile[]
+  alreadyShared: IPetProfile[]
+}
+
 export type TClaimInvitePayload = IPetProfile[] | IClaimInviteResponse | null
