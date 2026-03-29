@@ -5,14 +5,13 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
-import { IPendingInvite } from '@/src/utils/api/services/pet_sharing_service'
-import { AlertCircle, X } from 'lucide-react-native'
+import { X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import Button from '../../components/button'
 import Modal from '../../components/modal'
 import QRCode from 'react-native-qrcode-svg'
 import { formatExpiresIn } from '../../../utils/pet_sharing_utils'
+import { IPendingInvite } from '@/src/domain/pet_sharing.domain'
 
 interface QrModalProps {
   visible: boolean
