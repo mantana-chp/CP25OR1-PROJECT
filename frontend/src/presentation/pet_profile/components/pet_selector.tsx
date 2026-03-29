@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingBottom: 4,
-    justifyContent: 'space-between'
+    justifyContent: 'flex-start'
   },
   expandedScrollView: {
     maxHeight: 240
