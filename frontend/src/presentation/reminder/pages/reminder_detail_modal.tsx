@@ -5,13 +5,13 @@ import { useRouter } from 'expo-router'
 import {
   getCategoryInfo,
   IReminder,
-  IAttachment
+  IAttachment,
 } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
   convertFromBackendRecurrence,
-  formatRecurrenceText
+  formatRecurrenceText,
 } from '@/src/utils/recurrence.utils'
 import {
   AlertCircle,
@@ -33,7 +33,7 @@ import {
   Syringe,
   Tag,
   X,
-  XCircle
+  XCircle,
 } from 'lucide-react-native'
 import LoadingComponent from '../../components/loading_component'
 import VaccineListSection from '../components/vaccine_list_section'
@@ -47,13 +47,13 @@ const ICON_MAP: Record<string, any> = {
   Pill,
   Pipette,
   Scissors,
-  Bone
+  Bone,
 }
 
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString('th-TH', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -64,7 +64,7 @@ const THAI_WEEKDAYS = [
   'พุธ',
   'พฤหัสบดี',
   'ศุกร์',
-  'เสาร์'
+  'เสาร์',
 ]
 
 const THAI_MONTHS_SHORT = [
@@ -79,7 +79,7 @@ const THAI_MONTHS_SHORT = [
   'ก.ย.',
   'ต.ค.',
   'พ.ย.',
-  'ธ.ค.'
+  'ธ.ค.',
 ]
 
 const formatThaiDate = (dateValue: string): string => {
@@ -125,6 +125,7 @@ const getAttachmentThumbnailUri = (attachment: IAttachment): string | null => {
 interface ReminderDetailModalProps {
   id: string
   onClose: () => void
+  onRefresh?: () => void
   isVirtual?: boolean
   virtualReminderData?: IReminder
 }
@@ -132,8 +133,9 @@ interface ReminderDetailModalProps {
 export default function ReminderDetailModal({
   id,
   onClose,
+  onRefresh,
   isVirtual = false,
-  virtualReminderData
+  virtualReminderData,
 }: ReminderDetailModalProps) {
   // ------------------
   // STATE & CONST
@@ -145,7 +147,7 @@ export default function ReminderDetailModal({
   const [showPreview, setShowPreview] = useState(false)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
-    showErrorAlert: true
+    showErrorAlert: true,
   })
 
   // Use virtual reminder data if available, otherwise use API data
@@ -167,7 +169,7 @@ export default function ReminderDetailModal({
         label: 'เสร็จสิ้น',
         color: '#15AD90',
         bgColor: '#E6FFFA',
-        icon: CheckCircle2
+        icon: CheckCircle2,
       }
     }
     if (isOverdue) {
@@ -175,14 +177,14 @@ export default function ReminderDetailModal({
         label: 'เลยกำหนด',
         color: '#DC2626',
         bgColor: '#FEE2E2',
-        icon: XCircle
+        icon: XCircle,
       }
     }
     return {
       label: 'รอดำเนินการ',
       color: '#FF9531',
       bgColor: '#FFF4E6',
-      icon: Hourglass
+      icon: Hourglass,
     }
   }
 
@@ -192,13 +194,20 @@ export default function ReminderDetailModal({
     onClose()
     router.push({
       pathname: '/(tabs)/add_reminder',
-      params: { reminderId: id }
+      params: { reminderId: id },
     })
   }
 
   const handleAttachmentPress = (attachment: IAttachment) => {
     setPreviewAttachment(attachment)
     setShowPreview(true)
+  }
+
+  const handleNotFoundClose = () => {
+    if (onRefresh) {
+      onRefresh()
+    }
+    onClose()
   }
 
   // ------------------
@@ -217,7 +226,7 @@ export default function ReminderDetailModal({
   if (!id || (!getReminderApi.loading && !reminder && !isVirtual)) {
     return (
       <View style={styles.modalOverlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={handleNotFoundClose} />
 
         <View
           style={styles.notFoundContent}
@@ -242,11 +251,11 @@ export default function ReminderDetailModal({
           <Pressable
             style={[
               styles.closeButtonOutside,
-              { top: modalLayout.y + modalLayout.height + 20 }
+              { top: modalLayout.y + modalLayout.height + 20 },
             ]}
-            onPress={onClose}
+            onPress={handleNotFoundClose}
           >
-            <X color="#FFFFFF" size={28} />
+            <X color='#FFFFFF' size={28} />
           </Pressable>
         )}
       </View>
@@ -272,7 +281,7 @@ export default function ReminderDetailModal({
           <Text style={styles.headerTitle}>รายละเอียดเตือนความจำ</Text>
           {!isVirtual && reminder?.reminderStatus !== 'done' && (
             <Pressable onPress={handleEdit} style={styles.editButton}>
-              <Edit2 size={18} color="#5FA7D1" />
+              <Edit2 size={18} color='#5FA7D1' />
             </Pressable>
           )}
         </View>
@@ -285,7 +294,7 @@ export default function ReminderDetailModal({
             {/* Virtual Reminder Alert */}
             {isVirtual && (
               <View style={styles.virtualAlert}>
-                <AlertCircle color="#F59E0B" size={16} />
+                <AlertCircle color='#F59E0B' size={16} />
                 <View style={styles.virtualAlertTextContainer}>
                   <Text style={styles.virtualAlertTitle}>
                     เตือนความจำคาดการณ์
@@ -302,12 +311,12 @@ export default function ReminderDetailModal({
               <View
                 style={[
                   styles.statusBadge,
-                  { backgroundColor: statusConfig.bgColor }
+                  { backgroundColor: statusConfig.bgColor },
                 ]}
               >
                 {React.createElement(statusConfig.icon, {
                   size: 18,
-                  color: statusConfig.color
+                  color: statusConfig.color,
                 })}
                 <Text
                   style={[styles.statusText, { color: statusConfig.color }]}
@@ -337,7 +346,7 @@ export default function ReminderDetailModal({
                       <Text
                         style={[
                           styles.categoryInlineText,
-                          { color: categoryInfo.color }
+                          { color: categoryInfo.color },
                         ]}
                       >
                         {categoryInfo.label}
@@ -359,7 +368,7 @@ export default function ReminderDetailModal({
                   <Text
                     style={[
                       styles.dateTimeText,
-                      isOverdue && styles.overdueText
+                      isOverdue && styles.overdueText,
                     ]}
                   >
                     {reminder?.reminderDate
@@ -373,7 +382,7 @@ export default function ReminderDetailModal({
                   <Text
                     style={[
                       styles.dateTimeText,
-                      isOverdue && styles.overdueText
+                      isOverdue && styles.overdueText,
                     ]}
                   >
                     {reminder?.reminderTime
@@ -387,10 +396,10 @@ export default function ReminderDetailModal({
             {/* Recurring Information - Compact */}
             {reminder?.recurrence && (
               <View style={styles.recurringCard}>
-                <Repeat size={14} color="#5FA7D1" />
+                <Repeat size={14} color='#5FA7D1' />
                 <Text style={styles.recurringText}>
                   {formatRecurrenceText(
-                    convertFromBackendRecurrence(reminder.recurrence)
+                    convertFromBackendRecurrence(reminder.recurrence),
                   )}
                   {reminder.occurrenceNumber
                     ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
@@ -428,10 +437,10 @@ export default function ReminderDetailModal({
                         <Image
                           source={{ uri: thumbnailUri }}
                           style={styles.attachmentThumbnail}
-                          resizeMode="cover"
+                          resizeMode='cover'
                         />
                       ) : (
-                        <File size={20} color="#5FA7D1" />
+                        <File size={20} color='#5FA7D1' />
                       )}
                       <View style={styles.attachmentInfo}>
                         <Text
@@ -444,7 +453,7 @@ export default function ReminderDetailModal({
                           {formatFileSize(attachment.fileSize)}
                         </Text>
                       </View>
-                      <Download size={18} color="#6b7280" />
+                      <Download size={18} color='#6b7280' />
                     </Pressable>
                   )
                 })}
@@ -464,11 +473,11 @@ export default function ReminderDetailModal({
         <Pressable
           style={[
             styles.closeButtonOutside,
-            { top: modalLayout.y + modalLayout.height + 20 }
+            { top: modalLayout.y + modalLayout.height + 20 },
           ]}
           onPress={onClose}
         >
-          <X color="#FFFFFF" size={28} />
+          <X color='#FFFFFF' size={28} />
         </Pressable>
       )}
 
@@ -490,14 +499,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   backdrop: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0
+    bottom: 0,
   },
   modalContent: {
     backgroundColor: '#ffffff',
@@ -509,7 +518,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
   },
   notFoundContent: {
     backgroundColor: '#ffffff',
@@ -522,11 +531,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5
+    elevation: 5,
   },
   notFoundContainer: {
     alignItems: 'center',
-    gap: 16
+    gap: 16,
   },
   closeButtonOutside: {
     position: 'absolute',
@@ -539,7 +548,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   header: {
     paddingTop: 16,
@@ -549,7 +558,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   headerTitle: {
     color: '#225877',
@@ -557,17 +566,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
     flex: 1,
-    marginRight: 8
+    marginRight: 8,
   },
   editButton: {
     padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0
+    flexShrink: 0,
   },
   formCard: {
     padding: 16,
-    gap: 12
+    gap: 12,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -576,44 +585,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
   statusText: {
     fontSize: 13,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   titleRow: {
-    gap: 4
+    gap: 4,
   },
   titleContainer: {
-    gap: 6
+    gap: 6,
   },
   reminderTitle: {
     fontSize: 18,
     fontFamily: 'Prompt_700Bold',
     color: '#225877',
-    lineHeight: 24
+    lineHeight: 24,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   petNameText: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280'
+    color: '#6b7280',
   },
   categoryInlineText: {
     fontSize: 12,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#d1d5db'
+    backgroundColor: '#d1d5db',
   },
   dateTimeCard: {
     flexDirection: 'row',
@@ -622,59 +631,59 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 12
+    gap: 12,
   },
   dateTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flex: 1
+    flex: 1,
   },
   dateTimeText: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    flex: 1
+    flex: 1,
   },
   divider: {
     width: 1,
     height: 20,
-    backgroundColor: '#e5e7eb'
+    backgroundColor: '#e5e7eb',
   },
   descriptionSection: {
     gap: 4,
-    paddingTop: 4
+    paddingTop: 4,
   },
   descriptionLabel: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
     textTransform: 'uppercase',
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   descriptionText: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#4b5563',
-    lineHeight: 20
+    lineHeight: 20,
   },
   overdueText: {
     color: '#DC2626',
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   notFoundTitle: {
     fontSize: 22,
     color: '#374151',
     fontFamily: 'Prompt_700Bold',
     marginBottom: 4,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   notFoundMessage: {
     fontSize: 16,
     color: '#6b7280',
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
-    lineHeight: 24
+    lineHeight: 24,
   },
   recurringCard: {
     flexDirection: 'row',
@@ -683,13 +692,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8
+    paddingVertical: 8,
   },
   recurringText: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    flex: 1
+    flex: 1,
   },
   virtualAlert: {
     flexDirection: 'row',
@@ -699,33 +708,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 8,
     gap: 8,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   virtualAlertTextContainer: {
     flex: 1,
-    gap: 2
+    gap: 2,
   },
   virtualAlertTitle: {
     color: '#F59E0B',
     fontSize: 14,
-    fontFamily: 'Prompt_700Bold'
+    fontFamily: 'Prompt_700Bold',
   },
   virtualAlertMessage: {
     color: '#92400E',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    lineHeight: 16
+    lineHeight: 16,
   },
   attachmentsSection: {
     gap: 8,
-    paddingTop: 4
+    paddingTop: 4,
   },
   attachmentsSectionLabel: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
     textTransform: 'uppercase',
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   attachmentItem: {
     flexDirection: 'row',
@@ -735,25 +744,25 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: '#E5E7EB',
   },
   attachmentThumbnail: {
     width: 40,
     height: 40,
-    borderRadius: 4
+    borderRadius: 4,
   },
   attachmentInfo: {
     flex: 1,
-    gap: 2
+    gap: 2,
   },
   attachmentFileName: {
     fontSize: 13,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+    color: '#225877',
   },
   attachmentFileSize: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280'
-  }
+    color: '#6b7280',
+  },
 })
