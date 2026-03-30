@@ -5,7 +5,7 @@ import {
   spacing,
   typography,
 } from '@/constants/design-system'
-import { ICaregiver } from '@/src/utils/api/services/pet_sharing_service'
+import { ICaregiver } from '@/src/domain/pet_sharing.domain'
 import { Crown, Users } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -48,6 +48,26 @@ export default function AccessListSection({
   ownerDisplayName = 'เจ้าของสัตว์เลี้ยง',
   selfAccessId,
 }: PetSharingAccessListProps) {
+  const currentUserAlias = selfAccessId
+    ? caregivers.find((caregiver) => caregiver.accessId === selfAccessId)?.alias
+    : null
+
+  const normalizeSelfDisplayName = (name: string) => {
+    const trimmedName = name.trim()
+
+    if (isOwner) {
+      return 'คุณ'
+    }
+
+    if (currentUserAlias && trimmedName === currentUserAlias.trim()) {
+      return 'คุณ'
+    }
+
+    return trimmedName
+  }
+
+  const displayOwnerName = normalizeSelfDisplayName(ownerDisplayName)
+
   const getDisplayCaregiverName = (caregiver: ICaregiver) => {
     if (!isOwner && selfAccessId && caregiver.accessId === selfAccessId) {
       return 'คุณ'
@@ -60,10 +80,7 @@ export default function AccessListSection({
       <SectionTitle>รายชื่อผู้มีสิทธิ์เข้าถึง</SectionTitle>
 
       <View style={styles.memberRow}>
-        <AvatarCircle
-          name={isOwner ? 'คุณ' : ownerDisplayName}
-          color={colors.primary.light}
-        />
+        <AvatarCircle name={displayOwnerName} color={colors.primary.light} />
         <View style={styles.memberInfoWrapper}>
           {isOwner ? (
             <>
@@ -76,7 +93,7 @@ export default function AccessListSection({
           ) : (
             <View style={styles.memberRoleRow}>
               <Crown size={iconSizes.xs} color={colors.gray[400]} />
-              <Text style={styles.memberName}>{ownerDisplayName}</Text>
+              <Text style={styles.memberName}>{displayOwnerName}</Text>
             </View>
           )}
         </View>
