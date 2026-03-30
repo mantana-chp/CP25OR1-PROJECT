@@ -878,7 +878,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing[4],
     right: spacing[4],
-    bottom: spacing[4]
+    bottom: spacing[8]
   },
   fabButton: {
     borderRadius: borderRadius.full,
