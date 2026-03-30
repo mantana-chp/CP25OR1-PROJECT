@@ -222,3 +222,147 @@ export const countByPetId = async (petId: string) => {
     where: { pet_id: petId },
   })
 }
+
+/**
+ * Gets the most recent health insight for a user across all their pets.
+ * Used for daily cooldown checking.
+ */
+export const getMostRecentInsightForUser = async (userId: string) => {
+  return await prisma.health_insights.findFirst({
+    where: {
+      pet: {
+        user_id: userId,
+      },
+    },
+    orderBy: { detected_at: 'desc' },
+    select: {
+      id: true,
+      detected_at: true,
+      severity: true,
+      pet_id: true,
+    },
+  })
+}
+
+/**
+ * Counts health insights sent to a user in the last N days.
+ * Used for weekly cap checking.
+ */
+export const countInsightsForUserInLastDays = async (userId: string, days: number) => {
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - days)
+
+  return await prisma.health_insights.count({
+    where: {
+      pet: {
+        user_id: userId,
+      },
+      detected_at: { gte: cutoffDate },
+      notified_at: { not: null }, // Only count notified insights
+    },
+  })
+}
+
+/**
+ * Gets the most recent insight for a specific pet.
+ * Used for pet-level cooldown checking.
+ */
+export const getMostRecentInsightForPet = async (petId: string) => {
+  return await prisma.health_insights.findFirst({
+    where: {
+      pet_id: petId,
+    },
+    orderBy: { detected_at: 'desc' },
+    select: {
+      id: true,
+      detected_at: true,
+      severity: true,
+      insight_type: true,
+    },
+  })
+}
+
+/**
+ * Checks if user has received any notification today (tips or reminders).
+ * Used to skip LOW severity insights if user already got AI tip.
+ */
+export const hasUserReceivedNotificationToday = async (userId: string) => {
+  const startOfDay = new Date()
+  startOfDay.setUTCHours(0, 0, 0, 0)
+
+  const endOfDay = new Date()
+  endOfDay.setUTCHours(23, 59, 59, 999)
+
+  const notificationCount = await prisma.notifications.count({
+    where: {
+      user_id: userId,
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+      OR: [
+        { tips_title: { not: null } }, // AI tip
+        { reminder_id: { not: null } }, // Reminder notification
+      ],
+    },
+  })
+
+  return notificationCount > 0
+}
+
+/**
+ * Gets eligible users for health insights with smart filtering.
+ * Returns users grouped with their pets.
+ */
+export const getEligibleUsersForHealthInsights = async () => {
+  const startOfDay = new Date()
+  startOfDay.setUTCHours(0, 0, 0, 0)
+
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  yesterday.setUTCHours(0, 0, 0, 0)
+
+  const yesterdayEnd = new Date()
+  yesterdayEnd.setDate(yesterdayEnd.getDate() - 1)
+  yesterdayEnd.setUTCHours(23, 59, 59, 999)
+
+  // Get users who already got health insight today - exclude them
+  const usersWithInsightToday = await prisma.health_insights.findMany({
+    where: {
+      detected_at: { gte: startOfDay },
+      notified_at: { not: null },
+    },
+    select: { pet: { select: { user_id: true } } },
+    distinct: ['pet_id'],
+  })
+  const ineligibleUserIdsToday = [...new Set(usersWithInsightToday.map(i => i.pet.user_id))]
+
+  // Get all users with active pets
+  const usersWithPets = await prisma.users.findMany({
+    where: {
+      id: {
+        notIn: ineligibleUserIdsToday,
+      },
+      pets: {
+        some: {
+          status: 'ACTIVE',
+          deleted_at: null,
+        },
+      },
+    },
+    include: {
+      pets: {
+        where: {
+          status: 'ACTIVE',
+          deleted_at: null,
+        },
+        include: {
+          species: true,
+          breeds: true,
+        },
+      },
+    },
+  })
+
+  return usersWithPets
+}

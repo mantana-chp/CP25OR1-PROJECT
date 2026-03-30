@@ -96,6 +96,22 @@ export interface AIGeneratedInsight {
   description: string
 }
 
+export interface BatchInsightGenerationInput {
+  userId: string
+  petId: string
+  petName: string
+  species: string
+  breed: string | null
+  pattern: DetectedPattern
+}
+
+export interface BatchGeneratedInsight {
+  userId: string
+  petId: string
+  title: string
+  description: string
+}
+
 // ─── Weight Threshold Configuration by Species ────────────────────────────────
 
 export interface WeightThreshold {
