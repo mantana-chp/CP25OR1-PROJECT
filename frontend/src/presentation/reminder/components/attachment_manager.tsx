@@ -13,7 +13,8 @@ import {
   Linking,
   Modal,
   Platform,
-  Pressable
+  Pressable,
+  Image
 } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
@@ -196,6 +197,22 @@ export default function AttachmentManager({
       return <File size={20} color="#5FA7D1" />
     }
     return <File size={20} color="#5FA7D1" />
+  }
+
+  const getThumbnailUri = (attachment: DisplayAttachment): string | null => {
+    if (!attachment.fileType.startsWith('image/')) {
+      return null
+    }
+
+    if ('isPending' in attachment && attachment.isPending) {
+      return attachment.uri
+    }
+
+    if ('downloadUrl' in attachment && attachment.downloadUrl) {
+      return attachment.downloadUrl
+    }
+
+    return null
   }
 
   const handlePickFromCamera = async () => {
@@ -407,12 +424,21 @@ export default function AttachmentManager({
         >
           {allAttachments.map((attachment) => {
             const isPending = 'isPending' in attachment && attachment.isPending
+            const thumbnailUri = getThumbnailUri(attachment)
 
             return (
               <View key={attachment.id} style={styles.attachmentItem}>
                 <View style={styles.fileInfo}>
                   <View style={styles.fileIcon}>
-                    {getFileIcon(attachment.fileType)}
+                    {thumbnailUri ? (
+                      <Image
+                        source={{ uri: thumbnailUri }}
+                        style={styles.thumbnailImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      getFileIcon(attachment.fileType)
+                    )}
                   </View>
                   <View style={styles.fileDetails}>
                     <View
@@ -631,6 +657,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8
   },
   fileDetails: {
     flex: 1

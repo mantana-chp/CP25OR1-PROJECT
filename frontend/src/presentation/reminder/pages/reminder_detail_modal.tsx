@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, View, Alert } from 'react-native'
+import { Pressable, StyleSheet, Text, View, Alert, Image } from 'react-native'
 import { useRouter } from 'expo-router'
 
 import {
@@ -72,6 +72,14 @@ const parseApiTime = (timeString: string): Date => {
   const date = new Date()
   date.setHours(hours || 0, minutes || 0, seconds || 0)
   return date
+}
+
+const getAttachmentThumbnailUri = (attachment: IAttachment): string | null => {
+  if (!attachment.fileType.startsWith('image/')) {
+    return null
+  }
+
+  return attachment.downloadUrl || null
 }
 
 interface ReminderDetailModalProps {
@@ -375,24 +383,39 @@ export default function ReminderDetailModal({
                 <Text style={styles.attachmentsSectionLabel}>
                   ไฟล์แนบ ({reminder.attachments.length})
                 </Text>
-                {reminder.attachments.map((attachment) => (
-                  <Pressable
-                    key={attachment.id}
-                    style={styles.attachmentItem}
-                    onPress={() => handleAttachmentPress(attachment)}
-                  >
-                    <File size={20} color="#5FA7D1" />
-                    <View style={styles.attachmentInfo}>
-                      <Text style={styles.attachmentFileName} numberOfLines={1}>
-                        {attachment.fileName}
-                      </Text>
-                      <Text style={styles.attachmentFileSize}>
-                        {formatFileSize(attachment.fileSize)}
-                      </Text>
-                    </View>
-                    <Download size={18} color="#6b7280" />
-                  </Pressable>
-                ))}
+                {reminder.attachments.map((attachment) => {
+                  const thumbnailUri = getAttachmentThumbnailUri(attachment)
+
+                  return (
+                    <Pressable
+                      key={attachment.id}
+                      style={styles.attachmentItem}
+                      onPress={() => handleAttachmentPress(attachment)}
+                    >
+                      {thumbnailUri ? (
+                        <Image
+                          source={{ uri: thumbnailUri }}
+                          style={styles.attachmentThumbnail}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <File size={20} color="#5FA7D1" />
+                      )}
+                      <View style={styles.attachmentInfo}>
+                        <Text
+                          style={styles.attachmentFileName}
+                          numberOfLines={1}
+                        >
+                          {attachment.fileName}
+                        </Text>
+                        <Text style={styles.attachmentFileSize}>
+                          {formatFileSize(attachment.fileSize)}
+                        </Text>
+                      </View>
+                      <Download size={18} color="#6b7280" />
+                    </Pressable>
+                  )
+                })}
               </View>
             )}
 
@@ -681,6 +704,11 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB'
+  },
+  attachmentThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 4
   },
   attachmentInfo: {
     flex: 1,

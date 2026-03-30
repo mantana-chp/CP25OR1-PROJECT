@@ -35,6 +35,7 @@ interface AliasModalProps {
   pets?: IPetProfile[]
   selectedPetIds?: string[]
   onTogglePet?: (petId: string) => void
+  onToggleSelectAllPets?: (selectAll: boolean) => void
   currentPetId?: string
 }
 
@@ -47,9 +48,10 @@ export default function AliasModal({
   pets = [],
   selectedPetIds = [],
   onTogglePet,
+  onToggleSelectAllPets,
   currentPetId
 }: AliasModalProps) {
-  const showPetSelector = pets && pets.length > 1 && onTogglePet
+  const showPetSelector = pets && pets.length > 0 && onTogglePet
   const [suggestions, setSuggestions] = useState<CaregiverSuggestion[]>([])
   const [filteredSuggestions, setFilteredSuggestions] = useState<
     CaregiverSuggestion[]
@@ -117,6 +119,8 @@ export default function AliasModal({
 
   const showSuggestions =
     filteredSuggestions.length > 0 && aliasInput.length < 50
+  const isAllPetsSelected =
+    pets.length > 0 && pets.every((pet) => selectedPetIds.includes(pet.id))
 
   return (
     <Modal
@@ -177,9 +181,19 @@ export default function AliasModal({
 
           {showPetSelector && (
             <View style={styles.petSelectorSection}>
-              <Text style={styles.sectionTitle}>
-                เลือกสัตว์เลี้ยงที่ต้องการแชร์ (สูงสุด 10 ตัว)
-              </Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>
+                  เลือกสัตว์เลี้ยงที่ต้องการแชร์
+                </Text>
+                <TouchableOpacity
+                  onPress={() => onToggleSelectAllPets?.(!isAllPetsSelected)}
+                  disabled={!onToggleSelectAllPets}
+                >
+                  <Text style={styles.selectAllText}>
+                    {isAllPetsSelected ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <FlatList
                 data={pets}
                 renderItem={renderPetItem}
@@ -290,6 +304,17 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.bold
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[2]
+  },
+  selectAllText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary.light,
+    fontFamily: typography.fontFamily.medium
   },
   petItem: {
     flexDirection: 'row',

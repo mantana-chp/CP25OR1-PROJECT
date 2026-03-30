@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingBottom: 4,
-    columnGap: 8
+    justifyContent: 'flex-start'
   },
   expandedScrollView: {
     maxHeight: 240
@@ -261,7 +261,8 @@ const styles = StyleSheet.create({
     width: PET_ITEM_WIDTH
   },
   expandedPetItem: {
-    width: '18%'
+    width: '20%',
+    paddingHorizontal: 2
   },
   imageWrapper: {
     width: 60,
