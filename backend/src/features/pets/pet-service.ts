@@ -413,9 +413,12 @@ export const softDeletePet = async (
     return { message: 'Pet has been marked as deceased.', status: 'DECEASED' }
   }
 
-  // JUST_DELETE — block if last active pet
-  const activePetCount = await petRepository.countActivePetsByUserId(userId)
-  if (activePetCount <= 1) {
+  // JUST_DELETE — block if last active pet (including shared pets)
+  const ownedActivePets = await petRepository.countActivePetsByUserId(userId)
+  const sharedActivePets = await sharingRepository.countSharedActivePetsByUserId(userId)
+  const totalActivePets = ownedActivePets + sharedActivePets
+
+  if (totalActivePets <= 1) {
     throw new BadRequestError(
       'Cannot delete your last active pet. You must have at least one active pet.',
     )

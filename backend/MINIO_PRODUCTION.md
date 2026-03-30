@@ -103,7 +103,7 @@ server {
 
 ### Application Security
 - [ ] File type validation enabled (JPEG, PNG, WebP, PDF only)
-- [ ] File size limit enforced (5MB max)
+- [ ] File size limit enforced (10MB max)
 - [ ] User authorization checked before URL generation
 - [ ] UUID-based object keys (no user-supplied filenames)
 - [ ] MIME type vs extension validation

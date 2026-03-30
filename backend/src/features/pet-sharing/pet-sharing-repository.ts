@@ -249,6 +249,20 @@ export const hasAnyAccessiblePet = async (userId: string): Promise<boolean> => {
 };
 
 /**
+ * Count active shared pets where user is a caregiver (non-revoked access).
+ * Used for last-pet deletion guard.
+ */
+export const countSharedActivePetsByUserId = async (userId: string): Promise<number> => {
+    return prisma.pet_user_access.count({
+        where: {
+            user_id: userId,
+            revoked_at: null,
+            pet: { status: pet_status.ACTIVE, deleted_at: null },
+        },
+    });
+};
+
+/**
  * Returns true if the user owns the pet OR has active (non-revoked) caregiver access to it.
  * Used across service layers to gate both owner-only and shared operations.
  */

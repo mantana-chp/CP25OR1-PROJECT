@@ -254,9 +254,9 @@ dev-pet-attachments/           # (or prod-pet-attachments)
 
 1. **No public bucket access**: All files private, accessed via presigned URLs
 2. **Time-limited URLs**: Upload URLs expire in 5 minutes, download URLs in 1 hour
-3. **File validation**: 
+3. **File validation**:
    - File type whitelist (JPEG, PNG, WebP, PDF)
-   - Max size: 5MB
+   - Max size: 10MB
    - Extension/MIME type matching
 4. **Authorization checks**: User ownership verified before generating URLs
 5. **UUID-based naming**: Prevents path traversal attacks
