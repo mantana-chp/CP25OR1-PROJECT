@@ -57,6 +57,46 @@ const formatTime = (time: Date) => {
   })
 }
 
+const THAI_WEEKDAYS = [
+  'อาทิตย์',
+  'จันทร์',
+  'อังคาร',
+  'พุธ',
+  'พฤหัสบดี',
+  'ศุกร์',
+  'เสาร์'
+]
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.',
+  'ก.พ.',
+  'มี.ค.',
+  'เม.ย.',
+  'พ.ค.',
+  'มิ.ย.',
+  'ก.ค.',
+  'ส.ค.',
+  'ก.ย.',
+  'ต.ค.',
+  'พ.ย.',
+  'ธ.ค.'
+]
+
+const formatThaiDate = (dateValue: string): string => {
+  const date = new Date(dateValue)
+
+  if (Number.isNaN(date.getTime())) {
+    return '-'
+  }
+
+  const weekday = THAI_WEEKDAYS[date.getDay()]
+  const day = date.getDate()
+  const month = THAI_MONTHS_SHORT[date.getMonth()]
+  const buddhistYear = date.getFullYear() + 543
+
+  return `${weekday} ${day} ${month} ${buddhistYear}`
+}
+
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
@@ -323,15 +363,7 @@ export default function ReminderDetailModal({
                     ]}
                   >
                     {reminder?.reminderDate
-                      ? new Date(reminder.reminderDate).toLocaleDateString(
-                          'th-TH',
-                          {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          }
-                        )
+                      ? formatThaiDate(reminder.reminderDate)
                       : '-'}
                   </Text>
                 </View>
