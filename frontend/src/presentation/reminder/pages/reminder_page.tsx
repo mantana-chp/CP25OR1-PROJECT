@@ -9,7 +9,7 @@ import {
 import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
@@ -87,6 +87,7 @@ export default function ReminderPage() {
   // ------------------
   // CONST
   // ------------------
+  const router = useRouter()
   const params = useLocalSearchParams<{ reminderId?: string }>()
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
@@ -350,6 +351,11 @@ export default function ReminderPage() {
           isRefreshing={isRefreshing}
           onRefresh={onRefresh}
           initialReminderId={params.reminderId}
+          onInitialReminderHandled={() => {
+            if (params.reminderId) {
+              router.setParams({ reminderId: undefined })
+            }
+          }}
           selectedCategory={selectedCategory}
           onSelectedCategoryChange={setSelectedCategory}
           selectedPetId={selectedPetId}

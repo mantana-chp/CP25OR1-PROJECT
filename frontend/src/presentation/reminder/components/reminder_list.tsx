@@ -58,6 +58,7 @@ interface ReminderListProps {
   isRefreshing?: boolean
   onRefresh?: () => void
   initialReminderId?: string | null
+  onInitialReminderHandled?: () => void
   selectedCategory?: string | null
   onSelectedCategoryChange?: (category: string | null) => void
   selectedPetId?: string | null
@@ -73,6 +74,7 @@ export default function ReminderList({
   isRefreshing = false,
   onRefresh,
   initialReminderId,
+  onInitialReminderHandled,
   selectedCategory = null,
   onSelectedCategoryChange,
   selectedPetId = null,
@@ -98,6 +100,9 @@ export default function ReminderList({
   const [alreadyDeletedReminderName, setAlreadyDeletedReminderName] =
     useState('')
   const [alreadyDeletedByName, setAlreadyDeletedByName] = useState('')
+  const [handledInitialReminderId, setHandledInitialReminderId] = useState<
+    string | null
+  >(null)
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
     showErrorAlert: false,
@@ -117,12 +122,23 @@ export default function ReminderList({
   }, [reminders])
 
   useEffect(() => {
-    if (initialReminderId) {
+    if (
+      initialReminderId &&
+      reminders.length > 0 &&
+      initialReminderId !== handledInitialReminderId
+    ) {
       setSelectedReminderId(initialReminderId)
       const reminder = reminders.find((r) => r.id === initialReminderId)
       setSelectedReminder(reminder || null)
+      setHandledInitialReminderId(initialReminderId)
+      onInitialReminderHandled?.()
     }
-  }, [initialReminderId, reminders])
+  }, [
+    initialReminderId,
+    reminders,
+    handledInitialReminderId,
+    onInitialReminderHandled
+  ])
 
   useEffect(() => {
     if (!isToday && activeTab === 'today') {
