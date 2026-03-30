@@ -131,7 +131,7 @@ export default function PetProfilePage() {
       loadStoredAvatarColors()
       loadReminders()
       loadPets()
-    }, [loadStoredAvatarColors, loadReminders, loadHealthRecords, loadPets]),
+    }, [loadStoredAvatarColors, loadReminders, loadPets]),
   )
 
   useEffect(() => {
