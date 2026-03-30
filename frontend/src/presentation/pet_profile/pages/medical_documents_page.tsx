@@ -14,7 +14,7 @@ import {
   Linking,
   Image,
   FlatList,
-  RefreshControl
+  RefreshControl,
 } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
@@ -27,12 +27,12 @@ import {
   Plus,
   X,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from 'lucide-react-native'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import {
   usePetMedicalDocuments,
-  IPendingDocument
+  IPendingDocument,
 } from '@/src/hooks/usePetMedicalDocuments'
 import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { IMedicalDocument } from '@/src/utils/api/services/pet_medical_document_service'
@@ -40,7 +40,7 @@ import {
   borderRadius,
   colors,
   spacing,
-  typography
+  typography,
 } from '@/constants/design-system'
 import MedicalDocumentPreviewModal from '../components/medical_document_preview_modal'
 import AppModal from '../../components/modal'
@@ -50,7 +50,7 @@ const ALLOWED_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/png',
-  'image/webp'
+  'image/webp',
 ]
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_FILES = 5
@@ -60,7 +60,7 @@ type FileFilter = 'all' | 'pdf' | 'image'
 const FILTER_TABS: { id: FileFilter; label: string }[] = [
   { id: 'all', label: 'ทั้งหมด' },
   { id: 'pdf', label: 'PDF' },
-  { id: 'image', label: 'รูปภาพ' }
+  { id: 'image', label: 'รูปภาพ' },
 ]
 
 interface MedicalDocumentsPageProps {
@@ -72,7 +72,7 @@ interface MedicalDocumentsPageProps {
 export default function MedicalDocumentsPage({
   petIdOverride,
   isEmbedded = false,
-  headerContent
+  headerContent,
 }: MedicalDocumentsPageProps = {}) {
   const { petId: routePetId } = useLocalSearchParams<{ petId: string }>()
   const petId = petIdOverride || routePetId || ''
@@ -81,6 +81,7 @@ export default function MedicalDocumentsPage({
   const allPets = [...activePets, ...deceasedPets]
   const currentPet = petId ? allPets.find((p) => p.id === petId) || null : null
   const isOwner = currentPet?.petRole !== 'CAREGIVER'
+  const isDeceasedPet = currentPet?.status === 'DECEASED'
 
   const {
     documents,
@@ -91,7 +92,7 @@ export default function MedicalDocumentsPage({
     addPendingFiles,
     removePendingFile,
     uploadPendingFiles,
-    deleteDocument
+    deleteDocument,
   } = usePetMedicalDocuments({ petId })
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -100,7 +101,7 @@ export default function MedicalDocumentsPage({
   const [selectedFilter, setSelectedFilter] = useState<FileFilter>('all')
   const isPickerActiveRef = useRef(false)
   const pickerRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   )
 
   // Preview modal state
@@ -123,7 +124,7 @@ export default function MedicalDocumentsPage({
       return () => {
         resetPickerState()
       }
-    }, [fetchDocuments, petId])
+    }, [fetchDocuments, petId]),
   )
 
   const { isRefreshing, onRefresh: handleRefresh } =
@@ -196,13 +197,13 @@ export default function MedicalDocumentsPage({
     return date.toLocaleDateString('th-TH', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 
   // Get thumbnail URI for image files
   const getThumbnailUri = (
-    doc: IMedicalDocument | IPendingDocument
+    doc: IMedicalDocument | IPendingDocument,
   ): string | null => {
     const isPending = 'isPending' in doc && doc.isPending
 
@@ -239,7 +240,7 @@ export default function MedicalDocumentsPage({
     if (file.size > MAX_FILE_SIZE) {
       Alert.alert(
         'ไฟล์ใหญ่เกินไป',
-        `ขนาดไฟล์ต้องไม่เกิน ${MAX_FILE_SIZE / (1024 * 1024)} MB`
+        `ขนาดไฟล์ต้องไม่เกิน ${MAX_FILE_SIZE / (1024 * 1024)} MB`,
       )
       return false
     }
@@ -247,7 +248,7 @@ export default function MedicalDocumentsPage({
     if (file.mimeType && !ALLOWED_TYPES.includes(file.mimeType)) {
       Alert.alert(
         'ประเภทไฟล์ไม่รองรับ',
-        'กรุณาเลือกไฟล์ PDF หรือรูปภาพ (JPG, PNG, WebP)'
+        'กรุณาเลือกไฟล์ PDF หรือรูปภาพ (JPG, PNG, WebP)',
       )
       return false
     }
@@ -258,7 +259,7 @@ export default function MedicalDocumentsPage({
   // Handle upload options button
   const handleOpenUploadOptions = () => {
     const totalFiles = documents.length + pendingDocuments.length
-    if (isUploading || totalFiles >= MAX_FILES) {
+    if (isUploading || totalFiles >= MAX_FILES || isDeceasedPet) {
       return
     }
 
@@ -271,7 +272,7 @@ export default function MedicalDocumentsPage({
         {
           options: ['ยกเลิก', 'ถ่ายรูป', 'เลือกรูปภาพ', 'เลือกเอกสาร'],
           cancelButtonIndex: 0,
-          userInterfaceStyle: 'light'
+          userInterfaceStyle: 'light',
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
@@ -281,7 +282,7 @@ export default function MedicalDocumentsPage({
           } else if (buttonIndex === 3) {
             void handlePickMultipleDocuments()
           }
-        }
+        },
       )
       return
     }
@@ -304,7 +305,7 @@ export default function MedicalDocumentsPage({
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.8
+        quality: 0.8,
       })
 
       if (result.canceled) return
@@ -314,7 +315,7 @@ export default function MedicalDocumentsPage({
         !validateFile({
           name: `photo_${Date.now()}.jpg`,
           size: image.fileSize,
-          mimeType: 'image/jpeg'
+          mimeType: 'image/jpeg',
         })
       ) {
         return
@@ -325,8 +326,8 @@ export default function MedicalDocumentsPage({
           uri: image.uri,
           name: `photo_${Date.now()}.jpg`,
           size: image.fileSize || 0,
-          mimeType: 'image/jpeg'
-        }
+          mimeType: 'image/jpeg',
+        },
       ])
     } catch (error) {
       console.error('Error taking photo:', error)
@@ -352,7 +353,7 @@ export default function MedicalDocumentsPage({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
-        quality: 0.8
+        quality: 0.8,
       })
 
       if (result.canceled) return
@@ -370,14 +371,14 @@ export default function MedicalDocumentsPage({
           validateFile({
             name: fileName,
             size: image.fileSize,
-            mimeType: image.mimeType || 'image/jpeg'
+            mimeType: image.mimeType || 'image/jpeg',
           })
         ) {
           validImages.push({
             uri: image.uri,
             name: fileName,
             size: image.fileSize || 0,
-            mimeType: image.mimeType || 'image/jpeg'
+            mimeType: image.mimeType || 'image/jpeg',
           })
         }
       }
@@ -396,14 +397,14 @@ export default function MedicalDocumentsPage({
                 { text: 'ยกเลิก', style: 'cancel' },
                 {
                   text: 'เพิ่ม',
-                  onPress: () => addPendingFiles(validImages.slice(0, canAdd))
-                }
-              ]
+                  onPress: () => addPendingFiles(validImages.slice(0, canAdd)),
+                },
+              ],
             )
           } else {
             Alert.alert(
               'ถึงขีดจำกัด',
-              `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`
+              `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`,
             )
           }
         } else {
@@ -427,7 +428,7 @@ export default function MedicalDocumentsPage({
       const result = await DocumentPicker.getDocumentAsync({
         type: ALLOWED_TYPES,
         copyToCacheDirectory: true,
-        multiple: true
+        multiple: true,
       })
 
       if (result.canceled) return
@@ -444,14 +445,14 @@ export default function MedicalDocumentsPage({
           validateFile({
             name: file.name,
             size: file.size,
-            mimeType: file.mimeType
+            mimeType: file.mimeType,
           })
         ) {
           validFiles.push({
             uri: file.uri,
             name: file.name,
             size: file.size || 0,
-            mimeType: file.mimeType || 'application/octet-stream'
+            mimeType: file.mimeType || 'application/octet-stream',
           })
         }
       }
@@ -470,14 +471,14 @@ export default function MedicalDocumentsPage({
                 { text: 'ยกเลิก', style: 'cancel' },
                 {
                   text: 'เพิ่ม',
-                  onPress: () => addPendingFiles(validFiles.slice(0, canAdd))
-                }
-              ]
+                  onPress: () => addPendingFiles(validFiles.slice(0, canAdd)),
+                },
+              ],
             )
           } else {
             Alert.alert(
               'ถึงขีดจำกัด',
-              `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`
+              `สามารถมีเอกสารได้สูงสุด ${MAX_FILES} ไฟล์`,
             )
           }
         } else {
@@ -500,7 +501,7 @@ export default function MedicalDocumentsPage({
 
   // Handle delete document
   const handleDeleteDocument = (
-    document: IMedicalDocument | IPendingDocument
+    document: IMedicalDocument | IPendingDocument,
   ) => {
     const isPending = 'isPending' in document && document.isPending
 
@@ -517,7 +518,7 @@ export default function MedicalDocumentsPage({
 
   // Show delete confirmation dialog
   const showDeleteConfirmation = (
-    document: IMedicalDocument | IPendingDocument
+    document: IMedicalDocument | IPendingDocument,
   ) => {
     const isPending = 'isPending' in document && document.isPending
 
@@ -537,8 +538,8 @@ export default function MedicalDocumentsPage({
               setDeletingId(null)
             }
           }
-        }
-      }
+        },
+      },
     ])
   }
 
@@ -572,10 +573,10 @@ export default function MedicalDocumentsPage({
       uploading: {
         text: 'กำลังอัปโหลด',
         color: '#FEF3C7',
-        textColor: '#92400E'
+        textColor: '#92400E',
       },
       success: { text: 'สำเร็จ', color: '#D1FAE5', textColor: '#065F46' },
-      failed: { text: 'ล้มเหลว', color: '#FEE2E2', textColor: '#991B1B' }
+      failed: { text: 'ล้มเหลว', color: '#FEE2E2', textColor: '#991B1B' },
     }
 
     const badge = badges[progress]
@@ -591,7 +592,7 @@ export default function MedicalDocumentsPage({
   // Filter documents
   const allDocuments: Array<IMedicalDocument | IPendingDocument> = [
     ...pendingDocuments,
-    ...documents
+    ...documents,
   ]
 
   const filteredDocuments = allDocuments.filter((doc) => {
@@ -611,10 +612,12 @@ export default function MedicalDocumentsPage({
   }
 
   const totalFiles = documents.length + pendingDocuments.length
+  const canAddDocuments =
+    !isDeceasedPet && !isUploading && totalFiles < MAX_FILES
 
   // Render document card
   const renderDocumentCard = ({
-    item: doc
+    item: doc,
   }: {
     item: IMedicalDocument | IPendingDocument
   }) => {
@@ -638,7 +641,7 @@ export default function MedicalDocumentsPage({
             <Image
               source={{ uri: thumbnailUri }}
               style={styles.thumbnailImage}
-              resizeMode="cover"
+              resizeMode='cover'
             />
           ) : (
             <View style={styles.iconPlaceholder}>
@@ -689,9 +692,9 @@ export default function MedicalDocumentsPage({
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <ActivityIndicator size="small" color="#BF1737" />
+              <ActivityIndicator size='small' color='#BF1737' />
             ) : (
-              <Trash2 size={18} color="#BF1737" />
+              <Trash2 size={18} color='#BF1737' />
             )}
           </TouchableOpacity>
         </View>
@@ -707,11 +710,10 @@ export default function MedicalDocumentsPage({
           <TouchableOpacity
             style={[
               styles.addButton,
-              (isUploading || totalFiles >= MAX_FILES) &&
-                styles.addButtonDisabled
+              !canAddDocuments && styles.addButtonDisabled,
             ]}
             onPress={handleOpenUploadOptions}
-            disabled={isUploading || totalFiles >= MAX_FILES}
+            disabled={!canAddDocuments}
           >
             <Plus size={20} color={colors.primary.DEFAULT} />
             <Text style={styles.addButtonText}>เพิ่มเอกสาร</Text>
@@ -740,7 +742,7 @@ export default function MedicalDocumentsPage({
               <Text
                 style={[
                   styles.filterChipText,
-                  isActive && styles.filterChipTextActive
+                  isActive && styles.filterChipTextActive,
                 ]}
               >
                 {tab.label}
@@ -749,13 +751,13 @@ export default function MedicalDocumentsPage({
                 <View
                   style={[
                     styles.filterBadge,
-                    isActive && styles.filterBadgeActive
+                    isActive && styles.filterBadgeActive,
                   ]}
                 >
                   <Text
                     style={[
                       styles.filterBadgeText,
-                      isActive && styles.filterBadgeTextActive
+                      isActive && styles.filterBadgeTextActive,
                     ]}
                   >
                     {count}
@@ -771,7 +773,7 @@ export default function MedicalDocumentsPage({
       {pendingDocuments.length > 0 && (
         <View style={styles.pendingBanner}>
           <View style={styles.pendingBannerContent}>
-            <Upload size={20} color="#92400E" />
+            <Upload size={20} color='#92400E' />
             <Text style={styles.pendingBannerText}>
               {pendingDocuments.length} ไฟล์รอการอัปโหลด
             </Text>
@@ -779,13 +781,13 @@ export default function MedicalDocumentsPage({
           <TouchableOpacity
             style={[
               styles.uploadNowButton,
-              isUploading && styles.uploadNowButtonDisabled
+              isUploading && styles.uploadNowButtonDisabled,
             ]}
             onPress={handleUploadPending}
             disabled={isUploading}
           >
             {isUploading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size='small' color='#fff' />
             ) : (
               <Text style={styles.uploadNowButtonText}>อัปโหลดเลย</Text>
             )}
@@ -798,7 +800,7 @@ export default function MedicalDocumentsPage({
   // Empty State
   const EmptyState = isLoading ? (
     <View style={styles.centerState}>
-      <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+      <ActivityIndicator size='large' color={colors.primary.DEFAULT} />
       <Text style={styles.loadingText}>กำลังโหลด...</Text>
     </View>
   ) : (
@@ -813,12 +815,24 @@ export default function MedicalDocumentsPage({
         หรือเอกสารจากคลินิก
       </Text>
       <TouchableOpacity
-        style={styles.emptyAddButton}
+        style={[
+          styles.emptyAddButton,
+          !canAddDocuments && styles.addButtonDisabled,
+        ]}
         onPress={handleOpenUploadOptions}
+        disabled={!canAddDocuments}
       >
-        <Plus size={20} color="#fff" />
+        <Plus size={20} color='#fff' />
         <Text style={styles.emptyAddButtonText}>เพิ่มเอกสาร</Text>
       </TouchableOpacity>
+
+      {isDeceasedPet && (
+        <View style={styles.deceasedNote}>
+          <Text style={styles.deceasedNoteText}>
+            สัตว์เลี้ยงนี้ถูกทำเครื่องหมายว่าเสียชีวิตแล้ว
+          </Text>
+        </View>
+      )}
     </View>
   )
 
@@ -847,7 +861,7 @@ export default function MedicalDocumentsPage({
       <Modal
         visible={showUploadOptions}
         transparent
-        animationType="fade"
+        animationType='fade'
         onRequestClose={() => {
           if (!isPickerOpening) {
             setShowUploadOptions(false)
@@ -870,14 +884,14 @@ export default function MedicalDocumentsPage({
                 style={styles.closeButton}
                 disabled={isPickerOpening}
               >
-                <X size={24} color="#6b7280" />
+                <X size={24} color='#6b7280' />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
               style={[
                 styles.optionItem,
-                isPickerOpening && styles.optionItemDisabled
+                isPickerOpening && styles.optionItemDisabled,
               ]}
               onPress={handlePickFromCamera}
               disabled={isPickerOpening}
@@ -896,7 +910,7 @@ export default function MedicalDocumentsPage({
             <TouchableOpacity
               style={[
                 styles.optionItem,
-                isPickerOpening && styles.optionItemDisabled
+                isPickerOpening && styles.optionItemDisabled,
               ]}
               onPress={handlePickFromGallery}
               disabled={isPickerOpening}
@@ -913,7 +927,7 @@ export default function MedicalDocumentsPage({
             <TouchableOpacity
               style={[
                 styles.optionItem,
-                isPickerOpening && styles.optionItemDisabled
+                isPickerOpening && styles.optionItemDisabled,
               ]}
               onPress={handlePickMultipleDocuments}
               disabled={isPickerOpening}
@@ -951,16 +965,16 @@ export default function MedicalDocumentsPage({
 
       {/* Delete Permission Modal */}
       <AppModal
-        variant="confirmation"
+        variant='confirmation'
         visible={showDeletePermissionModal}
         onClose={() => {
           setShowDeletePermissionModal(false)
         }}
-        icon="warning"
-        title="ไม่สามารถลบเอกสารได้"
+        icon='warning'
+        title='ไม่สามารถลบเอกสารได้'
         message={`คุณเป็นผู้ดูแลร่วม จึงลบได้เฉพาะเอกสารที่คุณอัปโหลดเอง\n\nไฟล์ "${blockedDocumentName}" อาจถูกอัปโหลดโดยเจ้าของสัตว์เลี้ยง`}
-        confirmText="รับทราบ"
-        cancelText=""
+        confirmText='รับทราบ'
+        cancelText=''
         showCancelButton={false}
         onConfirm={() => setShowDeletePermissionModal(false)}
       />
@@ -971,25 +985,25 @@ export default function MedicalDocumentsPage({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary
+    backgroundColor: colors.background.primary,
   },
   embeddedContainer: {
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   listContent: {
     paddingBottom: 20,
-    flexGrow: 1
+    flexGrow: 1,
   },
   headerContent: {
     paddingHorizontal: spacing[4],
-    flexGrow: 1
+    flexGrow: 1,
   },
   // Filter Tabs
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: spacing[4],
     marginBottom: spacing[3],
-    gap: spacing[1]
+    gap: spacing[1],
   },
   filterChip: {
     flexDirection: 'row',
@@ -1000,20 +1014,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.light,
     backgroundColor: colors.background.secondary,
-    gap: 6
+    gap: 6,
   },
   filterChipActive: {
     backgroundColor: colors.primary.light,
-    borderColor: colors.primary.light
+    borderColor: colors.primary.light,
   },
   filterChipText: {
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
-    color: colors.gray[600]
+    color: colors.gray[600],
   },
   filterChipTextActive: {
     fontFamily: typography.fontFamily.medium,
-    color: colors.background.secondary
+    color: colors.background.secondary,
   },
   filterBadge: {
     minWidth: 18,
@@ -1022,18 +1036,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[200],
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
   filterBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.3)'
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   filterBadgeText: {
     fontSize: 10,
     fontFamily: typography.fontFamily.medium,
-    color: colors.gray[600]
+    color: colors.gray[600],
   },
   filterBadgeTextActive: {
-    color: '#fff'
+    color: '#fff',
   },
   // Pending Banner
   pendingBanner: {
@@ -1044,31 +1058,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 12,
-    borderRadius: 12
+    borderRadius: 12,
   },
   pendingBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   pendingBannerText: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
-    color: '#92400E'
+    color: '#92400E',
   },
   uploadNowButton: {
     backgroundColor: colors.primary.DEFAULT,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8
+    borderRadius: 8,
   },
   uploadNowButtonDisabled: {
-    opacity: 0.6
+    opacity: 0.6,
   },
   uploadNowButtonText: {
     fontSize: 13,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+    color: '#fff',
   },
   // Document Card
   documentCard: {
@@ -1083,25 +1097,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 1
+    elevation: 1,
   },
   cardThumbnail: {
     width: 56,
     height: 56,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#f3f4f6'
+    backgroundColor: '#f3f4f6',
   },
   thumbnailImage: {
     width: 56,
-    height: 56
+    height: 56,
   },
   iconPlaceholder: {
     width: 56,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E8F4F8'
+    backgroundColor: '#E8F4F8',
   },
   pendingOverlay: {
     position: 'absolute',
@@ -1111,46 +1125,46 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   pendingText: {
     fontSize: 12,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+    color: '#fff',
   },
   cardContent: {
     flex: 1,
-    marginLeft: 12
+    marginLeft: 12,
   },
   cardFileName: {
     fontSize: 14,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
-    marginBottom: 4
+    marginBottom: 4,
   },
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   cardFileSize: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: colors.gray[500]
+    color: colors.gray[500],
   },
   cardMetaDivider: {
     fontSize: 12,
-    color: colors.gray[300]
+    color: colors.gray[300],
   },
   cardFileDate: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: colors.gray[500]
+    color: colors.gray[500],
   },
   cardActions: {
     flexDirection: 'row',
     gap: 8,
-    marginLeft: 8
+    marginLeft: 8,
   },
   cardActionButton: {
     width: 36,
@@ -1158,21 +1172,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   deleteButton: {
-    backgroundColor: '#FEE2E2'
+    backgroundColor: '#FEE2E2',
   },
   progressBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    marginTop: 4
+    marginTop: 4,
   },
   progressBadgeText: {
     fontSize: 11,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   // Empty State
   centerState: {
@@ -1180,13 +1194,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 40,
-    paddingHorizontal: 32
+    paddingHorizontal: 32,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: colors.primary.DEFAULT
+    color: colors.primary.DEFAULT,
   },
   emptyIconWrapper: {
     width: 120,
@@ -1195,13 +1209,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
     color: colors.gray[600],
-    marginBottom: 8
+    marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
@@ -1209,7 +1223,7 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24
+    marginBottom: 24,
   },
   emptyAddButton: {
     flexDirection: 'row',
@@ -1218,17 +1232,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    gap: 8
+    gap: 8,
   },
   emptyAddButtonText: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+    color: '#fff',
   },
   // Add Button
   addButtonContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 16
+    paddingVertical: 16,
   },
   addButton: {
     flexDirection: 'row',
@@ -1240,36 +1254,36 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.primary.DEFAULT,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
   },
   addButtonDisabled: {
     opacity: 0.5,
-    borderColor: '#d1d5db'
+    borderColor: '#d1d5db',
   },
   addButtonText: {
     fontSize: 15,
     fontFamily: 'Prompt_500Medium',
-    color: colors.primary.DEFAULT
+    color: colors.primary.DEFAULT,
   },
   listFooter: {
     paddingTop: 8,
-    paddingBottom: 24
+    paddingBottom: 24,
   },
   listFooterSpacer: {
-    height: 16
+    height: 16,
   },
   // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
   },
   optionsContainer: {
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 32,
-    paddingTop: 8
+    paddingTop: 8,
   },
   optionsHeader: {
     flexDirection: 'row',
@@ -1278,15 +1292,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb'
+    borderBottomColor: '#e5e7eb',
   },
   optionsTitle: {
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877'
+    color: '#225877',
   },
   closeButton: {
-    padding: 4
+    padding: 4,
   },
   optionItem: {
     flexDirection: 'row',
@@ -1294,10 +1308,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6'
+    borderBottomColor: '#f3f4f6',
   },
   optionItemDisabled: {
-    opacity: 0.5
+    opacity: 0.5,
   },
   optionIcon: {
     width: 48,
@@ -1306,30 +1320,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F4F8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16
+    marginRight: 16,
   },
   optionContent: {
-    flex: 1
+    flex: 1,
   },
   optionTitle: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 2
+    marginBottom: 2,
   },
   optionDescription: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280'
+    color: '#6b7280',
   },
   optionsFooter: {
     paddingHorizontal: 20,
-    paddingTop: 16
+    paddingTop: 16,
   },
   optionsHint: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#9ca3af',
-    textAlign: 'center'
-  }
+    textAlign: 'center',
+  },
+  deceasedNote: {
+    marginTop: spacing[4],
+    padding: spacing[3],
+    backgroundColor: colors.gray[100] || '#F3F4F6',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray[300] || '#D1D5DB',
+  },
+  deceasedNoteText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[700] || '#374151',
+    fontFamily: typography.fontFamily.regular,
+    textAlign: 'center',
+    lineHeight: typography.lineHeight.relaxed,
+  },
 })
