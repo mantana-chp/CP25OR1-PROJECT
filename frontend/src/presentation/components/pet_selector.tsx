@@ -109,12 +109,14 @@ export default function PetSelector({
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={styles.selectedPetName} numberOfLines={1}>
-              {pet.pet_name}
+            <View style={styles.selectedPetNameRow}>
+              <Text style={styles.selectedPetName} numberOfLines={1}>
+                {pet.pet_name}
+              </Text>
               {pet.petRole === 'CAREGIVER' && (
                 <Users size={12} color="#5FA7D1" style={{ marginLeft: 4 }} />
               )}
-            </Text>
+            </View>
           </View>
         ))}
 
@@ -278,6 +280,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
     textAlign: 'center'
+  },
+  selectedPetNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%'
   },
   addPetWrapper: {
     width: 64,
