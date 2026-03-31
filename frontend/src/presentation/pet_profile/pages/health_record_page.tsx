@@ -654,8 +654,8 @@ export default function HealthRecordPage() {
                 type: item.logType,
                 description: item.cleanDescription
               }}
-              canEdit={!isDeceased}
-              canDelete={!isDeceased}
+              canEdit={!isDeceased && currentPet?.petRole !== 'CAREGIVER'}
+              canDelete={!isDeceased && currentPet?.petRole !== 'CAREGIVER'}
               onEdit={handleEditLog}
               onDelete={handleDeleteLog}
             />
