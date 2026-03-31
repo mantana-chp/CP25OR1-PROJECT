@@ -17,15 +17,34 @@ export interface WeightTrendLog {
 
 interface WeightTrendChartProps {
   logs: WeightTrendLog[]
+  initialWeight?: number | string | null
+  petCreatedAt?: string | null
 }
 
-export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
+export default function WeightTrendChart({
+  logs,
+  initialWeight,
+  petCreatedAt
+}: WeightTrendChartProps) {
   const [chartWidth, setChartWidth] = useState(0)
 
   const latestWeight = useMemo(() => {
     const firstWeighted = logs.find((log) => typeof log.weight === 'number')
-    return firstWeighted?.weight
-  }, [logs])
+    if (firstWeighted?.weight) {
+      return firstWeighted.weight
+    }
+    
+    // If no logs with weight, use initial weight from pet profile
+    const parsedInitialWeight = typeof initialWeight === 'string' 
+      ? parseFloat(initialWeight) 
+      : typeof initialWeight === 'number' 
+        ? initialWeight 
+        : null
+    
+    return parsedInitialWeight && Number.isFinite(parsedInitialWeight) 
+      ? parsedInitialWeight 
+      : undefined
+  }, [logs, initialWeight])
 
   const weightSeries = useMemo(() => {
     const points = logs
@@ -41,10 +60,33 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
           ts: date.getTime()
         }
       })
-      .sort((a, b) => a.ts - b.ts)
 
-    return points.slice(-8)
-  }, [logs])
+    // Add initial weight from pet profile if available and no logs exist
+    const parsedInitialWeight = typeof initialWeight === 'string' 
+      ? parseFloat(initialWeight) 
+      : typeof initialWeight === 'number' 
+        ? initialWeight 
+        : null
+
+    if (parsedInitialWeight && Number.isFinite(parsedInitialWeight) && petCreatedAt) {
+      const createdDate = new Date(petCreatedAt)
+      const hasInitialPoint = points.some(p => 
+        Math.abs(p.ts - createdDate.getTime()) < 1000 * 60 * 60 * 24 // Within 1 day
+      )
+      
+      if (!hasInitialPoint) {
+        points.push({
+          id: 'initial-weight',
+          value: parsedInitialWeight,
+          label: `${createdDate.getDate()}/${createdDate.getMonth() + 1}`,
+          ts: createdDate.getTime()
+        })
+      }
+    }
+
+    const sorted = points.sort((a, b) => a.ts - b.ts)
+    return sorted.slice(-8)
+  }, [logs, initialWeight, petCreatedAt])
 
   const chartMeta = useMemo(() => {
     if (!weightSeries.length) {
@@ -138,8 +180,7 @@ export default function WeightTrendChart({ logs }: WeightTrendChartProps) {
                 {chartMeta.max.toFixed(2)} กก.
               </Text>
               <Text style={styles.weightStatText}>
-                <Scale size={12} color={colors.info.DEFAULT} />{' '}
-                ความต่างล่าสุด:{' '}
+                <Scale size={12} color={colors.info.DEFAULT} /> ความต่างล่าสุด:{' '}
                 {chartMeta.latest !== null && chartMeta.prev !== null
                   ? `${(chartMeta.latest - chartMeta.prev).toFixed(2)} กก.`
                   : '-'}
@@ -199,7 +240,7 @@ const styles = StyleSheet.create({
   weightStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing[1],
+    marginTop: spacing[1]
   },
   weightStatText: {
     fontSize: typography.fontSize.xs,

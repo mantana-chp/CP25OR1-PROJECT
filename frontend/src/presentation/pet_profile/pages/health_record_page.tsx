@@ -344,7 +344,11 @@ export default function HealthRecordPage() {
         </View>
       )}
 
-      <WeightTrendChart logs={parsedLogs} />
+      <WeightTrendChart 
+        logs={parsedLogs}
+        initialWeight={currentPet?.weight}
+        petCreatedAt={currentPet?.age ? new Date(Date.now() - currentPet.age * 365.25 * 24 * 60 * 60 * 1000).toISOString() : null}
+      />
 
       <View style={styles.modeSwitchRow}>
         <TouchableOpacity
