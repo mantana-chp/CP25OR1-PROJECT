@@ -5,6 +5,7 @@ import {
   spacing,
   typography
 } from '@/constants/design-system'
+import { useAuth } from '@/src/context/AuthContext'
 import { usePets } from '@/src/context/PetContext'
 import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
 import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
@@ -86,6 +87,7 @@ export default function HealthRecordPage() {
     mode?: string
     subTab?: string
   }>()
+  const { userId } = useAuth()
   const { activePets, deceasedPets, refreshPets } = usePets()
 
   const [pageMode, setPageMode] = useState<PageMode>(() =>
@@ -647,19 +649,25 @@ export default function HealthRecordPage() {
         <FlatList
           data={filteredLogs}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <HealthLogEntryCard
-              log={item}
-              parsed={{
-                type: item.logType,
-                description: item.cleanDescription
-              }}
-              canEdit={!isDeceased && currentPet?.petRole !== 'CAREGIVER'}
-              canDelete={!isDeceased && currentPet?.petRole !== 'CAREGIVER'}
-              onEdit={handleEditLog}
-              onDelete={handleDeleteLog}
-            />
-          )}
+          renderItem={({ item }) => {
+            const isOwner = currentPet?.petRole === 'OWNER'
+            const isCreator = item.createdByUserId === userId
+            const canModify = !isDeceased && (isOwner || isCreator)
+            
+            return (
+              <HealthLogEntryCard
+                log={item}
+                parsed={{
+                  type: item.logType,
+                  description: item.cleanDescription
+                }}
+                canEdit={canModify}
+                canDelete={canModify}
+                onEdit={handleEditLog}
+                onDelete={handleDeleteLog}
+              />
+            )
+          }}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           ListFooterComponent={listFooter}

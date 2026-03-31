@@ -10,15 +10,34 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useState
 } from 'react'
 
 const ONBOARDING_KEY = '@app:hasCompletedOnboarding'
+
+// Helper function to decode JWT token
+const decodeJWT = (token: string): { userId: string } | null => {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch (error) {
+    console.error('Failed to decode JWT:', error)
+    return null
+  }
+}
 
 interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   token: string | null
+  userId: string | null
   error: string | null
   hasCompletedOnboarding: boolean
   hasPetProfile: boolean
@@ -41,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [token, setToken] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
   const [hasPetProfile, setHasPetProfile] = useState(false)
@@ -67,10 +87,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Save tokens and installation ID
       await apiClient.setToken(
         response.accessToken,
-        response.refreshToken || '',
+        response.refreshToken || ''
       )
       await apiClient.setInstallationId(response.installationId)
       console.log('✅ Tokens and installation ID saved to storage')
+
+      // Decode token to get userId
+      const decoded = decodeJWT(response.accessToken)
+      if (decoded?.userId) {
+        setUserId(decoded.userId)
+      }
 
       setToken(response.accessToken)
       setIsAuthenticated(true)
@@ -113,6 +139,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (existingToken && existingRefreshToken) {
         console.log('✅ Using existing token')
+        
+        // Decode token to get userId
+        const decoded = decodeJWT(existingToken)
+        if (decoded?.userId) {
+          setUserId(decoded.userId)
+        }
+        
         setToken(existingToken)
         setIsAuthenticated(true)
         setError(null)
@@ -128,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error: any) {
           console.warn(
-            '⚠️ Token validation failed, clearing and re-authenticating...',
+            '⚠️ Token validation failed, clearing and re-authenticating...'
           )
           // Clear tokens and perform fresh device login
           await apiClient.clearTokens()
@@ -170,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🐾 Checking for pet profiles...')
       const [activeResponse, pastResponse] = await Promise.all([
         petProfileService.getMyPets(),
-        petProfileService.getPastPets(),
+        petProfileService.getPastPets()
       ])
       const hasPets =
         (activeResponse.data && activeResponse.data.length > 0) ||
@@ -193,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('📤 Sending push token to backend:', pushToken)
         await userService.registerPushToken({
           token: pushToken,
-          provider: 'expo',
+          provider: 'expo'
         })
         console.log('✅ Push token registered successfully')
       }
@@ -231,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     hasToken: !!token,
     hasCompletedOnboarding,
-    error,
+    error
   })
 
   return (
@@ -240,12 +273,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isLoading,
         token,
+        userId,
         error,
         hasCompletedOnboarding,
         hasPetProfile,
         completeOnboarding,
         refreshAuth,
-        checkPetProfile,
+        checkPetProfile
       }}
     >
       {children}
