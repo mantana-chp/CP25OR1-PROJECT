@@ -27,7 +27,13 @@ export default function WeightTrendChart({
   const [chartWidth, setChartWidth] = useState(0)
 
   const latestWeight = useMemo(() => {
-    // Prioritize pet profile weight as the current/latest value
+    // Use the most recent weight from health logs
+    const firstWeighted = logs.find((log) => typeof log.weight === 'number')
+    if (firstWeighted?.weight) {
+      return firstWeighted.weight
+    }
+    
+    // If no health logs with weight, show pet profile weight in header only (not on chart)
     if (petProfileWeight?.weight) {
       const parsed = parseFloat(petProfileWeight.weight)
       if (Number.isFinite(parsed)) {
@@ -35,12 +41,11 @@ export default function WeightTrendChart({
       }
     }
     
-    // Fall back to most recent health log weight
-    const firstWeighted = logs.find((log) => typeof log.weight === 'number')
-    return firstWeighted?.weight
+    return undefined
   }, [logs, petProfileWeight])
 
   const weightSeries = useMemo(() => {
+    // Only show health logs with weight - don't add pet profile weight to the chart
     const points = logs
       .filter(
         (log) => typeof log.weight === 'number' && Number.isFinite(log.weight)
@@ -55,31 +60,9 @@ export default function WeightTrendChart({
         }
       })
 
-    // Add pet profile weight as the current data point
-    if (petProfileWeight?.weight && petProfileWeight?.updated_at) {
-      const parsedWeight = parseFloat(petProfileWeight.weight)
-      if (Number.isFinite(parsedWeight)) {
-        const updatedDate = new Date(petProfileWeight.updated_at)
-        
-        // Check if there's already a recent point (within 1 hour) to avoid duplicates
-        const hasRecentPoint = points.some(p => 
-          Math.abs(p.ts - updatedDate.getTime()) < 1000 * 60 * 60
-        )
-        
-        if (!hasRecentPoint) {
-          points.push({
-            id: 'profile-weight',
-            value: parsedWeight,
-            label: `${updatedDate.getDate()}/${updatedDate.getMonth() + 1}`,
-            ts: updatedDate.getTime()
-          })
-        }
-      }
-    }
-
     const sorted = points.sort((a, b) => a.ts - b.ts)
     return sorted.slice(-8)
-  }, [logs, petProfileWeight])
+  }, [logs])
 
   const chartMeta = useMemo(() => {
     if (!weightSeries.length) {
