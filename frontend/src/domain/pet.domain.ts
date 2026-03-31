@@ -28,7 +28,7 @@ export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
     breed_id: v.breed_id || '',
     gender: v.gender || '',
     birth_date: v?.birth_date ? parseDate(v.birth_date) : null,
-    weight: v.weight || '',
+    weight: v.weight != null && v.weight !== '' ? String(v.weight) : '',
     created_at: v.created_at || '',
     updated_at: v.updated_at || '',
     profileImage: v?.profileImage || null
