@@ -12,8 +12,6 @@ services:
     expose:
       - "3000"
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # can be deleted later
     networks:
       - app_net
     depends_on:
@@ -31,11 +29,6 @@ services:
     networks:
       - app_net
     restart: unless-stopped
-    # For local development: uncomment the ports below to access MinIO console at http://localhost:9001
-    # For production: keep ports commented (not exposed publicly, backend connects internally)
-    # ports:
-    #   - "9000:9000"   # MinIO API
-    #   - "9001:9001"   # MinIO Console (Web UI)
 
 networks:
   app_net:
