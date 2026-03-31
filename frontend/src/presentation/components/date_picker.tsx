@@ -174,7 +174,6 @@ export default function DatePicker(props: DatePickerProps) {
                 onChange={handleChange}
                 textColor="#5FA7D1"
                 style={styles.picker}
-                locale="th-TH"
                 maximumDate={props.maximumDate}
                 minimumDate={props.minimumDate}
               />
