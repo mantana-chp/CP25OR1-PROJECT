@@ -324,7 +324,10 @@ export default function PetProfilePage() {
         Alert.alert('สำเร็จ', 'กู้คืนสัตว์เลี้ยงเรียบร้อยแล้ว')
       } catch (error) {
         console.error('Error restoring pet:', error)
-        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถกู้คืนสัตว์เลี้ยงได้')
+        Alert.alert(
+          'เกิดข้อผิดพลาด',
+          'ไม่สามารถกู้คืนสัตว์เลี้ยงได้ เนื่องจากสัตว์เลี้ยงของคุณมีจำนวนสูงสุดแล้ว'
+        )
       }
     },
     [restorePet]
