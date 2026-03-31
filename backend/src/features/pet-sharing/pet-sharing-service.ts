@@ -7,6 +7,7 @@ import {
   NotFoundError,
   BadRequestError,
   ForbiddenError,
+  ConflictError,
 } from '../../shared/errors'
 import { invite_status } from '../../generated/prisma/client'
 
@@ -161,10 +162,18 @@ export const previewInvite = async (token: string, userId: string) => {
     alreadySharedPets.filter(Boolean).map(formatPetProfile),
   )
 
+  // Check if user already has 30 active pets (owned + shared)
+  const ownedActivePets = await petRepo.countActivePetsByUserId(userId)
+  const sharedActivePets = await repo.countSharedActivePetsByUserId(userId)
+  const totalActivePets = ownedActivePets + sharedActivePets
+  const canAcceptInvite = totalActivePets < 30
+
   return {
     expiresAt: invite.expires_at,
     toBeAdded: toBeAddedProfiles,
     alreadyShared: alreadySharedProfiles,
+    canAcceptInvite,
+    currentActivePets: totalActivePets,
   }
 }
 
@@ -221,6 +230,17 @@ export const claimInvite = async (
   const ownerIds = [...new Set(invite.invite_pets.map((ip) => ip.pet.user_id))]
   if (ownerIds.includes(userId)) {
     throw new BadRequestError('You are already the owner of one of these pets')
+  }
+
+  // Check if user already has 30 active pets (owned + shared from other users)
+  const ownedActivePets = await petRepo.countActivePetsByUserId(userId)
+  const sharedActivePets = await repo.countSharedActivePetsByUserId(userId)
+  const totalActivePets = ownedActivePets + sharedActivePets
+
+  if (totalActivePets >= 30) {
+    throw new ConflictError(
+      'Cannot accept invite. You have reached the maximum limit of 30 active pets.',
+    )
   }
 
   // Track which pets were newly added vs. already shared

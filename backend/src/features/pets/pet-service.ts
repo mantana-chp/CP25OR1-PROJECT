@@ -474,6 +474,17 @@ export const restorePet = async (petId: string, userId: string) => {
     throw new BadRequestError('Only soft-deleted pets can be restored.')
   }
 
+  // Check if user already has 30 active pets (owned + shared from other users)
+  const ownedActivePets = await petRepository.countActivePetsByUserId(userId)
+  const sharedActivePets = await sharingRepository.countSharedActivePetsByUserId(userId)
+  const totalActivePets = ownedActivePets + sharedActivePets
+
+  if (totalActivePets >= 30) {
+    throw new ConflictError(
+      'Cannot restore pet. You have reached the maximum limit of 30 active pets.',
+    )
+  }
+
   await petRepository.restorePet(petId, userId)
   return { message: 'Pet has been restored successfully.', status: 'ACTIVE' }
 }
