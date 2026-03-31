@@ -14,6 +14,7 @@ import {
   healthLogService,
   IHealthLog
 } from '@/src/utils/api/services/health_log_service'
+import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { ClipboardList, Plus } from 'lucide-react-native'
@@ -130,6 +131,7 @@ export default function HealthRecordPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMoreLogs, setHasMoreLogs] = useState(true)
   const [editingLog, setEditingLog] = useState<IHealthLog | null>(null)
+  const [petProfileWithTimestamp, setPetProfileWithTimestamp] = useState<{ weight: string; updated_at: string } | null>(null)
 
   const loadHealthLogs = useCallback(
     async (append = false) => {
@@ -164,15 +166,35 @@ export default function HealthRecordPage() {
     await getHealthRecordsApi.execute({})
   }, [getHealthRecordsApi.execute])
 
+  const loadPetProfileTimestamp = useCallback(async () => {
+    if (!petId) return
+    try {
+      const response = await petProfileService.getPetProfileById(petId)
+      if (response?.data) {
+        setPetProfileWithTimestamp({
+          weight: response.data.weight,
+          updated_at: response.data.updated_at
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load pet profile timestamp:', error)
+    }
+  }, [petId])
+
   const { isRefreshing, onRefresh } = usePullToRefresh(async () => {
-    await Promise.all([loadHealthRecords(), loadHealthLogs(false)])
+    await Promise.all([
+      loadHealthRecords(),
+      loadHealthLogs(false),
+      loadPetProfileTimestamp()
+    ])
   })
 
   useFocusEffect(
     useCallback(() => {
       loadHealthRecords()
       loadHealthLogs(false)
-    }, [loadHealthRecords, loadHealthLogs])
+      loadPetProfileTimestamp()
+    }, [loadHealthRecords, loadHealthLogs, loadPetProfileTimestamp])
   )
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
@@ -346,8 +368,7 @@ export default function HealthRecordPage() {
 
       <WeightTrendChart 
         logs={parsedLogs}
-        initialWeight={currentPet?.weight}
-        petCreatedAt={currentPet?.age ? new Date(Date.now() - currentPet.age * 365.25 * 24 * 60 * 60 * 1000).toISOString() : null}
+        petProfileWeight={petProfileWithTimestamp}
       />
 
       <View style={styles.modeSwitchRow}>

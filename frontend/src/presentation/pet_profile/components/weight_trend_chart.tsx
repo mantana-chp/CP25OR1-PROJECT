@@ -17,34 +17,28 @@ export interface WeightTrendLog {
 
 interface WeightTrendChartProps {
   logs: WeightTrendLog[]
-  initialWeight?: number | string | null
-  petCreatedAt?: string | null
+  petProfileWeight?: { weight: string; updated_at: string } | null
 }
 
 export default function WeightTrendChart({
   logs,
-  initialWeight,
-  petCreatedAt
+  petProfileWeight
 }: WeightTrendChartProps) {
   const [chartWidth, setChartWidth] = useState(0)
 
   const latestWeight = useMemo(() => {
-    const firstWeighted = logs.find((log) => typeof log.weight === 'number')
-    if (firstWeighted?.weight) {
-      return firstWeighted.weight
+    // Prioritize pet profile weight as the current/latest value
+    if (petProfileWeight?.weight) {
+      const parsed = parseFloat(petProfileWeight.weight)
+      if (Number.isFinite(parsed)) {
+        return parsed
+      }
     }
     
-    // If no logs with weight, use initial weight from pet profile
-    const parsedInitialWeight = typeof initialWeight === 'string' 
-      ? parseFloat(initialWeight) 
-      : typeof initialWeight === 'number' 
-        ? initialWeight 
-        : null
-    
-    return parsedInitialWeight && Number.isFinite(parsedInitialWeight) 
-      ? parsedInitialWeight 
-      : undefined
-  }, [logs, initialWeight])
+    // Fall back to most recent health log weight
+    const firstWeighted = logs.find((log) => typeof log.weight === 'number')
+    return firstWeighted?.weight
+  }, [logs, petProfileWeight])
 
   const weightSeries = useMemo(() => {
     const points = logs
@@ -61,32 +55,31 @@ export default function WeightTrendChart({
         }
       })
 
-    // Add initial weight from pet profile if available and no logs exist
-    const parsedInitialWeight = typeof initialWeight === 'string' 
-      ? parseFloat(initialWeight) 
-      : typeof initialWeight === 'number' 
-        ? initialWeight 
-        : null
-
-    if (parsedInitialWeight && Number.isFinite(parsedInitialWeight) && petCreatedAt) {
-      const createdDate = new Date(petCreatedAt)
-      const hasInitialPoint = points.some(p => 
-        Math.abs(p.ts - createdDate.getTime()) < 1000 * 60 * 60 * 24 // Within 1 day
-      )
-      
-      if (!hasInitialPoint) {
-        points.push({
-          id: 'initial-weight',
-          value: parsedInitialWeight,
-          label: `${createdDate.getDate()}/${createdDate.getMonth() + 1}`,
-          ts: createdDate.getTime()
-        })
+    // Add pet profile weight as the current data point
+    if (petProfileWeight?.weight && petProfileWeight?.updated_at) {
+      const parsedWeight = parseFloat(petProfileWeight.weight)
+      if (Number.isFinite(parsedWeight)) {
+        const updatedDate = new Date(petProfileWeight.updated_at)
+        
+        // Check if there's already a recent point (within 1 hour) to avoid duplicates
+        const hasRecentPoint = points.some(p => 
+          Math.abs(p.ts - updatedDate.getTime()) < 1000 * 60 * 60
+        )
+        
+        if (!hasRecentPoint) {
+          points.push({
+            id: 'profile-weight',
+            value: parsedWeight,
+            label: `${updatedDate.getDate()}/${updatedDate.getMonth() + 1}`,
+            ts: updatedDate.getTime()
+          })
+        }
       }
     }
 
     const sorted = points.sort((a, b) => a.ts - b.ts)
     return sorted.slice(-8)
-  }, [logs, initialWeight, petCreatedAt])
+  }, [logs, petProfileWeight])
 
   const chartMeta = useMemo(() => {
     if (!weightSeries.length) {
