@@ -16,6 +16,7 @@ import {
     petSharesRoutes,
     ownerContactsRoutes,
 } from './features/pet-sharing/pet-sharing-routes';
+import petTransferRoutes from './features/pet-transfer/pet-transfer-routes';
 
 const v1Router = Router();
 
@@ -35,6 +36,7 @@ v1Router.use('/health-records', healthRecordRoutes);
 v1Router.use('/vaccines', vaccineScheduleRoutes);
 v1Router.use('/ai-chat', aiChatRoutes);
 v1Router.use('/uploads', uploadRoutes);
+v1Router.use('/pet-transfers', petTransferRoutes);
 
 export default v1Router;
 

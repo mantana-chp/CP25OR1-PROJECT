@@ -64,6 +64,8 @@ model pets {
   medical_documents   pet_medical_documents[]
   health_logs         health_logs[]
   health_insights     health_insights[]
+  // Pet transfer relations
+  transfer_token_pets pet_transfer_token_pets[]
 }
 
 model push_tokens {
@@ -281,6 +283,9 @@ model users {
   claimed_invites            pet_share_invites[]        @relation("ClaimedInvites")
   pet_access                 pet_user_access[]          @relation("AccessiblePets")
   granted_access             pet_user_access[]          @relation("GrantedAccess")
+  // Pet transfer relations
+  created_transfers          pet_transfer_tokens[]      @relation("TransferCreator")
+  claimed_transfers          pet_transfer_tokens[]      @relation("TransferClaimer")
 }
 
 enum device_type {
@@ -460,4 +465,55 @@ model pet_user_access {
   invite  pet_share_invites?       @relation(fields: [invite_id], references: [id])
 
   @@unique([pet_id, user_id])
+}
+
+enum transfer_token_status {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+model pet_transfer_tokens {
+  id              String                @id @default(uuid()) @db.Uuid
+  created_by      String                @db.Uuid
+  status          transfer_token_status @default(PENDING)
+  expires_at      DateTime              @db.Timestamptz(6)
+  claimed_by      String?               @db.Uuid
+  claimed_at      DateTime?             @db.Timestamptz(6)
+  created_at      DateTime              @default(now()) @db.Timestamptz(6)
+
+  creator         users                      @relation("TransferCreator", fields: [created_by], references: [id])
+  claimer         users?                     @relation("TransferClaimer", fields: [claimed_by], references: [id])
+  transfer_pets   pet_transfer_token_pets[]
+  audit_logs      pet_transfer_audit_logs[]
+
+  @@index([created_by])
+  @@index([status])
+}
+
+model pet_transfer_token_pets {
+  transfer_id String @db.Uuid
+  pet_id      String @db.Uuid
+
+  transfer    pet_transfer_tokens @relation(fields: [transfer_id], references: [id], onDelete: Cascade)
+  pet         pets                @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+
+  @@id([transfer_id, pet_id])
+}
+
+model pet_transfer_audit_logs {
+  id                  String   @id @default(uuid()) @db.Uuid
+  transfer_token_id   String   @db.Uuid
+  pet_id              String   @db.Uuid
+  from_user_id        String   @db.Uuid
+  to_user_id          String   @db.Uuid
+  action              String   @db.VarChar(50)
+  metadata            Json?
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  transfer_token      pet_transfer_tokens @relation(fields: [transfer_token_id], references: [id])
+
+  @@index([pet_id])
+  @@index([transfer_token_id])
 }
