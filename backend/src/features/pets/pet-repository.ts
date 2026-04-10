@@ -46,6 +46,25 @@ export const countActivePetsByUserId = async (userId: string): Promise<number> =
   });
 };
 
+/** Get active pet names for a user (optionally excluding one pet ID). */
+export const findActivePetNamesByUserId = async (
+  userId: string,
+  excludePetId?: string,
+) => {
+  return await prisma.pets.findMany({
+    where: {
+      user_id: userId,
+      status: pet_status.ACTIVE,
+      deleted_at: null,
+      ...(excludePetId ? { id: { not: excludePetId } } : {}),
+    },
+    select: {
+      id: true,
+      pet_name: true,
+    },
+  });
+};
+
 /** Get pets filtered by status */
 export const findAllPetProfilesByUserId = async (userId: string, status?: pet_status) => {
   return await prisma.pets.findMany({

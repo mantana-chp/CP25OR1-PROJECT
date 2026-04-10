@@ -26,6 +26,47 @@ export type PetCreationData = {
   birth_date?: string | null
 }
 
+const normalizePetNameForComparison = (name: string) =>
+  name.trim().replace(/\s+/g, ' ').toLowerCase()
+
+const getDuplicateNormalizedNames = (names: string[]) => {
+  const seen = new Set<string>()
+  const duplicates = new Set<string>()
+
+  for (const name of names) {
+    if (seen.has(name)) {
+      duplicates.add(name)
+      continue
+    }
+    seen.add(name)
+  }
+
+  return [...duplicates]
+}
+
+const assertUniqueActivePetName = async (
+  userId: string,
+  petName: string,
+  excludePetId?: string,
+) => {
+  const normalizedTargetName = normalizePetNameForComparison(petName)
+  const activePetNames = await petRepository.findActivePetNamesByUserId(
+    userId,
+    excludePetId,
+  )
+
+  const hasDuplicate = activePetNames.some(
+    (pet) =>
+      normalizePetNameForComparison(pet.pet_name) === normalizedTargetName,
+  )
+
+  if (hasDuplicate) {
+    throw new ConflictError(
+      `You already have an active pet named "${petName.trim()}". Please choose a different name.`,
+    )
+  }
+}
+
 const assertPetProfileObjectKey = (
   objectKey: string,
   userId: string,
@@ -80,6 +121,8 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
     throw new ConflictError('You have reached the maximum limit of 10 pets.')
   }
 
+  await assertUniqueActivePetName(userId, petData.pet_name)
+
   const data: Prisma.petsCreateInput = {
     pet_name: petData.pet_name,
     gender: petData.gender,
@@ -111,6 +154,53 @@ export const createMultiplePets = async (
   if (totalPetCount > 30) {
     throw new ConflictError(
       `You can only add ${30 - currentPetCount} more pet(s). You have reached the maximum limit of 30 pets.`,
+    )
+  }
+
+  const normalizedToDisplayName = new Map<string, string>()
+  const normalizedIncomingNames = petsData.map((pet) => {
+    const normalized = normalizePetNameForComparison(pet.pet_name)
+    if (!normalizedToDisplayName.has(normalized)) {
+      normalizedToDisplayName.set(normalized, pet.pet_name.trim())
+    }
+    return normalized
+  })
+
+  const duplicateNamesInPayload = getDuplicateNormalizedNames(
+    normalizedIncomingNames,
+  )
+  if (duplicateNamesInPayload.length > 0) {
+    const duplicateNamesText = duplicateNamesInPayload
+      .map((name) => `"${normalizedToDisplayName.get(name)}"`)
+      .join(', ')
+
+    throw new ConflictError(
+      `Duplicate active pet names in request: ${duplicateNamesText}. Please use unique names for each active pet.`,
+    )
+  }
+
+  const existingActivePets = await petRepository.findActivePetNamesByUserId(
+    userId,
+  )
+  const existingNormalizedNames = new Set(
+    existingActivePets.map((pet) =>
+      normalizePetNameForComparison(pet.pet_name),
+    ),
+  )
+
+  const conflictingNames = [
+    ...new Set(
+      normalizedIncomingNames.filter((name) => existingNormalizedNames.has(name)),
+    ),
+  ]
+
+  if (conflictingNames.length > 0) {
+    const conflictingNamesText = conflictingNames
+      .map((name) => `"${normalizedToDisplayName.get(name)}"`)
+      .join(', ')
+
+    throw new ConflictError(
+      `You already have active pet(s) named: ${conflictingNamesText}. Please choose different name(s).`,
     )
   }
 
@@ -162,6 +252,7 @@ export const updatePet = async (
   const updateData: Prisma.petsUpdateInput = {}
 
   if (petData.pet_name != null) {
+    await assertUniqueActivePetName(userId, petData.pet_name, petId)
     updateData.pet_name = petData.pet_name
   }
   if (petData.gender != null) {
