@@ -14,6 +14,100 @@ import { HistoryItem } from './ai-chat-schema';
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
 
+type AIRequestMetrics = {
+  geminiTextCalls: number;
+  geminiEmbeddingCalls: number;
+  pineconeSearchCalls: number;
+  geminiPromptTokens: number;
+  geminiCompletionTokens: number;
+  geminiTotalTokens: number;
+};
+
+type GeminiUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+};
+
+const createTraceId = (): string =>
+  `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const toSafeNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return undefined;
+};
+
+const extractGeminiUsage = (message: unknown): GeminiUsage => {
+  const msg = message as {
+    usage_metadata?: {
+      input_tokens?: number;
+      output_tokens?: number;
+      total_tokens?: number;
+    };
+    response_metadata?: {
+      usageMetadata?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
+      usage_metadata?: {
+        input_tokens?: number;
+        output_tokens?: number;
+        total_tokens?: number;
+      };
+      tokenUsage?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
+    };
+  };
+
+  if (msg.usage_metadata) {
+    return {
+      promptTokens: toSafeNumber(msg.usage_metadata.input_tokens),
+      completionTokens: toSafeNumber(msg.usage_metadata.output_tokens),
+      totalTokens: toSafeNumber(msg.usage_metadata.total_tokens),
+    };
+  }
+
+  const usageMeta = (
+    msg.response_metadata?.usageMetadata ??
+    msg.response_metadata?.usage_metadata ??
+    msg.response_metadata?.tokenUsage
+  ) as Record<string, unknown> | undefined;
+
+  return {
+    promptTokens: toSafeNumber(
+      usageMeta?.promptTokenCount ?? usageMeta?.input_tokens
+    ),
+    completionTokens: toSafeNumber(
+      usageMeta?.candidatesTokenCount ?? usageMeta?.output_tokens
+    ),
+    totalTokens: toSafeNumber(
+      usageMeta?.totalTokenCount ?? usageMeta?.total_tokens
+    ),
+  };
+};
+
+const addUsageToMetrics = (
+  metrics: AIRequestMetrics,
+  usage: GeminiUsage
+): void => {
+  if (usage.promptTokens !== undefined) {
+    metrics.geminiPromptTokens += usage.promptTokens;
+  }
+  if (usage.completionTokens !== undefined) {
+    metrics.geminiCompletionTokens += usage.completionTokens;
+  }
+  if (usage.totalTokens !== undefined) {
+    metrics.geminiTotalTokens += usage.totalTokens;
+  }
+};
+
+const formatTokenLogValue = (value?: number): string =>
+  value === undefined ? 'n/a' : String(value);
+
 const SYSTEM_INSTRUCTION = `
 You are a knowledgeable, calm veterinary assistant. Give pet owners practical, proportionate advice.
 
@@ -84,7 +178,9 @@ const initializeVectorStore = async () => {
  */
 const extractPetWithLLM = async (
   query: string,
-  pets: PetCandidate[]
+  pets: PetCandidate[],
+  traceId: string,
+  metrics: AIRequestMetrics
 ): Promise<PetCandidate | null> => {
   if (pets.length === 0) return null;
 
@@ -105,7 +201,16 @@ Reply with ONLY one of the following:
 Do not explain. Do not add punctuation. Reply in one word only.`;
 
   try {
+    metrics.geminiTextCalls += 1;
+    logger.info(`[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} (Layer 3 pet extraction) started.`);
+
     const response = await llm.invoke(extractionPrompt);
+    const usage = extractGeminiUsage(response);
+    addUsageToMetrics(metrics, usage);
+    logger.info(
+      `[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} token usage: prompt=${formatTokenLogValue(usage.promptTokens)}, completion=${formatTokenLogValue(usage.completionTokens)}, total=${formatTokenLogValue(usage.totalTokens)}.`
+    );
+
     const raw = (response.content as string).trim();
 
     if (!raw || raw.toLowerCase() === 'null') return null;
@@ -178,6 +283,21 @@ export const chatWithAI = async (
   resolvedPetId?: string,
   history?: HistoryItem[]
 ): Promise<{ answer: string; resolvedPetId?: string; severityFlag?: boolean }> => {
+  const traceId = createTraceId();
+  const startedAt = Date.now();
+  const metrics: AIRequestMetrics = {
+    geminiTextCalls: 0,
+    geminiEmbeddingCalls: 0,
+    pineconeSearchCalls: 0,
+    geminiPromptTokens: 0,
+    geminiCompletionTokens: 0,
+    geminiTotalTokens: 0,
+  };
+
+  logger.info(
+    `[AI Chat][${traceId}] Request started. userId=${userId}, hasResolvedPetId=${Boolean(resolvedPetId)}, historyItems=${history?.length ?? 0}, query="${query.slice(0, 120)}${query.length > 120 ? '...' : ''}"`
+  );
+
   const store = await initializeVectorStore();
   let petContext = '';
 
@@ -204,7 +324,7 @@ export const chatWithAI = async (
     } else {
       // L1 & L2 missed, no session pet → fire Layer 3 (LLM extraction)
       logger.info('[AI Chat] No pet detected via L1/L2, falling back to Layer 3 LLM extraction.');
-      const llmPet = await extractPetWithLLM(query, userPets);
+      const llmPet = await extractPetWithLLM(query, userPets, traceId, metrics);
       if (llmPet) {
         finalResolvedPetId = llmPet.id;
         logger.info(`[AI Chat] Pet detected via Layer 3: "${llmPet.pet_name}"`);
@@ -218,6 +338,12 @@ export const chatWithAI = async (
 
     // 4. Retrieve relevant documents (Knowledge Base)
     // Use similaritySearchWithScore to filter out irrelevant results
+    metrics.pineconeSearchCalls += 1;
+    metrics.geminiEmbeddingCalls += 1;
+    logger.info(
+      `[AI Chat][${traceId}] Pinecone search #${metrics.pineconeSearchCalls} started (includes Gemini embedding call #${metrics.geminiEmbeddingCalls}).`
+    );
+
     const resultsWithScore = await store.similaritySearchWithScore(query, 3);
 
     // DEBUG: Log retrieval scores to help tune the threshold
@@ -274,11 +400,20 @@ ${context}
       return m.role === 'user' ? new HumanMessage(content) : new AIMessage(content);
     });
 
+    metrics.geminiTextCalls += 1;
+    logger.info(`[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} (main answer generation) started.`);
+
     const response = await llm.invoke([
       new SystemMessage(SYSTEM_INSTRUCTION),
       ...historyMessages,
       new HumanMessage(prompt),
     ]);
+    const usage = extractGeminiUsage(response);
+    addUsageToMetrics(metrics, usage);
+    logger.info(
+      `[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} token usage: prompt=${formatTokenLogValue(usage.promptTokens)}, completion=${formatTokenLogValue(usage.completionTokens)}, total=${formatTokenLogValue(usage.totalTokens)}.`
+    );
+
     const rawAnswer = response.content as string;
 
     // Parse severity flag marker — AI appends [NEEDS_SEVERITY] when symptom context
@@ -288,10 +423,17 @@ ${context}
 
     logger.info(`AI Chat Response received successfully. severityFlag=${severityFlag}`);
     logger.info(`AI Answer:\n${answer}`);
+    logger.info(
+      `[AI Chat][${traceId}] Request completed in ${Date.now() - startedAt}ms. Calls: geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}. Tokens: prompt=${metrics.geminiPromptTokens}, completion=${metrics.geminiCompletionTokens}, total=${metrics.geminiTotalTokens}.`
+    );
 
     return { answer, resolvedPetId: finalResolvedPetId, severityFlag: severityFlag || undefined };
 
   } catch (error) {
+    logger.error(
+      `[AI Chat][${traceId}] Request failed after ${Date.now() - startedAt}ms. Calls so far: geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}. Tokens so far: prompt=${metrics.geminiPromptTokens}, completion=${metrics.geminiCompletionTokens}, total=${metrics.geminiTotalTokens}.`,
+      error as Error
+    );
     logger.error('Error in AI Chat service:', error as Error);
     throw new ApiError(
       'We experienced an unexpected issue. Our AI assistant should be available soon. Please try again in a moment.',

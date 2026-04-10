@@ -12,6 +12,45 @@ export type PetCandidate = {
     pet_name: string;
 };
 
+const MIN_EXACT_NAME_LENGTH = 2;
+const MIN_FUZZY_NAME_LENGTH = 3;
+
+function normalize(value: string): string {
+    return value.trim().toLowerCase();
+}
+
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isLatinAlphaNumeric(value: string): boolean {
+    return /^[a-z0-9]+$/i.test(value);
+}
+
+function rankCandidates(pets: PetCandidate[]): PetCandidate[] {
+    return [...pets].sort(
+        (a, b) => b.pet_name.trim().length - a.pet_name.trim().length
+    );
+}
+
+function isExactNameMatch(queryLower: string, petNameLower: string): boolean {
+    if (petNameLower.length < MIN_EXACT_NAME_LENGTH) {
+        return false;
+    }
+
+    // For Latin names, require token boundaries to avoid matching inside words
+    // (e.g. pet name "v" or "bo" matching "vomit" / "bored").
+    if (isLatinAlphaNumeric(petNameLower)) {
+        const pattern = new RegExp(
+            `(^|[^a-z0-9])${escapeRegex(petNameLower)}([^a-z0-9]|$)`,
+            'i'
+        );
+        return pattern.test(queryLower);
+    }
+
+    return queryLower.includes(petNameLower);
+}
+
 /**
  * Calculates the Levenshtein edit distance between two strings.
  */
@@ -61,8 +100,18 @@ export function exactMatch(
     query: string,
     pets: PetCandidate[]
 ): PetCandidate | null {
-    const q = query.toLowerCase();
-    return pets.find((p) => q.includes(p.pet_name.toLowerCase())) ?? null;
+    const qLower = normalize(query);
+
+    for (const pet of rankCandidates(pets)) {
+        const nameLower = normalize(pet.pet_name);
+        if (!nameLower) continue;
+
+        if (isExactNameMatch(qLower, nameLower)) {
+            return pet;
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -79,10 +128,14 @@ export function fuzzyMatch(
     query: string,
     pets: PetCandidate[]
 ): PetCandidate | null {
-    const qLower = query.toLowerCase();
+    const qLower = normalize(query);
 
-    for (const pet of pets) {
-        const name = pet.pet_name.toLowerCase();
+    for (const pet of rankCandidates(pets)) {
+        const name = normalize(pet.pet_name);
+        if (!name || name.length < MIN_FUZZY_NAME_LENGTH) {
+            continue;
+        }
+
         const threshold = getThreshold(name);
         const windowSize = name.length;
 
