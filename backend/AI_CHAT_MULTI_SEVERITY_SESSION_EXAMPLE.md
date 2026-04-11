@@ -1,49 +1,126 @@
-# AI Chat Current Behavior - Ongoing Session with Multiple Severity Contexts
+# AI Chat — Session Scenario Examples
 
-Last updated: 2026-04-10
+Last updated: 2026-04-11
+Reflects: Gemini chat session mode (clientChatSessionId required)
 
-This document shows the current implemented behavior of `POST /v1/ai-chat` when one session has more than one symptom context, and each context can request severity.
-
-## Scenario Overview
-- Same user and same chat session
-- Symptom Context A: vomiting
-- Later in the same session, Symptom Context B: coughing + fast breathing
-- Backend rotates `contextId` when it detects a new symptom context
-- Severity is requested again for the new context
+This document shows every distinct backend behavior for `POST /v1/ai-chat`. All requests in the same scenario share the same `clientChatSessionId` to simulate one continuous chat session.
 
 ---
 
-## Step 1: Start Symptom Context A (No severity yet)
-
-Description:
-- User reports first symptom.
-- No `contextId` is sent yet.
-- Backend creates a new `contextId` and asks for severity.
+## Key Request Fields
 
 ```jsonc
-// body request
 {
-  // "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-  "query": "น้องหมาอาเจียนตั้งแต่เช้า",
-  "history": []
+  "clientChatSessionId": "string (UUID)",  // required — generated once per session by frontend
+  "query": "string",                        // required
+  "resolvedPetId": "string (UUID)",         // optional — pet hint for L1/L2 detection
+  "contextId": "string (UUID)",             // optional — severity context reference
+  "severitySubmission": {                   // optional — structured severity input
+    "contextId": "string (UUID)",
+    "level": 1-5,
+    "label": "string (optional)"
+  }
+}
+```
+
+---
+
+## Scenario 1: Normal Care Query (No Severity)
+
+**Intent:** User asks a routine care question. No symptom detected — no severity flow.
+
+```jsonc
+// Request
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000001",
+  "query": "ควรให้อาหารแมววันละกี่มื้อ"
 }
 ```
 
 ```jsonc
-// body response
+// Response
 {
-  "status": {
-    "code": "000",
-    "description": "Success"
-  },
+  "status": { "code": "000", "description": "Success" },
   "data": {
-    "answer": "...เพื่อให้คำแนะนำได้แม่นยำขึ้น รบกวนประเมินความรุนแรงของอาการน้องให้หน่อยได้ไหมครับ",
-    "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-    "severityFlag": true,
+    "answer": "โดยทั่วไปควรให้อาหารแมว 2-3 มื้อต่อวัน...",
     "contextId": "11111111-1111-1111-1111-111111111111",
+    "contextStatus": "not_required"
+  }
+}
+```
+
+**What to verify:**
+- `contextStatus` = `not_required`
+- No `severityRequest` in response
+- No `clarificationRequest` in response
+
+---
+
+## Scenario 2: Ambiguous Health Query — Triggers Clarification
+
+**Intent:** User describes something vague ("ไม่ปกติ", "ดูแปลกๆ") with no specific symptom keyword. Backend asks for clarification before proceeding.
+
+**Note:** This only triggers on a **fresh session** or when `contextStatus` is currently `not_required` or `pending_clarification`. If the session already has an active symptom context (resolved/pending_severity), vague follow-ups will NOT trigger clarification (see Scenario 5).
+
+```jsonc
+// Request — fresh session, vague symptom
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000002",
+  "query": "น้องดูไม่ปกติ ไม่ค่อยสบาย"
+}
+```
+
+```jsonc
+// Response
+{
+  "status": { "code": "000", "description": "Success" },
+  "data": {
+    "answer": "เพื่อให้ช่วยได้ตรงจุดมากขึ้น ช่วยระบุอาการหลักของน้องเพิ่มอีกนิดได้ไหมครับ เช่น อาเจียน / ท้องเสีย / ไอหรือหายใจลำบาก / เบื่ออาหาร / ซึม / บาดเจ็บ",
+    "contextId": "22222222-2222-2222-2222-222222222222",
+    "contextStatus": "pending_clarification",
+    "clarificationRequest": {
+      "contextId": "22222222-2222-2222-2222-222222222222",
+      "prompt": "เพื่อให้ช่วยได้ตรงจุดมากขึ้น ช่วยระบุอาการหลักของน้องเพิ่มอีกนิดได้ไหมครับ...",
+      "reason": "ambiguous_health_query",
+      "options": ["อาเจียน", "ท้องเสีย", "ไอหรือหายใจลำบาก", "เบื่ออาหาร", "ซึม", "บาดเจ็บ", "อื่นๆ"]
+    }
+  }
+}
+```
+
+**What to verify:**
+- `contextStatus` = `pending_clarification`
+- `clarificationRequest` present with options list
+- No `severityRequest`
+- No main Gemini chat session call made (early return — fast response)
+
+---
+
+## Scenario 3: Single Symptom Context — Full Severity Flow
+
+### Step 3.1 — Start Symptom (Severity Requested)
+
+**Intent:** User reports a clear symptom. Backend detects symptom topic, creates a new context, asks for severity rating.
+
+```jsonc
+// Request
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000003",
+  "query": "น้องหมาอาเจียนตั้งแต่เช้า ไม่ค่อยกินอาหาร"
+}
+```
+
+```jsonc
+// Response
+{
+  "status": { "code": "000", "description": "Success" },
+  "data": {
+    "answer": "การอาเจียนตั้งแต่เช้า... [แนะนำดูแลเบื้องต้น] ...อาการอยู่ในระดับความรุนแรงเท่าไรคะ",
+    "contextId": "33333333-3333-3333-3333-333333333333",
     "contextStatus": "pending_severity",
+    "severityFlag": true,
     "severityRequest": {
-      "contextId": "11111111-1111-1111-1111-111111111111",
+      "contextId": "33333333-3333-3333-3333-333333333333",
       "prompt": "กรุณาเลือกระดับความรุนแรงของอาการที่สังเกตเห็น (1-5)",
       "reason": "symptom_needs_assessment"
     }
@@ -51,159 +128,112 @@ Description:
 }
 ```
 
+**What to verify:**
+- `contextStatus` = `pending_severity`
+- `severityFlag` = `true`
+- `severityRequest` present with `reason: "symptom_needs_assessment"`
+- `contextId` returned — save this to send in next request
+
 ---
 
-## Step 2: Submit Severity for Context A
+### Step 3.2 — Submit Severity → Context Resolved
 
-Description:
-- User submits severity using structured `severitySubmission`.
-- `severitySubmission.contextId` must match `contextId`.
-- Backend marks this context as resolved.
+**Intent:** User submits severity rating 4/5 for the vomiting context.
 
 ```jsonc
-// body request
+// Request — use contextId from previous response
 {
-  "query": "น้องหมาอาเจียนตั้งแต่เช้า",
-  "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-  "contextId": "11111111-1111-1111-1111-111111111111",
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000003",
+  "query": "น้องหมาอาเจียนตั้งแต่เช้า ไม่ค่อยกินอาหาร",
+  "contextId": "33333333-3333-3333-3333-333333333333",
   "severitySubmission": {
-    "contextId": "11111111-1111-1111-1111-111111111111",
+    "contextId": "33333333-3333-3333-3333-333333333333",
     "level": 4,
     "label": "รุนแรง"
-  },
-  "history": [
-    {
-      "role": "user",
-      "content": "น้องหมาอาเจียนตั้งแต่เช้า"
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    }
-  ]
+  }
 }
 ```
 
 ```jsonc
-// body response
+// Response
 {
-  "status": {
-    "code": "000",
-    "description": "Success"
-  },
+  "status": { "code": "000", "description": "Success" },
   "data": {
     "answer": "ระดับความรุนแรง 4/5 — แนะนำให้พาไปพบสัตวแพทย์โดยเร็ว...",
-    "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-    "contextId": "11111111-1111-1111-1111-111111111111",
+    "contextId": "33333333-3333-3333-3333-333333333333",
     "contextStatus": "resolved",
     "severityLevel": 4
   }
 }
 ```
 
+**What to verify:**
+- `contextStatus` = `resolved`
+- `severityLevel` = `4`
+- No `severityRequest` in response
+- Answer is a severity-specific response (starts with "ระดับความรุนแรง X/5 —")
+
 ---
 
-## Step 3: Follow-up in Same Context A (No new severity request)
+### Step 3.3 — Follow-up After Severity Resolved (Should NOT Re-trigger Severity or Clarification)
 
-Description:
-- User asks follow-up for the same symptom context.
-- Since context A is already resolved, backend does not ask severity again.
+**Intent:** User asks a natural follow-up. The query contains "อาการ" which is an ambiguous health keyword — but the session context is already `resolved`, so it is treated as a normal follow-up, not a new ambiguous query.
 
 ```jsonc
-// body request
+// Request
 {
-  "query": "ต้องเฝ้าดูอาการอีกกี่ชั่วโมงดี",
-  "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-  "contextId": "11111111-1111-1111-1111-111111111111",
-  "history": [
-    {
-      "role": "user",
-      "content": "น้องหมาอาเจียนตั้งแต่เช้า"
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    },
-    {
-      "role": "user",
-      "content": "[SEVERITY: 4/5] น้องหมาอาเจียนตั้งแต่เช้า"
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    }
-  ]
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000003",
+  "query": "ต้องเฝ้าดูอาการอีกกี่ชั่วโมงดี"
 }
 ```
 
 ```jsonc
-// body response
+// Response
 {
-  "status": {
-    "code": "000",
-    "description": "Success"
-  },
+  "status": { "code": "000", "description": "Success" },
   "data": {
-    "answer": "...หากไม่ดีขึ้นใน 24 ชั่วโมงควรพาไปพบสัตวแพทย์",
-    "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-    "contextId": "11111111-1111-1111-1111-111111111111",
+    "answer": "หากไม่ดีขึ้นใน 24 ชั่วโมงควรพาไปพบสัตวแพทย์ค่ะ...",
+    "contextId": "33333333-3333-3333-3333-333333333333",
     "contextStatus": "resolved"
   }
 }
 ```
 
+**What to verify:**
+- `contextStatus` = `resolved` (unchanged — not reset to clarification)
+- No `clarificationRequest` in response
+- No `severityRequest` in response
+- Answer is a contextual follow-up (model remembers prior vomiting conversation via Gemini session)
+
 ---
 
-## Step 4: New Symptom Context B in Same Ongoing Session
+## Scenario 4: Multi-Symptom Session — Context Rotation
 
-Description:
-- User now reports a different symptom topic (respiratory).
-- Backend detects context shift, rotates to a new `contextId`.
-- Severity is requested again for the new context.
+**Same session as Scenario 3**, continuing after vomiting context was resolved. User now reports a completely different symptom (respiratory). Backend detects the topic shift and rotates to a new context.
+
+### Step 4.1 — New Symptom → Context Rotation
 
 ```jsonc
-// body request
+// Request — same clientChatSessionId, different symptom topic
 {
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000003",
   "query": "ตอนนี้น้องเริ่มไอและหายใจเร็ว",
-  "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-  "contextId": "11111111-1111-1111-1111-111111111111",
-  "history": [
-    {
-      "role": "user",
-      "content": "น้องหมาอาเจียนตั้งแต่เช้า"
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    },
-    {
-      "role": "user",
-      "content": "[SEVERITY: 4/5] น้องหมาอาเจียนตั้งแต่เช้า"
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    }
-  ]
+  "contextId": "33333333-3333-3333-3333-333333333333"
 }
 ```
 
 ```jsonc
-// body response
+// Response
 {
-  "status": {
-    "code": "000",
-    "description": "Success"
-  },
+  "status": { "code": "000", "description": "Success" },
   "data": {
-    "answer": "...ช่วยประเมินระดับความรุนแรงของอาการไอและการหายใจให้หน่อยได้ไหมครับ",
-    "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-    "severityFlag": true,
-    "contextId": "22222222-2222-2222-2222-222222222222",
+    "answer": "อาการไอและหายใจเร็วเป็นสัญญาณที่น่าเป็นห่วง... ช่วยประเมินความรุนแรงได้ไหมครับ",
+    "contextId": "44444444-4444-4444-4444-444444444444",
     "contextChanged": true,
     "contextStatus": "pending_severity",
+    "severityFlag": true,
     "severityRequest": {
-      "contextId": "22222222-2222-2222-2222-222222222222",
+      "contextId": "44444444-4444-4444-4444-444444444444",
       "prompt": "กรุณาเลือกระดับความรุนแรงของอาการที่สังเกตเห็น (1-5)",
       "reason": "new_symptom_context"
     }
@@ -211,59 +241,156 @@ Description:
 }
 ```
 
+**What to verify:**
+- `contextChanged` = `true`
+- `contextId` is a NEW UUID (different from the vomiting context)
+- `contextStatus` = `pending_severity`
+- `severityRequest.reason` = `"new_symptom_context"` (distinguishes from first-time assessment)
+
 ---
 
-## Step 5: Submit Severity for Context B
-
-Description:
-- User submits severity for the new context B.
-- Backend resolves context B independently from context A.
+### Step 4.2 — Submit Severity for Context B
 
 ```jsonc
-// body request
+// Request
 {
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000003",
   "query": "ตอนนี้น้องเริ่มไอและหายใจเร็ว",
-  "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-  "contextId": "22222222-2222-2222-2222-222222222222",
+  "contextId": "44444444-4444-4444-4444-444444444444",
   "severitySubmission": {
-    "contextId": "22222222-2222-2222-2222-222222222222",
+    "contextId": "44444444-4444-4444-4444-444444444444",
     "level": 5,
     "label": "รุนแรงมาก"
-  },
-  "history": [
-    {
-      "role": "user",
-      "content": "ตอนนี้น้องเริ่มไอและหายใจเร็ว"
-    },
-    {
-      "role": "assistant",
-      "content": "..."
-    }
-  ]
+  }
 }
 ```
 
 ```jsonc
-// body response
+// Response
 {
-  "status": {
-    "code": "000",
-    "description": "Success"
-  },
+  "status": { "code": "000", "description": "Success" },
   "data": {
     "answer": "ระดับความรุนแรง 5/5 — แนะนำให้ไปคลินิกฉุกเฉินทันที...",
-    "resolvedPetId": "4d3cf7b2-4988-476b-982c-2ef3c20f8e8b", // optional
-    "contextId": "22222222-2222-2222-2222-222222222222",
+    "contextId": "44444444-4444-4444-4444-444444444444",
     "contextStatus": "resolved",
     "severityLevel": 5
   }
 }
 ```
 
+**What to verify:**
+- `contextId` = Context B UUID (same as B, not Context A)
+- `contextStatus` = `resolved`
+- `severityLevel` = `5`
+
+---
+
+## Scenario 5: Session Continuity — Pet Profile Injection
+
+**Intent:** Verify that the pet profile is injected on first resolution and skipped on subsequent turns with the same pet.
+
+**Requires:** A `resolvedPetId` that matches an active pet in the database.
+
+### Step 5.1 — First Turn (Pet Profile Injected)
+
+```jsonc
+// Request — first message that mentions a pet name
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000005",
+  "query": "บลูกินอาหารได้วันละกี่มื้อ",
+  "resolvedPetId": "your-pet-uuid-here"
+}
+```
+
+```jsonc
+// Response
+{
+  "data": {
+    "answer": "สำหรับบลู... [answer uses pet profile info]",
+    "resolvedPetId": "your-pet-uuid-here",
+    "contextId": "55555555-5555-5555-5555-555555555555",
+    "contextStatus": "not_required"
+  }
+}
+```
+
+**What to verify in logs:**
+```
+rag{petProfileIncluded=true, petProfileSkipped=false, ...}
+```
+
+### Step 5.2 — Second Turn with Same Pet (Pet Profile Skipped)
+
+```jsonc
+// Request — same session, same pet
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000005",
+  "query": "แล้วเขาควรกินอาหารประเภทไหน",
+  "resolvedPetId": "your-pet-uuid-here"
+}
+```
+
+**What to verify in logs:**
+```
+rag{petProfileIncluded=false, petProfileSkipped=true, ...}
+```
+The model still knows the pet info from session history — profile re-injection is skipped to save tokens.
+
+---
+
+## Scenario 6: New Session After App Relaunch
+
+**Intent:** Verify that a new `clientChatSessionId` starts a completely fresh Gemini session with no memory of prior turns.
+
+```jsonc
+// Request — NEW clientChatSessionId (simulates app relaunch)
+{
+  "clientChatSessionId": "bbbbbbbb-0000-0000-0000-000000000006",
+  "query": "เขาควรกินอาหารประเภทไหน"
+}
+```
+
+**What to verify:**
+- Log shows: `[SessionManager] Creating new session.`
+- Session turn count starts at 0
+- Model has no memory of previous conversations
+
+---
+
+## Scenario 7: Legacy Severity Format (Backward Compat)
+
+**Intent:** Verify that the old `[SEVERITY: X/5] <query>` text prefix format still works as a fallback.
+
+```jsonc
+// Request — uses legacy text prefix instead of severitySubmission
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000007",
+  "query": "[SEVERITY: 3/5] น้องหมาอาเจียนตั้งแต่เช้า"
+}
+```
+
+```jsonc
+// Response
+{
+  "data": {
+    "answer": "ระดับความรุนแรง 3/5 —...",
+    "contextStatus": "resolved",
+    "severityLevel": 3
+  }
+}
+```
+
+**What to verify:**
+- `contextStatus` = `resolved`
+- `severityLevel` = `3`
+- Response is severity-specific
+
 ---
 
 ## Notes
-- `resolvedPetId` is optional in request and response.
-- `severityFlag` is backward compatibility output; new UI should use `contextStatus` + `severityRequest`.
-- `history` must alternate roles starting with user and max 8 items.
-- If both `contextId` and `severitySubmission.contextId` are sent, they must match.
+
+- `resolvedPetId` in responses is optional. It is only returned if a pet was detected for that turn.
+- `contextId` is always returned in every response.
+- `severityFlag` is kept for backward compatibility. New code should use `contextStatus === 'pending_severity'` instead.
+- `history` field is **no longer accepted** in the request schema. The Gemini chat session manages conversation context server-side.
+- Sessions expire after **30 minutes of inactivity**. The next request will auto-create a fresh session (same behavior as Scenario 6).

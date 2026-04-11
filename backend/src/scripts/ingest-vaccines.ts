@@ -6,9 +6,31 @@ import { logger } from '../libs/logger';
 const geminiService = new GeminiService();
 const pineconeService = new PineconeService();
 
+type VaccineVector = {
+  id: string;
+  values: number[];
+  metadata: {
+    text: string;
+    type: 'vaccine';
+    species: string;
+    vaccine_id: number;
+  };
+};
+
+const parsePositiveInt = (value: string | undefined, fallback: number): number => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const UPSERT_BATCH_SIZE = parsePositiveInt(
+  process.env.PINECONE_UPSERT_BATCH_SIZE,
+  100
+);
+
 async function ingestVaccines() {
   try {
     logger.info('Starting vaccine ingestion...');
+    logger.info(`Pinecone upsert batch size: ${UPSERT_BATCH_SIZE}`);
 
     // 1. Fetch data
     const vaccines = await prisma.vaccine.findMany({
@@ -18,8 +40,18 @@ async function ingestVaccines() {
     });
     logger.info(`Found ${vaccines.length} vaccines to ingest.`);
 
-    // 2. Prepare vectors
-    const vectors = [];
+    if (vaccines.length === 0) {
+      logger.warn('No vaccines found to ingest.');
+      return;
+    }
+
+    // Ensure index exists before processing vectors.
+    await pineconeService.createIndexIfNotExists();
+
+    // 2. Prepare embeddings and upsert in chunks to avoid oversized payloads.
+    const vectorBatch: VaccineVector[] = [];
+    let totalUpserted = 0;
+    let batchNumber = 0;
 
     for (const v of vaccines) {
       // Create a descriptive text for the AI
@@ -41,7 +73,7 @@ async function ingestVaccines() {
 
       const embedding = await geminiService.getEmbedding(description);
 
-      vectors.push({
+      vectorBatch.push({
         id: `vaccine-${v.id}`, // Unique ID for Pinecone
         values: embedding,
         metadata: {
@@ -52,18 +84,31 @@ async function ingestVaccines() {
           vaccine_id: v.id
         }
       });
+
+      if (vectorBatch.length >= UPSERT_BATCH_SIZE) {
+        await pineconeService.upsert(vectorBatch);
+        totalUpserted += vectorBatch.length;
+        batchNumber += 1;
+
+        logger.info(
+          `Upserted batch ${batchNumber}: ${vectorBatch.length} vectors (total ${totalUpserted}/${vaccines.length})`
+        );
+
+        vectorBatch.length = 0;
+      }
     }
 
-    // 3. Upsert to Pinecone
-    if (vectors.length > 0) {
-      // Pinecone has a limit on request size, but for 4 rows, one batch is fine.
-      // For larger datasets, we would batch this (e.g., chunks of 100).
-      await pineconeService.createIndexIfNotExists(); // Ensure index exists
-      await pineconeService.upsert(vectors);
-      logger.info(`Successfully ingested ${vectors.length} vaccine records into Pinecone.`);
-    } else {
-      logger.warn('No vaccines found to ingest.');
+    if (vectorBatch.length > 0) {
+      await pineconeService.upsert(vectorBatch);
+      totalUpserted += vectorBatch.length;
+      batchNumber += 1;
+
+      logger.info(
+        `Upserted batch ${batchNumber}: ${vectorBatch.length} vectors (total ${totalUpserted}/${vaccines.length})`
+      );
     }
+
+    logger.info(`Successfully ingested ${totalUpserted} vaccine records into Pinecone.`);
 
   } catch (error) {
     logger.error('Error during ingestion:', error as Error);

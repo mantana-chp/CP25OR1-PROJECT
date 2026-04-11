@@ -1,35 +1,40 @@
 # AI Chat Gemini Chat Session Refactor — Frontend Implementation Plan
 
 Last updated: 2026-04-11
-Status: Planning (pending backend completion)
+Status: Planning (backend implemented, pending frontend work)
 Owner: Frontend AI Chat
-Depends on: Backend AI_CHAT_GEMINI_CHAT_SESSION_REFACTOR_PLAN.md
+Depends on: AI_CHAT_GEMINI_CHAT_SESSION_REFACTOR_PLAN.md (backend — implemented ✅)
 
 ---
 
 ## Overview
 
-This document describes the frontend changes required to support the backend migration from stateless request-based Gemini calls to Gemini chat session mode. The backend will manage conversation history server-side, so the frontend no longer needs to accumulate and replay a `history` array.
+The backend has been migrated to Gemini chat session mode. The backend now manages conversation history server-side via the Gemini chat session. The frontend changes below are required to align with the new backend contract.
 
 ---
 
 ## What Changes for Frontend
 
-| Area | Before (Current) | After (Refactored) |
-|------|------------------|---------------------|
-| **History management** | Frontend accumulates `chatHistory: HistoryItem[]` in state. Sends up to 8 items every request. | Frontend does NOT manage history. Backend's Gemini chat session handles it. |
-| **Session identity** | No session ID concept. Each request is independent. | Frontend generates a `clientChatSessionId` (UUID) once per chat page visit and sends it in every request. |
-| **resolvedPetId** | Frontend stores and sends `resolvedPetId` from previous response. | Still returned by backend for display, but backend tracks it server-side. Frontend can optionally keep sending it for L1/L2 override, or stop. |
-| **Domain types** | `ChatRequest` has `history` field. `ChatResponse` only has `answer`, `resolvedPetId`, `severityFlag`. | `ChatRequest` adds `clientChatSessionId`, removes `history`. `ChatResponse` adds context-aware severity fields. |
+| Area | Current Behavior | Required After Refactor |
+|------|-----------------|------------------------|
+| **History management** | `chatHistory: HistoryItem[]` accumulated in state. Up to 8 items sent every request. | **Remove entirely.** Backend's Gemini chat session manages history. `history` field is also removed from the backend schema. |
+| **Session identity** | No session ID. Each request is independent. | Generate `clientChatSessionId` (UUID) once on chat page mount. Send in every request. |
+| **resolvedPetId in request** | Frontend echoes the `resolvedPetId` received from last response. | Still accepted by backend as a pet hint — can keep sending, but backend now tracks it in session state. |
+| **Severity submission** | Sends `[SEVERITY: X/5] <query>` text prefix via `sendMessage()`. | Use structured `severitySubmission` field (cleaner, correct). Legacy text prefix still parsed by backend as a fallback. |
 
 ---
 
-## File Changes
+## File Changes Required
 
 ### 1. `frontend/src/domain/chatbot.domain.ts`
 
 **Current:**
 ```typescript
+export interface HistoryItem {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface ChatRequest {
   resolvedPetId?: string
   query: string
@@ -43,14 +48,16 @@ export interface ChatResponse {
 }
 ```
 
-**After:**
+**Required:**
 ```typescript
+// HistoryItem — REMOVED. No longer needed; backend schema no longer accepts history.
+
 export interface ChatRequest {
   query: string
-  clientChatSessionId: string        // NEW — required UUID per session
-  resolvedPetId?: string             // optional — still accepted for L1/L2 pet resolution
-  contextId?: string                 // optional — explicit severity context reference
-  severitySubmission?: {             // optional — structured severity input
+  clientChatSessionId: string        // NEW — required, UUID per session
+  resolvedPetId?: string             // optional — still accepted as pet hint
+  contextId?: string                 // optional — severity context reference
+  severitySubmission?: {             // optional — structured severity (preferred over text prefix)
     contextId: string
     level: SeverityLevel
     label?: string
@@ -80,8 +87,8 @@ export type ContextStatus =
 export interface ChatResponse {
   answer: string
   resolvedPetId?: string
-  severityFlag?: boolean              // kept for backward compat
-  contextId: string                   // NEW
+  severityFlag?: boolean              // kept — backend still returns this
+  contextId: string                   // NEW — always returned
   contextChanged?: boolean            // NEW
   contextStatus: ContextStatus        // NEW
   severityRequest?: SeverityRequestData      // NEW
@@ -89,8 +96,6 @@ export interface ChatResponse {
   severityLevel?: number              // NEW
 }
 ```
-
-**HistoryItem interface can be removed** (or kept as dead code to be cleaned up later).
 
 ---
 
@@ -110,48 +115,50 @@ export const chatbotService = {
 }
 ```
 
-**After:**
+**Required:**
 ```typescript
 export const chatbotService = {
   sendMessage: async (
     query: string,
     clientChatSessionId: string,
-    resolvedPetId?: string,
-    contextId?: string,
-    severitySubmission?: ChatRequest['severitySubmission']
+    options?: {
+      resolvedPetId?: string
+      contextId?: string
+      severitySubmission?: ChatRequest['severitySubmission']
+    }
   ) => {
     const requestBody: ChatRequest = {
       query,
       clientChatSessionId,
-      resolvedPetId,
-      contextId,
-      severitySubmission
+      ...options,
     }
     return apiClient.post<{ data: ChatResponse }>('/v1/ai-chat', requestBody)
   }
 }
 ```
 
-**Changes:**
-- Add `clientChatSessionId` parameter (required).
-- Add `contextId` and `severitySubmission` parameters (optional).
-- Remove `history` parameter.
-
 ---
 
 ### 3. `frontend/src/presentation/chatbot/pages/chatbot_page.tsx`
 
-**Changes summary:**
-
 #### A. Generate `clientChatSessionId` once on mount
 
 ```typescript
+import 'react-native-get-random-values'   // required for uuid on React Native
 import { v4 as uuidv4 } from 'uuid'
 
-// Generate once when chat page mounts. Not persisted to storage.
-// New UUID = new session when user re-opens chat page.
+// Inside ChatbotPage component:
+// useRef so it does NOT change on re-render, and is NOT stored — lost on unmount = new session
 const clientChatSessionId = useRef(uuidv4()).current
 ```
+
+> **Note:** Check if the project already uses `uuid` elsewhere. If not, install it:
+> ```bash
+> npm install uuid
+> npm install --save-dev @types/uuid
+> # For React Native also install:
+> npm install react-native-get-random-values
+> ```
 
 #### B. Remove `chatHistory` state
 
@@ -159,204 +166,166 @@ const clientChatSessionId = useRef(uuidv4()).current
 - const [chatHistory, setChatHistory] = useState<HistoryItem[]>([])
 ```
 
-All `setChatHistory(...)` calls are removed.
+Remove all `setChatHistory(...)` calls.
 
-#### C. Update `handleSendMessage`
+#### C. Track `activeContextId` for severity submission
+
+```typescript
+// NEW state — needed to pass contextId in severitySubmission
+const [activeContextId, setActiveContextId] = useState<string | undefined>()
+```
+
+Update it from each response:
+```typescript
+setActiveContextId(response.data.contextId)
+```
+
+#### D. Update `handleSendMessage`
 
 ```diff
   const response = await chatbotService.sendMessage(
     text,
 +   clientChatSessionId,
-    resolvedPetId,
+-   resolvedPetId,
 -   chatHistory
++   { resolvedPetId }
   )
 
-  // Still update resolvedPetId from response for display
   setResolvedPetId(response.data.resolvedPetId)
++ setActiveContextId(response.data.contextId)
 
-- // Remove history accumulation
 - setChatHistory((prev) => [
 -   ...prev,
 -   { role: 'user', content: text },
 -   { role: 'assistant', content: response.data.answer }
 - ])
 
-  // Severity handling — use new context-aware fields
-  const requiresSeverity = response.data.contextStatus === 'pending_severity'
-  // Or for backward compat: response.data.severityFlag === true
+  // Severity flag — use contextStatus for accuracy:
+- const requiresSeverity = response.data.severityFlag === true
++ const requiresSeverity = response.data.contextStatus === 'pending_severity'
+  // OR keep using severityFlag — still returned by backend for backward compat
 ```
 
-#### D. Update `handleSeveritySelect`
+#### E. Update `handleSeveritySelect`
+
+Replace the legacy text-prefix approach with structured `severitySubmission`:
 
 ```diff
-  const handleSeveritySelect = async (
-    messageId: string,
-    level: SeverityLevel,
-    label: string
-  ) => {
-    const targetMessage = messages.find((msg) => msg.id === messageId)
+  const handleSeveritySelect = async (messageId, level, label) => {
+    const targetMessage = messages.find(msg => msg.id === messageId)
     const originalQuery = targetMessage?.originalQuery || ''
 
-    // Mark message as no longer awaiting severity
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId ? { ...msg, awaitingSeverity: false } : msg
-      )
+    setMessages(prev =>
+      prev.map(msg => msg.id === messageId ? { ...msg, awaitingSeverity: false } : msg)
     )
 
--   // Build severity query with prefix
+-   // Old: build text prefix
 -   const severityQuery = `[SEVERITY: ${level}/5] ${originalQuery}`
--
--   // Show as user message
--   const userSeverityMessage = { ... }
--   setMessages((prev) => [...prev, userSeverityMessage])
--
--   // Send with history
--   const response = await chatbotService.sendMessage(
--     severityQuery,
--     resolvedPetId,
--     chatHistory
--   )
 
-+   // Show the severity selection as user message
-+   const userSeverityMessage: Message = {
-+     id: Date.now().toString(),
-+     text: `เลือกระดับความรุนแรง: ${label} (${level}/5)`,
-+     isUser: true
-+   }
-+   setMessages((prev) => [...prev, userSeverityMessage])
-+
-+   // Send structured severitySubmission (no history needed)
-+   const response = await chatbotService.sendMessage(
-+     originalQuery,
-+     clientChatSessionId,
-+     resolvedPetId,
-+     /* contextId */ undefined, // backend tracks active context
-+     { contextId: '...', level, label }  // structured severity
-+   )
+    const userSeverityMessage: Message = {
+      id: Date.now().toString(),
+      text: `เลือกระดับความรุนแรง: ${label} (${level}/5)`,
+      isUser: true
+    }
+    setMessages(prev => [...prev, userSeverityMessage])
+    setIsTyping(true)
 
-    // Update resolvedPetId
-    setResolvedPetId(response.data.resolvedPetId)
+    try {
+-     const response = await chatbotService.sendMessage(
+-       severityQuery, resolvedPetId, chatHistory
+-     )
++     const response = await chatbotService.sendMessage(
++       originalQuery,
++       clientChatSessionId,
++       {
++         resolvedPetId,
++         contextId: activeContextId,
++         severitySubmission: { contextId: activeContextId!, level, label }
++       }
++     )
 
--   // Remove history accumulation
--   setChatHistory(...)
+      setResolvedPetId(response.data.resolvedPetId)
++     setActiveContextId(response.data.contextId)
+
+-     setChatHistory(prev => [
+-       ...prev,
+-       { role: 'user', content: severityQuery },
+-       { role: 'assistant', content: response.data.answer }
+-     ])
+    }
   }
-```
-
-> **Note:** For the `severitySubmission.contextId`, the frontend needs to track the `contextId` returned by the backend in the previous response that triggered severity. Store it in Message metadata or a dedicated state variable.
-
-#### E. Track contextId for severity flow
-
-```typescript
-// Store the contextId from the response that triggered severity
-const [activeContextId, setActiveContextId] = useState<string | undefined>()
-
-// In handleSendMessage, after receiving response:
-if (response.data.contextStatus === 'pending_severity') {
-  setActiveContextId(response.data.contextId)
-}
-```
-
-#### F. Handle clarification responses (optional enhancement)
-
-If `response.data.contextStatus === 'pending_clarification'`, show the clarification options as quick-reply buttons instead of the severity widget.
-
-```typescript
-if (response.data.clarificationRequest) {
-  // Show clarification options as tappable buttons
-  // When user taps an option, send it as a normal message
-}
 ```
 
 ---
 
-## Session Lifecycle
+## Session Lifecycle (After Refactor)
 
 ```
 User opens chatbot page
      │
-     ▼ clientChatSessionId = uuidv4()  (useRef, generated once)
+     ▼ clientChatSessionId = uuidv4()  (useRef, generated once, never stored)
      │
 Message 1: "บลูเป็นยังไงบ้าง"
-  Request:  { query: "...", clientChatSessionId: "abc-123" }
-  Response: { answer: "...", resolvedPetId: "uuid-blue", contextStatus: "not_required" }
-     |
+  Request:  { query: "...", clientChatSessionId: "abc-123", resolvedPetId: undefined }
+  Response: { answer: "...", resolvedPetId: "uuid-blue", contextId: "ctx-1", contextStatus: "not_required" }
+  → setResolvedPetId("uuid-blue"), setActiveContextId("ctx-1")
+
 Message 2: "เขากินอะไรได้"
-  Request:  { query: "...", clientChatSessionId: "abc-123" }
-  Response: { answer: "...", resolvedPetId: "uuid-blue", ... }
-  (Backend remembers conversation context — no history replay needed)
-     |
+  Request:  { query: "...", clientChatSessionId: "abc-123", resolvedPetId: "uuid-blue" }
+  Response: { answer: "...", contextStatus: "not_required" }
+  (Backend session remembers "บลู" context — no history replay needed)
+
 Message 3: "น้องหมาอาเจียนตั้งแต่เช้า"
-  Request:  { query: "...", clientChatSessionId: "abc-123" }
-  Response: { answer: "...", contextStatus: "pending_severity", severityRequest: {...} }
-     |
-  → Show severity widget
-     |
-Severity selected: level=4
-  Request:  { query: "น้องหมาอาเจียน...", clientChatSessionId: "abc-123",
-              severitySubmission: { contextId: "ctx-1", level: 4, label: "รุนแรง" } }
-  Response: { answer: "ระดับ 4/5...", contextStatus: "resolved", severityLevel: 4 }
-     |
-User closes app → React state destroyed → clientChatSessionId lost
-     |
+  Request:  { query: "...", clientChatSessionId: "abc-123", resolvedPetId: "uuid-blue" }
+  Response: { ..., contextId: "ctx-2", contextStatus: "pending_severity", severityRequest: {...} }
+  → setActiveContextId("ctx-2"), show severity widget
+
+Severity selected: level=4, label="รุนแรง"
+  Request:  {
+    query: "น้องหมาอาเจียนตั้งแต่เช้า",
+    clientChatSessionId: "abc-123",
+    resolvedPetId: "uuid-blue",
+    contextId: "ctx-2",
+    severitySubmission: { contextId: "ctx-2", level: 4, label: "รุนแรง" }
+  }
+  Response: { ..., contextId: "ctx-2", contextStatus: "resolved", severityLevel: 4 }
+
+User closes app → React state destroyed → clientChatSessionId (useRef) lost
+     │
 User reopens app
-     │
-     ▼ clientChatSessionId = uuidv4()  (NEW UUID)
-     │
-     ▼ Backend creates fresh session for new ID
+     ▼ clientChatSessionId = uuidv4()  ← NEW UUID → backend creates fresh session
 ```
 
 ---
 
-## Things NOT Needed on Frontend (After Refactor)
+## Things Removed from Frontend
 
-- ❌ No `chatHistory` state accumulation
-- ❌ No `setChatHistory` calls
-- ❌ No `history` field in request payload
-- ❌ No `HistoryItem[]` type usage in service calls
-- ❌ No history replay logic
-- ❌ No `SEVERITY: X/5` text prefix building (use structured `severitySubmission` instead)
-- ❌ No `petId` selection before starting chat
+- ❌ `chatHistory: HistoryItem[]` state
+- ❌ `setChatHistory()` calls
+- ❌ `history` field in API requests
+- ❌ `HistoryItem` type in service calls
+- ❌ `[SEVERITY: X/5]` text prefix construction (replaced by `severitySubmission`)
 
-## Things KEPT on Frontend
+## Things Kept
 
-- ✅ `resolvedPetId` state — still returned by backend for display purposes
-- ✅ `Message[]` state — still needed for rendering chat bubbles
-- ✅ `isTyping` state — still needed for loading indicator
-- ✅ `disclaimerAccepted` state — still needed for disclaimer modal
-- ✅ Severity widget — triggered by `contextStatus === 'pending_severity'`
-
----
-
-## Package Dependencies
-
-```bash
-# Frontend needs uuid for generating clientChatSessionId
-# Check if already installed:
-npm list uuid
-# If not:
-npm install uuid @types/uuid
-```
-
-> Note: If the project uses Expo, `expo-crypto` randomUUID may be preferred over the `uuid` package. Check existing project patterns.
-
----
-
-## Implementation Order
-
-1. Update `chatbot.domain.ts` — new types for request/response.
-2. Update `chatbot_service.ts` — new parameters, remove history.
-3. Update `chatbot_page.tsx` — generate sessionId, remove history state, update send/severity handlers.
-4. Test end-to-end with updated backend.
+- ✅ `resolvedPetId` state — still returned by backend, still sent for pet hint
+- ✅ `Message[]` display state
+- ✅ `isTyping` state
+- ✅ `disclaimerAccepted` state and disclaimer modal
+- ✅ `SeverityScaleWidget` — still triggered by `contextStatus === 'pending_severity'`
+- ✅ `severityFlag` — still returned by backend for backward compat
 
 ---
 
 ## Implementation State
 
+- [ ] `uuid` package installed (if not already present).
 - [ ] Domain types updated (`chatbot.domain.ts`).
-- [ ] Service updated (`chatbot_service.ts`).
-- [ ] Chatbot page refactored (`chatbot_page.tsx`).
-- [ ] Severity flow uses structured `severitySubmission`.
-- [ ] `clientChatSessionId` generated on mount.
-- [ ] History replay removed.
+- [ ] Chatbot service updated (`chatbot_service.ts`).
+- [ ] Chatbot page refactored (`chatbot_page.tsx`):
+  - [ ] `clientChatSessionId` generated with `useRef(uuidv4()).current`.
+  - [ ] `chatHistory` state removed.
+  - [ ] `activeContextId` state added.
+  - [ ] `handleSendMessage` updated (no history, pass sessionId).
+  - [ ] `handleSeveritySelect` updated (structured `severitySubmission`).
 - [ ] End-to-end test with backend.

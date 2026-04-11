@@ -5,19 +5,46 @@ import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config';
 import { logger } from '../../libs/logger';
 import { Document } from '@langchain/core/documents';
-import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
 import { ApiError, BadRequestError } from '../../shared/errors';
 import { detectPetInQuery, PetCandidate } from './ai-chat-name-matcher';
-import { HistoryItem, SeveritySubmissionInput } from './ai-chat-schema';
+import { SeveritySubmissionInput } from './ai-chat-schema';
 import {
   AIChatRuntimeConfig,
   loadAIChatRuntimeConfig,
 } from './ai-chat-config-loader';
+import {
+  getOrCreateSession,
+  touchSession,
+  SessionEntry,
+} from './ai-chat-session-manager';
 
-// Private module-level state for Singleton-like behavior
+// ---------------------------------------------------------------------------
+// Private module-level state
+// ---------------------------------------------------------------------------
+
 let vectorStore: PineconeStore | null = null;
+
+// LangChain LLM — used exclusively for Layer 3 pet name extraction (request-based)
+const llm = new ChatGoogleGenerativeAI({
+  model: 'gemini-2.5-flash',
+  apiKey: config.google.apiKey,
+  temperature: 0.7,
+});
+
+const embeddings = new GoogleGenerativeAIEmbeddings({
+  model: 'gemini-embedding-001',
+  apiKey: config.google.apiKey,
+});
+
+const pinecone = new Pinecone({
+  apiKey: config.pinecone.apiKey,
+});
+
+// ---------------------------------------------------------------------------
+// Metric & usage types
+// ---------------------------------------------------------------------------
 
 type AIRequestMetrics = {
   geminiTextCalls: number;
@@ -57,11 +84,16 @@ type QueryIntent = 'symptom' | 'normal' | 'ambiguous_health';
 
 type RequestFinalState = 'completed' | 'clarification_returned' | 'failed';
 
+// ---------------------------------------------------------------------------
+// Service input/output types
+// ---------------------------------------------------------------------------
+
 type ChatWithAIInput = {
   query: string;
   userId: string;
+  installationId: string;
+  clientChatSessionId: string;
   resolvedPetId?: string;
-  history?: HistoryItem[];
   contextId?: string;
   severitySubmission?: SeveritySubmissionInput;
 };
@@ -78,6 +110,10 @@ type ChatWithAIResult = {
   severityLevel?: number;
 };
 
+// ---------------------------------------------------------------------------
+// Utility helpers
+// ---------------------------------------------------------------------------
+
 const createTraceId = (): string =>
   `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -86,6 +122,16 @@ const toSafeNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
+const formatTokenLogValue = (value?: number): string =>
+  value === undefined ? 'n/a' : String(value);
+
+// ---------------------------------------------------------------------------
+// Token usage extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts token usage from a LangChain LLM response (used for Layer 3 calls).
+ */
 const extractGeminiUsage = (message: unknown): GeminiUsage => {
   const msg = message as {
     usage_metadata?: {
@@ -139,6 +185,29 @@ const extractGeminiUsage = (message: unknown): GeminiUsage => {
   };
 };
 
+/**
+ * Extracts token usage from a native @google/genai chat.sendMessage() response.
+ * Response shape: { usageMetadata: { promptTokenCount, candidatesTokenCount, totalTokenCount } }
+ */
+const extractNativeGeminiUsage = (response: unknown): GeminiUsage => {
+  const res = response as {
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      totalTokenCount?: number;
+    };
+  };
+
+  const meta = res.usageMetadata;
+  if (!meta) return {};
+
+  return {
+    promptTokens: toSafeNumber(meta.promptTokenCount),
+    completionTokens: toSafeNumber(meta.candidatesTokenCount),
+    totalTokens: toSafeNumber(meta.totalTokenCount),
+  };
+};
+
 const addUsageToMetrics = (
   metrics: AIRequestMetrics,
   usage: GeminiUsage
@@ -154,29 +223,40 @@ const addUsageToMetrics = (
   }
 };
 
-const formatTokenLogValue = (value?: number): string =>
-  value === undefined ? 'n/a' : String(value);
+// ---------------------------------------------------------------------------
+// Usage summary logger
+// ---------------------------------------------------------------------------
 
 const buildRequestUsageSummary = ({
   traceId,
+  clientChatSessionId,
+  sessionTurnCount,
   contextId,
   contextStatus,
   startedAt,
   metrics,
   finalState,
   hasPetProfileContext,
+  petProfileSkipped,
   pineconeRelevantDocs,
 }: {
   traceId: string;
+  clientChatSessionId: string;
+  sessionTurnCount: number;
   contextId: string;
   contextStatus: SeverityContextStatus;
   startedAt: number;
   metrics: AIRequestMetrics;
   finalState: RequestFinalState;
   hasPetProfileContext: boolean;
+  petProfileSkipped: boolean;
   pineconeRelevantDocs: number;
 }): string =>
-  `[AI Chat][${traceId}] Session usage summary: contextId=${contextId}, contextStatus=${contextStatus}, finalState=${finalState}, durationMs=${Date.now() - startedAt}, calls{geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}}, tokens{prompt=${metrics.geminiPromptTokens}, completion=${metrics.geminiCompletionTokens}, total=${metrics.geminiTotalTokens}}, rag{petProfileIncluded=${hasPetProfileContext}, pineconeRelevantDocs=${pineconeRelevantDocs}}`;
+  `[AI Chat][${traceId}] Session usage summary: clientChatSessionId=${clientChatSessionId.slice(0, 8)}…, sessionTurn=${sessionTurnCount}, contextId=${contextId}, contextStatus=${contextStatus}, finalState=${finalState}, durationMs=${Date.now() - startedAt}, calls{geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}}, tokens{prompt=${formatTokenLogValue(metrics.geminiPromptTokens)}, completion=${formatTokenLogValue(metrics.geminiCompletionTokens)}, total=${formatTokenLogValue(metrics.geminiTotalTokens)}}, rag{petProfileIncluded=${hasPetProfileContext}, petProfileSkipped=${petProfileSkipped}, pineconeRelevantDocs=${pineconeRelevantDocs}}`;
+
+// ---------------------------------------------------------------------------
+// Text processing helpers
+// ---------------------------------------------------------------------------
 
 const LEGACY_SEVERITY_PREFIX = /^\s*\[SEVERITY:\s*([1-5])\/5\]\s*/i;
 
@@ -247,97 +327,34 @@ const classifyQueryIntent = (
     return 'normal';
   }
 
-  // Default to normal mode to avoid over-triggering severity for general chat.
   return 'normal';
 };
 
-const getLatestSymptomTopicsFromHistory = (
-  history: HistoryItem[] | undefined,
-  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
-): Set<string> | null => {
-  if (!history || history.length === 0) return null;
-
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const entry = history[i];
-    if (entry.role !== 'user') continue;
-
-    const cleanText = parseLegacySeverityQuery(entry.content).cleanQuery;
-    const topics = extractSymptomTopics(cleanText, symptomTopicGroups);
-    if (topics.size > 0) {
-      return topics;
-    }
-  }
-
-  return null;
-};
-
-const hasSeverityAfterLatestSymptom = (
-  history: HistoryItem[] | undefined,
-  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
+/**
+ * Determines if the current symptom query represents a NEW symptom context
+ * compared to what is stored in session metadata.
+ * Replaces the old `shouldRotateContextForNewSymptom()` that scanned history.
+ */
+const shouldRotateContextViaSession = (
+  currentTopics: Set<string>,
+  sessionLastTopics: Set<string>
 ): boolean => {
-  if (!history || history.length === 0) return false;
-
-  let latestSymptomIndex = -1;
-  let latestSeverityIndex = -1;
-
-  history.forEach((entry, index) => {
-    if (entry.role !== 'user') return;
-
-    const parsed = parseLegacySeverityQuery(entry.content);
-    if (parsed.level !== undefined) {
-      latestSeverityIndex = index;
-    }
-
-    if (hasSymptomTopics(parsed.cleanQuery, symptomTopicGroups)) {
-      latestSymptomIndex = index;
-    }
-  });
-
-  if (latestSymptomIndex < 0) return false;
-  return latestSeverityIndex > latestSymptomIndex;
-};
-
-const shouldRotateContextForNewSymptom = (
-  query: string,
-  history: HistoryItem[] | undefined,
-  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
-): boolean => {
-  const currentTopics = extractSymptomTopics(query, symptomTopicGroups);
   if (currentTopics.size === 0) return false;
-
-  const previousTopics = getLatestSymptomTopicsFromHistory(
-    history,
-    symptomTopicGroups
-  );
-  if (!previousTopics || previousTopics.size === 0) return false;
+  if (sessionLastTopics.size === 0) return false;
 
   for (const topic of currentTopics) {
-    if (previousTopics.has(topic)) {
-      return false;
+    if (sessionLastTopics.has(topic)) {
+      return false; // overlap found — same context
     }
   }
 
-  return true;
+  return true; // no overlap — context shifted
 };
 
-const llm = new ChatGoogleGenerativeAI({
-  model: 'gemini-2.5-flash',
-  apiKey: config.google.apiKey,
-  temperature: 0.7,
-});
+// ---------------------------------------------------------------------------
+// Vector store
+// ---------------------------------------------------------------------------
 
-const embeddings = new GoogleGenerativeAIEmbeddings({
-  model: 'gemini-embedding-001',
-  apiKey: config.google.apiKey,
-});
-
-const pinecone = new Pinecone({
-  apiKey: config.pinecone.apiKey,
-});
-
-/**
- * Initializes the Vector Store if it hasn't been initialized yet.
- */
 const initializeVectorStore = async () => {
   if (vectorStore) return vectorStore;
 
@@ -351,10 +368,13 @@ const initializeVectorStore = async () => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Layer 3 — LLM pet entity extraction (stays request-based, uses LangChain)
+// ---------------------------------------------------------------------------
+
 /**
- * Layer 3 — LLM-based entity extraction.
- * Only called when Layers 1 & 2 both miss AND no resolvedPetId exists in the session.
- * Uses a minimal, fast prompt to avoid latency impact on the main response.
+ * Only called when Layers 1 & 2 both miss AND no resolvedPetId in session.
+ * Uses a minimal, fast prompt via LangChain llm.invoke() — NOT a chat session.
  */
 const extractPetWithLLM = async (
   query: string,
@@ -395,7 +415,6 @@ Do not explain. Do not add punctuation. Reply in one word only.`;
 
     if (!raw || raw.toLowerCase() === 'null') return null;
 
-    // Match the LLM's reply back to a known pet (case-insensitive)
     const matched = pets.find(
       (p) => p.pet_name.toLowerCase() === raw.toLowerCase()
     );
@@ -408,9 +427,10 @@ Do not explain. Do not add punctuation. Reply in one word only.`;
   }
 };
 
-/**
- * Fetches the full pet profile and formats it as a context string for the prompt.
- */
+// ---------------------------------------------------------------------------
+// Pet context builder
+// ---------------------------------------------------------------------------
+
 const buildPetContext = async (petId: string): Promise<string> => {
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
@@ -449,13 +469,105 @@ ${healthHistory || 'No recent health records.'}
   );
 };
 
+// ---------------------------------------------------------------------------
+// Session-based severity state deriver
+// ---------------------------------------------------------------------------
+
 /**
- * Main chat function using RAG with 3-layer pet name detection.
+ * Derives the new contextStatus and whether to rotate context,
+ * based on session metadata instead of the old history array scanning.
+ */
+const deriveContextState = (
+  session: SessionEntry,
+  queryIntent: QueryIntent,
+  isSeveritySubmissionTurn: boolean,
+  currentSymptomTopics: Set<string>,
+  incomingContextId: string | undefined,
+  runtimeConfig: AIChatRuntimeConfig
+): {
+  effectiveContextId: string;
+  contextChanged: boolean;
+  contextStatus: SeverityContextStatus;
+} => {
+  // If submitting severity for an existing context
+  if (isSeveritySubmissionTurn) {
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      contextChanged: false,
+      contextStatus: 'resolved',
+    };
+  }
+
+  if (queryIntent === 'ambiguous_health') {
+    // If the session already has an active symptom context (resolved or pending),
+    // this is a follow-up question, not a new ambiguous query.
+    // e.g. "ต้องเฝ้าดูอาการอีกกี่ชั่วโมงดี" after a vomiting severity was resolved
+    // → contains "อาการ" (health keyword) but is clearly a follow-up.
+    const hasActiveSymptomContext =
+      session.contextStatus === 'resolved' ||
+      session.contextStatus === 'pending_severity';
+
+    if (hasActiveSymptomContext) {
+      return {
+        effectiveContextId: incomingContextId ?? session.activeContextId,
+        contextChanged: false,
+        contextStatus: session.contextStatus, // keep current state
+      };
+    }
+
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      contextChanged: false,
+      contextStatus: 'pending_clarification',
+    };
+  }
+
+  if (queryIntent === 'normal') {
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      contextChanged: false,
+      contextStatus: 'not_required',
+    };
+  }
+
+  // queryIntent === 'symptom'
+  const shouldRotate = shouldRotateContextViaSession(
+    currentSymptomTopics,
+    session.lastSymptomTopics
+  );
+
+  if (shouldRotate) {
+    return {
+      effectiveContextId: uuidv4(),
+      contextChanged: true,
+      contextStatus: 'pending_severity',
+    };
+  }
+
+  // Same symptom context — check if severity is already resolved in this session
+  const alreadyResolved =
+    session.contextStatus === 'resolved' &&
+    session.activeContextId === (incomingContextId ?? session.activeContextId);
+
+  return {
+    effectiveContextId: incomingContextId ?? session.activeContextId,
+    contextChanged: false,
+    contextStatus: alreadyResolved ? 'resolved' : 'pending_severity',
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Main chat function
+// ---------------------------------------------------------------------------
+
+/**
+ * Main chat function using Gemini chat session with RAG and 3-layer pet detection.
  *
- * Layer 1 & 2 (exact + fuzzy) always run — free, catches name switching mid-session.
- * Layer 3 (LLM extraction) only fires on the very first message when no pet is
- * identified at all, then the resolvedPetId is echoed back to the frontend to
- * cache for the rest of the session.
+ * - Gemini chat session: manages conversation history server-side.
+ * - Layers 1 & 2 (exact + fuzzy): run every message to detect pet switching.
+ * - Layer 3 (LLM extraction): fires only when L1+L2 miss AND no session pet.
+ * - RAG: pet profile injected on first resolution or pet switch; Pinecone retrieved fresh each turn.
+ * - Severity state: tracked in session metadata, not from history array.
  */
 export const chatWithAI = async (
   input: ChatWithAIInput
@@ -463,8 +575,9 @@ export const chatWithAI = async (
   const {
     query,
     userId,
-    resolvedPetId,
-    history,
+    installationId,
+    clientChatSessionId,
+    resolvedPetId: incomingResolvedPetId,
     contextId,
     severitySubmission,
   } = input;
@@ -480,18 +593,7 @@ export const chatWithAI = async (
     geminiTotalTokens: 0,
   };
 
-  const parsedLegacySeverity = parseLegacySeverityQuery(query);
-  const normalizedQuery =
-    parsedLegacySeverity.cleanQuery.trim().length > 0
-      ? parsedLegacySeverity.cleanQuery.trim()
-      : query.trim();
-  const submittedSeverityLevel =
-    severitySubmission?.level ?? parsedLegacySeverity.level;
-  const isSeveritySubmissionTurn = submittedSeverityLevel !== undefined;
-  const runtimeConfig = loadAIChatRuntimeConfig();
-  const systemInstruction = buildSystemInstruction(runtimeConfig);
-  const queryIntent = classifyQueryIntent(normalizedQuery, runtimeConfig);
-
+  // Validate severity context IDs match if both provided
   if (
     severitySubmission &&
     contextId &&
@@ -502,43 +604,50 @@ export const chatWithAI = async (
     );
   }
 
-  const incomingContextId = severitySubmission?.contextId ?? contextId;
-  let effectiveContextId = incomingContextId ?? uuidv4();
-  let contextChanged = false;
+  // Parse legacy severity format (e.g. "[SEVERITY: 4/5] query text")
+  const parsedLegacySeverity = parseLegacySeverityQuery(query);
+  const normalizedQuery =
+    parsedLegacySeverity.cleanQuery.trim().length > 0
+      ? parsedLegacySeverity.cleanQuery.trim()
+      : query.trim();
+  const submittedSeverityLevel =
+    severitySubmission?.level ?? parsedLegacySeverity.level;
+  const isSeveritySubmissionTurn = submittedSeverityLevel !== undefined;
 
-  const isSymptomTurn = queryIntent === 'symptom';
-
-  if (
-    incomingContextId &&
-    !isSeveritySubmissionTurn &&
-    isSymptomTurn &&
-    shouldRotateContextForNewSymptom(
-      normalizedQuery,
-      history,
-      runtimeConfig.symptom_topic_groups
-    )
-  ) {
-    effectiveContextId = uuidv4();
-    contextChanged = true;
-  }
-
-  const latestHistorySeverityResolved = hasSeverityAfterLatestSymptom(
-    history,
+  // Load runtime config (cached 24h)
+  const runtimeConfig = loadAIChatRuntimeConfig();
+  const systemInstruction = buildSystemInstruction(runtimeConfig);
+  const queryIntent = classifyQueryIntent(normalizedQuery, runtimeConfig);
+  const currentSymptomTopics = extractSymptomTopics(
+    normalizedQuery,
     runtimeConfig.symptom_topic_groups
   );
 
-  let contextStatus: SeverityContextStatus = 'not_required';
-  if (isSeveritySubmissionTurn) {
-    contextStatus = 'resolved';
-  } else if (queryIntent === 'symptom') {
-    contextStatus =
-      !contextChanged && latestHistorySeverityResolved
-        ? 'resolved'
-        : 'pending_severity';
-  } else if (queryIntent === 'ambiguous_health') {
-    contextStatus = 'pending_clarification';
-  }
+  // The query sent to the model includes severity level prefix when applicable
+  const modelQuery = isSeveritySubmissionTurn
+    ? `[SEVERITY: ${submittedSeverityLevel}/5] ${normalizedQuery}`.trim()
+    : normalizedQuery;
 
+  // Resolve or create the Gemini chat session for this user
+  const session = getOrCreateSession(
+    installationId,
+    clientChatSessionId,
+    systemInstruction
+  );
+
+  const incomingContextId = severitySubmission?.contextId ?? contextId;
+
+  // Derive severity state from session metadata (replaces history scanning)
+  const { effectiveContextId, contextChanged, contextStatus } = deriveContextState(
+    session,
+    queryIntent,
+    isSeveritySubmissionTurn,
+    currentSymptomTopics,
+    incomingContextId,
+    runtimeConfig
+  );
+
+  const isSymptomTurn = queryIntent === 'symptom';
   const shouldAskClarification = contextStatus === 'pending_clarification';
   const shouldRequestSeverity = contextStatus === 'pending_severity';
 
@@ -562,41 +671,45 @@ export const chatWithAI = async (
       }
       : undefined;
 
-  const modelQuery = isSeveritySubmissionTurn
-    ? `[SEVERITY: ${submittedSeverityLevel}/5] ${normalizedQuery}`.trim()
-    : normalizedQuery;
-
   logger.info(
-    `[AI Chat][${traceId}] Request started. userId=${userId}, queryIntent=${queryIntent}, contextId=${effectiveContextId}, contextChanged=${contextChanged}, contextStatus=${contextStatus}, hasResolvedPetId=${Boolean(resolvedPetId)}, historyItems=${history?.length ?? 0}, query="${normalizedQuery.slice(0, 120)}${normalizedQuery.length > 120 ? '...' : ''}"`
+    `[AI Chat][${traceId}] Request started. userId=${userId}, sessionTurn=${session.turnCount}, queryIntent=${queryIntent}, contextId=${effectiveContextId}, contextChanged=${contextChanged}, contextStatus=${contextStatus}, hasSessionPet=${Boolean(session.resolvedPetId)}, query="${normalizedQuery.slice(0, 120)}${normalizedQuery.length > 120 ? '...' : ''}"`
   );
 
   const store = await initializeVectorStore();
   let petContext = '';
   let hasPetProfileContext = false;
+  let petProfileSkipped = false;
   let pineconeRelevantDocs = 0;
 
   try {
-    // 1. Fetch all active pets for this user (needed for name detection)
+    // -----------------------------------------------------------------------
+    // 1. Fetch all active pets for this user
+    // -----------------------------------------------------------------------
     const userPets = await prisma.pets.findMany({
       where: { user_id: userId, status: 'ACTIVE' },
       select: { id: true, pet_name: true },
     });
 
+    // -----------------------------------------------------------------------
     // 2. Pet name detection — Layers 1 & 2 always run on every message.
-    //    This allows mid-session pet switching without any extra cost.
+    //    Layer 3 fires only when L1+L2 miss AND no session pet.
+    // -----------------------------------------------------------------------
     const detectedPet = detectPetInQuery(normalizedQuery, userPets);
     let finalResolvedPetId: string | undefined;
 
     if (detectedPet) {
-      // L1 or L2 found a (possibly new) pet — always trust it
       finalResolvedPetId = detectedPet.id;
       logger.info(`[AI Chat] Pet detected via L1/L2: "${detectedPet.pet_name}"`);
-    } else if (resolvedPetId) {
-      // L1 & L2 missed, but we have a session pet → skip L3, keep current pet
-      finalResolvedPetId = resolvedPetId;
-      logger.info(`[AI Chat] No new pet in query, continuing session with resolvedPetId: ${resolvedPetId}`);
+    } else if (session.resolvedPetId) {
+      // Session already has a pet — keep it (no L3 needed)
+      finalResolvedPetId = session.resolvedPetId;
+      logger.info(`[AI Chat] No new pet in query, continuing session pet: ${session.resolvedPetId}`);
+    } else if (incomingResolvedPetId) {
+      // Frontend sent a resolvedPetId (L1/L2 override or first-turn hint)
+      finalResolvedPetId = incomingResolvedPetId;
+      logger.info(`[AI Chat] Using incoming resolvedPetId hint: ${incomingResolvedPetId}`);
     } else {
-      // L1 & L2 missed, no session pet → fire Layer 3 (LLM extraction)
+      // L1+L2 missed, no session pet, no hint → fire Layer 3
       logger.info('[AI Chat] No pet detected via L1/L2, falling back to Layer 3 LLM extraction.');
       const llmPet = await extractPetWithLLM(
         normalizedQuery,
@@ -610,20 +723,30 @@ export const chatWithAI = async (
       }
     }
 
+    // -----------------------------------------------------------------------
+    // Early return for clarification — no Gemini chat session call needed
+    // -----------------------------------------------------------------------
     if (shouldAskClarification) {
-      logger.info(
-        `[AI Chat][${traceId}] Ambiguous health query detected. Returning clarification prompt without severity request.`
-      );
+      // Update session state even on clarification returns
+      session.resolvedPetId = finalResolvedPetId ?? session.resolvedPetId;
+      session.activeContextId = effectiveContextId;
+      session.contextStatus = contextStatus;
 
+      logger.info(
+        `[AI Chat][${traceId}] Ambiguous health query detected. Returning clarification prompt.`
+      );
       logger.info(
         buildRequestUsageSummary({
           traceId,
+          clientChatSessionId,
+          sessionTurnCount: session.turnCount,
           contextId: effectiveContextId,
           contextStatus,
           startedAt,
           metrics,
           finalState: 'clarification_returned',
           hasPetProfileContext,
+          petProfileSkipped,
           pineconeRelevantDocs,
         })
       );
@@ -638,58 +761,69 @@ export const chatWithAI = async (
       };
     }
 
-    // 3. Build pet context string if a pet was resolved
+    // -----------------------------------------------------------------------
+    // 3. Build pet context — only inject when pet changes or first time
+    // -----------------------------------------------------------------------
     if (finalResolvedPetId) {
-      petContext = await buildPetContext(finalResolvedPetId);
-      hasPetProfileContext = petContext.length > 0;
+      if (finalResolvedPetId !== session.lastInjectedPetId) {
+        // New pet or first time — fetch and inject full profile
+        petContext = await buildPetContext(finalResolvedPetId);
+        hasPetProfileContext = petContext.length > 0;
+        logger.info(
+          `[AI Chat][${traceId}] Pet profile injected for petId=${finalResolvedPetId.slice(0, 8)}… (was: ${session.lastInjectedPetId ? session.lastInjectedPetId.slice(0, 8) + '…' : 'none'})`
+        );
+      } else {
+        // Same pet as last turn — model already has profile in session history
+        petProfileSkipped = true;
+        logger.info(
+          `[AI Chat][${traceId}] Pet profile skip — same pet already in session (petId=${finalResolvedPetId.slice(0, 8)}…)`
+        );
+      }
     }
 
-    // 4. Retrieve relevant documents (Knowledge Base)
-    // Use similaritySearchWithScore to filter out irrelevant results
+    // -----------------------------------------------------------------------
+    // 4. Retrieve relevant documents from Pinecone (fresh every turn)
+    // -----------------------------------------------------------------------
     metrics.pineconeSearchCalls += 1;
     metrics.geminiEmbeddingCalls += 1;
     logger.info(
       `[AI Chat][${traceId}] Pinecone search #${metrics.pineconeSearchCalls} started (includes Gemini embedding call #${metrics.geminiEmbeddingCalls}).`
     );
 
-    const resultsWithScore = await store.similaritySearchWithScore(
-      modelQuery,
-      3
-    );
+    const resultsWithScore = await store.similaritySearchWithScore(modelQuery, 3);
 
-    // DEBUG: Log retrieval scores to help tune the threshold
     resultsWithScore.forEach(([doc, score]) => {
       logger.debug(`Retrieval Score: ${score.toFixed(4)} | Content: ${(doc.metadata.text as string)?.substring(0, 50)}...`);
     });
 
-    const threshold = 0.5; // Raised to 0.5 for stricter filtering
-
+    const threshold = 0.5;
     const relevantDocs = resultsWithScore
       .filter(([_, score]) => score >= threshold)
       .map(([doc]) => doc);
     pineconeRelevantDocs = relevantDocs.length;
 
     logger.info(
-      `[AI Chat][${traceId}] RAG context summary. contextId=${effectiveContextId}, petProfileIncluded=${hasPetProfileContext}, pineconeRelevantDocs=${pineconeRelevantDocs}.`
+      `[AI Chat][${traceId}] RAG context summary. contextId=${effectiveContextId}, petProfileIncluded=${hasPetProfileContext}, petProfileSkipped=${petProfileSkipped}, pineconeRelevantDocs=${pineconeRelevantDocs}.`
     );
 
-    const context = relevantDocs
+    const knowledgeBaseContext = relevantDocs
       .map((doc: Document) => doc.pageContent || doc.metadata.text)
       .join('\n\n');
 
-    // 5. Construct per-request prompt — dynamic content only.
-    //    Static instructions live in SYSTEM_INSTRUCTION (sent via systemInstruction
-    //    field at model level), so they are NOT repeated here each request.
+    // -----------------------------------------------------------------------
+    // 5. Build per-turn dynamic prompt (injected as user message)
+    //    System instruction lives in the chat session — not repeated here.
+    // -----------------------------------------------------------------------
     const userPromptParts: string[] = [];
 
     if (petContext) {
       userPromptParts.push(petContext);
     }
 
-    if (context) {
+    if (knowledgeBaseContext) {
       userPromptParts.push(
         `--- KNOWLEDGE BASE (Reference Only - Ignore if irrelevant to question) ---
-${context}
+${knowledgeBaseContext}
 ----------------------------------------------------------------------------`
       );
     }
@@ -700,7 +834,6 @@ ContextId: ${effectiveContextId}
 ContextChanged: ${contextChanged ? 'yes' : 'no'}
 IsSymptomTurn: ${isSymptomTurn ? 'yes' : 'no'}
 SeveritySubmissionThisTurn: ${isSeveritySubmissionTurn ? `yes (${submittedSeverityLevel}/5)` : 'no'}
-LatestHistorySeverityResolved: ${latestHistorySeverityResolved ? 'yes' : 'no'}
 ContextStatus: ${contextStatus}
 NeedsSeverityNow: ${shouldRequestSeverity ? 'yes' : 'no'}
 If NeedsSeverityNow=yes: Ask user for 1-5 severity in Thai and append [NEEDS_SEVERITY] on a new final line.
@@ -715,39 +848,27 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     logger.info(`AI Chat Request - Question: "${modelQuery}"`);
     logger.info(`Full AI Prompt:\n${prompt}`);
 
-    // 6. Generate Answer — build message array:
-    //    [SystemMessage] + [history turns] + [current HumanMessage]
-    //    History (max 8 entries = 4 turns) gives the AI conversational context
-    //    while keeping the backend fully stateless.
-    //    Assistant replies are truncated to 300 chars — enough for context, avoids
-    //    re-sending full advice paragraphs on every subsequent request.
-    const ASSISTANT_HISTORY_LIMIT = 300;
-    const historyMessages = (history ?? []).map((m) => {
-      const content =
-        m.role === 'assistant' && m.content.length > ASSISTANT_HISTORY_LIMIT
-          ? m.content.slice(0, ASSISTANT_HISTORY_LIMIT) + '…'
-          : m.content;
-      return m.role === 'user' ? new HumanMessage(content) : new AIMessage(content);
-    });
-
+    // -----------------------------------------------------------------------
+    // 6. Send through Gemini chat session
+    //    History is managed server-side by the ChatSession object.
+    // -----------------------------------------------------------------------
     metrics.geminiTextCalls += 1;
-    logger.info(`[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} (main answer generation) started.`);
+    logger.info(`[AI Chat][${traceId}] Gemini chat session sendMessage #${metrics.geminiTextCalls} started.`);
 
-    const response = await llm.invoke([
-      new SystemMessage(systemInstruction),
-      ...historyMessages,
-      new HumanMessage(prompt),
-    ]);
-    const usage = extractGeminiUsage(response);
+    const chatResponse = await session.chatSession.sendMessage({ message: prompt });
+    const usage = extractNativeGeminiUsage(chatResponse);
     addUsageToMetrics(metrics, usage);
     logger.info(
-      `[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} token usage: prompt=${formatTokenLogValue(usage.promptTokens)}, completion=${formatTokenLogValue(usage.completionTokens)}, total=${formatTokenLogValue(usage.totalTokens)}.`
+      `[AI Chat][${traceId}] Gemini chat session call #${metrics.geminiTextCalls} token usage: prompt=${formatTokenLogValue(usage.promptTokens)}, completion=${formatTokenLogValue(usage.completionTokens)}, total=${formatTokenLogValue(usage.totalTokens)}.`
     );
 
-    const rawAnswer = response.content as string;
+    const rawAnswer = chatResponse.text;
 
-    // Parse severity flag marker — AI appends [NEEDS_SEVERITY] when symptom context
-    // is detected and no severity rating exists in history yet.
+    if (!rawAnswer) {
+      throw new ApiError('Gemini returned an empty response.', 500);
+    }
+
+    // Parse severity marker
     const llmSeverityFlag = rawAnswer.includes('[NEEDS_SEVERITY]');
     const severityFlag = shouldRequestSeverity;
 
@@ -759,17 +880,46 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
 
     const answer = rawAnswer.replace(/\[NEEDS_SEVERITY\]/g, '').trimEnd();
 
+    // -----------------------------------------------------------------------
+    // 7. Update session metadata for this completed turn
+    // -----------------------------------------------------------------------
+    session.resolvedPetId = finalResolvedPetId ?? session.resolvedPetId;
+    session.activeContextId = effectiveContextId;
+    session.contextStatus = contextStatus;
+    if (contextStatus === 'resolved' && submittedSeverityLevel !== undefined) {
+      session.severityLevel = submittedSeverityLevel;
+    }
+    if (finalResolvedPetId && hasPetProfileContext) {
+      session.lastInjectedPetId = finalResolvedPetId;
+    }
+    if (currentSymptomTopics.size > 0) {
+      // Update last known symptom topics for future context rotation detection
+      if (contextChanged) {
+        // New context — replace topics
+        session.lastSymptomTopics = new Set(currentSymptomTopics);
+      } else {
+        // Same context — merge topics
+        for (const t of currentSymptomTopics) session.lastSymptomTopics.add(t);
+      }
+    }
+
+    // Touch session (updates lastActivityAt + turnCount)
+    touchSession(installationId, clientChatSessionId);
+
     logger.info(`AI Chat Response received successfully. severityFlag=${severityFlag}`);
     logger.info(`AI Answer:\n${answer}`);
     logger.info(
       buildRequestUsageSummary({
         traceId,
+        clientChatSessionId,
+        sessionTurnCount: session.turnCount + 1, // +1 because touch hasn't run yet at this log point
         contextId: effectiveContextId,
         contextStatus,
         startedAt,
         metrics,
         finalState: 'completed',
         hasPetProfileContext,
+        petProfileSkipped,
         pineconeRelevantDocs,
       })
     );
@@ -790,12 +940,15 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     logger.error(
       buildRequestUsageSummary({
         traceId,
+        clientChatSessionId,
+        sessionTurnCount: session.turnCount,
         contextId: effectiveContextId,
         contextStatus,
         startedAt,
         metrics,
         finalState: 'failed',
         hasPetProfileContext,
+        petProfileSkipped,
         pineconeRelevantDocs,
       }),
       error as Error
@@ -808,9 +961,10 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
   }
 };
 
-/**
- * Helper to test retrieval logic
- */
+// ---------------------------------------------------------------------------
+// Helper for retrieval testing
+// ---------------------------------------------------------------------------
+
 export const getRelevantDocs = async (query: string, k: number = 3) => {
   const store = await initializeVectorStore();
   return await store.similaritySearch(query, k);
