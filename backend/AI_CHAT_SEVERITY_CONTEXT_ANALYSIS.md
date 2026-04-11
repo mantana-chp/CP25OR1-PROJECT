@@ -3,105 +3,152 @@
 Last updated: 2026-04-10
 
 ## Scope
-This note documents:
-- Current severity-context behavior in AI chat
-- Newly discovered pet-resolution issue during severity testing
-- Why it happened
-- How to fix it safely before implementing multi-context severity
+This note documents the backend status after implementing context-aware severity behavior:
+- Context ID lifecycle for AI chat severity
+- Structured severity submission support
+- Context rotation when symptom context changes
+- Backward compatibility with legacy severity format
+- Pet name detection hardening and AI usage logging
 
-## Current Severity Behavior (Now)
-The backend currently uses a marker-based flow:
-1. AI response can include a hidden marker [NEEDS_SEVERITY]
-2. Backend strips this marker and returns severityFlag: true
-3. Frontend shows severity widget
-4. Frontend sends a follow-up user message in this format:
-   [SEVERITY: X/5] <original symptom query>
+## Implemented Changes
 
-Key files:
-- src/features/ai-chat/ai-chat-service.ts
+### 1) Context-aware severity contract (implemented)
+Request now supports:
+- contextId (optional UUID)
+- severitySubmission (optional)
+   - contextId (UUID)
+   - level (1-5)
+   - label (optional)
+
+Response now returns:
+- contextId (always returned)
+- contextChanged (true when backend rotates context)
+- contextStatus: not_required | pending_clarification | pending_severity | resolved
+- severityRequest (when pending severity)
+   - contextId
+   - prompt
+   - reason: symptom_needs_assessment | new_symptom_context
+- clarificationRequest (when pending clarification)
+   - contextId
+   - prompt
+   - reason: ambiguous_health_query
+   - options
+- severityFlag (kept for backward compatibility)
+
+Files:
 - src/features/ai-chat/ai-chat-schema.ts
+- src/features/ai-chat/ai-chat-controller.ts
+- src/features/ai-chat/ai-chat-service.ts
+
+### 2) Context rotation logic (implemented)
+When a new symptom topic is detected and does not overlap with the latest symptom topic in history, backend rotates to a new contextId and sets contextChanged=true.
+
+### 3) Legacy compatibility (implemented)
+The existing format is still supported:
+- [SEVERITY: X/5] <query>
+
+Structured severitySubmission and legacy severity prefix both resolve contextStatus=resolved for that turn.
+
+### 4) Pet matcher hardening (implemented)
+False positives from short names were addressed:
+- No exact auto-match for very short names
+- No fuzzy match for very short names
+- Safer boundary matching for Latin names
+- Candidate ranking prefers longer names first
+
+File:
 - src/features/ai-chat/ai-chat-name-matcher.ts
 
-## New Issue Found During Test
-Observed response after first symptom request:
-- resolvedPetId returned: 479fb2e0-7cce-40f2-95d9-27e1fa6b8fc9
-- resolved pet profile is a cat named "v"
-- user query context was about a dog
+### 5) AI usage observability (implemented)
+Backend now logs:
+- Per-request traceId
+- Gemini text call count
+- Pinecone + embedding call count
+- Gemini token usage per call (prompt/completion/total when metadata is available)
+- Per-request summary totals
 
-This indicates a false positive in pet-name detection, not a severity parser issue.
+File:
+- src/features/ai-chat/ai-chat-service.ts
 
-## Why This Happened
-Root cause is in pet detection layers (before severity logic):
+### 6) Query intent routing to protect normal chat (implemented)
+Backend now classifies query intent before severity actions:
+- symptom
+- ambiguous_health
+- normal
 
-1. Layer 1 exact substring match is too permissive for very short names
-- exactMatch uses query.includes(pet_name)
-- pet name "v" matches many normal English symptom messages containing letter "v" (for example: vomit, severe, etc.)
-- result: wrong pet gets selected immediately
+Behavior:
+- normal -> contextStatus=not_required (no severity prompt)
+- ambiguous_health -> contextStatus=pending_clarification (asks one short clarification prompt first)
+- symptom -> severity flow continues (pending_severity/resolved)
 
-2. Layer 2 fuzzy matching is also permissive for short names
-- name length <= 3 allows edit distance threshold 1
-- for 1-character names, many windows can pass threshold
-- this increases accidental matches
+This prevents forcing severity for normal care questions.
 
-3. Resolution precedence favors first detected pet
-- once detectedPet exists, service trusts it and sets finalResolvedPetId
-- severity flow then runs with wrong pet context
+### 7) Backend-owned severity gate (implemented)
+Severity prompting is now strictly backend state-driven:
+- severityFlag is set from backend state only (pending_severity)
+- if model emits [NEEDS_SEVERITY] unexpectedly in non-severity states, marker is stripped and ignored
 
-## Impact on Severity Context Feature
-Severity logic quality depends on correct pet context.
-If pet resolution is wrong:
-- AI triage may use wrong species/profile context
-- severity advice can be less accurate
-- multi-context severity implementation will inherit this error and become harder to debug
+### 8) Runtime-config externalization (implemented)
+AI chat runtime behavior is now loaded from JSON (same pattern as health-alert keyword loader):
+- config file: config/ai-chat-runtime-config.json
+- loader: src/features/ai-chat/ai-chat-config-loader.ts
 
-## Recommended Fix (Before Multi-Context Rollout)
+Externalized items:
+- system_instruction_lines (LLM system prompt)
+- symptom_topic_groups
+- normal_care_keywords
+- health_ambiguous_hint_keywords
+- clarification_prompt
+- clarification_options
 
-### A) Harden exact matching for short names
-- Do not allow naive substring matching for names shorter than 2 characters
-- For 1-char names, require strict token/boundary match only
-- For Latin names, use word boundaries when possible
+This allows production tuning without editing ai-chat-service.ts.
 
-### B) Harden fuzzy matching for short names
-- Disable fuzzy matching for names shorter than 3 characters
-- Keep fuzzy only for realistic lengths (>= 3)
+## Current Behavior After Implementation
 
-### C) Add confidence and ambiguity guard
-- If match confidence is low, do not auto-resolve pet
-- Return unresolved state and let AI proceed without pet-specific profile, or ask user to confirm pet
+1. Client sends query (+ optional contextId/history/resolvedPetId).
+2. Backend normalizes query and parses legacy severity prefix if present.
+3. Backend resolves active contextId:
+- Reuses incoming contextId when valid
+- Creates a new contextId if missing
+- Rotates to a new contextId when symptom context shift is detected
+4. Backend determines contextStatus:
+- not_required: non-symptom turn
+- pending_clarification: health-like but unclear symptom context
+- pending_severity: symptom turn without resolved severity for active context
+- resolved: severity submission provided this turn (structured or legacy)
+5. Backend builds AI prompt with a SEVERITY CONTEXT block that tells the model whether it must append [NEEDS_SEVERITY].
+6. Response includes context metadata and backward-compatible severityFlag.
 
-### D) Add species-aware hinting (optional but valuable)
-- If query contains explicit species cues (dog/cat/หมา/แมว), down-rank pets of other species
-- Requires fetching species data in candidate list
+## Notes and Limitations
 
-### E) Instrument logs for diagnosis
-- Log which layer matched (L1/L2/L3), matched token/window, confidence score
-- This allows auditing false positives in production
+1. The system is still stateless on backend request boundaries.
+2. Context-shift detection is heuristic (keyword/topic overlap), not semantic clustering.
+3. severityFlag remains in response for existing frontend behavior while context-aware fields are available for migration.
+4. Symptom and ambiguous-health detection currently relies on curated keyword rules in code.
+5. Runtime config is cached in memory for performance and reloaded from disk after cache expiration or explicit reload.
 
-## Suggested Implementation Order
-1. Update matcher rules in src/features/ai-chat/ai-chat-name-matcher.ts
-2. Update candidate fetch in src/features/ai-chat/ai-chat-service.ts to include species if using species-aware ranking
-3. Add confidence result type from matcher (instead of raw first-match)
-4. Add tests for short-name edge cases
+## Suggested API Test Sequence
 
-## High-Priority Test Cases After Fix
-1. Pet name is one character ("v"), query: "น้องหมาอาเจียน"
-- Expected: should not auto-resolve to cat "v"
+1. Start symptom (no contextId)
+- Expect: new contextId, contextStatus=pending_severity, severityRequest present
 
-2. Pet name is one character ("v"), query: "my dog vomits"
-- Expected: should not auto-resolve from letter "v" in "vomits"
+2. Submit severity for same context
+- Send severitySubmission with same contextId and level
+- Expect: contextStatus=resolved, no severityRequest
 
-3. Normal Thai exact name query
-- Query: "บลูไม่กินข้าว"
-- Expected: exact match still works
+3. Ask different symptom in same session with previous contextId
+- Expect: contextChanged=true and new contextId
+- Expect: contextStatus=pending_severity for new context
 
-4. Thai typo fuzzy case
-- Query: "บลุป่วยไหม"
-- Expected: fuzzy still works for real names length >= 3
+4. Ask ambiguous health query with no direct symptom keyword
+- Example: "น้องดูไม่ปกติ"
+- Expect: contextStatus=pending_clarification
+- Expect: clarificationRequest present
 
-## Notes for Multi-Context Severity Design
-After pet matching is stabilized, proceed with context-scoped severity:
-- request carries contextId
-- response echoes contextId
-- one severity submission per request
-- backend rotates contextId when symptom context changes
-- severity is tracked per contextId, not globally per session
+5. Ask normal care query
+- Example: "ควรให้อาหารวันละกี่มื้อ"
+- Expect: contextStatus=not_required and no severity request
+
+## Next Recommended Step
+
+Migrate frontend severity widget flow to use severityRequest/contextId/severitySubmission directly (instead of relying only on severityFlag + legacy [SEVERITY] text messages).

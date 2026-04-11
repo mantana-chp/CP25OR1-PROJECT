@@ -1,15 +1,20 @@
 import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { PineconeStore } from '@langchain/pinecone';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config';
 import { logger } from '../../libs/logger';
 import { Document } from '@langchain/core/documents';
 import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
-import { ApiError } from '../../shared/errors';
+import { ApiError, BadRequestError } from '../../shared/errors';
 import { detectPetInQuery, PetCandidate } from './ai-chat-name-matcher';
-import { HistoryItem } from './ai-chat-schema';
+import { HistoryItem, SeveritySubmissionInput } from './ai-chat-schema';
+import {
+  AIChatRuntimeConfig,
+  loadAIChatRuntimeConfig,
+} from './ai-chat-config-loader';
 
 // Private module-level state for Singleton-like behavior
 let vectorStore: PineconeStore | null = null;
@@ -27,6 +32,50 @@ type GeminiUsage = {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+};
+
+type SeverityContextStatus =
+  | 'not_required'
+  | 'pending_clarification'
+  | 'pending_severity'
+  | 'resolved';
+
+type SeverityRequestData = {
+  contextId: string;
+  prompt: string;
+  reason: 'symptom_needs_assessment' | 'new_symptom_context';
+};
+
+type ClarificationRequestData = {
+  contextId: string;
+  prompt: string;
+  reason: 'ambiguous_health_query';
+  options: string[];
+};
+
+type QueryIntent = 'symptom' | 'normal' | 'ambiguous_health';
+
+type RequestFinalState = 'completed' | 'clarification_returned' | 'failed';
+
+type ChatWithAIInput = {
+  query: string;
+  userId: string;
+  resolvedPetId?: string;
+  history?: HistoryItem[];
+  contextId?: string;
+  severitySubmission?: SeveritySubmissionInput;
+};
+
+type ChatWithAIResult = {
+  answer: string;
+  resolvedPetId?: string;
+  severityFlag?: boolean;
+  contextId: string;
+  contextChanged?: boolean;
+  contextStatus: SeverityContextStatus;
+  severityRequest?: SeverityRequestData;
+  clarificationRequest?: ClarificationRequestData;
+  severityLevel?: number;
 };
 
 const createTraceId = (): string =>
@@ -108,37 +157,168 @@ const addUsageToMetrics = (
 const formatTokenLogValue = (value?: number): string =>
   value === undefined ? 'n/a' : String(value);
 
-const SYSTEM_INSTRUCTION = `
-You are a knowledgeable, calm veterinary assistant. Give pet owners practical, proportionate advice.
+const buildRequestUsageSummary = ({
+  traceId,
+  contextId,
+  contextStatus,
+  startedAt,
+  metrics,
+  finalState,
+  hasPetProfileContext,
+  pineconeRelevantDocs,
+}: {
+  traceId: string;
+  contextId: string;
+  contextStatus: SeverityContextStatus;
+  startedAt: number;
+  metrics: AIRequestMetrics;
+  finalState: RequestFinalState;
+  hasPetProfileContext: boolean;
+  pineconeRelevantDocs: number;
+}): string =>
+  `[AI Chat][${traceId}] Session usage summary: contextId=${contextId}, contextStatus=${contextStatus}, finalState=${finalState}, durationMs=${Date.now() - startedAt}, calls{geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}}, tokens{prompt=${metrics.geminiPromptTokens}, completion=${metrics.geminiCompletionTokens}, total=${metrics.geminiTotalTokens}}, rag{petProfileIncluded=${hasPetProfileContext}, pineconeRelevantDocs=${pineconeRelevantDocs}}`;
 
-Rules:
-- If a KNOWLEDGE BASE section is provided and relevant to the question, use it. If irrelevant, ignore it and answer from your own veterinary knowledge.
-- Never apologize for missing data.
-- Never use gendered terms to address the owner like "คุณแม่" or "คุณพ่อ". Try to use neutral terms like "คุณ" instead.
-- Never make a definitive diagnosis. Frame causes as possibilities.
-- Do NOT start your response with a greeting like "สวัสดี" or "สวัสดีค่ะ". Open with a natural, varied acknowledgment of the owner's concern — do NOT use the same phrase every time. Rotate between different openers, for example: briefly acknowledging the symptom ("การอาเจียน 2 ครั้งในเช้าวันเดียวกัน..."), empathising, or going straight into context ("อาการแบบนี้มักเกิดจาก...").
+const LEGACY_SEVERITY_PREFIX = /^\s*\[SEVERITY:\s*([1-5])\/5\]\s*/i;
 
-Triage — scale your response to symptom severity:
-- Mild/routine (e.g. eating slightly less 1 day, single loose stool): reassure, give home-care tips, advise watching 2–3 days before considering a vet. Do NOT recommend an immediate vet visit.
-- Moderate/persistent (e.g. not eating 2+ days, repeated vomiting, visible weight loss): give home-care steps, list warning signs, set a clear timeframe ("if no improvement in 24–48 h, see a vet").
-- Urgent/red flag (e.g. breathing difficulty, seizure, uncontrolled bleeding, suspected poisoning, collapse): recommend seeing a vet or emergency clinic immediately and briefly explain why. This is the ONLY case where an immediate vet visit is warranted.
+const normalizeText = (value: string): string => value.toLowerCase().trim();
 
-Severity flag:
-- Append exactly "[NEEDS_SEVERITY]" on a new line at the very end of your response ONLY when ALL of the following are true:
-  1. The current message is the FIRST time the user is reporting or describing a pet's symptom or health concern (e.g. vomiting, not eating, lethargy, injury).
-  2. No "[SEVERITY: X/5]" appears anywhere in the conversation history.
-  3. The conversation history does not already contain a prior user message describing symptoms (i.e. this is the symptom-reporting turn, not a follow-up question about it).
-- Do NOT append it for follow-up questions about already-discussed symptoms (e.g. "should I see a vet?", "how long should I wait?", "what if it gets worse?").
-- Do NOT append it for general questions, vaccine schedules, feeding advice, or any non-symptom topic.
-- Do NOT append it if the conversation already contains a "[SEVERITY: X/5]" message.
-- When you DO append "[NEEDS_SEVERITY]", end your answer with a natural closing question on the line before it, asking the owner to rate severity (e.g. "เพื่อให้คำแนะนำได้แม่นยำขึ้น รบกวนประเมินความรุนแรงของอาการน้องให้หน่อยได้ไหมครับ?"). This makes the severity widget feel like a natural next step.
+const containsAnyKeyword = (input: string, keywords: string[]): boolean => {
+  const normalized = normalizeText(input);
+  if (!normalized) return false;
+  return keywords.some((keyword) => normalized.includes(keyword));
+};
 
-Severity response:
-- If the current message starts with "[SEVERITY: X/5]", the user is giving you a severity rating for the symptoms already discussed in the conversation history.
-- Do NOT re-acknowledge the symptoms. Do NOT repeat prior advice. Do NOT start over.
-- Start directly with a short line acknowledging the rating (e.g. "ระดับความรุนแรง 3/5 —"), then immediately give refined, updated guidance based on that specific level.
-- Adjust your triage recommendation accordingly: low severity (1–2) → reassure + home care; medium (3) → watchful home care + clear timeframe; high (4–5) → recommend vet urgently.
-`.trim();
+const buildSystemInstruction = (
+  runtimeConfig: AIChatRuntimeConfig
+): string => runtimeConfig.system_instruction_lines.join('\n').trim();
+
+const parseLegacySeverityQuery = (
+  input: string
+): { level?: number; cleanQuery: string } => {
+  const match = input.match(LEGACY_SEVERITY_PREFIX);
+  if (!match) {
+    return { cleanQuery: input };
+  }
+
+  const level = Number(match[1]);
+  const cleanQuery = input.replace(LEGACY_SEVERITY_PREFIX, '').trim();
+  return {
+    level: Number.isInteger(level) ? level : undefined,
+    cleanQuery,
+  };
+};
+
+const extractSymptomTopics = (
+  input: string,
+  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
+): Set<string> => {
+  const normalized = normalizeText(input);
+  const topics = new Set<string>();
+
+  if (!normalized) return topics;
+
+  for (const group of symptomTopicGroups) {
+    if (group.keywords.some((keyword) => normalized.includes(keyword))) {
+      topics.add(group.topic);
+    }
+  }
+
+  return topics;
+};
+
+const hasSymptomTopics = (
+  input: string,
+  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
+): boolean => extractSymptomTopics(input, symptomTopicGroups).size > 0;
+
+const classifyQueryIntent = (
+  input: string,
+  runtimeConfig: AIChatRuntimeConfig
+): QueryIntent => {
+  if (hasSymptomTopics(input, runtimeConfig.symptom_topic_groups)) {
+    return 'symptom';
+  }
+
+  if (containsAnyKeyword(input, runtimeConfig.health_ambiguous_hint_keywords)) {
+    return 'ambiguous_health';
+  }
+
+  if (containsAnyKeyword(input, runtimeConfig.normal_care_keywords)) {
+    return 'normal';
+  }
+
+  // Default to normal mode to avoid over-triggering severity for general chat.
+  return 'normal';
+};
+
+const getLatestSymptomTopicsFromHistory = (
+  history: HistoryItem[] | undefined,
+  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
+): Set<string> | null => {
+  if (!history || history.length === 0) return null;
+
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const entry = history[i];
+    if (entry.role !== 'user') continue;
+
+    const cleanText = parseLegacySeverityQuery(entry.content).cleanQuery;
+    const topics = extractSymptomTopics(cleanText, symptomTopicGroups);
+    if (topics.size > 0) {
+      return topics;
+    }
+  }
+
+  return null;
+};
+
+const hasSeverityAfterLatestSymptom = (
+  history: HistoryItem[] | undefined,
+  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
+): boolean => {
+  if (!history || history.length === 0) return false;
+
+  let latestSymptomIndex = -1;
+  let latestSeverityIndex = -1;
+
+  history.forEach((entry, index) => {
+    if (entry.role !== 'user') return;
+
+    const parsed = parseLegacySeverityQuery(entry.content);
+    if (parsed.level !== undefined) {
+      latestSeverityIndex = index;
+    }
+
+    if (hasSymptomTopics(parsed.cleanQuery, symptomTopicGroups)) {
+      latestSymptomIndex = index;
+    }
+  });
+
+  if (latestSymptomIndex < 0) return false;
+  return latestSeverityIndex > latestSymptomIndex;
+};
+
+const shouldRotateContextForNewSymptom = (
+  query: string,
+  history: HistoryItem[] | undefined,
+  symptomTopicGroups: AIChatRuntimeConfig['symptom_topic_groups']
+): boolean => {
+  const currentTopics = extractSymptomTopics(query, symptomTopicGroups);
+  if (currentTopics.size === 0) return false;
+
+  const previousTopics = getLatestSymptomTopicsFromHistory(
+    history,
+    symptomTopicGroups
+  );
+  if (!previousTopics || previousTopics.size === 0) return false;
+
+  for (const topic of currentTopics) {
+    if (previousTopics.has(topic)) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 const llm = new ChatGoogleGenerativeAI({
   model: 'gemini-2.5-flash',
@@ -278,11 +458,17 @@ ${healthHistory || 'No recent health records.'}
  * cache for the rest of the session.
  */
 export const chatWithAI = async (
-  query: string,
-  userId: string,
-  resolvedPetId?: string,
-  history?: HistoryItem[]
-): Promise<{ answer: string; resolvedPetId?: string; severityFlag?: boolean }> => {
+  input: ChatWithAIInput
+): Promise<ChatWithAIResult> => {
+  const {
+    query,
+    userId,
+    resolvedPetId,
+    history,
+    contextId,
+    severitySubmission,
+  } = input;
+
   const traceId = createTraceId();
   const startedAt = Date.now();
   const metrics: AIRequestMetrics = {
@@ -294,12 +480,100 @@ export const chatWithAI = async (
     geminiTotalTokens: 0,
   };
 
+  const parsedLegacySeverity = parseLegacySeverityQuery(query);
+  const normalizedQuery =
+    parsedLegacySeverity.cleanQuery.trim().length > 0
+      ? parsedLegacySeverity.cleanQuery.trim()
+      : query.trim();
+  const submittedSeverityLevel =
+    severitySubmission?.level ?? parsedLegacySeverity.level;
+  const isSeveritySubmissionTurn = submittedSeverityLevel !== undefined;
+  const runtimeConfig = loadAIChatRuntimeConfig();
+  const systemInstruction = buildSystemInstruction(runtimeConfig);
+  const queryIntent = classifyQueryIntent(normalizedQuery, runtimeConfig);
+
+  if (
+    severitySubmission &&
+    contextId &&
+    severitySubmission.contextId !== contextId
+  ) {
+    throw new BadRequestError(
+      'severitySubmission.contextId must match contextId'
+    );
+  }
+
+  const incomingContextId = severitySubmission?.contextId ?? contextId;
+  let effectiveContextId = incomingContextId ?? uuidv4();
+  let contextChanged = false;
+
+  const isSymptomTurn = queryIntent === 'symptom';
+
+  if (
+    incomingContextId &&
+    !isSeveritySubmissionTurn &&
+    isSymptomTurn &&
+    shouldRotateContextForNewSymptom(
+      normalizedQuery,
+      history,
+      runtimeConfig.symptom_topic_groups
+    )
+  ) {
+    effectiveContextId = uuidv4();
+    contextChanged = true;
+  }
+
+  const latestHistorySeverityResolved = hasSeverityAfterLatestSymptom(
+    history,
+    runtimeConfig.symptom_topic_groups
+  );
+
+  let contextStatus: SeverityContextStatus = 'not_required';
+  if (isSeveritySubmissionTurn) {
+    contextStatus = 'resolved';
+  } else if (queryIntent === 'symptom') {
+    contextStatus =
+      !contextChanged && latestHistorySeverityResolved
+        ? 'resolved'
+        : 'pending_severity';
+  } else if (queryIntent === 'ambiguous_health') {
+    contextStatus = 'pending_clarification';
+  }
+
+  const shouldAskClarification = contextStatus === 'pending_clarification';
+  const shouldRequestSeverity = contextStatus === 'pending_severity';
+
+  const severityRequest: SeverityRequestData | undefined = shouldRequestSeverity
+    ? {
+      contextId: effectiveContextId,
+      prompt: 'กรุณาเลือกระดับความรุนแรงของอาการที่สังเกตเห็น (1-5)',
+      reason: contextChanged
+        ? 'new_symptom_context'
+        : 'symptom_needs_assessment',
+    }
+    : undefined;
+
+  const clarificationRequest: ClarificationRequestData | undefined =
+    shouldAskClarification
+      ? {
+        contextId: effectiveContextId,
+        prompt: runtimeConfig.clarification_prompt,
+        reason: 'ambiguous_health_query',
+        options: runtimeConfig.clarification_options,
+      }
+      : undefined;
+
+  const modelQuery = isSeveritySubmissionTurn
+    ? `[SEVERITY: ${submittedSeverityLevel}/5] ${normalizedQuery}`.trim()
+    : normalizedQuery;
+
   logger.info(
-    `[AI Chat][${traceId}] Request started. userId=${userId}, hasResolvedPetId=${Boolean(resolvedPetId)}, historyItems=${history?.length ?? 0}, query="${query.slice(0, 120)}${query.length > 120 ? '...' : ''}"`
+    `[AI Chat][${traceId}] Request started. userId=${userId}, queryIntent=${queryIntent}, contextId=${effectiveContextId}, contextChanged=${contextChanged}, contextStatus=${contextStatus}, hasResolvedPetId=${Boolean(resolvedPetId)}, historyItems=${history?.length ?? 0}, query="${normalizedQuery.slice(0, 120)}${normalizedQuery.length > 120 ? '...' : ''}"`
   );
 
   const store = await initializeVectorStore();
   let petContext = '';
+  let hasPetProfileContext = false;
+  let pineconeRelevantDocs = 0;
 
   try {
     // 1. Fetch all active pets for this user (needed for name detection)
@@ -310,7 +584,7 @@ export const chatWithAI = async (
 
     // 2. Pet name detection — Layers 1 & 2 always run on every message.
     //    This allows mid-session pet switching without any extra cost.
-    const detectedPet = detectPetInQuery(query, userPets);
+    const detectedPet = detectPetInQuery(normalizedQuery, userPets);
     let finalResolvedPetId: string | undefined;
 
     if (detectedPet) {
@@ -324,16 +598,50 @@ export const chatWithAI = async (
     } else {
       // L1 & L2 missed, no session pet → fire Layer 3 (LLM extraction)
       logger.info('[AI Chat] No pet detected via L1/L2, falling back to Layer 3 LLM extraction.');
-      const llmPet = await extractPetWithLLM(query, userPets, traceId, metrics);
+      const llmPet = await extractPetWithLLM(
+        normalizedQuery,
+        userPets,
+        traceId,
+        metrics
+      );
       if (llmPet) {
         finalResolvedPetId = llmPet.id;
         logger.info(`[AI Chat] Pet detected via Layer 3: "${llmPet.pet_name}"`);
       }
     }
 
+    if (shouldAskClarification) {
+      logger.info(
+        `[AI Chat][${traceId}] Ambiguous health query detected. Returning clarification prompt without severity request.`
+      );
+
+      logger.info(
+        buildRequestUsageSummary({
+          traceId,
+          contextId: effectiveContextId,
+          contextStatus,
+          startedAt,
+          metrics,
+          finalState: 'clarification_returned',
+          hasPetProfileContext,
+          pineconeRelevantDocs,
+        })
+      );
+
+      return {
+        answer: runtimeConfig.clarification_prompt,
+        resolvedPetId: finalResolvedPetId,
+        contextId: effectiveContextId,
+        contextChanged: contextChanged || undefined,
+        contextStatus,
+        clarificationRequest,
+      };
+    }
+
     // 3. Build pet context string if a pet was resolved
     if (finalResolvedPetId) {
       petContext = await buildPetContext(finalResolvedPetId);
+      hasPetProfileContext = petContext.length > 0;
     }
 
     // 4. Retrieve relevant documents (Knowledge Base)
@@ -344,7 +652,10 @@ export const chatWithAI = async (
       `[AI Chat][${traceId}] Pinecone search #${metrics.pineconeSearchCalls} started (includes Gemini embedding call #${metrics.geminiEmbeddingCalls}).`
     );
 
-    const resultsWithScore = await store.similaritySearchWithScore(query, 3);
+    const resultsWithScore = await store.similaritySearchWithScore(
+      modelQuery,
+      3
+    );
 
     // DEBUG: Log retrieval scores to help tune the threshold
     resultsWithScore.forEach(([doc, score]) => {
@@ -356,6 +667,11 @@ export const chatWithAI = async (
     const relevantDocs = resultsWithScore
       .filter(([_, score]) => score >= threshold)
       .map(([doc]) => doc);
+    pineconeRelevantDocs = relevantDocs.length;
+
+    logger.info(
+      `[AI Chat][${traceId}] RAG context summary. contextId=${effectiveContextId}, petProfileIncluded=${hasPetProfileContext}, pineconeRelevantDocs=${pineconeRelevantDocs}.`
+    );
 
     const context = relevantDocs
       .map((doc: Document) => doc.pageContent || doc.metadata.text)
@@ -378,11 +694,25 @@ ${context}
       );
     }
 
-    userPromptParts.push(`User Question: ${query}`);
+    userPromptParts.push(
+      `--- SEVERITY CONTEXT ---
+ContextId: ${effectiveContextId}
+ContextChanged: ${contextChanged ? 'yes' : 'no'}
+IsSymptomTurn: ${isSymptomTurn ? 'yes' : 'no'}
+SeveritySubmissionThisTurn: ${isSeveritySubmissionTurn ? `yes (${submittedSeverityLevel}/5)` : 'no'}
+LatestHistorySeverityResolved: ${latestHistorySeverityResolved ? 'yes' : 'no'}
+ContextStatus: ${contextStatus}
+NeedsSeverityNow: ${shouldRequestSeverity ? 'yes' : 'no'}
+If NeedsSeverityNow=yes: Ask user for 1-5 severity in Thai and append [NEEDS_SEVERITY] on a new final line.
+If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
+--- END SEVERITY CONTEXT ---`
+    );
+
+    userPromptParts.push(`User Question: ${modelQuery}`);
 
     const prompt = userPromptParts.join('\n\n');
 
-    logger.info(`AI Chat Request - Question: "${query}"`);
+    logger.info(`AI Chat Request - Question: "${modelQuery}"`);
     logger.info(`Full AI Prompt:\n${prompt}`);
 
     // 6. Generate Answer — build message array:
@@ -404,7 +734,7 @@ ${context}
     logger.info(`[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} (main answer generation) started.`);
 
     const response = await llm.invoke([
-      new SystemMessage(SYSTEM_INSTRUCTION),
+      new SystemMessage(systemInstruction),
       ...historyMessages,
       new HumanMessage(prompt),
     ]);
@@ -418,20 +748,56 @@ ${context}
 
     // Parse severity flag marker — AI appends [NEEDS_SEVERITY] when symptom context
     // is detected and no severity rating exists in history yet.
-    const severityFlag = rawAnswer.includes('[NEEDS_SEVERITY]');
+    const llmSeverityFlag = rawAnswer.includes('[NEEDS_SEVERITY]');
+    const severityFlag = shouldRequestSeverity;
+
+    if (llmSeverityFlag && !shouldRequestSeverity) {
+      logger.warn(
+        `[AI Chat][${traceId}] Model emitted [NEEDS_SEVERITY] while backend state is ${contextStatus}. Marker was ignored.`
+      );
+    }
+
     const answer = rawAnswer.replace(/\[NEEDS_SEVERITY\]/g, '').trimEnd();
 
     logger.info(`AI Chat Response received successfully. severityFlag=${severityFlag}`);
     logger.info(`AI Answer:\n${answer}`);
     logger.info(
-      `[AI Chat][${traceId}] Request completed in ${Date.now() - startedAt}ms. Calls: geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}. Tokens: prompt=${metrics.geminiPromptTokens}, completion=${metrics.geminiCompletionTokens}, total=${metrics.geminiTotalTokens}.`
+      buildRequestUsageSummary({
+        traceId,
+        contextId: effectiveContextId,
+        contextStatus,
+        startedAt,
+        metrics,
+        finalState: 'completed',
+        hasPetProfileContext,
+        pineconeRelevantDocs,
+      })
     );
 
-    return { answer, resolvedPetId: finalResolvedPetId, severityFlag: severityFlag || undefined };
+    return {
+      answer,
+      resolvedPetId: finalResolvedPetId,
+      severityFlag: severityFlag || undefined,
+      contextId: effectiveContextId,
+      contextChanged: contextChanged || undefined,
+      contextStatus,
+      severityRequest,
+      clarificationRequest,
+      severityLevel: submittedSeverityLevel,
+    };
 
   } catch (error) {
     logger.error(
-      `[AI Chat][${traceId}] Request failed after ${Date.now() - startedAt}ms. Calls so far: geminiText=${metrics.geminiTextCalls}, geminiEmbedding=${metrics.geminiEmbeddingCalls}, pineconeSearch=${metrics.pineconeSearchCalls}. Tokens so far: prompt=${metrics.geminiPromptTokens}, completion=${metrics.geminiCompletionTokens}, total=${metrics.geminiTotalTokens}.`,
+      buildRequestUsageSummary({
+        traceId,
+        contextId: effectiveContextId,
+        contextStatus,
+        startedAt,
+        metrics,
+        finalState: 'failed',
+        hasPetProfileContext,
+        pineconeRelevantDocs,
+      }),
       error as Error
     );
     logger.error('Error in AI Chat service:', error as Error);

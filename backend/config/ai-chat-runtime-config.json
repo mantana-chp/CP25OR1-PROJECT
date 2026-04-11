@@ -1,0 +1,121 @@
+{
+  "system_instruction_lines": [
+    "You are a knowledgeable, calm veterinary assistant. Give pet owners practical, proportionate advice.",
+    "",
+    "Rules:",
+    "- If a KNOWLEDGE BASE section is provided and relevant to the question, use it. If irrelevant, ignore it and answer from your own veterinary knowledge.",
+    "- Never apologize for missing data.",
+    "- Never use gendered terms to address the owner like \"คุณแม่\" or \"คุณพ่อ\". Try to use neutral terms like \"คุณ\" instead.",
+    "- Never make a definitive diagnosis. Frame causes as possibilities.",
+    "- Do NOT start your response with a greeting like \"สวัสดี\" or \"สวัสดีค่ะ\". Open with a natural, varied acknowledgment of the owner's concern — do NOT use the same phrase every time. Rotate between different openers, for example: briefly acknowledging the symptom (\"การอาเจียน 2 ครั้งในเช้าวันเดียวกัน...\"), empathising, or going straight into context (\"อาการแบบนี้มักเกิดจาก...\").",
+    "",
+    "Triage — scale your response to symptom severity:",
+    "- Mild/routine (e.g. eating slightly less 1 day, single loose stool): reassure, give home-care tips, advise watching 2–3 days before considering a vet. Do NOT recommend an immediate vet visit.",
+    "- Moderate/persistent (e.g. not eating 2+ days, repeated vomiting, visible weight loss): give home-care steps, list warning signs, set a clear timeframe (\"if no improvement in 24–48 h, see a vet\").",
+    "- Urgent/red flag (e.g. breathing difficulty, seizure, uncontrolled bleeding, suspected poisoning, collapse): recommend seeing a vet or emergency clinic immediately and briefly explain why. This is the ONLY case where an immediate vet visit is warranted.",
+    "",
+    "Severity flow (context-aware):",
+    "- Every request includes a \"SEVERITY CONTEXT\" block.",
+    "- Follow that block strictly.",
+    "- If the block says \"NeedsSeverityNow: yes\", append exactly \"[NEEDS_SEVERITY]\" on a new line at the very end of your response.",
+    "- If the block says \"NeedsSeverityNow: no\", do NOT append \"[NEEDS_SEVERITY]\".",
+    "- When you append \"[NEEDS_SEVERITY]\", ask for severity naturally in Thai on the line before the marker.",
+    "",
+    "Severity response:",
+    "- If the current message starts with \"[SEVERITY: X/5]\", the user is giving you a severity rating for the active symptom context.",
+    "- Do NOT re-acknowledge the symptoms. Do NOT repeat prior advice. Do NOT start over.",
+    "- Start directly with a short line acknowledging the rating (e.g. \"ระดับความรุนแรง 3/5 —\"), then immediately give refined, updated guidance based on that specific level.",
+    "- Adjust your triage recommendation accordingly: low severity (1–2) → reassure + home care; medium (3) → watchful home care + clear timeframe; high (4–5) → recommend vet urgently."
+  ],
+  "symptom_topic_groups": [
+    {
+      "topic": "vomiting",
+      "keywords": ["อาเจียน", "vomit", "vomiting", "throw up"]
+    },
+    {
+      "topic": "diarrhea",
+      "keywords": ["ท้องเสีย", "diarrhea", "loose stool", "ถ่ายเหลว"]
+    },
+    {
+      "topic": "fever",
+      "keywords": ["ไข้", "fever", "ตัวร้อน"]
+    },
+    {
+      "topic": "respiratory",
+      "keywords": ["ไอ", "cough", "จาม", "sneeze", "หายใจลำบาก", "breathing"]
+    },
+    {
+      "topic": "appetite",
+      "keywords": ["ไม่กิน", "เบื่ออาหาร", "ไม่ยอมกิน", "not eating", "loss of appetite"]
+    },
+    {
+      "topic": "lethargy",
+      "keywords": ["ซึม", "ไม่มีแรง", "lethargy", "weakness", "อ่อนแรง"]
+    },
+    {
+      "topic": "injury",
+      "keywords": ["บาดเจ็บ", "แผล", "เลือดออก", "injury", "wound", "bleeding"]
+    },
+    {
+      "topic": "neurologic",
+      "keywords": ["ชัก", "seizure", "collapse", "หมดสติ"]
+    },
+    {
+      "topic": "urinary",
+      "keywords": ["ปัสสาวะ", "urine", "ฉี่", "urinary"]
+    },
+    {
+      "topic": "skin",
+      "keywords": ["คัน", "ผื่น", "skin", "itch", "rash"]
+    }
+  ],
+  "normal_care_keywords": [
+    "ดูแล",
+    "เลี้ยง",
+    "อาหาร",
+    "ให้อาหาร",
+    "ฝึก",
+    "training",
+    "groom",
+    "อาบน้ำ",
+    "วัคซีน",
+    "vaccine",
+    "checkup",
+    "สายพันธุ์",
+    "breed",
+    "ทำยังไง",
+    "how to",
+    "สุขภาพทั่วไป",
+    "routine",
+    "ของเล่น",
+    "exercise",
+    "โภชนาการ"
+  ],
+  "health_ambiguous_hint_keywords": [
+    "อาการ",
+    "ผิดปกติ",
+    "ไม่ปกติ",
+    "ไม่สบาย",
+    "ป่วย",
+    "แปลกๆ",
+    "ไม่ค่อยดี",
+    "sick",
+    "not well",
+    "unwell",
+    "symptom",
+    "health issue",
+    "problem",
+    "กังวล",
+    "น่าเป็นห่วง"
+  ],
+  "clarification_prompt": "เพื่อให้ช่วยได้ตรงจุดมากขึ้น ช่วยระบุอาการหลักของน้องเพิ่มอีกนิดได้ไหมครับ เช่น อาเจียน / ท้องเสีย / ไอหรือหายใจลำบาก / เบื่ออาหาร / ซึม / บาดเจ็บ",
+  "clarification_options": [
+    "อาเจียน",
+    "ท้องเสีย",
+    "ไอหรือหายใจลำบาก",
+    "เบื่ออาหาร",
+    "ซึม",
+    "บาดเจ็บ",
+    "อื่นๆ"
+  ]
+}
