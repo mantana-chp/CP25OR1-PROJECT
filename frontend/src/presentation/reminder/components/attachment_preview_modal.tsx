@@ -64,8 +64,10 @@ export default function AttachmentPreviewModal({
       return ''
     }
 
+    // Android WebView often cannot render raw PDF URLs directly.
+    // Use PDF.js viewer (not Google Docs) to avoid Google sign-in prompts.
     if (Platform.OS === 'android') {
-      return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(
+      return `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(
         attachment.downloadUrl
       )}`
     }
@@ -233,7 +235,6 @@ export default function AttachmentPreviewModal({
   }
 
   const headerTop = Math.max(insets.top + 8, 20)
-  const actionBottom = Math.max(insets.bottom + 20, 40)
   const previewTopInset = headerTop + 78
 
   return (
@@ -336,7 +337,11 @@ export default function AttachmentPreviewModal({
                 scalesPageToFit
                 originWhitelist={['*']}
                 javaScriptEnabled
+                mixedContentMode="always"
                 onError={() => {
+                  setPdfError(true)
+                }}
+                onHttpError={() => {
                   setPdfError(true)
                 }}
               />
