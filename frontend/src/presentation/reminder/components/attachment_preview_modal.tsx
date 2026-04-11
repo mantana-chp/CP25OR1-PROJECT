@@ -6,12 +6,17 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
-  Linking,
   Alert,
+  ScrollView,
   Platform
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
-import { X, Download, FileText } from 'lucide-react-native'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as MediaLibrary from 'expo-media-library'
+import * as Sharing from 'expo-sharing'
+import { WebView } from 'react-native-webview'
+import { X, Download, FileText, RefreshCw } from 'lucide-react-native'
 import { IAttachment } from '@/src/domain/reminder.domain'
 
 interface AttachmentPreviewModalProps {
@@ -25,31 +30,211 @@ export default function AttachmentPreviewModal({
   attachment,
   onClose
 }: AttachmentPreviewModalProps) {
+  const insets = useSafeAreaInsets()
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
+  const [pdfError, setPdfError] = useState(false)
+  const [pdfReloadKey, setPdfReloadKey] = useState(0)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   if (!attachment) return null
 
-  const isImage = attachment.fileType.startsWith('image/')
-  const isPDF = attachment.fileType === 'application/pdf'
+  const lowerFileName = attachment.fileName.toLowerCase()
+  const isPdfByMime = attachment.fileType === 'application/pdf'
+  const isImageByMime = attachment.fileType.startsWith('image/')
+  const isPdfByName = lowerFileName.endsWith('.pdf')
+  const isJpegByName =
+    lowerFileName.endsWith('.jpg') || lowerFileName.endsWith('.jpeg')
+  const isPngByName = lowerFileName.endsWith('.png')
 
-  const handleDownload = () => {
-    if (attachment.downloadUrl) {
-      Linking.openURL(attachment.downloadUrl).catch(() => {
-        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
-      })
+  const isPDF = isPdfByMime || isPdfByName
+  const isImage = isImageByMime || isJpegByName || isPngByName
+  const isSupported = isPDF || isImage
+
+  const sanitizeFileName = (name: string): string => {
+    return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+  }
+
+  const stripExtension = (name: string): string => {
+    return name.replace(/\.[^/.]+$/, '')
+  }
+
+  const getPdfViewerUri = (): string => {
+    if (!attachment.downloadUrl) {
+      return ''
+    }
+
+    if (Platform.OS === 'android') {
+      return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(
+        attachment.downloadUrl
+      )}`
+    }
+
+    return attachment.downloadUrl
+  }
+
+  const getAttachmentDirectory = (): string => {
+    return `${FileSystem.documentDirectory}attachments/`
+  }
+
+  const ensureAttachmentDirectory = async (): Promise<void> => {
+    const directory = getAttachmentDirectory()
+    const info = await FileSystem.getInfoAsync(directory)
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(directory, { intermediates: true })
+    }
+  }
+
+  const saveImageToGallery = async (localUri: string): Promise<void> => {
+    const permission = await MediaLibrary.requestPermissionsAsync()
+    if (!permission.granted) {
+      throw new Error('ไม่มีสิทธิ์เข้าถึงคลังรูปภาพ')
+    }
+
+    const asset = await MediaLibrary.createAssetAsync(localUri)
+    const albumName = 'PetReminders'
+    const existingAlbum = await MediaLibrary.getAlbumAsync(albumName)
+
+    if (existingAlbum) {
+      await MediaLibrary.addAssetsToAlbumAsync([asset], existingAlbum, false)
+    } else {
+      await MediaLibrary.createAlbumAsync(albumName, asset, false)
+    }
+  }
+
+  const saveFileToAndroidDownloads = async (
+    localUri: string,
+    fileName: string,
+    mimeType: string
+  ): Promise<void> => {
+    const initialDownloadUri =
+      FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download')
+
+    const permission =
+      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(
+        initialDownloadUri
+      )
+
+    if (!permission.granted) {
+      throw new Error('ผู้ใช้ไม่ได้อนุญาตให้บันทึกไฟล์')
+    }
+
+    const base64Data = await FileSystem.readAsStringAsync(localUri, {
+      encoding: FileSystem.EncodingType.Base64
+    })
+
+    const safeNameWithoutExt = sanitizeFileName(stripExtension(fileName))
+    const targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
+      permission.directoryUri,
+      safeNameWithoutExt || `attachment-${Date.now()}`,
+      mimeType
+    )
+
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(
+      targetUri,
+      base64Data,
+      { encoding: FileSystem.EncodingType.Base64 }
+    )
+  }
+
+  const saveFileToFilesApp = async (localUri: string): Promise<void> => {
+    const isAvailable = await Sharing.isAvailableAsync()
+    if (!isAvailable) {
+      throw new Error('อุปกรณ์ไม่รองรับการบันทึกผ่านแอป Files')
+    }
+
+    await Sharing.shareAsync(localUri, {
+      dialogTitle: 'บันทึกไฟล์ไปยัง Files'
+    })
+  }
+
+  const handleDownload = async () => {
+    if (!attachment.downloadUrl) {
+      Alert.alert('ดาวน์โหลดไม่สำเร็จ', 'ไม่พบลิงก์ดาวน์โหลดไฟล์')
+      return
+    }
+
+    if (!isSupported) {
+      Alert.alert(
+        'ประเภทไฟล์ไม่รองรับ',
+        'รองรับเฉพาะไฟล์ PDF, JPG และ PNG เท่านั้น'
+      )
+      return
+    }
+
+    setIsDownloading(true)
+
+    try {
+      await ensureAttachmentDirectory()
+      const targetPath = `${getAttachmentDirectory()}${Date.now()}-${sanitizeFileName(attachment.fileName)}`
+      const result = await FileSystem.downloadAsync(
+        attachment.downloadUrl,
+        targetPath
+      )
+
+      if (isImage) {
+        await saveImageToGallery(result.uri)
+        Alert.alert('ดาวน์โหลดสำเร็จ', 'บันทึกรูปภาพลงแกลเลอรีแล้ว')
+        return
+      }
+
+      if (Platform.OS === 'android') {
+        await saveFileToAndroidDownloads(
+          result.uri,
+          attachment.fileName,
+          attachment.fileType || 'application/pdf'
+        )
+        Alert.alert('ดาวน์โหลดสำเร็จ', 'บันทึกไฟล์ลงโฟลเดอร์ที่เลือกแล้ว')
+        return
+      }
+
+      await saveFileToFilesApp(result.uri)
+      Alert.alert('ดาวน์โหลดสำเร็จ', 'ส่งไฟล์ไปยังแอป Files แล้ว')
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'ไม่สามารถดาวน์โหลดไฟล์ได้ กรุณาลองอีกครั้ง'
+      Alert.alert('ดาวน์โหลดไม่สำเร็จ', message, [
+        { text: 'ยกเลิก', style: 'cancel' },
+        {
+          text: 'ลองใหม่',
+          onPress: () => {
+            void handleDownload()
+          }
+        }
+      ])
+    } finally {
+      setIsDownloading(false)
     }
   }
 
   const resetState = () => {
     setImageLoading(true)
     setImageError(false)
+    setPdfError(false)
+    setPdfReloadKey(0)
+    setIsDownloading(false)
+  }
+
+  const handleRetryPreview = () => {
+    if (isPDF) {
+      setPdfError(false)
+      setPdfReloadKey((prev) => prev + 1)
+    } else {
+      setImageError(false)
+      setImageLoading(true)
+    }
   }
 
   const handleClose = () => {
     resetState()
     onClose()
   }
+
+  const headerTop = Math.max(insets.top + 8, 20)
+  const actionBottom = Math.max(insets.bottom + 20, 40)
+  const previewTopInset = headerTop + 78
 
   return (
     <Modal
@@ -62,58 +247,115 @@ export default function AttachmentPreviewModal({
         <Pressable style={styles.backdrop} onPress={handleClose} />
 
         {/* Header with filename and close button */}
-        <View style={styles.headerBar}>
+        <View style={[styles.headerBar, { top: headerTop }]}>
           <View style={styles.headerInfo}>
-            <Text style={styles.fileName} numberOfLines={1}>
+            <Text
+              style={styles.fileName}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+            >
               {attachment.fileName}
             </Text>
             <Text style={styles.fileType}>
-              {attachment.fileType.split('/')[1].toUpperCase()}
+              {(attachment.fileType.split('/')[1] || 'FILE').toUpperCase()}
             </Text>
           </View>
-          <Pressable onPress={handleClose} style={styles.closeButton}>
-            <X size={28} color="#FFFFFF" />
-          </Pressable>
+          <View style={styles.headerActions}>
+            {isSupported && (
+              <Pressable
+                onPress={() => {
+                  void handleDownload()
+                }}
+                style={styles.closeButton}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Download size={28} color="#FFFFFF" />
+                )}
+              </Pressable>
+            )}
+            <Pressable onPress={handleClose} style={styles.closeButton}>
+              <X size={28} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
 
         {/* Preview Content */}
-        <View style={styles.previewContainer}>
-          {isImage && !imageError ? (
+        <View
+          style={[
+            styles.previewContainer,
+            {
+              paddingTop: previewTopInset
+            }
+          ]}
+        >
+          {!isSupported ? (
+            <View style={styles.fileIconContainer}>
+              <FileText size={80} color="#FFFFFF" />
+              <Text style={styles.fileMessage}>
+                ไม่รองรับไฟล์ประเภทนี้ (รองรับเฉพาะ PDF, JPG, PNG)
+              </Text>
+            </View>
+          ) : isImage && !imageError ? (
             <>
               {imageLoading && (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color="#FFFFFF" />
                 </View>
               )}
-              <Image
-                source={{ uri: attachment.downloadUrl }}
-                style={styles.image}
-                contentFit="contain"
-                onLoadStart={() => setImageLoading(true)}
-                onLoad={() => setImageLoading(false)}
+              <ScrollView
+                style={styles.zoomContainer}
+                contentContainerStyle={styles.zoomContent}
+                maximumZoomScale={4}
+                minimumZoomScale={1}
+                pinchGestureEnabled
+                centerContent
+              >
+                <Image
+                  source={{ uri: attachment.downloadUrl }}
+                  style={styles.image}
+                  contentFit="contain"
+                  onLoadStart={() => setImageLoading(true)}
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageLoading(false)
+                    setImageError(true)
+                  }}
+                />
+              </ScrollView>
+            </>
+          ) : isPDF && !pdfError && attachment.downloadUrl ? (
+            <View style={styles.pdfContainer}>
+              <WebView
+                key={pdfReloadKey}
+                source={{ uri: getPdfViewerUri() }}
+                style={styles.pdfWebView}
+                startInLoadingState
+                scalesPageToFit
+                originWhitelist={['*']}
+                javaScriptEnabled
                 onError={() => {
-                  setImageLoading(false)
-                  setImageError(true)
+                  setPdfError(true)
                 }}
               />
-            </>
+            </View>
           ) : (
             <View style={styles.fileIconContainer}>
               <FileText size={80} color="#FFFFFF" />
               <Text style={styles.fileMessage}>
-                {isPDF
-                  ? 'แตะดาวน์โหลดเพื่อเปิดไฟล์ PDF'
-                  : 'ไม่สามารถแสดงตัวอย่างได้'}
+                ไม่สามารถแสดงตัวอย่างไฟล์ได้
               </Text>
+              <Pressable
+                style={styles.retryButton}
+                onPress={handleRetryPreview}
+              >
+                <RefreshCw size={16} color="#FFFFFF" />
+                <Text style={styles.retryText}>ลองใหม่</Text>
+              </Pressable>
             </View>
           )}
-        </View>
-
-        {/* Download Button - Icon Only */}
-        <View style={styles.actionBar}>
-          <Pressable style={styles.downloadButton} onPress={handleDownload}>
-            <Download size={24} color="#FFFFFF" />
-          </Pressable>
         </View>
       </View>
     </Modal>
@@ -142,20 +384,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 12,
-    padding: 16
+    zIndex: 10
   },
   headerInfo: {
     flex: 1,
     marginRight: 12,
-    gap: 2
+    gap: 2,
+    maxWidth: '82%'
   },
   fileName: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    maxWidth: '100%'
   },
   fileType: {
     fontSize: 12,
@@ -167,12 +408,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
   previewContainer: {
     flex: 1,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20
+    paddingHorizontal: 0
+  },
+  zoomContainer: {
+    width: '100%',
+    height: '100%'
+  },
+  zoomContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   loadingContainer: {
     position: 'absolute',
@@ -183,6 +439,16 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%'
+  },
+  pdfContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    overflow: 'hidden'
+  },
+  pdfWebView: {
+    flex: 1,
+    backgroundColor: '#111827'
   },
   fileIconContainer: {
     justifyContent: 'center',
@@ -196,24 +462,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center'
   },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium'
+  },
   actionBar: {
     position: 'absolute',
     bottom: 50,
     alignSelf: 'center',
-    flexDirection: 'row',
-    gap: 16
-  },
-  downloadButton: {
-    backgroundColor: 'rgba(95, 167, 209, 0.9)',
-    borderRadius: 50,
-    width: 56,
-    height: 56,
-    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5
+    gap: 10
   }
 })
