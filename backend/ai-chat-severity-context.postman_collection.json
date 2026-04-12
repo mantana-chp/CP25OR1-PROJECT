@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "0f38af7a-5a07-4d4a-a4af-91c5f2f4be5b",
     "name": "AI Chat — Session Scenario Tests",
-    "description": "Full scenario coverage for POST /v1/ai-chat using Gemini chat session mode.\nRun requests in order within each folder. Set accessToken and installationId in collection variables before running.\n\nScenarios:\n1. Normal care query (no severity)\n2. Ambiguous health query (clarification returned)\n3. Single symptom flow (pending_severity → resolved → follow-up)\n4. Multi-symptom context rotation (resolved → new symptom → rotation → resolved)\n5. Pet profile injection / skip optimization\n6. New session after app relaunch\n7. Legacy severity text prefix (backward compat)",
+    "description": "Full scenario coverage for POST /v1/ai-chat using Gemini chat session mode.\nRun requests in order within each folder. Set accessToken and installationId in collection variables before running.\n\nScenarios:\n1. Normal care query (no severity)\n2. Ambiguous health query (clarification returned)\n3. Single symptom flow (pending_severity → resolved → follow-up)\n4. Multi-symptom context rotation (resolved → new symptom → rotation → resolved)\n5. Session continuity (new session fresh start)\n6. Legacy severity text prefix (backward compat)\n7. Mixed continuity — full lifecycle in one session (ambiguous → normal → symptom → resolved → new symptom rotation)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -538,6 +538,205 @@
         }
       ]
     }
+  ,
+    {
+      "name": "Scenario 7 — Mixed Continuity (Full Lifecycle in One Session)",
+      "item": [
+        {
+          "name": "7.1 Ambiguous query — clarification returned",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionMixed}}\",\n  \"query\": \"น้องไม่ค่อยสบาย มีอาการแปลกๆ ไม่รู้เป็นอะไร\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "Fresh session, vague symptom. Expected: pending_clarification, clarificationRequest with options list."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('sessionMixed', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "if (data.contextId) pm.collectionVariables.set('ctxMixed1', data.contextId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('contextStatus is pending_clarification', () => pm.expect(data.contextStatus).to.eql('pending_clarification'));",
+                  "pm.test('clarificationRequest present', () => pm.expect(data.clarificationRequest).to.be.an('object'));",
+                  "pm.test('No severityRequest', () => pm.expect(data.severityRequest).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.2 Normal follow-up — resolves clarification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionMixed}}\",\n  \"query\": \"น้องกินอาหารปกติ แค่ดูซึมกว่าปกติ อาจเป็นเพราะอากาศไหม\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User clarifies — turns out to be a normal care question. Expected: contextStatus = not_required, Gemini session answers normally."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('contextStatus is not_required after clarification', () => pm.expect(data.contextStatus).to.eql('not_required'));",
+                  "pm.test('No clarificationRequest', () => pm.expect(data.clarificationRequest).to.be.undefined);",
+                  "pm.test('Answer present', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.3 Symptom query — severity needed",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionMixed}}\",\n  \"query\": \"แต่เมื่อกี้น้องอาเจียนออกมา 2 ครั้งแล้ว\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "Clear symptom reported mid-session. Expected: pending_severity, severityRequest present. Context ID saved as ctxMixed2."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "if (data.contextId) pm.collectionVariables.set('ctxMixed2', data.contextId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('contextStatus is pending_severity', () => pm.expect(data.contextStatus).to.eql('pending_severity'));",
+                  "pm.test('severityRequest present', () => pm.expect(data.severityRequest).to.be.an('object'));",
+                  "pm.test('ctxMixed2 saved', () => pm.expect(pm.collectionVariables.get('ctxMixed2')).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.4 Submit severity → context resolved",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionMixed}}\",\n  \"query\": \"แต่เมื่อกี้น้องอาเจียนออกมา 2 ครั้งแล้ว\",\n  \"contextId\": \"{{ctxMixed2}}\",\n  \"severitySubmission\": {\n    \"contextId\": \"{{ctxMixed2}}\",\n    \"level\": 3,\n    \"label\": \"พอทนได้\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "Submit severity 3 for vomiting context. Expected: contextStatus = resolved, severityLevel = 3."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('contextStatus is resolved', () => pm.expect(data.contextStatus).to.eql('resolved'));",
+                  "pm.test('severityLevel is 3', () => pm.expect(data.severityLevel).to.eql(3));",
+                  "pm.test('contextId unchanged from ctxMixed2', () => pm.expect(data.contextId).to.eql(pm.collectionVariables.get('ctxMixed2')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.5 New different symptom — context rotates",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionMixed}}\",\n  \"query\": \"ตอนนี้น้องตาแฉะ น้ำมูกไหล จามบ่อยด้วย\",\n  \"contextId\": \"{{ctxMixed2}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "Different symptom topic (respiratory/eye symptoms vs digestive) after vomiting was resolved. Expected: contextChanged = true, new contextId (different from ctxMixed2), pending_severity, severityRequest.reason = new_symptom_context."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "if (data.contextId) pm.collectionVariables.set('ctxMixed3', data.contextId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Context rotated — contextChanged = true', () => pm.expect(data.contextChanged).to.eql(true));",
+                  "pm.test('New contextId (not ctxMixed2)', () => pm.expect(data.contextId).to.not.eql(pm.collectionVariables.get('ctxMixed2')));",
+                  "pm.test('contextStatus is pending_severity', () => pm.expect(data.contextStatus).to.eql('pending_severity'));",
+                  "pm.test('severityRequest reason is new_symptom_context', () => pm.expect(data.severityRequest.reason).to.eql('new_symptom_context'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
@@ -554,6 +753,10 @@
     { "key": "contextIdAmbiguous", "value": "" },
     { "key": "contextIdA", "value": "" },
     { "key": "contextIdMultiA", "value": "" },
-    { "key": "contextIdMultiB", "value": "" }
+    { "key": "contextIdMultiB", "value": "" },
+    { "key": "sessionMixed", "value": "" },
+    { "key": "ctxMixed1", "value": "" },
+    { "key": "ctxMixed2", "value": "" },
+    { "key": "ctxMixed3", "value": "" }
   ]
 }
