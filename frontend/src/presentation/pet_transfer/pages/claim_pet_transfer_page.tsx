@@ -132,7 +132,6 @@ export default function ClaimPetTransferPage() {
   const [activeTransferId, setActiveTransferId] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showResultModal, setShowResultModal] = useState(false)
-  const [resultMessage, setResultMessage] = useState('')
   const [transferredPets, setTransferredPets] = useState<ITransferPreviewPet[]>(
     [],
   )
@@ -248,7 +247,6 @@ export default function ClaimPetTransferPage() {
       setSelectedPetId(nextTransferredPets[0].id)
     }
 
-    setResultMessage(acceptedPayload?.message || 'รับโอนสิทธิ์เรียบร้อยแล้ว')
     setTransferredPets(nextTransferredPets)
     setShowPreviewModal(false)
     setShowResultModal(true)
@@ -450,7 +448,6 @@ export default function ClaimPetTransferPage() {
 
       <TransferResultModal
         visible={showResultModal}
-        message={resultMessage}
         transferredPets={transferredPets}
         onClose={() => {
           setShowResultModal(false)

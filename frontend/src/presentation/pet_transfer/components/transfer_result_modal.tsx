@@ -14,7 +14,6 @@ import Modal from '../../components/modal'
 interface TransferResultModalProps {
   visible: boolean
   title?: string
-  message?: string
   transferredPets: ITransferPreviewPet[]
   onClose: () => void
 }
@@ -22,7 +21,6 @@ interface TransferResultModalProps {
 export default function TransferResultModal({
   visible,
   title = 'โอนสิทธิ์สำเร็จ',
-  message = 'ระบบได้โอนความเป็นเจ้าของเรียบร้อยแล้ว',
   transferredPets,
   onClose,
 }: TransferResultModalProps) {
@@ -31,7 +29,9 @@ export default function TransferResultModal({
       <View style={styles.header}>
         <CheckCircle2 size={46} color={colors.success.DEFAULT} />
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
+        <Text style={styles.message}>
+          ระบบได้โอนความเป็นเจ้าของเรียบร้อยแล้ว
+        </Text>
       </View>
 
       <View style={styles.sectionHeaderRow}>
