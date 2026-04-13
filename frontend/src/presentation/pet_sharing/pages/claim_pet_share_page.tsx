@@ -3,32 +3,42 @@ import {
   colors,
   iconSizes,
   spacing,
-  typography
+  typography,
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
 import {
   IClaimInviteResponse,
   INormalizedClaimInviteResult,
-  TClaimInvitePayload
+  TClaimInvitePayload,
 } from '@/src/domain/pet_sharing.domain'
+import {
+  ITransferAcceptResponse,
+  ITransferPreviewPet,
+  ITransferPreviewResponse,
+} from '@/src/domain/pet_transfer.domain'
 import { useAuth } from '@/src/context/AuthContext'
 import { usePets } from '@/src/context/PetContext'
 import { ApiError } from '@/src/utils/api/api_client'
 import { petSharingService } from '@/src/utils/api/services/pet_sharing_service'
+import { petTransferService } from '@/src/utils/api/services/pet_transfer_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { extractClaimToken, unwrapData } from '@/src/utils/pet_sharing_utils'
+import {
+  extractTransferToken,
+  markTransferAsResolved,
+} from '@/src/utils/pet_transfer_utils'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import {
   BarcodeScanningResult,
   CameraType,
   CameraView,
-  useCameraPermissions
+  useCameraPermissions,
 } from 'expo-camera'
 import { KeyboardAvoidingView, Linking, Platform } from 'react-native'
 import {
   ScanLine,
   ShieldCheck,
-  Keyboard as KeyboardIcon
+  Keyboard as KeyboardIcon,
 } from 'lucide-react-native'
 import React, { useMemo, useRef, useState } from 'react'
 import {
@@ -38,17 +48,19 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 
 import Button from '../../components/button'
 import Header from '../../components/header_component'
 import ClaimedPetsModal from '../components/claimed_pets_modal'
+import TransferPreviewModal from '../../pet_transfer/components/transfer_preview_modal'
+import TransferResultModal from '../../pet_transfer/components/transfer_result_modal'
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000
 
 const normalizeClaimResult = (
-  payload: TClaimInvitePayload
+  payload: TClaimInvitePayload,
 ): INormalizedClaimInviteResult => {
   if (!payload) {
     return { added: [], alreadyShared: [] }
@@ -60,7 +72,7 @@ const normalizeClaimResult = (
 
   return {
     added: payload.added ?? [],
-    alreadyShared: payload.alreadyShared ?? []
+    alreadyShared: payload.alreadyShared ?? [],
   }
 }
 
@@ -110,6 +122,91 @@ const getClaimErrorMessage = (error: ApiError) => {
   return error.message || 'ไม่สามารถรับคำเชิญได้ กรุณาลองใหม่อีกครั้ง'
 }
 
+const getPreviewTransferErrorMessage = (error: ApiError) => {
+  const message = error.message?.toLowerCase() ?? ''
+  const backendMessage =
+    typeof error.errors?.[0]?.message === 'string'
+      ? error.errors[0].message.toLowerCase()
+      : ''
+  const mergedMessage = `${message} ${backendMessage}`
+
+  if (error.statusCode === 401) {
+    return 'กรุณาเข้าสู่ระบบก่อนรับโอนสิทธิ์'
+  }
+
+  if (
+    error.statusCode === 404 ||
+    mergedMessage.includes('invalid transfer token')
+  ) {
+    return 'ไม่พบรหัสโอนสิทธิ์นี้ หรือรหัสไม่ถูกต้อง'
+  }
+
+  if (mergedMessage.includes('expired')) {
+    return 'รหัสโอนสิทธิ์หมดอายุแล้ว กรุณาขอรหัสใหม่จากเจ้าของเดิม'
+  }
+
+  if (mergedMessage.includes('already been used')) {
+    return 'รหัสโอนสิทธิ์นี้ถูกใช้งานไปแล้ว'
+  }
+
+  if (mergedMessage.includes('cancelled')) {
+    return 'รหัสโอนสิทธิ์นี้ถูกยกเลิกแล้ว'
+  }
+
+  if (mergedMessage.includes('you cannot accept your own transfer')) {
+    return 'คุณไม่สามารถรับโอนสิทธิ์จากคำเชิญที่คุณสร้างเองได้'
+  }
+
+  return (
+    error.message || 'ไม่สามารถตรวจสอบคำขอโอนสิทธิ์ได้ กรุณาลองใหม่อีกครั้ง'
+  )
+}
+
+const getAcceptTransferErrorMessage = (error: ApiError) => {
+  const message = error.message?.toLowerCase() ?? ''
+  const backendMessage =
+    typeof error.errors?.[0]?.message === 'string'
+      ? error.errors[0].message.toLowerCase()
+      : ''
+  const mergedMessage = `${message} ${backendMessage}`
+
+  if (error.statusCode === 401) {
+    return 'กรุณาเข้าสู่ระบบก่อนรับโอนสิทธิ์'
+  }
+
+  if (error.statusCode === 409 || mergedMessage.includes('exceed')) {
+    return 'ไม่สามารถรับโอนได้ เพราะจำนวนสัตว์เลี้ยงจะเกินเพดานที่ระบบกำหนด'
+  }
+
+  if (mergedMessage.includes('no longer valid')) {
+    return 'คำขอโอนสิทธิ์นี้ไม่สามารถใช้งานต่อได้แล้ว อาจถูกใช้หรือหมดอายุไปแล้ว'
+  }
+
+  if (
+    mergedMessage.includes(
+      'none of the pets in this transfer could be transferred',
+    )
+  ) {
+    return 'ไม่สามารถโอนสัตว์เลี้ยงในคำขอนี้ได้แล้ว เนื่องจากสถานะมีการเปลี่ยนแปลง'
+  }
+
+  return getPreviewTransferErrorMessage(error)
+}
+
+const isInvalidClaimTokenError = (error: ApiError) => {
+  const message = `${error.message ?? ''} ${error.errors?.[0]?.message ?? ''}`
+    .toLowerCase()
+    .trim()
+  return error.statusCode === 404 || message.includes('invalid code')
+}
+
+const isInvalidTransferTokenError = (error: ApiError) => {
+  const message = `${error.message ?? ''} ${error.errors?.[0]?.message ?? ''}`
+    .toLowerCase()
+    .trim()
+  return error.statusCode === 404 || message.includes('invalid transfer token')
+}
+
 export default function ClaimPetSharePage() {
   const router = useRouter()
   const params = useLocalSearchParams()
@@ -120,7 +217,7 @@ export default function ClaimPetSharePage() {
   const {
     isAuthenticated,
     isLoading: authLoading,
-    completeOnboarding
+    completeOnboarding,
   } = useAuth()
   const { refreshPets, activePets, deceasedPets, setSelectedPetId } = usePets()
 
@@ -130,9 +227,18 @@ export default function ClaimPetSharePage() {
   const [lastErrorToken, setLastErrorToken] = useState<string | null>(null)
   const [claimResult, setClaimResult] = useState<INormalizedClaimInviteResult>({
     added: [],
-    alreadyShared: []
+    alreadyShared: [],
   })
   const [showClaimedPetsModal, setShowClaimedPetsModal] = useState(false)
+  const [previewTransfer, setPreviewTransfer] =
+    useState<ITransferPreviewResponse | null>(null)
+  const [activeTransferId, setActiveTransferId] = useState<string | null>(null)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [showResultModal, setShowResultModal] = useState(false)
+  const [resultMessage, setResultMessage] = useState('')
+  const [transferredPets, setTransferredPets] = useState<ITransferPreviewPet[]>(
+    [],
+  )
   const facing: CameraType = 'back'
   const isHandlingScanRef = useRef(false)
   const lastScannedPayloadRef = useRef<{
@@ -141,10 +247,20 @@ export default function ClaimPetSharePage() {
   } | null>(null)
 
   const claimInviteApi = useApi(petSharingService.claimInvite, {
-    showErrorAlert: false
+    showErrorAlert: false,
+  })
+  const previewTransferApi = useApi(petTransferService.previewTransfer, {
+    showErrorAlert: false,
+  })
+  const acceptTransferApi = useApi(petTransferService.acceptTransfer, {
+    showErrorAlert: false,
   })
 
-  const isBusy = claimInviteApi.loading || authLoading
+  const isBusy =
+    claimInviteApi.loading ||
+    previewTransferApi.loading ||
+    acceptTransferApi.loading ||
+    authLoading
 
   // Determine if user has no pets (used to hide back button)
   const hasNoPets =
@@ -174,37 +290,44 @@ export default function ClaimPetSharePage() {
     if (!nextPermission.granted) {
       Alert.alert(
         'ต้องการสิทธิ์กล้อง',
-        'โปรดอนุญาตการใช้งานกล้องเพื่อสแกน QR Code คำเชิญ คุณสามารถเปิดการตั้งค่าเพื่ออนุญาตสิทธิ์ได้',
+        'โปรดอนุญาตการใช้งานกล้องเพื่อสแกน QR Code สำหรับรับสิทธิ์ดูแลร่วมหรือรับโอนสิทธิ์เจ้าของ',
         [
           {
             text: 'ยกเลิก',
-            style: 'cancel'
+            style: 'cancel',
           },
           {
             text: 'ไปที่การตั้งค่า',
-            onPress: () => Linking.openSettings()
-          }
-        ]
+            onPress: () => Linking.openSettings(),
+          },
+        ],
       )
     }
   }
 
-  const onClaimInvite = async (token: string) => {
+  const onClaimInvite = async (
+    token: string,
+    options?: { silentInvalidError?: boolean },
+  ) => {
     if (!isAuthenticated) {
       Alert.alert('กรุณาเข้าสู่ระบบ', 'คุณต้องเข้าสู่ระบบก่อนรับคำเชิญ')
-      return
+      return false
     }
 
     const result = await claimInviteApi.execute(token)
 
     if (result.error) {
       const error = result.error as ApiError
+      if (options?.silentInvalidError && isInvalidClaimTokenError(error)) {
+        return false
+      }
+
       Alert.alert('รับคำเชิญไม่สำเร็จ', getClaimErrorMessage(error))
-      return
+      return false
     }
 
     const claimPayload = unwrapData<IPetProfile[] | IClaimInviteResponse>(
-      result.data
+      result.data,
     )
 
     const normalizedResult = normalizeClaimResult(claimPayload)
@@ -234,6 +357,154 @@ export default function ClaimPetSharePage() {
       // Fallback to navigate directly if no pets data
       router.replace('/(tabs)/pet_profile')
     }
+
+    return true
+  }
+
+  const handlePreviewTransfer = async (
+    transferId: string,
+    options?: { silentInvalidError?: boolean },
+  ) => {
+    if (!isAuthenticated) {
+      Alert.alert('กรุณาเข้าสู่ระบบ', 'คุณต้องเข้าสู่ระบบก่อนรับโอนสิทธิ์')
+      return false
+    }
+
+    const result = await previewTransferApi.execute(transferId)
+
+    if (result.error) {
+      const error = result.error as ApiError
+      if (options?.silentInvalidError && isInvalidTransferTokenError(error)) {
+        return false
+      }
+
+      Alert.alert('ตรวจสอบคำขอไม่สำเร็จ', getPreviewTransferErrorMessage(error))
+      return false
+    }
+
+    const previewPayload = unwrapData<ITransferPreviewResponse>(result.data)
+    if (!previewPayload?.transferId) {
+      Alert.alert(
+        'ข้อมูลไม่ถูกต้อง',
+        'ไม่พบข้อมูลคำขอโอนสิทธิ์ กรุณาลองใหม่อีกครั้ง',
+      )
+      return false
+    }
+
+    setActiveTransferId(transferId)
+    setPreviewTransfer(previewPayload)
+    setShowPreviewModal(true)
+    return true
+  }
+
+  const handleConfirmAcceptTransfer = () => {
+    if (!activeTransferId || !previewTransfer) return
+
+    Alert.alert(
+      'ยืนยันอีกครั้ง',
+      'หลังยืนยันแล้ว ระบบจะโอนความเป็นเจ้าของให้บัญชีนี้ทันที และเจ้าของเดิมจะไม่มีสิทธิ์เข้าถึงข้อมูลสัตว์เลี้ยงนี้',
+      [
+        {
+          text: 'ยกเลิก',
+          style: 'cancel',
+        },
+        {
+          text: 'ยืนยันโอนสิทธิ์',
+          style: 'destructive',
+          onPress: () => {
+            void handleAcceptTransfer(activeTransferId)
+          },
+        },
+      ],
+    )
+  }
+
+  const handleAcceptTransfer = async (transferId: string) => {
+    const result = await acceptTransferApi.execute(transferId)
+
+    if (result.error) {
+      const error = result.error as ApiError
+      Alert.alert('รับโอนสิทธิ์ไม่สำเร็จ', getAcceptTransferErrorMessage(error))
+      return
+    }
+
+    const acceptedPayload = unwrapData<ITransferAcceptResponse>(result.data)
+    const nextTransferredPets = acceptedPayload?.transferredPets ?? []
+
+    await markTransferAsResolved(transferId)
+
+    await refreshPets()
+
+    if (nextTransferredPets[0]?.id) {
+      setSelectedPetId(nextTransferredPets[0].id)
+    }
+
+    setResultMessage(acceptedPayload?.message || 'รับโอนสิทธิ์เรียบร้อยแล้ว')
+    setTransferredPets(nextTransferredPets)
+    setShowPreviewModal(false)
+    setShowResultModal(true)
+  }
+
+  const handleReceiveToken = async (payload: string) => {
+    const trimmedPayload = payload.trim()
+    if (!trimmedPayload) return
+
+    const looksLikeClaimLink =
+      trimmedPayload.includes('/claim/') ||
+      trimmedPayload.startsWith('cp25or1-frontend://claim/')
+    const looksLikeTransferLink =
+      trimmedPayload.includes('/transfer/') ||
+      trimmedPayload.startsWith('cp25or1-frontend://transfer/')
+
+    if (looksLikeClaimLink) {
+      const claimToken = extractClaimToken(trimmedPayload)
+      if (!claimToken) {
+        Alert.alert('ข้อมูลไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญผู้ดูแลในข้อมูลที่สแกน')
+        return
+      }
+      await onClaimInvite(claimToken)
+      return
+    }
+
+    if (looksLikeTransferLink) {
+      const transferToken = extractTransferToken(trimmedPayload)
+      if (!transferToken) {
+        Alert.alert('ข้อมูลไม่ถูกต้อง', 'ไม่พบรหัสโอนสิทธิ์ในข้อมูลที่สแกน')
+        return
+      }
+      await handlePreviewTransfer(transferToken)
+      return
+    }
+
+    const transferToken = extractTransferToken(trimmedPayload)
+    const claimToken = extractClaimToken(trimmedPayload)
+
+    if (!transferToken && !claimToken) {
+      Alert.alert(
+        'QR Code/Code ไม่ถูกต้อง',
+        'ไม่พบรหัสคำเชิญผู้ดูแลหรือรหัสโอนสิทธิ์ในข้อมูลนี้',
+      )
+      return
+    }
+
+    if (transferToken) {
+      const transferHandled = await handlePreviewTransfer(transferToken, {
+        silentInvalidError: Boolean(claimToken),
+      })
+      if (transferHandled) {
+        return
+      }
+    }
+
+    if (claimToken) {
+      await onClaimInvite(claimToken)
+      return
+    }
+
+    Alert.alert(
+      'ไม่สามารถตรวจสอบรหัสได้',
+      'รหัสนี้ไม่สามารถใช้รับสิทธิ์ดูแลร่วมหรือรับโอนสิทธิ์ได้',
+    )
   }
 
   const onBarcodeScanned = async (event: BarcodeScanningResult) => {
@@ -258,30 +529,17 @@ export default function ClaimPetSharePage() {
     isHandlingScanRef.current = true
     lastScannedPayloadRef.current = {
       value: payload,
-      scannedAt: now
-    }
-
-    const token = extractClaimToken(payload)
-    if (!token) {
-      // Only show error once per invalid token
-      if (lastErrorToken !== payload) {
-        setLastErrorToken(payload)
-        Alert.alert('QR Code ไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญใน QR Code นี้', [
-          {
-            text: 'ตกลง',
-            onPress: () => {
-              isHandlingScanRef.current = false
-            }
-          }
-        ])
-      } else {
-        isHandlingScanRef.current = false
-      }
-      return
+      scannedAt: now,
     }
 
     try {
-      await onClaimInvite(token)
+      // Only show error once per invalid payload
+      if (lastErrorToken === payload) {
+        await handleReceiveToken(payload)
+      } else {
+        setLastErrorToken(payload)
+        await handleReceiveToken(payload)
+      }
     } finally {
       isHandlingScanRef.current = false
     }
@@ -294,13 +552,7 @@ export default function ClaimPetSharePage() {
       return
     }
 
-    const token = extractClaimToken(trimmedCode)
-    if (!token) {
-      Alert.alert('รหัสไม่ถูกต้อง', 'ไม่พบรหัสคำเชิญในข้อความที่กรอก')
-      return
-    }
-
-    await onClaimInvite(token)
+    await handleReceiveToken(trimmedCode)
     setManualCode('')
     setShowManualInput(false)
   }
@@ -312,12 +564,16 @@ export default function ClaimPetSharePage() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <View style={styles.container}>
-        <Header title="รับสิทธิ์ดูแลร่วม" goBack onBackPress={onBackPress} />
+        <Header
+          title='รับสิทธิ์ด้วย QR/Code'
+          goBack
+          onBackPress={onBackPress}
+        />
 
         <View style={styles.content}>
           {isBusy ? (
             <View style={styles.stateContainer}>
-              <ActivityIndicator size="large" color={colors.primary.light} />
+              <ActivityIndicator size='large' color={colors.primary.light} />
             </View>
           ) : !isAuthenticated ? (
             <View style={styles.stateContainer}>
@@ -327,12 +583,12 @@ export default function ClaimPetSharePage() {
               />
               <Text style={styles.stateTitle}>กรุณาเข้าสู่ระบบก่อน</Text>
               <Text style={styles.stateDescription}>
-                คุณต้องเข้าสู่ระบบก่อนรับคำเชิญผู้ดูแลร่วม
+                คุณต้องเข้าสู่ระบบก่อนรับสิทธิ์ดูแลร่วมหรือรับโอนสิทธิ์เจ้าของ
               </Text>
             </View>
           ) : !permission ? (
             <View style={styles.stateContainer}>
-              <ActivityIndicator size="large" color={colors.primary.light} />
+              <ActivityIndicator size='large' color={colors.primary.light} />
               <Text style={styles.stateDescription}>กำลังเตรียมกล้อง...</Text>
             </View>
           ) : permissionDenied ? (
@@ -340,11 +596,11 @@ export default function ClaimPetSharePage() {
               <ScanLine color={colors.primary.light} size={iconSizes['4xl']} />
               <Text style={styles.stateTitle}>อนุญาตการใช้งานกล้อง</Text>
               <Text style={styles.stateDescription}>
-                เพื่อสแกน QR Code คำเชิญผู้ดูแลร่วม
+                เพื่อสแกน QR Code สำหรับรับสิทธิ์ดูแลร่วมและรับโอนสิทธิ์เจ้าของ
               </Text>
 
               <Button
-                title="อนุญาตใช้งานกล้อง"
+                title='อนุญาตใช้งานกล้อง'
                 onPress={onRequestPermission}
                 style={styles.permissionButton}
               />
@@ -353,35 +609,42 @@ export default function ClaimPetSharePage() {
             <>
               {showManualInput ? (
                 <View style={styles.manualInputContainer}>
-                  <Text style={styles.manualInputTitle}>กรอกรหัสคำเชิญ</Text>
+                  <Text style={styles.manualInputTitle}>กรอกรหัสด้วยตนเอง</Text>
                   <Text style={styles.manualInputDescription}>
-                    วางลิงก์หรือรหัสคำเชิญที่คัดลอกจากผู้เจ้าของ
+                    รองรับทั้งลิงก์/รหัสเชิญผู้ดูแล และลิงก์/Transfer ID
+                    สำหรับโอนสิทธิ์
                   </Text>
                   <TextInput
                     style={styles.manualInput}
-                    placeholder="รหัสเชิญ"
+                    placeholder='รหัสเชิญ / Transfer ID / ลิงก์'
                     placeholderTextColor={colors.gray[400]}
                     value={manualCode}
                     onChangeText={setManualCode}
-                    autoCapitalize="none"
+                    autoCapitalize='none'
                     autoCorrect={false}
                     numberOfLines={2}
                   />
                   <View style={styles.manualInputButtons}>
                     <Button
-                      title="ยกเลิก"
+                      title='ยกเลิก'
                       onPress={() => {
                         setShowManualInput(false)
                         setManualCode('')
                       }}
-                      variant="ghost"
+                      variant='ghost'
                       style={styles.manualInputButtonHalf}
                     />
                     <Button
-                      title="ยืนยัน"
+                      title='ตรวจสอบ'
                       onPress={handleManualSubmit}
-                      loading={claimInviteApi.loading}
-                      disabled={claimInviteApi.loading || !manualCode.trim()}
+                      loading={
+                        claimInviteApi.loading || previewTransferApi.loading
+                      }
+                      disabled={
+                        claimInviteApi.loading ||
+                        previewTransferApi.loading ||
+                        !manualCode.trim()
+                      }
                       style={styles.manualInputButtonHalf}
                     />
                   </View>
@@ -408,11 +671,12 @@ export default function ClaimPetSharePage() {
                       onBarcodeScanned={onBarcodeScanned}
                     />
 
-                    <View pointerEvents="none" style={styles.scanFrame} />
+                    <View pointerEvents='none' style={styles.scanFrame} />
                   </View>
 
                   <Text style={styles.helperText}>
-                    วาง QR Code คำเชิญให้อยู่ภายในกรอบเพื่อรับสิทธิ์ผู้ดูแลร่วม
+                    วาง QR Code
+                    ของคำเชิญดูแลร่วมหรือโอนสิทธิ์เจ้าของให้อยู่ในกรอบ
                   </Text>
 
                   <TouchableOpacity
@@ -424,7 +688,7 @@ export default function ClaimPetSharePage() {
                       size={iconSizes.md}
                     />
                     <Text style={styles.switchModeText}>
-                      กรอกรหัสคำเชิญด้วยตนเอง
+                      กรอกโค้ด/ลิงก์ด้วยตนเอง
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -442,6 +706,33 @@ export default function ClaimPetSharePage() {
             router.replace('/(tabs)/pet_profile')
           }}
         />
+
+        <TransferPreviewModal
+          visible={showPreviewModal}
+          preview={previewTransfer}
+          loading={acceptTransferApi.loading}
+          onClose={() => {
+            if (acceptTransferApi.loading) return
+            setShowPreviewModal(false)
+            setPreviewTransfer(null)
+            setActiveTransferId(null)
+          }}
+          onConfirm={handleConfirmAcceptTransfer}
+        />
+
+        <TransferResultModal
+          visible={showResultModal}
+          message={resultMessage}
+          transferredPets={transferredPets}
+          onClose={() => {
+            setShowResultModal(false)
+            setResultMessage('')
+            setTransferredPets([])
+            setPreviewTransfer(null)
+            setActiveTransferId(null)
+            router.replace('/(tabs)/pet_profile')
+          }}
+        />
       </View>
     </KeyboardAvoidingView>
   )
@@ -450,12 +741,12 @@ export default function ClaimPetSharePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
     padding: spacing[4],
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   scannerCard: {
     borderRadius: borderRadius.xl,
@@ -463,10 +754,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[900],
     borderWidth: 1,
     borderColor: colors.border.light,
-    aspectRatio: 1
+    aspectRatio: 1,
   },
   camera: {
-    flex: 1
+    flex: 1,
   },
   scanFrame: {
     position: 'absolute',
@@ -477,7 +768,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 2,
     borderColor: colors.background.secondary,
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   helperText: {
     marginTop: spacing[4],
@@ -485,47 +776,47 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
-    lineHeight: typography.lineHeight.normal
+    lineHeight: typography.lineHeight.normal,
   },
   stateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[3],
-    paddingHorizontal: spacing[6]
+    paddingHorizontal: spacing[6],
   },
   stateTitle: {
     fontSize: typography.fontSize['2xl'],
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.bold,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   stateDescription: {
     fontSize: typography.fontSize.base,
     color: colors.gray[600],
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.normal
+    lineHeight: typography.lineHeight.normal,
   },
   permissionButton: {
     width: '100%',
     marginTop: spacing[2],
-    backgroundColor: colors.primary.light
+    backgroundColor: colors.primary.light,
   },
   manualInputContainer: {
-    gap: spacing[3]
+    gap: spacing[3],
   },
   manualInputTitle: {
     fontSize: typography.fontSize['2xl'],
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.bold,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   manualInputDescription: {
     fontSize: typography.fontSize.base,
     color: colors.gray[600],
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.normal
+    lineHeight: typography.lineHeight.normal,
   },
   manualInput: {
     borderRadius: borderRadius.md,
@@ -537,14 +828,14 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     minHeight: 50,
     textAlignVertical: 'top',
-    backgroundColor: colors.background.secondary
+    backgroundColor: colors.background.secondary,
   },
   manualInputButtons: {
     flexDirection: 'row',
-    gap: spacing[2]
+    gap: spacing[2],
   },
   manualInputButtonHalf: {
-    flex: 1
+    flex: 1,
   },
   switchModeButton: {
     flexDirection: 'row',
@@ -552,11 +843,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing[2],
     paddingVertical: spacing[3],
-    marginTop: spacing[2]
+    marginTop: spacing[2],
   },
   switchModeText: {
     fontSize: typography.fontSize.md,
     color: colors.primary.light,
-    fontFamily: typography.fontFamily.medium
-  }
+    fontFamily: typography.fontFamily.medium,
+  },
 })

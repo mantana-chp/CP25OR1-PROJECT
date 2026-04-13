@@ -1,5 +1,5 @@
-import ClaimPetTransferPage from '@/src/presentation/pet_transfer/pages/claim_pet_transfer_page'
+import ClaimPetSharePage from '@/src/presentation/pet_sharing/pages/claim_pet_share_page'
 
 export default function ScanPetTransferTab() {
-  return <ClaimPetTransferPage />
+  return <ClaimPetSharePage />
 }

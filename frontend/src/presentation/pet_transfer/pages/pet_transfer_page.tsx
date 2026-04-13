@@ -19,6 +19,8 @@ import { useApi } from '@/src/utils/api/use_api'
 import { unwrapData } from '@/src/utils/pet_sharing_utils'
 import {
   TRANSFER_SCHEME,
+  clearResolvedTransferIds,
+  getResolvedTransferIdSet,
   unwrapPendingTransfers,
 } from '@/src/utils/pet_transfer_utils'
 
@@ -99,6 +101,7 @@ export default function PetTransferPage() {
 
   const pendingTransfersRef = useRef<IPendingTransfer[]>([])
   const cancelledTransferIdsRef = useRef<Set<string>>(new Set())
+  const resolvedTransferIdsRef = useRef<Set<string>>(new Set())
 
   const ownerTransferablePets = useMemo(
     () => activePets.filter((pet) => pet.petRole === 'OWNER'),
@@ -140,16 +143,64 @@ export default function PetTransferPage() {
     showErrorAlert: false,
   })
 
+  const hydrateResolvedTransferIds = useCallback(async () => {
+    resolvedTransferIdsRef.current = await getResolvedTransferIdSet()
+  }, [])
+
+  const filterResolvedTransfers = useCallback(
+    (transfers: IPendingTransfer[]) =>
+      transfers.filter(
+        (transfer) => !resolvedTransferIdsRef.current.has(transfer.transferId),
+      ),
+    [],
+  )
+
+  const cleanStaleResolvedTransferIds = useCallback(
+    async (serverTransfers: IPendingTransfer[]) => {
+      const currentResolved = resolvedTransferIdsRef.current
+      if (currentResolved.size === 0) {
+        return
+      }
+
+      const serverIdSet = new Set(
+        serverTransfers.map((item) => item.transferId),
+      )
+      const staleResolvedIds = Array.from(currentResolved).filter(
+        (id) => !serverIdSet.has(id),
+      )
+
+      if (staleResolvedIds.length === 0) {
+        return
+      }
+
+      await clearResolvedTransferIds(staleResolvedIds)
+      staleResolvedIds.forEach((id) => currentResolved.delete(id))
+    },
+    [],
+  )
+
   const loadPendingTransfers = useCallback(async (): Promise<
     IPendingTransfer[] | null
   > => {
+    if (resolvedTransferIdsRef.current.size === 0) {
+      await hydrateResolvedTransferIds()
+    }
+
     const transferRes = await listPendingTransfersApi.execute()
     if (transferRes.error) return null
 
-    const nextTransfers = unwrapPendingTransfers(transferRes.data)
+    const serverTransfers = unwrapPendingTransfers(transferRes.data)
+    await cleanStaleResolvedTransferIds(serverTransfers)
+
+    const nextTransfers = filterResolvedTransfers(serverTransfers)
     setPendingTransfers(nextTransfers)
     return nextTransfers
-  }, [listPendingTransfersApi.execute])
+  }, [
+    cleanStaleResolvedTransferIds,
+    filterResolvedTransfers,
+    hydrateResolvedTransferIds,
+    listPendingTransfersApi.execute,
+  ])
 
   useEffect(() => {
     pendingTransfersRef.current = pendingTransfers
@@ -157,13 +208,19 @@ export default function PetTransferPage() {
 
   const syncRealtimeTransfers = useCallback(async () => {
     try {
+      if (resolvedTransferIdsRef.current.size === 0) {
+        await hydrateResolvedTransferIds()
+      }
+
       const previousTransfers = pendingTransfersRef.current
       const previousIds = new Set(
         previousTransfers.map((item) => item.transferId),
       )
 
       const transferRes = await petTransferService.listPendingTransfers()
-      const nextTransfers = unwrapPendingTransfers(transferRes)
+      const serverTransfers = unwrapPendingTransfers(transferRes)
+      await cleanStaleResolvedTransferIds(serverTransfers)
+      const nextTransfers = filterResolvedTransfers(serverTransfers)
       const nextIds = new Set(nextTransfers.map((item) => item.transferId))
 
       setPendingTransfers(nextTransfers)
@@ -208,12 +265,19 @@ export default function PetTransferPage() {
     } catch {
       // Keep silent while polling in background.
     }
-  }, [refreshPets, selectedTransferForQr])
+  }, [
+    cleanStaleResolvedTransferIds,
+    filterResolvedTransfers,
+    hydrateResolvedTransferIds,
+    refreshPets,
+    selectedTransferForQr,
+  ])
 
   useFocusEffect(
     useCallback(() => {
+      void hydrateResolvedTransferIds()
       void loadPendingTransfers()
-    }, [loadPendingTransfers]),
+    }, [hydrateResolvedTransferIds, loadPendingTransfers]),
   )
 
   useFocusEffect(

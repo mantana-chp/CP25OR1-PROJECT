@@ -1,9 +1,11 @@
 import dayjs from 'dayjs'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { IPendingTransfer } from '@/src/domain/pet_transfer.domain'
 import { unwrapData } from './pet_sharing_utils'
 
 export const TRANSFER_SCHEME = 'cp25or1-frontend://transfer'
+const RESOLVED_TRANSFER_IDS_STORAGE_KEY = 'resolved-transfer-ids'
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -62,4 +64,59 @@ export const unwrapPendingTransfers = (
   }
 
   return []
+}
+
+export const getResolvedTransferIdSet = async (): Promise<Set<string>> => {
+  try {
+    const raw = await AsyncStorage.getItem(RESOLVED_TRANSFER_IDS_STORAGE_KEY)
+    if (!raw) {
+      return new Set<string>()
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return new Set<string>()
+    }
+
+    return new Set(
+      parsed
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    )
+  } catch {
+    return new Set<string>()
+  }
+}
+
+export const markTransferAsResolved = async (transferId: string) => {
+  const normalized = transferId.trim()
+  if (!normalized) {
+    return
+  }
+
+  const currentSet = await getResolvedTransferIdSet()
+  currentSet.add(normalized)
+
+  await AsyncStorage.setItem(
+    RESOLVED_TRANSFER_IDS_STORAGE_KEY,
+    JSON.stringify(Array.from(currentSet)),
+  )
+}
+
+export const clearResolvedTransferIds = async (transferIds: string[]) => {
+  if (transferIds.length === 0) {
+    return
+  }
+
+  const currentSet = await getResolvedTransferIdSet()
+
+  transferIds.forEach((id) => {
+    currentSet.delete(id)
+  })
+
+  await AsyncStorage.setItem(
+    RESOLVED_TRANSFER_IDS_STORAGE_KEY,
+    JSON.stringify(Array.from(currentSet)),
+  )
 }
