@@ -84,7 +84,9 @@ export const findTokenByIdMinimal = async (
     include: {
       transfer_pets: {
         include: {
-          pet: { select: { id: true, user_id: true, status: true, deleted_at: true } },
+          pet: {
+            select: { id: true, user_id: true, status: true, deleted_at: true },
+          },
         },
       },
     },

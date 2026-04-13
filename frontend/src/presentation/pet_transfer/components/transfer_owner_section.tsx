@@ -64,7 +64,7 @@ export default function TransferOwnerSection({
           />
         ) : (
           <Button
-            title='เริ่มโอนสิทธิ์สัตว์เลี้ยงนี้'
+            title='เลือกสัตว์เลี้ยงเพื่อโอนสิทธิ์'
             onPress={onInitiateTransfer}
             loading={initiating}
             disabled={initiating}

@@ -39,6 +39,8 @@ import {
 } from '@/constants/design-system'
 import PetSharingStateView from '../components/state_view'
 import TransferQrModal from '../../pet_transfer/components/transfer_qr_modal'
+import TransferPetPickerModal from '../../pet_transfer/components/transfer_pet_picker_modal'
+import OwnerTransferCompletedModal from '../../pet_transfer/components/owner_transfer_completed_modal'
 
 const getInitiateTransferErrorMessage = (error: ApiError) => {
   const message = error.message?.toLowerCase() ?? ''
@@ -88,7 +90,12 @@ const getCancelTransferErrorMessage = (error: ApiError) => {
 export default function AccessListPage() {
   const router = useRouter()
   const { petId } = useLocalSearchParams<{ petId?: string }>()
-  const { activePets, deceasedPets, loading: petsLoading } = usePets()
+  const {
+    activePets,
+    deceasedPets,
+    loading: petsLoading,
+    refreshPets,
+  } = usePets()
 
   const [caregivers, setCaregivers] = useState<ICaregiver[]>([])
   const [selfAccessId, setSelfAccessId] = useState<string | null>(null)
@@ -98,17 +105,25 @@ export default function AccessListPage() {
   const [pendingTransfers, setPendingTransfers] = useState<IPendingTransfer[]>(
     [],
   )
-  const [showInitiateTransferModal, setShowInitiateTransferModal] =
+  const [showTransferPetPickerModal, setShowTransferPetPickerModal] =
     useState(false)
+  const [selectedTransferPetIds, setSelectedTransferPetIds] = useState<
+    string[]
+  >([])
   const [showTransferQrModal, setShowTransferQrModal] = useState(false)
   const [showCancelTransferModal, setShowCancelTransferModal] = useState(false)
   const [transferToCancel, setTransferToCancel] =
     useState<IPendingTransfer | null>(null)
   const [selectedTransferForQr, setSelectedTransferForQr] =
     useState<IPendingTransfer | null>(null)
+  const [showOwnerCompletionModal, setShowOwnerCompletionModal] =
+    useState(false)
+  const [ownerCompletedTransfer, setOwnerCompletedTransfer] =
+    useState<IPendingTransfer | null>(null)
 
   const pendingTransfersRef = useRef<IPendingTransfer[]>([])
   const showTransferQrModalRef = useRef(false)
+  const cancelledTransferIdsRef = useRef<Set<string>>(new Set())
 
   const allPets = useMemo(
     () => [...activePets, ...deceasedPets],
@@ -123,6 +138,23 @@ export default function AccessListPage() {
   const isOwner = currentPet?.petRole === 'OWNER'
   const isDeceasedPet = currentPet?.status === 'DECEASED'
   const canManageAccess = isOwner && !isDeceasedPet
+
+  const ownerTransferablePets = useMemo(
+    () => activePets.filter((pet) => pet.petRole === 'OWNER'),
+    [activePets],
+  )
+
+  const pendingTransferPetIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          pendingTransfers.flatMap((transfer) =>
+            transfer.pets.map((pet) => pet.id),
+          ),
+        ),
+      ),
+    [pendingTransfers],
+  )
 
   const listAccessListApi = useApi(petSharingService.listAccessList, {
     showErrorAlert: false,
@@ -156,11 +188,15 @@ export default function AccessListPage() {
     setSelfAccessId(accessData?.selfAccessId ?? null)
   }, [listAccessListApi.execute, petId])
 
-  const loadPendingTransfers = useCallback(async () => {
+  const loadPendingTransfers = useCallback(async (): Promise<
+    IPendingTransfer[] | null
+  > => {
     const transferRes = await listPendingTransfersApi.execute()
-    if (transferRes.error) return
+    if (transferRes.error) return null
 
-    setPendingTransfers(unwrapPendingTransfers(transferRes.data))
+    const nextTransfers = unwrapPendingTransfers(transferRes.data)
+    setPendingTransfers(nextTransfers)
+    return nextTransfers
   }, [listPendingTransfersApi.execute])
 
   useEffect(() => {
@@ -188,33 +224,64 @@ export default function AccessListPage() {
 
       setPendingTransfers(nextTransfers)
 
-      if (
-        previousCurrentTransfer &&
-        !nextCurrentTransfer &&
-        showTransferQrModalRef.current
-      ) {
-        setShowTransferQrModal(false)
-        setSelectedTransferForQr(null)
-        Alert.alert(
-          'คำขอโอนสิทธิ์สิ้นสุดแล้ว',
-          'คำขอโอนสิทธิ์นี้อาจถูกยืนยันโดยผู้รับโอน, ถูกยกเลิก หรือหมดอายุแล้ว',
+      if (previousCurrentTransfer && !nextCurrentTransfer) {
+        if (showTransferQrModalRef.current) {
+          setShowTransferQrModal(false)
+          setSelectedTransferForQr(null)
+        }
+
+        const wasCancelledByOwner = cancelledTransferIdsRef.current.has(
+          previousCurrentTransfer.transferId,
         )
+
+        if (wasCancelledByOwner) {
+          cancelledTransferIdsRef.current.delete(
+            previousCurrentTransfer.transferId,
+          )
+          return
+        }
+
+        const isExpired =
+          new Date(previousCurrentTransfer.expiresAt).getTime() <= Date.now()
+
+        if (isExpired) {
+          Alert.alert(
+            'คำขอโอนสิทธิ์หมดอายุ',
+            'กรุณาสร้างคำขอโอนสิทธิ์ใหม่อีกครั้ง',
+          )
+          return
+        }
+
+        // If the token disappears before expiry and not cancelled by owner,
+        // treat it as completed by receiver for a clear owner-side completion flow.
+        await refreshPets()
+        setOwnerCompletedTransfer(previousCurrentTransfer)
+        setShowOwnerCompletionModal(true)
       }
     } catch {
       // Keep silent while polling in background.
     }
-  }, [petId])
+  }, [petId, refreshPets])
+
+  const currentPetPendingTransfer = useMemo(() => {
+    if (!petId) return null
+
+    return (
+      pendingTransfers.find((transfer) =>
+        transfer.pets.some((pet) => pet.id === petId),
+      ) ?? null
+    )
+  }, [pendingTransfers, petId])
 
   useFocusEffect(
     useCallback(() => {
       void loadAccessList()
-      void loadPendingTransfers()
-    }, [loadAccessList, loadPendingTransfers]),
+    }, [loadAccessList]),
   )
 
   useFocusEffect(
     useCallback(() => {
-      if (!petId) return
+      if (!petId || !currentPetPendingTransfer) return
 
       void syncRealtimeTransfers()
 
@@ -225,7 +292,7 @@ export default function AccessListPage() {
       return () => {
         clearInterval(pollInterval)
       }
-    }, [petId, syncRealtimeTransfers]),
+    }, [petId, currentPetPendingTransfer?.transferId, syncRealtimeTransfers]),
   )
 
   const handleRevokeCaregiver = (caregiver: ICaregiver) => {
@@ -255,34 +322,101 @@ export default function AccessListPage() {
     setCaregiverToRevoke(null)
   }
 
-  const currentPetPendingTransfer = useMemo(() => {
-    if (!petId) return null
-
-    return (
-      pendingTransfers.find((transfer) =>
-        transfer.pets.some((pet) => pet.id === petId),
-      ) ?? null
-    )
-  }, [pendingTransfers, petId])
-
   const transferClaimLink = currentPetPendingTransfer
     ? `${TRANSFER_SCHEME}/${currentPetPendingTransfer.transferId}`
     : TRANSFER_SCHEME
 
-  const handleOpenInitiateTransferModal = () => {
+  const isPetPendingTransfer = useCallback(
+    (targetPetId: string) => pendingTransferPetIds.includes(targetPetId),
+    [pendingTransferPetIds],
+  )
+
+  const handleOpenInitiateTransferModal = async () => {
     if (!isOwner || isDeceasedPet || !petId) return
-    setShowInitiateTransferModal(true)
+
+    const latestTransfers = await loadPendingTransfers()
+
+    if (!latestTransfers) {
+      Alert.alert(
+        'ไม่สามารถตรวจสอบคำขอโอนสิทธิ์ได้',
+        'กรุณาลองใหม่อีกครั้งก่อนเริ่มโอนสิทธิ์',
+      )
+      return
+    }
+
+    const latestPendingPetIdSet = new Set(
+      latestTransfers.flatMap((transfer) => transfer.pets.map((pet) => pet.id)),
+    )
+
+    const currentPetHasPendingTransfer = latestTransfers.some((transfer) =>
+      transfer.pets.some((pet) => pet.id === petId),
+    )
+
+    if (currentPetHasPendingTransfer) {
+      Alert.alert(
+        'มีคำขอโอนสิทธิ์ที่รอดำเนินการอยู่แล้ว',
+        'สัตว์เลี้ยงหน้านี้มี QR/Code ที่ใช้งานอยู่ ให้ใช้คำขอเดิมต่อหรือยกเลิกก่อนสร้างใหม่',
+      )
+      return
+    }
+
+    const selectablePets = ownerTransferablePets.filter(
+      (pet) => !latestPendingPetIdSet.has(pet.id),
+    )
+
+    if (selectablePets.length === 0) {
+      Alert.alert(
+        'ยังเริ่มโอนไม่ได้',
+        'สัตว์เลี้ยงที่คุณเป็นเจ้าของมีคำขอโอนค้างอยู่ทั้งหมด กรุณารอให้คำขอเดิมเสร็จสิ้นก่อน',
+      )
+      return
+    }
+
+    const defaultSelection = latestPendingPetIdSet.has(petId) ? [] : [petId]
+    setSelectedTransferPetIds(defaultSelection)
+    setShowTransferPetPickerModal(true)
   }
 
-  const closeInitiateTransferModal = () => {
+  const closeTransferPetPickerModal = () => {
     if (initiateTransferApi.loading) return
-    setShowInitiateTransferModal(false)
+    setShowTransferPetPickerModal(false)
+  }
+
+  const handleToggleTransferPet = (targetPetId: string) => {
+    if (isPetPendingTransfer(targetPetId)) return
+
+    setSelectedTransferPetIds((prev) => {
+      if (prev.includes(targetPetId)) {
+        return prev.filter((id) => id !== targetPetId)
+      }
+
+      return [...prev, targetPetId]
+    })
+  }
+
+  const handleToggleSelectAllTransferPets = (selectAll: boolean) => {
+    if (!selectAll) {
+      setSelectedTransferPetIds([])
+      return
+    }
+
+    setSelectedTransferPetIds(
+      ownerTransferablePets
+        .filter((pet) => !isPetPendingTransfer(pet.id))
+        .map((pet) => pet.id),
+    )
   }
 
   const handleConfirmInitiateTransfer = async () => {
-    if (!petId) return
+    if (selectedTransferPetIds.length === 0) {
+      Alert.alert(
+        'กรุณาเลือกสัตว์เลี้ยง',
+        'กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว',
+      )
+      return
+    }
 
-    const result = await initiateTransferApi.execute([petId])
+    const result = await initiateTransferApi.execute(selectedTransferPetIds)
     if (result.error) {
       Alert.alert(
         'เริ่มโอนสิทธิ์ไม่สำเร็จ',
@@ -301,19 +435,23 @@ export default function AccessListPage() {
       transferId: token.transferId,
       expiresAt: token.expiresAt,
       createdAt: token.createdAt,
-      pets: [
-        {
-          id: petId,
-          petName: currentPet?.pet_name || 'สัตว์เลี้ยงนี้',
-        },
-      ],
+      pets: selectedTransferPetIds.map((selectedId) => {
+        const matchedPet = ownerTransferablePets.find(
+          (pet) => pet.id === selectedId,
+        )
+        return {
+          id: selectedId,
+          petName: matchedPet?.pet_name || 'สัตว์เลี้ยงนี้',
+        }
+      }),
     }
 
     setPendingTransfers((prev) => [
       createdTransfer,
       ...prev.filter((item) => item.transferId !== createdTransfer.transferId),
     ])
-    setShowInitiateTransferModal(false)
+    setShowTransferPetPickerModal(false)
+    setSelectedTransferPetIds([])
     setSelectedTransferForQr(createdTransfer)
     setShowTransferQrModal(true)
   }
@@ -359,8 +497,11 @@ export default function AccessListPage() {
   const handleConfirmCancelTransfer = async () => {
     if (!transferToCancel) return
 
+    cancelledTransferIdsRef.current.add(transferToCancel.transferId)
+
     const result = await cancelTransferApi.execute(transferToCancel.transferId)
     if (result.error) {
+      cancelledTransferIdsRef.current.delete(transferToCancel.transferId)
       Alert.alert(
         'ยกเลิกไม่สำเร็จ',
         getCancelTransferErrorMessage(result.error as ApiError),
@@ -380,8 +521,13 @@ export default function AccessListPage() {
     router.push('/(tabs)/scan_pet_transfer')
   }
 
-  const isLoading =
-    petsLoading || listAccessListApi.loading || listPendingTransfersApi.loading
+  const handleCloseOwnerCompletionModal = () => {
+    setShowOwnerCompletionModal(false)
+    setOwnerCompletedTransfer(null)
+    router.push('/(tabs)/pet_profile')
+  }
+
+  const isLoading = petsLoading || listAccessListApi.loading
 
   return (
     <View style={styles.container}>
@@ -458,17 +604,16 @@ export default function AccessListPage() {
         isLoading={revokeApi.loading}
       />
 
-      <Modal
-        visible={showInitiateTransferModal}
-        onClose={closeInitiateTransferModal}
-        variant='confirmation'
-        icon='warning'
-        title='เริ่มโอนสิทธิ์เจ้าของ'
-        message='เมื่อผู้รับโอนยืนยันสำเร็จ สิทธิ์เข้าถึงของเจ้าของเดิมจะสิ้นสุดทันที คุณต้องการเริ่มคำขอโอนสิทธิ์นี้หรือไม่?'
-        confirmText='เริ่มโอนสิทธิ์'
-        cancelText='ยกเลิก'
+      <TransferPetPickerModal
+        visible={showTransferPetPickerModal}
+        pets={ownerTransferablePets}
+        selectedPetIds={selectedTransferPetIds}
+        pendingPetIds={pendingTransferPetIds}
+        loading={initiateTransferApi.loading}
+        onTogglePet={handleToggleTransferPet}
+        onToggleSelectAll={handleToggleSelectAllTransferPets}
+        onClose={closeTransferPetPickerModal}
         onConfirm={handleConfirmInitiateTransfer}
-        isLoading={initiateTransferApi.loading}
       />
 
       <Modal
@@ -494,6 +639,12 @@ export default function AccessListPage() {
             : TRANSFER_SCHEME
         }
         onClose={closeTransferQrModal}
+      />
+
+      <OwnerTransferCompletedModal
+        visible={showOwnerCompletionModal}
+        completedTransfer={ownerCompletedTransfer}
+        onClose={handleCloseOwnerCompletionModal}
       />
     </View>
   )
