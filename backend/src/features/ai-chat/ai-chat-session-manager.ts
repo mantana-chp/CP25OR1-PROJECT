@@ -20,11 +20,15 @@ export type SessionEntry = {
   turnCount: number;
   /** Pet currently resolved for this session. Updated each turn by pet detection. */
   resolvedPetId?: string;
+  /** Role of the currently resolved pet (OWNER or CAREGIVER). */
+  resolvedPetRole?: 'OWNER' | 'CAREGIVER';
   /**
    * The petId whose full profile was last injected into the conversation.
    * Used to skip re-injection when the same pet continues.
    */
   lastInjectedPetId?: string;
+  /** Role of the last injected pet (to detect role change on re-injection). */
+  lastInjectedPetRole?: 'OWNER' | 'CAREGIVER';
   /** Active severity context UUID for this session. */
   activeContextId: string;
   contextStatus: SeverityContextStatus;
@@ -35,6 +39,14 @@ export type SessionEntry = {
    * Used to detect context rotation when a new symptom topic arrives.
    */
   lastSymptomTopics: Set<string>;
+  /**
+   * Tracks pending pet clarification when duplicate pet names are detected.
+   * Cleared once the user selects which pet they mean.
+   */
+  pendingPetClarification?: {
+    contextId: string;
+    ambiguousPetIds: string[];
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -112,11 +124,14 @@ export const getOrCreateSession = (
     lastActivityAt: Date.now(),
     turnCount: 0,
     resolvedPetId: undefined,
+    resolvedPetRole: undefined,
     lastInjectedPetId: undefined,
+    lastInjectedPetRole: undefined,
     activeContextId: uuidv4(),
     contextStatus: 'not_required',
     severityLevel: undefined,
     lastSymptomTopics: new Set(),
+    pendingPetClarification: undefined,
   };
 
   sessions.set(key, entry);

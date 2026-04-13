@@ -737,6 +737,177 @@
         }
       ]
     }
+  ,
+    {
+      "name": "Scenario 8 — Pet Name Ambiguity (Owner + Caregiver)",
+      "item": [
+        {
+          "name": "8.1 Ambiguous pet name — triggers clarification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetAmbiguous}}\",\n  \"query\": \"จิ๊กโก๋กินอาหารได้ปกติไหม\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User has duplicate pet names (owns 'จิ๊กโก๋' and caregiver for another 'จิ๊กโก๋'). Expected: petContextStatus = pending_clarification, petClarificationRequest with reason = ambiguous_pet_name and 2 options."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('sessionPetAmbiguous', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "if (data.contextId) pm.collectionVariables.set('ctxPetAmbiguous', data.contextId);",
+                  "if (data.petClarificationRequest?.options?.[0]?.petId) pm.collectionVariables.set('petIdOwned', data.petClarificationRequest.options[0].petId);",
+                  "if (data.petClarificationRequest?.options?.[1]?.petId) pm.collectionVariables.set('petIdCaregiver', data.petClarificationRequest.options[1].petId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('petContextStatus is pending_clarification', () => pm.expect(data.petContextStatus).to.eql('pending_clarification'));",
+                  "pm.test('petClarificationRequest present', () => pm.expect(data.petClarificationRequest).to.be.an('object'));",
+                  "pm.test('petClarificationRequest reason is ambiguous_pet_name', () => pm.expect(data.petClarificationRequest.reason).to.eql('ambiguous_pet_name'));",
+                  "pm.test('Options has 2 pets', () => pm.expect(data.petClarificationRequest.options).to.have.lengthOf(2));",
+                  "pm.test('First option is OWNER', () => pm.expect(data.petClarificationRequest.options[0].role).to.eql('OWNER'));",
+                  "pm.test('Second option is CAREGIVER', () => pm.expect(data.petClarificationRequest.options[1].role).to.eql('CAREGIVER'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.2 Select owned pet → resolved",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetAmbiguous}}\",\n  \"query\": \"จิ๊กโก๋ที่เป็นสัตว์เลี้ยงของฉัน\",\n  \"contextId\": \"{{ctxPetAmbiguous}}\",\n  \"resolvedPetId\": \"{{petIdOwned}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User selects the owned pet. Expected: petContextStatus = resolved, resolvedPetRole = OWNER, AI responds with pet context."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('petContextStatus is resolved', () => pm.expect(data.petContextStatus).to.eql('resolved'));",
+                  "pm.test('resolvedPetRole is OWNER', () => pm.expect(data.resolvedPetRole).to.eql('OWNER'));",
+                  "pm.test('resolvedPetId matches owned pet', () => pm.expect(data.resolvedPetId).to.eql(pm.collectionVariables.get('petIdOwned')));",
+                  "pm.test('petContextChanged is true', () => pm.expect(data.petContextChanged).to.eql(true));",
+                  "pm.test('Answer present', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.3 Follow-up — session remembers pet (no re-clarification)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetAmbiguous}}\",\n  \"query\": \"แล้วควรให้กินอาหารอะไรเพิ่มไหม\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "Follow-up question about same pet. Expected: petContextStatus = resolved, resolvedPetRole = OWNER (persisted), no petClarificationRequest."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('petContextStatus stays resolved', () => pm.expect(data.petContextStatus).to.eql('resolved'));",
+                  "pm.test('resolvedPetRole is still OWNER', () => pm.expect(data.resolvedPetRole).to.eql('OWNER'));",
+                  "pm.test('resolvedPetId persisted', () => pm.expect(data.resolvedPetId).to.eql(pm.collectionVariables.get('petIdOwned')));",
+                  "pm.test('No petClarificationRequest', () => pm.expect(data.petClarificationRequest).to.be.undefined);",
+                  "pm.test('Answer present', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.4 Topic switch to caregiver pet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetAmbiguous}}\",\n  \"query\": \"แล้วจิ๊กโก๋ที่ฉันดูแลล่ะ กินอาหารเหมือนกันไหม\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User mentions the caregiver pet. Expected: resolvedPetId switches to caregiver pet, resolvedPetRole = CAREGIVER, petContextChanged = true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('petContextStatus is resolved', () => pm.expect(data.petContextStatus).to.eql('resolved'));",
+                  "pm.test('resolvedPetRole is CAREGIVER', () => pm.expect(data.resolvedPetRole).to.eql('CAREGIVER'));",
+                  "pm.test('resolvedPetId switched to caregiver pet', () => pm.expect(data.resolvedPetId).to.eql(pm.collectionVariables.get('petIdCaregiver')));",
+                  "pm.test('petContextChanged is true', () => pm.expect(data.petContextChanged).to.eql(true));",
+                  "pm.test('Answer present', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
@@ -757,6 +928,10 @@
     { "key": "sessionMixed", "value": "" },
     { "key": "ctxMixed1", "value": "" },
     { "key": "ctxMixed2", "value": "" },
-    { "key": "ctxMixed3", "value": "" }
+    { "key": "ctxMixed3", "value": "" },
+    { "key": "sessionPetAmbiguous", "value": "" },
+    { "key": "ctxPetAmbiguous", "value": "" },
+    { "key": "petIdOwned", "value": "" },
+    { "key": "petIdCaregiver", "value": "" }
   ]
 }

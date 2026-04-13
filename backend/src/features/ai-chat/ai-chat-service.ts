@@ -8,8 +8,8 @@ import { Document } from '@langchain/core/documents';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
 import { ApiError, BadRequestError } from '../../shared/errors';
-import { detectPetInQuery, PetCandidate } from './ai-chat-name-matcher';
-import { SeveritySubmissionInput } from './ai-chat-schema';
+import { detectPetInQuery, PetCandidate, PetMatch, detectAllPetsInQuery } from './ai-chat-name-matcher';
+import { SeveritySubmissionInput, PetClarificationSubmissionInput } from './ai-chat-schema';
 import {
   AIChatRuntimeConfig,
   loadAIChatRuntimeConfig,
@@ -80,6 +80,22 @@ type ClarificationRequestData = {
   options: string[];
 };
 
+type PetContextStatus =
+  | 'not_required'
+  | 'pending_clarification'
+  | 'resolved';
+
+type PetClarificationRequestData = {
+  contextId: string;
+  prompt: string;
+  reason: 'ambiguous_pet_name';
+  options: Array<{
+    petId: string;
+    petName: string;
+    role: 'OWNER' | 'CAREGIVER';
+  }>;
+};
+
 type QueryIntent = 'symptom' | 'normal' | 'ambiguous_health';
 
 type RequestFinalState = 'completed' | 'clarification_returned' | 'failed';
@@ -96,17 +112,22 @@ type ChatWithAIInput = {
   resolvedPetId?: string;
   contextId?: string;
   severitySubmission?: SeveritySubmissionInput;
+  petClarificationSubmission?: PetClarificationSubmissionInput;
 };
 
 type ChatWithAIResult = {
   answer: string;
   resolvedPetId?: string;
+  resolvedPetRole?: 'OWNER' | 'CAREGIVER';
   severityFlag?: boolean;
   contextId: string;
   contextChanged?: boolean;
   contextStatus: SeverityContextStatus;
+  petContextStatus?: PetContextStatus;
+  petContextChanged?: boolean;
   severityRequest?: SeverityRequestData;
   clarificationRequest?: ClarificationRequestData;
+  petClarificationRequest?: PetClarificationRequestData;
   severityLevel?: number;
 };
 
@@ -427,11 +448,87 @@ Do not explain. Do not add punctuation. Reply in one word only.`;
   }
 };
 
+/**
+ * Disambiguates between multiple pets with the same name using LLM.
+ * Called when L1+L2 detect multiple pets (e.g., owned "Jiggo" and caregiver "Jiggo").
+ * Uses query context and conversation history to determine which pet the user means.
+ */
+const disambiguatePetWithLLM = async (
+  query: string,
+  ambiguousPets: PetMatch[],
+  sessionHistory: string,
+  traceId: string,
+  metrics: AIRequestMetrics
+): Promise<PetMatch | null> => {
+  if (ambiguousPets.length < 2) return ambiguousPets[0] ?? null;
+
+  const petListStr = ambiguousPets
+    .map((p) => `- "${p.pet_name}" (${p.role}${p.ownerAlias ? `, owner: ${p.ownerAlias}` : ''})`)
+    .join('\n');
+
+  const disambiguationPrompt = `You are analyzing a user message to determine which pet they are referring to.
+
+There are ${ambiguousPets.length} pets with the same name "${ambiguousPets[0].pet_name}":
+${petListStr}
+
+User message: "${query}"
+
+Recent conversation context:
+${sessionHistory || '(No previous context)'}
+
+Analyze the user's message carefully. Look for:
+1. Explicit role mentions (e.g., "ที่ฉันดูแล", "ของฉัน", "ผู้ดูแล", "เจ้าของ")
+2. Implicit context from conversation history
+3. Ownership indicators or caregiving references
+
+Which pet is the user referring to? Reply with ONLY the role (OWNER or CAREGIVER) that best matches the user's intent.
+
+If you cannot determine or it's ambiguous, reply with "UNKNOWN".
+
+Reply with exactly one word: OWNER, CAREGIVER, or UNKNOWN.`;
+
+  try {
+    metrics.geminiTextCalls += 1;
+    logger.info(`[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} (pet disambiguation) started.`);
+
+    const response = await llm.invoke(disambiguationPrompt);
+    const usage = extractGeminiUsage(response);
+    addUsageToMetrics(metrics, usage);
+    logger.info(
+      `[AI Chat][${traceId}] Gemini text call #${metrics.geminiTextCalls} token usage: prompt=${formatTokenLogValue(usage.promptTokens)}, completion=${formatTokenLogValue(usage.completionTokens)}, total=${formatTokenLogValue(usage.totalTokens)}.`
+    );
+
+    const raw = (response.content as string).trim().toUpperCase();
+
+    if (raw === 'UNKNOWN' || !raw) {
+      logger.info(`[AI Chat][${traceId}] LLM disambiguation: ambiguous, returning null`);
+      return null;
+    }
+
+    const matchedPet = ambiguousPets.find((p) => p.role === raw);
+
+    if (matchedPet) {
+      logger.info(`[AI Chat][${traceId}] LLM disambiguation: resolved to ${raw} pet "${matchedPet.pet_name}"`);
+      return matchedPet;
+    }
+
+    logger.info(`[AI Chat][${traceId}] LLM disambiguation: no match for role "${raw}", returning null`);
+    return null;
+  } catch (error) {
+    logger.error(`[AI Chat][${traceId}] LLM disambiguation failed:`, error as Error);
+    return null;
+  }
+};
+
 // ---------------------------------------------------------------------------
 // Pet context builder
 // ---------------------------------------------------------------------------
 
-const buildPetContext = async (petId: string): Promise<string> => {
+const buildPetContext = async (
+  petId: string,
+  role?: 'OWNER' | 'CAREGIVER',
+  ownerAlias?: string
+): Promise<string> => {
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
     include: {
@@ -452,10 +549,18 @@ const buildPetContext = async (petId: string): Promise<string> => {
     .map((r) => `- ${r.reminder_name} (Date: ${r.status_done_at?.toISOString().split('T')[0]})`)
     .join('\n');
 
+  // Build role context string
+  let roleContext = '';
+  if (role === 'OWNER') {
+    roleContext = 'Role: OWNER (คุณเป็นเจ้าของสัตว์เลี้ยงตัวนี้)';
+  } else if (role === 'CAREGIVER') {
+    roleContext = `Role: CAREGIVER (คุณเป็นผู้ดูแลสัตว์เลี้ยงตัวนี้ให้กับ ${ownerAlias || 'เจ้าของ'})`;
+  }
+
   return (
     `
 --- CURRENT PET PROFILE ---
-Name: ${pet.pet_name}
+Name: ${pet.pet_name}${roleContext ? `\n${roleContext}` : ''}
 Species: ${pet.species.name}
 Breed: ${pet.breeds?.name || 'Unknown'}
 Gender: ${pet.gender}
@@ -557,6 +662,124 @@ const deriveContextState = (
 };
 
 // ---------------------------------------------------------------------------
+// Pet context state deriver (handles disambiguation for duplicate pet names)
+// ---------------------------------------------------------------------------
+
+/**
+ * Derives the pet context status based on detected pets and session state.
+ * Handles duplicate pet name disambiguation when a user has multiple pets
+ * with the same name (e.g., owned "Snow" and caregiver "Snow").
+ */
+const derivePetContextState = (
+  session: SessionEntry,
+  detectedPets: PetMatch[],
+  incomingResolvedPetId: string | undefined,
+  petClarificationSubmission: PetClarificationSubmissionInput | undefined,
+  incomingContextId: string | undefined,
+  userPets: PetMatch[]
+): {
+  effectiveContextId: string;
+  petContextStatus: PetContextStatus;
+  petContextChanged: boolean;
+  resolvedPet: PetMatch | undefined;
+  ambiguousPets: PetMatch[];
+  petClarificationRequest?: PetClarificationRequestData;
+} => {
+  // If user is submitting a pet clarification selection
+  if (petClarificationSubmission) {
+    const selectedPet = userPets.find((p) => p.id === petClarificationSubmission.selectedPetId);
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      petContextStatus: 'resolved',
+      petContextChanged: false,
+      resolvedPet: selectedPet,
+      ambiguousPets: [],
+    };
+  }
+
+  // If no pets detected at all
+  if (detectedPets.length === 0) {
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      petContextStatus: 'not_required',
+      petContextChanged: false,
+      resolvedPet: undefined,
+      ambiguousPets: [],
+    };
+  }
+
+  // If only one pet detected (or user provided resolvedPetId hint)
+  if (detectedPets.length === 1) {
+    const singlePet = detectedPets[0];
+
+    // Check if this is a new pet vs continuing with same pet
+    const isSamePet = session.resolvedPetId === singlePet.id;
+
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      petContextStatus: 'resolved',
+      petContextChanged: !isSamePet,
+      resolvedPet: singlePet,
+      ambiguousPets: [],
+    };
+  }
+
+  // Multiple pets detected (DUPLICATE NAME SCENARIO)
+  // Check if session already resolved one of these ambiguous pets
+  const sessionPetStillValid = detectedPets.find((p) => p.id === session.resolvedPetId);
+
+  if (sessionPetStillValid) {
+    // User is continuing to talk about the same ambiguous pet - no need to re-clarify
+    return {
+      effectiveContextId: incomingContextId ?? session.activeContextId,
+      petContextStatus: 'resolved',
+      petContextChanged: false,
+      resolvedPet: sessionPetStillValid,
+      ambiguousPets: detectedPets,
+    };
+  }
+
+  // NEW ambiguous scenario - need clarification
+  const newContextId = uuidv4();
+  const petName = detectedPets[0].pet_name; // All have same name
+
+  // Build options for the frontend to display
+  const options = detectedPets.map((p) => ({
+    petId: p.id,
+    petName: p.pet_name,
+    role: p.role,
+  }));
+
+  // Find owned and caregiver options for the prompt
+  const ownedOption = options.find((o) => o.role === 'OWNER');
+  const caregiverOptions = options.filter((o) => o.role === 'CAREGIVER');
+
+  // Build the disambiguation prompt
+  let prompt: string;
+  if (ownedOption && caregiverOptions.length === 1) {
+    prompt = `คุณหมายถึง ${petName} ที่เป็นสัตว์เลี้ยงของคุณ หรือ ${petName} ที่คุณเป็นผู้ดูแล?`;
+  } else {
+    prompt = `คุณหมายถึง ${petName} ตัวไหนครับ?`;
+  }
+
+  const clarificationRequest: PetClarificationRequestData = {
+    contextId: newContextId,
+    prompt,
+    reason: 'ambiguous_pet_name',
+    options,
+  };
+
+  return {
+    effectiveContextId: newContextId,
+    petContextStatus: 'pending_clarification',
+    petContextChanged: true,
+    resolvedPet: undefined,
+    ambiguousPets: detectedPets,
+    petClarificationRequest: clarificationRequest,
+  };
+};
+
+// ---------------------------------------------------------------------------
 // Main chat function
 // ---------------------------------------------------------------------------
 
@@ -580,6 +803,7 @@ export const chatWithAI = async (
     resolvedPetId: incomingResolvedPetId,
     contextId,
     severitySubmission,
+    petClarificationSubmission,
   } = input;
 
   const traceId = createTraceId();
@@ -593,7 +817,7 @@ export const chatWithAI = async (
     geminiTotalTokens: 0,
   };
 
-  // Validate severity context IDs match if both provided
+  // Validate context IDs match if both provided
   if (
     severitySubmission &&
     contextId &&
@@ -601,6 +825,16 @@ export const chatWithAI = async (
   ) {
     throw new BadRequestError(
       'severitySubmission.contextId must match contextId'
+    );
+  }
+
+  if (
+    petClarificationSubmission &&
+    contextId &&
+    petClarificationSubmission.contextId !== contextId
+  ) {
+    throw new BadRequestError(
+      'petClarificationSubmission.contextId must match contextId'
     );
   }
 
@@ -683,32 +917,161 @@ export const chatWithAI = async (
 
   try {
     // -----------------------------------------------------------------------
-    // 1. Fetch all active pets for this user
+    // 1. Fetch all active pets for this user (owned + shared/caregiver)
     // -----------------------------------------------------------------------
-    const userPets = await prisma.pets.findMany({
-      where: { user_id: userId, status: 'ACTIVE' },
-      select: { id: true, pet_name: true },
+    const [ownedPets, sharedAccesses] = await Promise.all([
+      prisma.pets.findMany({
+        where: { user_id: userId, status: 'ACTIVE' },
+        select: { id: true, pet_name: true },
+      }),
+      prisma.pet_user_access.findMany({
+        where: {
+          user_id: userId,
+          revoked_at: null,
+          pet: { status: 'ACTIVE' },
+        },
+        include: {
+          pet: { select: { id: true, pet_name: true } },
+          contact: { select: { alias: true } },
+        },
+      }),
+    ]);
+
+    // Combine into PetMatch array with role info
+    const userPets: PetMatch[] = [
+      ...ownedPets.map((p) => ({
+        id: p.id,
+        pet_name: p.pet_name,
+        role: 'OWNER' as const,
+      })),
+      ...sharedAccesses.map((access) => ({
+        id: access.pet.id,
+        pet_name: access.pet.pet_name,
+        role: 'CAREGIVER' as const,
+        ownerAlias: access.contact.alias,
+      })),
+    ];
+
+    logger.info(
+      `[AI Chat][${traceId}] Loaded ${ownedPets.length} owned + ${sharedAccesses.length} shared pets for user ${userId.slice(0, 8)}…`
+    );
+
+    // -----------------------------------------------------------------------
+    // 2. Pet name detection — detect ALL matching pets (for duplicate handling)
+    // -----------------------------------------------------------------------
+    const detectedPets = detectAllPetsInQuery(normalizedQuery, userPets);
+
+    logger.info(`[AI Chat][${traceId}] Pet detection: ${detectedPets.length} matches found`);
+    detectedPets.forEach((p) => {
+      logger.info(`[AI Chat][${traceId}]   - "${p.pet_name}" (${p.role}${p.ownerAlias ? ` for ${p.ownerAlias}` : ''})`);
     });
 
     // -----------------------------------------------------------------------
-    // 2. Pet name detection — Layers 1 & 2 always run on every message.
-    //    Layer 3 fires only when L1+L2 miss AND no session pet.
+    // 3. Derive pet context state (handles duplicate name disambiguation)
     // -----------------------------------------------------------------------
-    const detectedPet = detectPetInQuery(normalizedQuery, userPets);
-    let finalResolvedPetId: string | undefined;
+    const {
+      effectiveContextId,
+      petContextStatus,
+      petContextChanged,
+      resolvedPet,
+      ambiguousPets,
+      petClarificationRequest,
+    } = derivePetContextState(
+      session,
+      detectedPets,
+      incomingResolvedPetId,
+      petClarificationSubmission,
+      incomingContextId,
+      userPets
+    );
 
-    if (detectedPet) {
-      finalResolvedPetId = detectedPet.id;
-      logger.info(`[AI Chat] Pet detected via L1/L2: "${detectedPet.pet_name}"`);
+    // If we need pet clarification, try LLM disambiguation first
+    let finalResolvedPet = resolvedPet;
+    let finalPetContextStatus = petContextStatus;
+    let finalPetContextChanged = petContextChanged;
+
+    if (petContextStatus === 'pending_clarification' && ambiguousPets.length >= 2) {
+      logger.info(
+        `[AI Chat][${traceId}] Attempting LLM disambiguation for ${ambiguousPets.length} pets with same name.`
+      );
+
+      const disambiguatedPet = await disambiguatePetWithLLM(
+        normalizedQuery,
+        ambiguousPets,
+        session.turnCount > 0 ? 'Session has previous conversation context' : '',
+        traceId,
+        metrics
+      );
+
+      if (disambiguatedPet) {
+        // LLM successfully resolved which pet - override the state
+        logger.info(
+          `[AI Chat][${traceId}] LLM disambiguation successful, resolving to ${disambiguatedPet.role} pet "${disambiguatedPet.pet_name}"`
+        );
+        finalResolvedPet = disambiguatedPet;
+        finalPetContextStatus = 'resolved';
+        finalPetContextChanged = session.resolvedPetId !== disambiguatedPet.id;
+      } else {
+        // LLM couldn't disambiguate - return clarification prompt
+        session.pendingPetClarification = {
+          contextId: effectiveContextId,
+          ambiguousPetIds: ambiguousPets.map((p) => p.id),
+        };
+        session.activeContextId = effectiveContextId;
+
+        logger.info(
+          `[AI Chat][${traceId}] Ambiguous pet detected. Returning clarification prompt.`
+        );
+        logger.info(
+          buildRequestUsageSummary({
+            traceId,
+            clientChatSessionId,
+            sessionTurnCount: session.turnCount,
+            contextId: effectiveContextId,
+            contextStatus,
+            startedAt,
+            metrics,
+            finalState: 'clarification_returned',
+            hasPetProfileContext,
+            petProfileSkipped,
+            pineconeRelevantDocs,
+          })
+        );
+
+        return {
+          answer: petClarificationRequest!.prompt,
+          contextId: effectiveContextId,
+          contextStatus,
+          petContextStatus,
+          petContextChanged: true,
+          petClarificationRequest,
+        };
+      }
+    }
+
+    // Determine final resolved pet
+    let finalResolvedPetId: string | undefined;
+    let finalResolvedPetRole: 'OWNER' | 'CAREGIVER' | undefined;
+    let finalOwnerAlias: string | undefined;
+
+    if (finalResolvedPet) {
+      finalResolvedPetId = finalResolvedPet.id;
+      finalResolvedPetRole = finalResolvedPet.role;
+      finalOwnerAlias = finalResolvedPet.ownerAlias;
     } else if (session.resolvedPetId) {
       // Session already has a pet — keep it (no L3 needed)
       finalResolvedPetId = session.resolvedPetId;
-      logger.info(`[AI Chat] No new pet in query, continuing session pet: ${session.resolvedPetId}`);
+      finalResolvedPetRole = session.resolvedPetRole;
+      logger.info(`[AI Chat][${traceId}] No new pet in query, continuing session pet: ${session.resolvedPetId}`);
     } else if (incomingResolvedPetId) {
       // Frontend sent a resolvedPetId (L1/L2 override or first-turn hint)
       finalResolvedPetId = incomingResolvedPetId;
-      logger.info(`[AI Chat] Using incoming resolvedPetId hint: ${incomingResolvedPetId}`);
-    } else {
+      // Find role from userPets
+      const petMatch = userPets.find((p) => p.id === incomingResolvedPetId);
+      finalResolvedPetRole = petMatch?.role;
+      finalOwnerAlias = petMatch?.ownerAlias;
+      logger.info(`[AI Chat][${traceId}] Using incoming resolvedPetId hint: ${incomingResolvedPetId}`);
+    } else if (detectedPets.length === 0 && userPets.length > 0) {
       // L1+L2 missed, no session pet, no hint → fire Layer 3
       logger.info('[AI Chat] No pet detected via L1/L2, falling back to Layer 3 LLM extraction.');
       const llmPet = await extractPetWithLLM(
@@ -719,12 +1082,15 @@ export const chatWithAI = async (
       );
       if (llmPet) {
         finalResolvedPetId = llmPet.id;
+        const petMatch = userPets.find((p) => p.id === llmPet.id);
+        finalResolvedPetRole = petMatch?.role;
+        finalOwnerAlias = petMatch?.ownerAlias;
         logger.info(`[AI Chat] Pet detected via Layer 3: "${llmPet.pet_name}"`);
       }
     }
 
     // -----------------------------------------------------------------------
-    // Early return for clarification — no Gemini chat session call needed
+    // Early return for health clarification — no Gemini chat session call needed
     // -----------------------------------------------------------------------
     if (shouldAskClarification) {
       // Update session state even on clarification returns
@@ -765,18 +1131,22 @@ export const chatWithAI = async (
     // 3. Build pet context — only inject when pet changes or first time
     // -----------------------------------------------------------------------
     if (finalResolvedPetId) {
-      if (finalResolvedPetId !== session.lastInjectedPetId) {
-        // New pet or first time — fetch and inject full profile
-        petContext = await buildPetContext(finalResolvedPetId);
+      // Check if pet changed OR role changed (need re-injection if user switched from owner to caregiver view of same pet)
+      const isNewPet = finalResolvedPetId !== session.lastInjectedPetId;
+      const isRoleChange = finalResolvedPetRole !== session.lastInjectedPetRole;
+
+      if (isNewPet || isRoleChange) {
+        // New pet, first time, or role changed — fetch and inject full profile with role
+        petContext = await buildPetContext(finalResolvedPetId, finalResolvedPetRole, finalOwnerAlias);
         hasPetProfileContext = petContext.length > 0;
         logger.info(
-          `[AI Chat][${traceId}] Pet profile injected for petId=${finalResolvedPetId.slice(0, 8)}… (was: ${session.lastInjectedPetId ? session.lastInjectedPetId.slice(0, 8) + '…' : 'none'})`
+          `[AI Chat][${traceId}] Pet profile injected for petId=${finalResolvedPetId.slice(0, 8)}… (${finalResolvedPetRole}) (was: ${session.lastInjectedPetId ? session.lastInjectedPetId.slice(0, 8) + '…' : 'none'})`
         );
       } else {
-        // Same pet as last turn — model already has profile in session history
+        // Same pet and role as last turn — model already has profile in session history
         petProfileSkipped = true;
         logger.info(
-          `[AI Chat][${traceId}] Pet profile skip — same pet already in session (petId=${finalResolvedPetId.slice(0, 8)}…)`
+          `[AI Chat][${traceId}] Pet profile skip — same pet already in session(petId = ${finalResolvedPetId.slice(0, 8)}…)`
         );
       }
     }
@@ -787,7 +1157,7 @@ export const chatWithAI = async (
     metrics.pineconeSearchCalls += 1;
     metrics.geminiEmbeddingCalls += 1;
     logger.info(
-      `[AI Chat][${traceId}] Pinecone search #${metrics.pineconeSearchCalls} started (includes Gemini embedding call #${metrics.geminiEmbeddingCalls}).`
+      `[AI Chat][${traceId}] Pinecone search #${metrics.pineconeSearchCalls} started(includes Gemini embedding call #${metrics.geminiEmbeddingCalls}).`
     );
 
     const resultsWithScore = await store.similaritySearchWithScore(modelQuery, 3);
@@ -803,7 +1173,7 @@ export const chatWithAI = async (
     pineconeRelevantDocs = relevantDocs.length;
 
     logger.info(
-      `[AI Chat][${traceId}] RAG context summary. contextId=${effectiveContextId}, petProfileIncluded=${hasPetProfileContext}, petProfileSkipped=${petProfileSkipped}, pineconeRelevantDocs=${pineconeRelevantDocs}.`
+      `[AI Chat][${traceId}] RAG context summary.contextId = ${effectiveContextId}, petProfileIncluded = ${hasPetProfileContext}, petProfileSkipped = ${petProfileSkipped}, pineconeRelevantDocs = ${pineconeRelevantDocs}.`
     );
 
     const knowledgeBaseContext = relevantDocs
@@ -822,31 +1192,31 @@ export const chatWithAI = async (
 
     if (knowledgeBaseContext) {
       userPromptParts.push(
-        `--- KNOWLEDGE BASE (Reference Only - Ignore if irrelevant to question) ---
-${knowledgeBaseContext}
-----------------------------------------------------------------------------`
+        `-- - KNOWLEDGE BASE(Reference Only - Ignore if irrelevant to question)---
+        ${knowledgeBaseContext}
+      ----------------------------------------------------------------------------`
       );
     }
 
     userPromptParts.push(
-      `--- SEVERITY CONTEXT ---
-ContextId: ${effectiveContextId}
-ContextChanged: ${contextChanged ? 'yes' : 'no'}
-IsSymptomTurn: ${isSymptomTurn ? 'yes' : 'no'}
-SeveritySubmissionThisTurn: ${isSeveritySubmissionTurn ? `yes (${submittedSeverityLevel}/5)` : 'no'}
-ContextStatus: ${contextStatus}
-NeedsSeverityNow: ${shouldRequestSeverity ? 'yes' : 'no'}
-If NeedsSeverityNow=yes: Ask user for 1-5 severity in Thai and append [NEEDS_SEVERITY] on a new final line.
-If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
---- END SEVERITY CONTEXT ---`
+      `--- SEVERITY CONTEXT-- -
+        ContextId: ${effectiveContextId}
+      ContextChanged: ${contextChanged ? 'yes' : 'no'}
+      IsSymptomTurn: ${isSymptomTurn ? 'yes' : 'no'}
+      SeveritySubmissionThisTurn: ${isSeveritySubmissionTurn ? `yes (${submittedSeverityLevel}/5)` : 'no'}
+      ContextStatus: ${contextStatus}
+      NeedsSeverityNow: ${shouldRequestSeverity ? 'yes' : 'no'}
+If NeedsSeverityNow = yes: Ask user for 1 - 5 severity in Thai and append[NEEDS_SEVERITY] on a new final line.
+If NeedsSeverityNow = no: Never append[NEEDS_SEVERITY].
+--- END SEVERITY CONTEXT-- - `
     );
 
-    userPromptParts.push(`User Question: ${modelQuery}`);
+    userPromptParts.push(`User Question: ${modelQuery} `);
 
     const prompt = userPromptParts.join('\n\n');
 
     logger.info(`AI Chat Request - Question: "${modelQuery}"`);
-    logger.info(`Full AI Prompt:\n${prompt}`);
+    logger.info(`Full AI Prompt: \n${prompt} `);
 
     // -----------------------------------------------------------------------
     // 6. Send through Gemini chat session
@@ -859,7 +1229,7 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     const usage = extractNativeGeminiUsage(chatResponse);
     addUsageToMetrics(metrics, usage);
     logger.info(
-      `[AI Chat][${traceId}] Gemini chat session call #${metrics.geminiTextCalls} token usage: prompt=${formatTokenLogValue(usage.promptTokens)}, completion=${formatTokenLogValue(usage.completionTokens)}, total=${formatTokenLogValue(usage.totalTokens)}.`
+      `[AI Chat][${traceId}] Gemini chat session call #${metrics.geminiTextCalls} token usage: prompt = ${formatTokenLogValue(usage.promptTokens)}, completion = ${formatTokenLogValue(usage.completionTokens)}, total = ${formatTokenLogValue(usage.totalTokens)}.`
     );
 
     const rawAnswer = chatResponse.text;
@@ -874,7 +1244,7 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
 
     if (llmSeverityFlag && !shouldRequestSeverity) {
       logger.warn(
-        `[AI Chat][${traceId}] Model emitted [NEEDS_SEVERITY] while backend state is ${contextStatus}. Marker was ignored.`
+        `[AI Chat][${traceId}] Model emitted[NEEDS_SEVERITY] while backend state is ${contextStatus}. Marker was ignored.`
       );
     }
 
@@ -884,6 +1254,7 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     // 7. Update session metadata for this completed turn
     // -----------------------------------------------------------------------
     session.resolvedPetId = finalResolvedPetId ?? session.resolvedPetId;
+    session.resolvedPetRole = finalResolvedPetRole ?? session.resolvedPetRole;
     session.activeContextId = effectiveContextId;
     session.contextStatus = contextStatus;
     if (contextStatus === 'resolved' && submittedSeverityLevel !== undefined) {
@@ -891,6 +1262,11 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     }
     if (finalResolvedPetId && hasPetProfileContext) {
       session.lastInjectedPetId = finalResolvedPetId;
+      session.lastInjectedPetRole = finalResolvedPetRole;
+    }
+    // Clear pending pet clarification if we have a resolved pet
+    if (petContextStatus === 'resolved' && finalResolvedPetId) {
+      session.pendingPetClarification = undefined;
     }
     if (currentSymptomTopics.size > 0) {
       // Update last known symptom topics for future context rotation detection
@@ -906,8 +1282,8 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     // Touch session (updates lastActivityAt + turnCount)
     touchSession(installationId, clientChatSessionId);
 
-    logger.info(`AI Chat Response received successfully. severityFlag=${severityFlag}`);
-    logger.info(`AI Answer:\n${answer}`);
+    logger.info(`AI Chat Response received successfully.severityFlag = ${severityFlag} `);
+    logger.info(`AI Answer: \n${answer} `);
     logger.info(
       buildRequestUsageSummary({
         traceId,
@@ -927,10 +1303,13 @@ If NeedsSeverityNow=no: Never append [NEEDS_SEVERITY].
     return {
       answer,
       resolvedPetId: finalResolvedPetId,
+      resolvedPetRole: finalResolvedPetRole,
       severityFlag: severityFlag || undefined,
       contextId: effectiveContextId,
       contextChanged: contextChanged || undefined,
       contextStatus,
+      petContextStatus: finalPetContextStatus,
+      petContextChanged: finalPetContextChanged || undefined,
       severityRequest,
       clarificationRequest,
       severityLevel: submittedSeverityLevel,

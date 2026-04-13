@@ -62,6 +62,10 @@ export interface ChatRequest {
     level: SeverityLevel
     label?: string
   }
+  petClarificationSubmission?: {      // NEW — for pet name disambiguation
+    contextId: string
+    selectedPetId: string
+  }
   // history — REMOVED
 }
 
@@ -78,21 +82,41 @@ export interface ClarificationRequestData {
   options: string[]
 }
 
+export interface PetClarificationRequestData {
+  contextId: string
+  prompt: string
+  reason: 'ambiguous_pet_name'
+  options: Array<{
+    petId: string
+    petName: string
+    role: 'OWNER' | 'CAREGIVER'
+  }>
+}
+
 export type ContextStatus =
   | 'not_required'
   | 'pending_clarification'
   | 'pending_severity'
   | 'resolved'
 
+export type PetContextStatus =
+  | 'not_required'
+  | 'pending_clarification'
+  | 'resolved'
+
 export interface ChatResponse {
   answer: string
   resolvedPetId?: string
+  resolvedPetRole?: 'OWNER' | 'CAREGIVER'  // NEW
   severityFlag?: boolean              // kept — backend still returns this
   contextId: string                   // NEW — always returned
   contextChanged?: boolean            // NEW
   contextStatus: ContextStatus        // NEW
+  petContextStatus?: PetContextStatus // NEW
+  petContextChanged?: boolean         // NEW
   severityRequest?: SeverityRequestData      // NEW
   clarificationRequest?: ClarificationRequestData // NEW
+  petClarificationRequest?: PetClarificationRequestData // NEW
   severityLevel?: number              // NEW
 }
 ```
@@ -258,6 +282,109 @@ Replace the legacy text-prefix approach with structured `severitySubmission`:
 
 ---
 
+### 4. `frontend/src/presentation/chatbot/pages/chatbot_page.tsx` — Pet Clarification Handling (NEW)
+
+When the user has multiple pets with the same name (e.g., owns "จิ๊กโก๋" and caregiver for another "จิ๊กโก๋"), the backend returns `petContextStatus: 'pending_clarification'` with a `petClarificationRequest`.
+
+#### A. Add state for pet clarification
+
+```typescript
+// NEW state — track if we need pet clarification
+const [petClarificationRequest, setPetClarificationRequest] = useState<PetClarificationRequestData | undefined>()
+const [activePetContextId, setActivePetContextId] = useState<string | undefined>()
+```
+
+#### B. Handle pet clarification in response
+
+```typescript
+const handleSendMessage = async (text: string) => {
+  // ... existing code ...
+
+  const response = await chatbotService.sendMessage(
+    text,
+    clientChatSessionId,
+    { resolvedPetId, contextId: activeContextId }
+  )
+
+  // Check for pet clarification request
+  if (response.data.petContextStatus === 'pending_clarification' && response.data.petClarificationRequest) {
+    setPetClarificationRequest(response.data.petClarificationRequest)
+    setActivePetContextId(response.data.contextId)
+
+    // Show clarification UI instead of normal AI response
+    // (Display options: "จิ๊กโก๋ (ของฉัน)" vs "จิ๊กโก๋ (ที่ฉันดูแล)")
+    return
+  }
+
+  // Normal flow continues...
+  setResolvedPetId(response.data.resolvedPetId)
+  setActiveContextId(response.data.contextId)
+}
+```
+
+#### C. Handle pet selection
+
+```typescript
+const handlePetClarificationSelect = async (selectedPetId: string) => {
+  setPetClarificationRequest(undefined) // Hide clarification UI
+  setIsTyping(true)
+
+  try {
+    const response = await chatbotService.sendMessage(
+      '', // or repeat original query if needed
+      clientChatSessionId,
+      {
+        resolvedPetId: selectedPetId,
+        contextId: activePetContextId,
+        petClarificationSubmission: {
+          contextId: activePetContextId!,
+          selectedPetId
+        }
+      }
+    )
+
+    setResolvedPetId(response.data.resolvedPetId)
+    setActiveContextId(response.data.contextId)
+
+    // Display AI response
+    addMessage({
+      id: Date.now().toString(),
+      text: response.data.answer,
+      isUser: false
+    })
+  } catch (error) {
+    // Handle error
+  } finally {
+    setIsTyping(false)
+  }
+}
+```
+
+#### D. UI Component for Pet Clarification
+
+```tsx
+{petClarificationRequest && (
+  <View style={styles.clarificationContainer}>
+    <Text style={styles.clarificationPrompt}>
+      {petClarificationRequest.prompt}
+    </Text>
+    {petClarificationRequest.options.map((option) => (
+      <TouchableOpacity
+        key={option.petId}
+        style={styles.clarificationOption}
+        onPress={() => handlePetClarificationSelect(option.petId)}
+      >
+        <Text style={styles.optionText}>
+          {option.petName} ({option.role === 'OWNER' ? 'ของฉัน' : 'ที่ฉันดูแล'})
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+)}
+```
+
+---
+
 ## Session Lifecycle (After Refactor)
 
 ```
@@ -309,23 +436,26 @@ User reopens app
 ## Things Kept
 
 - ✅ `resolvedPetId` state — still returned by backend, still sent for pet hint
+- ✅ `resolvedPetRole` — **NEW** returned by backend when pet is resolved (OWNER or CAREGIVER)
 - ✅ `Message[]` display state
 - ✅ `isTyping` state
 - ✅ `disclaimerAccepted` state and disclaimer modal
 - ✅ `SeverityScaleWidget` — still triggered by `contextStatus === 'pending_severity'`
 - ✅ `severityFlag` — still returned by backend for backward compat
+- ✅ **NEW:** Pet clarification widget — triggered by `petContextStatus === 'pending_clarification'`
 
 ---
 
 ## Implementation State
 
 - [ ] `uuid` package installed (if not already present).
-- [ ] Domain types updated (`chatbot.domain.ts`).
+- [ ] Domain types updated (`chatbot.domain.ts`) — includes `PetClarificationRequestData`, `PetContextStatus`, `resolvedPetRole`.
 - [ ] Chatbot service updated (`chatbot_service.ts`).
 - [ ] Chatbot page refactored (`chatbot_page.tsx`):
   - [ ] `clientChatSessionId` generated with `useRef(uuidv4()).current`.
   - [ ] `chatHistory` state removed.
   - [ ] `activeContextId` state added.
-  - [ ] `handleSendMessage` updated (no history, pass sessionId).
+  - [ ] `handleSendMessage` updated (no history, pass sessionId, handle `petClarificationRequest`).
   - [ ] `handleSeveritySelect` updated (structured `severitySubmission`).
+  - [ ] **NEW:** Pet clarification UI added (`petClarificationRequest` state, selection handler).
 - [ ] End-to-end test with backend.

@@ -9,7 +9,7 @@ import { chatSchema } from './ai-chat-schema';
  * POST /v1/ai-chat
  */
 export const chat = asyncHandler(async (req: Request, res: Response) => {
-  const { query, clientChatSessionId, resolvedPetId, contextId, severitySubmission } =
+  const { query, clientChatSessionId, resolvedPetId, contextId, severitySubmission, petClarificationSubmission } =
     chatSchema.parse(req).body;
 
   const { id: userId } = req.user!;
@@ -24,6 +24,7 @@ export const chat = asyncHandler(async (req: Request, res: Response) => {
     resolvedPetId,
     contextId,
     severitySubmission,
+    petClarificationSubmission,
   });
 
   sendSuccess(res, result);

@@ -387,9 +387,172 @@ The model still knows the pet info from session history — profile re-injection
 
 ---
 
+## Scenario 8: Pet Name Ambiguity — Duplicate Pet Names (Owner + Caregiver)
+
+**Intent:** User has multiple pets with the same name (e.g., owns a pet named "จิ๊กโก๋" and is also a caregiver for another "จิ๊กโก๋"). When user asks about the pet by name, backend detects ambiguity and asks for clarification.
+
+**Prerequisites:**
+- User owns a pet named "จิ๊กโก๋" (petId: `pet-owned-uuid`)
+- User is a caregiver for another pet named "จิ๊กโก๋" (petId: `pet-caregiver-uuid`)
+
+### Step 8.1 — First Mention of Ambiguous Pet Name
+
+```jsonc
+// Request — user asks about pet by name
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000008",
+  "query": "จิ๊กโก๋กินอาหารได้ปกติไหม"
+}
+```
+
+```jsonc
+// Response — backend detects duplicate names, asks for clarification
+{
+  "status": { "code": "000", "description": "Success" },
+  "data": {
+    "answer": "คุณหมายถึง จิ๊กโก๋ ที่เป็นสัตว์เลี้ยงของคุณ หรือ จิ๊กโก๋ ที่คุณเป็นผู้ดูแล?",
+    "contextId": "88888888-8888-8888-8888-888888888888",
+    "contextStatus": "not_required",
+    "petContextStatus": "pending_clarification",
+    "petContextChanged": true,
+    "petClarificationRequest": {
+      "contextId": "88888888-8888-8888-8888-888888888888",
+      "prompt": "คุณหมายถึง จิ๊กโก๋ ที่เป็นสัตว์เลี้ยงของคุณ หรือ จิ๊กโก๋ ที่คุณเป็นผู้ดูแล?",
+      "reason": "ambiguous_pet_name",
+      "options": [
+        {
+          "petId": "pet-owned-uuid",
+          "petName": "จิ๊กโก๋",
+          "role": "OWNER"
+        },
+        {
+          "petId": "pet-caregiver-uuid",
+          "petName": "จิ๊กโก๋",
+          "role": "CAREGIVER"
+        }
+      ]
+    }
+  }
+}
+```
+
+**What to verify:**
+- `petContextStatus` = `pending_clarification`
+- `petClarificationRequest` present with `reason: "ambiguous_pet_name"`
+- `options` array has 2 items with distinct `petId` and `role` values
+- No Gemini chat session call made (early return — fast response)
+
+---
+
+### Step 8.2 — User Selects Which Pet (Owner's Pet)
+
+```jsonc
+// Request — user selects the owned pet
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000008",
+  "query": "จิ๊กโก๋ที่เป็นสัตว์เลี้ยงของฉัน",
+  "contextId": "88888888-8888-8888-8888-888888888888",
+  "resolvedPetId": "pet-owned-uuid"
+}
+```
+
+```jsonc
+// Response — pet resolved, normal AI response with OWNER context
+{
+  "status": { "code": "000", "description": "Success" },
+  "data": {
+    "answer": "จากประวัติของจิ๊กโก๋ น้องกินอาหารได้ปกติดี...",
+    "resolvedPetId": "pet-owned-uuid",
+    "resolvedPetRole": "OWNER",
+    "contextId": "88888888-8888-8888-8888-888888888888",
+    "contextStatus": "not_required",
+    "petContextStatus": "resolved",
+    "petContextChanged": true
+  }
+}
+```
+
+**What to verify:**
+- `petContextStatus` = `resolved`
+- `resolvedPetRole` = `"OWNER"`
+- `resolvedPetId` matches the selected pet
+- Session now remembers this pet for subsequent questions
+
+---
+
+### Step 8.3 — Follow-up Question (Same Pet, No Re-clarification)
+
+```jsonc
+// Request — follow-up about same pet
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000008",
+  "query": "แล้วควรให้กินอาหารอะไรเพิ่มไหม"
+}
+```
+
+```jsonc
+// Response — session remembers the resolved pet
+{
+  "status": { "code": "000", "description": "Success" },
+  "data": {
+    "answer": "สำหรับจิ๊กโก๋ คุณอาจเพิ่มอาหารเสริม...",
+    "resolvedPetId": "pet-owned-uuid",
+    "resolvedPetRole": "OWNER",
+    "contextId": "88888888-8888-8888-8888-888888888888",
+    "contextStatus": "not_required",
+    "petContextStatus": "resolved"
+  }
+}
+```
+
+**What to verify:**
+- No `petClarificationRequest` (no re-clarification needed)
+- `resolvedPetId` and `resolvedPetRole` persist from session
+- AI response acknowledges this is the user's own pet
+
+---
+
+### Step 8.4 — Topic Switch to Caregiver Pet (LLM Disambiguation)
+
+```jsonc
+// Request — user explicitly mentions "ที่ฉันดูแล" (caregiver role)
+{
+  "clientChatSessionId": "aaaaaaaa-0000-0000-0000-000000000008",
+  "query": "แล้วจิ๊กโก๋ที่ฉันดูแลล่ะ กินอาหารเหมือนกันไหม"
+}
+```
+
+```jsonc
+// Response — LLM disambiguation detected "ที่ฉันดูแล" → CAREGIVER role
+{
+  "status": { "code": "000", "description": "Success" },
+  "data": {
+    "answer": "สำหรับจิ๊กโก๋ที่คุณดูแล อาจแนะนำเจ้าของเรื่องอาหารเสริม...",
+    "resolvedPetId": "pet-caregiver-uuid",
+    "resolvedPetRole": "CAREGIVER",
+    "contextId": "88888888-8888-8888-8888-888888888888",
+    "contextStatus": "not_required",
+    "petContextStatus": "resolved",
+    "petContextChanged": true
+  }
+}
+```
+
+**What to verify:**
+- No `petClarificationRequest` — LLM resolved ambiguity automatically via "ที่ฉันดูแล" hint
+- `resolvedPetId` changed to caregiver pet
+- `resolvedPetRole` = `"CAREGIVER"`
+- `petContextChanged` = `true` (pet context rotated)
+- AI response acknowledges caregiver role appropriately
+
+**Backend behavior:** L1+L2 detected both pets → LLM disambiguation analyzed "ที่ฉันดูแล" → resolved to CAREGIVER pet directly (no clarification prompt shown)
+
+---
+
 ## Notes
 
 - `resolvedPetId` in responses is optional. It is only returned if a pet was detected for that turn.
+- `resolvedPetRole` (`"OWNER"` | `"CAREGIVER"`) is returned when a pet is resolved.
 - `contextId` is always returned in every response.
 - `severityFlag` is kept for backward compatibility. New code should use `contextStatus === 'pending_severity'` instead.
 - `history` field is **no longer accepted** in the request schema. The Gemini chat session manages conversation context server-side.

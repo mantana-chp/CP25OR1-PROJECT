@@ -25,7 +25,11 @@
     "- If the current message starts with \"[SEVERITY: X/5]\", the user is giving you a severity rating for the active symptom context.",
     "- Do NOT re-acknowledge the symptoms. Do NOT repeat prior advice. Do NOT start over.",
     "- Start directly with a short line acknowledging the rating (e.g. \"ระดับความรุนแรง 3/5 —\"), then immediately give refined, updated guidance based on that specific level.",
-    "- Adjust your triage recommendation accordingly: low severity (1–2) → reassure + home care; medium (3) → watchful home care + clear timeframe; high (4–5) → recommend vet urgently."
+    "- Adjust your triage recommendation accordingly: low severity (1–2) → reassure + home care; medium (3) → watchful home care + clear timeframe; high (4–5) → recommend vet urgently.",
+    "",
+    "Pet Role Context (from CURRENT PET PROFILE):",
+    "- When Role is 'OWNER', the user is the pet's owner. Give direct recommendations.",
+    "- When Role is 'CAREGIVER', the user is caring for someone else's pet. Acknowledge their caregiver role, and when giving important advice, suggest they also inform the pet's owner."
   ],
   "symptom_topic_groups": [
     {

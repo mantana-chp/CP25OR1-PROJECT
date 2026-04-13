@@ -12,6 +12,14 @@ export type PetCandidate = {
     pet_name: string;
 };
 
+export type PetMatch = {
+    id: string;
+    pet_name: string;
+    role: 'OWNER' | 'CAREGIVER';
+    /** For CAREGIVER pets: the owner's alias (contact name) */
+    ownerAlias?: string;
+};
+
 const MIN_EXACT_NAME_LENGTH = 2;
 const MIN_FUZZY_NAME_LENGTH = 3;
 
@@ -27,7 +35,7 @@ function isLatinAlphaNumeric(value: string): boolean {
     return /^[a-z0-9]+$/i.test(value);
 }
 
-function rankCandidates(pets: PetCandidate[]): PetCandidate[] {
+function rankCandidates<T extends PetCandidate>(pets: T[]): T[] {
     return [...pets].sort(
         (a, b) => b.pet_name.trim().length - a.pet_name.trim().length
     );
@@ -162,4 +170,47 @@ export function detectPetInQuery(
     pets: PetCandidate[]
 ): PetCandidate | null {
     return exactMatch(query, pets) ?? fuzzyMatch(query, pets);
+}
+
+/**
+ * Detects ALL pets matching the query (for duplicate name disambiguation).
+ * Returns every pet whose name is detected via Layer 1 (exact) or Layer 2 (fuzzy).
+ * Empty array means no matches.
+ */
+export function detectAllPetsInQuery(
+    query: string,
+    pets: PetMatch[]
+): PetMatch[] {
+    const qLower = normalize(query);
+    const matchedIds = new Set<string>();
+
+    // Layer 1: Exact matches — collect ALL
+    for (const pet of rankCandidates(pets)) {
+        const nameLower = normalize(pet.pet_name);
+        if (!nameLower) continue;
+        if (isExactNameMatch(qLower, nameLower)) {
+            matchedIds.add(pet.id);
+        }
+    }
+
+    // Layer 2: Fuzzy matches — collect ALL (skip already-matched)
+    const unmatched = pets.filter(p => !matchedIds.has(p.id));
+    for (const pet of rankCandidates(unmatched)) {
+        const name = normalize(pet.pet_name);
+        if (!name || name.length < MIN_FUZZY_NAME_LENGTH) continue;
+
+        const threshold = getThreshold(name);
+        const windowSize = name.length;
+        if (qLower.length < windowSize) continue;
+
+        for (let i = 0; i <= qLower.length - windowSize; i++) {
+            const window = qLower.slice(i, i + windowSize);
+            if (levenshteinDistance(window, name) <= threshold) {
+                matchedIds.add(pet.id);
+                break;
+            }
+        }
+    }
+
+    return pets.filter(p => matchedIds.has(p.id));
 }

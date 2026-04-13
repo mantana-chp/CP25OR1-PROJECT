@@ -6,6 +6,11 @@ const severitySubmissionSchema = z.object({
   label: z.string().min(1).max(120).optional(),
 });
 
+const petClarificationSubmissionSchema = z.object({
+  contextId: z.uuid('Invalid contextId format'),
+  selectedPetId: z.uuid('Invalid selectedPetId format'),
+});
+
 export const chatSchema = z.object({
   body: z.object({
     query: z.string().min(1, 'Query is required'),
@@ -14,6 +19,7 @@ export const chatSchema = z.object({
     resolvedPetId: z.uuid().optional(),
     contextId: z.uuid().optional(),
     severitySubmission: severitySubmissionSchema.optional(),
+    petClarificationSubmission: petClarificationSubmissionSchema.optional(),
   }).superRefine((body, ctx) => {
     if (
       body.severitySubmission &&
@@ -27,8 +33,22 @@ export const chatSchema = z.object({
         path: ['severitySubmission', 'contextId'],
       });
     }
+
+    if (
+      body.petClarificationSubmission &&
+      body.contextId &&
+      body.petClarificationSubmission.contextId !== body.contextId
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'petClarificationSubmission.contextId must match contextId when both are provided',
+        path: ['petClarificationSubmission', 'contextId'],
+      });
+    }
   }),
 });
 
 export type ChatRequest = z.infer<typeof chatSchema>;
 export type SeveritySubmissionInput = z.infer<typeof severitySubmissionSchema>;
+export type PetClarificationSubmissionInput = z.infer<typeof petClarificationSubmissionSchema>;
