@@ -26,6 +26,7 @@ const formatPetProfile = async (pet: any) => {
   return {
     id: pet.id,
     pet_name: pet.pet_name,
+    avatar_background_color: pet.avatar_background_color ?? null,
     gender: pet.gender,
     birth_date: pet.birth_date,
     weight: pet.weight,

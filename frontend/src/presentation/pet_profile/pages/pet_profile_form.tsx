@@ -1,5 +1,4 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFormik } from 'formik'
 import React, { useCallback, useEffect, useState } from 'react'
 
@@ -38,8 +37,6 @@ import {
 } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
 import { Trash2 } from 'lucide-react-native'
-
-const PET_AVATAR_COLORS_STORAGE_KEY = 'pet-avatar-colors'
 
 interface IPetFormState {
   id: string
@@ -181,21 +178,10 @@ export default function PetProfileForm({
           setOriginalImageKey(response.data.profile_image_key || undefined)
         }
 
-        try {
-          const stored = await AsyncStorage.getItem(
-            PET_AVATAR_COLORS_STORAGE_KEY,
-          )
-          if (stored) {
-            const parsed = JSON.parse(stored)
-            setSelectedAvatarColor(
-              parsed[petId] || DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
-            )
-          } else {
-            setSelectedAvatarColor(DEFAULT_PET_AVATAR_BACKGROUND_COLOR)
-          }
-        } catch {
-          setSelectedAvatarColor(DEFAULT_PET_AVATAR_BACKGROUND_COLOR)
-        }
+        setSelectedAvatarColor(
+          response.data.avatar_background_color ||
+            DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
+        )
       }
     } catch (error) {
       console.error('❌ Error loading pet data:', error)
@@ -319,6 +305,7 @@ export default function PetProfileForm({
 
         const petDataToSend: any = {
           ...petData,
+          avatar_background_color: selectedAvatarColor,
         }
 
         if (breed_id) petDataToSend.breed_id = breed_id
@@ -329,18 +316,6 @@ export default function PetProfileForm({
         let newPetId = petId
         if (isEditMode) {
           await petProfileService.updatePetProfile(petId, petDataToSend)
-
-          const stored = await AsyncStorage.getItem(
-            PET_AVATAR_COLORS_STORAGE_KEY,
-          )
-          const parsed = stored ? JSON.parse(stored) : {}
-          await AsyncStorage.setItem(
-            PET_AVATAR_COLORS_STORAGE_KEY,
-            JSON.stringify({
-              ...parsed,
-              [petId]: selectedAvatarColor,
-            }),
-          )
         } else {
           const createResponse =
             await petProfileService.createPetProfile(petDataToSend)
@@ -505,7 +480,10 @@ export default function PetProfileForm({
       // Prepare pet data for batch create
       const petsToCreate = petForms.map((form) => {
         const { id, breed_id, weight, profileImage, ...petData } = form.values
-        const petDataToSend: any = { ...petData }
+        const petDataToSend: any = {
+          ...petData,
+          avatar_background_color: form.selectedAvatarColor,
+        }
         if (breed_id) petDataToSend.breed_id = breed_id
         if (weight) petDataToSend.weight = Number(weight)
         return petDataToSend
@@ -527,26 +505,6 @@ export default function PetProfileForm({
       }
 
       console.log(`🆔 Created ${createdPets.length} pets`)
-
-      try {
-        const stored = await AsyncStorage.getItem(PET_AVATAR_COLORS_STORAGE_KEY)
-        const parsed = stored ? JSON.parse(stored) : {}
-        const nextColors = { ...parsed }
-
-        createdPets.forEach((pet, index) => {
-          if (!pet?.id) return
-          nextColors[pet.id] =
-            petForms[index]?.selectedAvatarColor ||
-            DEFAULT_PET_AVATAR_BACKGROUND_COLOR
-        })
-
-        await AsyncStorage.setItem(
-          PET_AVATAR_COLORS_STORAGE_KEY,
-          JSON.stringify(nextColors),
-        )
-      } catch (error) {
-        console.error('❌ Failed to save avatar colors after create:', error)
-      }
 
       // Upload images for each created pet
       for (let i = 0; i < petForms.length; i++) {

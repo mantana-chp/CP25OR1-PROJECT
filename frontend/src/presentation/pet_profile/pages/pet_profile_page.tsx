@@ -1,5 +1,4 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import _ from 'lodash'
 import { version } from '../../../../package.json'
 
@@ -9,7 +8,7 @@ import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Pressable,
@@ -37,8 +36,6 @@ import RecentlyDeletedModal from '../components/recently_deleted_modal'
 import SubMenuSection from '../components/sub_menu_section'
 import { colors } from '@/constants/design-system'
 import { getDefaultAvatarBackgroundColorBySpecies } from '@/src/utils/pet_avatar'
-
-const PET_AVATAR_COLORS_STORAGE_KEY = 'pet-avatar-colors'
 
 export default function PetProfilePage() {
   // ------------------
@@ -75,7 +72,7 @@ export default function PetProfilePage() {
   } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isMarkingDeceased, setIsMarkingDeceased] = useState(false)
-  const [avatarColorsByPetId, setAvatarColorsByPetId] = useState<
+  const [pendingAvatarColorsByPetId, setPendingAvatarColorsByPetId] = useState<
     Record<string, string>
   >({})
 
@@ -99,26 +96,9 @@ export default function PetProfilePage() {
     showErrorAlert: false,
   })
 
-  const loadStoredAvatarColors = useCallback(async () => {
-    try {
-      const stored = await AsyncStorage.getItem(PET_AVATAR_COLORS_STORAGE_KEY)
-      if (stored) {
-        setAvatarColorsByPetId(JSON.parse(stored))
-      } else {
-        setAvatarColorsByPetId({})
-      }
-    } catch (error) {
-      console.error('Failed to load avatar colors from storage:', error)
-    }
-  }, [])
-
   useEffect(() => {
     getPetsApi.execute()
   }, [])
-
-  useEffect(() => {
-    loadStoredAvatarColors()
-  }, [loadStoredAvatarColors])
 
   const loadReminders = useCallback(() => {
     getRemindersApi.execute({})
@@ -134,10 +114,9 @@ export default function PetProfilePage() {
   useFocusEffect(
     useCallback(() => {
       console.log('🔄 Pet Profile Page Focused - Reloading data')
-      loadStoredAvatarColors()
       loadReminders()
       loadPets()
-    }, [loadStoredAvatarColors, loadReminders, loadPets]),
+    }, [loadReminders, loadPets]),
   )
 
   useEffect(() => {
@@ -180,6 +159,20 @@ export default function PetProfilePage() {
   const isCaregiverPet = currentPet?.petRole === 'CAREGIVER'
   const isViewingDeceased = activeTab === 'past'
 
+  const avatarColorsByPetId = useMemo(() => {
+    const colorMap: Record<string, string> = {}
+
+    for (const pet of displayPets) {
+      const color =
+        pendingAvatarColorsByPetId[pet.id] || pet.avatar_background_color
+      if (color) {
+        colorMap[pet.id] = color
+      }
+    }
+
+    return colorMap
+  }, [displayPets, pendingAvatarColorsByPetId])
+
   const petReminders = currentPet
     ? _.filter(
         remindersWithRecurrence,
@@ -212,35 +205,45 @@ export default function PetProfilePage() {
   }
 
   const getPetAvatarBackgroundColor = useCallback(
-    (pet: { id: string; species?: string | null }) => {
+    (pet: {
+      id: string
+      species?: string | null
+      avatar_background_color?: string | null
+    }) => {
       return (
-        avatarColorsByPetId[pet.id] ||
+        pendingAvatarColorsByPetId[pet.id] ||
+        pet.avatar_background_color ||
         getDefaultAvatarBackgroundColorBySpecies(pet.species)
       )
     },
-    [avatarColorsByPetId],
+    [pendingAvatarColorsByPetId],
   )
 
   const handleAvatarBackgroundColorChange = useCallback(
     async (color: string) => {
       if (!currentPet) return
 
-      try {
-        const nextColors = {
-          ...avatarColorsByPetId,
-          [currentPet.id]: color,
-        }
+      setPendingAvatarColorsByPetId((prev) => ({
+        ...prev,
+        [currentPet.id]: color,
+      }))
 
-        setAvatarColorsByPetId(nextColors)
-        await AsyncStorage.setItem(
-          PET_AVATAR_COLORS_STORAGE_KEY,
-          JSON.stringify(nextColors),
-        )
+      try {
+        await petProfileService.updatePetProfile(currentPet.id, {
+          avatar_background_color: color,
+        })
+        await refreshPets()
       } catch (error) {
-        console.error('Failed to save avatar color:', error)
+        console.error('Failed to save avatar color to API:', error)
+      } finally {
+        setPendingAvatarColorsByPetId((prev) => {
+          const next = { ...prev }
+          delete next[currentPet.id]
+          return next
+        })
       }
     },
-    [avatarColorsByPetId, currentPet],
+    [currentPet, refreshPets],
   )
 
   const handleDeletePress = useCallback(() => {

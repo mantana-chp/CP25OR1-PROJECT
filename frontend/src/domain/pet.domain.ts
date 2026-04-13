@@ -5,6 +5,7 @@ export interface IPetProfileForm {
   species_id: string
   breed_id: string
   pet_name: string
+  avatar_background_color?: string | null
   gender: string
   birth_date: Date | null
   weight: string
@@ -31,7 +32,7 @@ export const petProfileInitValue = (v: IPetProfileForm): IPetProfileForm => {
     weight: v.weight != null && v.weight !== '' ? String(v.weight) : '',
     created_at: v.created_at || '',
     updated_at: v.updated_at || '',
-    profileImage: v?.profileImage || null
+    profileImage: v?.profileImage || null,
   }
 }
 
@@ -57,8 +58,8 @@ export const petProfileValidateSchema = yup.object().shape({
     .required('กรุณากรอกวันเกิดสัตว์เลี้ยง')
     .max(
       new Date(new Date().setHours(23, 59, 59, 999)),
-      'วันเกิดต้องไม่เกินวันปัจจุบัน'
-    )
+      'วันเกิดต้องไม่เกินวันปัจจุบัน',
+    ),
 })
 
 const parseDate = (dateValue: any): Date => {
@@ -95,6 +96,7 @@ export type TDeletionReason = 'JUST_DELETE' | 'DECEASED'
 export interface IPetProfile {
   id: string
   pet_name: string
+  avatar_background_color?: string | null
   petRole?: 'OWNER' | 'CAREGIVER'
   gender: string
   species: string
