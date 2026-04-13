@@ -5,10 +5,12 @@ import {
   spacing,
   typography,
 } from '@/constants/design-system'
+import { IPendingTransfer } from '@/src/domain/pet_transfer.domain'
 import { ICaregiver } from '@/src/domain/pet_sharing.domain'
 import { Crown, Users } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import TransferOwnerSection from '../../pet_transfer/components/transfer_owner_section'
 import Button from '../../components/button'
 import { getInitials } from '../../../utils/pet_sharing_utils'
 
@@ -17,9 +19,19 @@ interface PetSharingAccessListProps {
   revoking: boolean
   onRevoke: (caregiver: ICaregiver) => void
   isOwner?: boolean
+  canManageAccess?: boolean
   ownerDisplayName?: string
   selfAccessId?: string
   isDeceasedPet?: boolean
+  pendingTransfer?: IPendingTransfer | null
+  transferClaimLink?: string
+  initiatingTransfer?: boolean
+  cancelingTransfer?: boolean
+  onInitiateTransfer?: () => void
+  onOpenTransferQr?: () => void
+  onShareTransfer?: () => void
+  onCancelTransfer?: () => void
+  onOpenReceiveTransfer?: () => void
 }
 
 function SectionTitle({ children }: { children: string }) {
@@ -45,9 +57,22 @@ export default function AccessListSection({
   revoking,
   onRevoke,
   isOwner = true,
+  canManageAccess,
   ownerDisplayName = 'เจ้าของสัตว์เลี้ยง',
   selfAccessId,
+  isDeceasedPet = false,
+  pendingTransfer = null,
+  transferClaimLink = '',
+  initiatingTransfer = false,
+  cancelingTransfer = false,
+  onInitiateTransfer,
+  onOpenTransferQr,
+  onShareTransfer,
+  onCancelTransfer,
+  onOpenReceiveTransfer,
 }: PetSharingAccessListProps) {
+  const canManage = canManageAccess ?? isOwner
+
   const currentUserAlias = selfAccessId
     ? caregivers.find((caregiver) => caregiver.accessId === selfAccessId)?.alias
     : null
@@ -76,59 +101,75 @@ export default function AccessListSection({
   }
 
   return (
-    <View style={styles.sectionCard}>
-      <SectionTitle>รายชื่อผู้มีสิทธิ์เข้าถึง</SectionTitle>
+    <View>
+      <View style={styles.sectionCard}>
+        <SectionTitle>รายชื่อผู้มีสิทธิ์เข้าถึง</SectionTitle>
 
-      <View style={styles.memberRow}>
-        <AvatarCircle name={displayOwnerName} color={colors.primary.light} />
-        <View style={styles.memberInfoWrapper}>
-          {isOwner ? (
-            <>
-              <Text style={styles.memberName}>คุณ</Text>
+        <View style={styles.memberRow}>
+          <AvatarCircle name={displayOwnerName} color={colors.primary.light} />
+          <View style={styles.memberInfoWrapper}>
+            {isOwner ? (
+              <>
+                <Text style={styles.memberName}>คุณ</Text>
+                <View style={styles.memberRoleRow}>
+                  <Crown size={iconSizes.xs} color={colors.gray[400]} />
+                  <Text style={styles.ownerRoleText}>เจ้าของสัตว์เลี้ยง</Text>
+                </View>
+              </>
+            ) : (
               <View style={styles.memberRoleRow}>
                 <Crown size={iconSizes.xs} color={colors.gray[400]} />
-                <Text style={styles.ownerRoleText}>เจ้าของสัตว์เลี้ยง</Text>
+                <Text style={styles.memberName}>{displayOwnerName}</Text>
               </View>
-            </>
-          ) : (
-            <View style={styles.memberRoleRow}>
-              <Crown size={iconSizes.xs} color={colors.gray[400]} />
-              <Text style={styles.memberName}>{displayOwnerName}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {caregivers.map((caregiver) => (
-        <View key={caregiver.accessId}>
-          <View style={styles.memberDivider} />
-          <View style={styles.memberRow}>
-            <AvatarCircle name={getDisplayCaregiverName(caregiver)} />
-
-            <View style={styles.memberInfoWrapper}>
-              <Text style={styles.memberName}>
-                {getDisplayCaregiverName(caregiver)}
-              </Text>
-              <View style={styles.memberRoleRow}>
-                <Users size={iconSizes.xs} color={colors.gray[400]} />
-                <Text style={styles.caregiverRoleText}>ผู้ดูแลร่วม</Text>
-              </View>
-            </View>
-
-            {isOwner && (
-              <Button
-                title='ลบผู้ดูแล'
-                onPress={() => onRevoke(caregiver)}
-                variant='ghost'
-                size='small'
-                loading={revoking}
-                style={styles.revokeButton}
-                textStyle={styles.revokeButtonText}
-              />
             )}
           </View>
         </View>
-      ))}
+
+        {caregivers.map((caregiver) => (
+          <View key={caregiver.accessId}>
+            <View style={styles.memberDivider} />
+            <View style={styles.memberRow}>
+              <AvatarCircle name={getDisplayCaregiverName(caregiver)} />
+
+              <View style={styles.memberInfoWrapper}>
+                <Text style={styles.memberName}>
+                  {getDisplayCaregiverName(caregiver)}
+                </Text>
+                <View style={styles.memberRoleRow}>
+                  <Users size={iconSizes.xs} color={colors.gray[400]} />
+                  <Text style={styles.caregiverRoleText}>ผู้ดูแลร่วม</Text>
+                </View>
+              </View>
+
+              {canManage && (
+                <Button
+                  title='ลบผู้ดูแล'
+                  onPress={() => onRevoke(caregiver)}
+                  variant='ghost'
+                  size='small'
+                  loading={revoking}
+                  style={styles.revokeButton}
+                  textStyle={styles.revokeButtonText}
+                />
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <TransferOwnerSection
+        isOwner={isOwner}
+        isDeceasedPet={isDeceasedPet}
+        pendingTransfer={pendingTransfer}
+        claimLink={transferClaimLink}
+        initiating={initiatingTransfer}
+        canceling={cancelingTransfer}
+        onInitiateTransfer={onInitiateTransfer ?? (() => {})}
+        onOpenQr={onOpenTransferQr ?? (() => {})}
+        onShare={onShareTransfer ?? (() => {})}
+        onCancel={onCancelTransfer ?? (() => {})}
+        onOpenReceiveTransfer={onOpenReceiveTransfer ?? (() => {})}
+      />
     </View>
   )
 }
