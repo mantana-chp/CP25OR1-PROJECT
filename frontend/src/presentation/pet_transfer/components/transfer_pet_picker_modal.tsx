@@ -70,15 +70,14 @@ export default function TransferPetPickerModal({
       </View>
 
       <Text style={styles.modalDescription}>
-        คุณสามารถเลือกหลายตัวได้ในคำขอโอนเดียวกัน ระบบจะสร้าง Transfer ID
-        เดียวสำหรับรายการที่เลือก
+        คุณสามารถเลือกหลายตัวได้ในคำขอโอนเดียวกัน 
       </Text>
 
       <View style={styles.warningBox}>
         <ShieldAlert size={16} color={colors.warning.dark} />
         <Text style={styles.warningText}>
           สำคัญ: เมื่อผู้รับโอนกดยืนยันสำเร็จ
-          บัญชีเจ้าของเดิมจะถูกตัดสิทธิ์ทั้งหมดของสัตว์เลี้ยงที่เลือกทันที
+          เจ้าของเดิม หรือ คุณ จะถูกตัดสิทธิ์ทั้งหมดของสัตว์เลี้ยงที่เลือกทันที
           และไม่สามารถเข้าถึงข้อมูลของสัตว์เลี้ยงเหล่านี้ได้อีก
         </Text>
       </View>

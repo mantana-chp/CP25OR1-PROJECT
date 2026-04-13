@@ -508,19 +508,19 @@ export default function PetProfilePage() {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    router.push('./scan_pet_share')
-                  }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <ScanQrCode size={20} color={colors.primary.light} />
-                </Pressable>
-                <Pressable
-                  onPress={() => {
                     router.push('/(tabs)/pet_transfer')
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <ArrowRightLeft size={20} color={colors.primary.light} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    router.push('./scan_pet_share')
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <ScanQrCode size={20} color={colors.primary.light} />
                 </Pressable>
               </View>
 

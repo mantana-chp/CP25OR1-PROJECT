@@ -675,8 +675,8 @@ export default function ClaimPetSharePage() {
                   </View>
 
                   <Text style={styles.helperText}>
-                    วาง QR Code
-                    ของคำเชิญดูแลร่วมหรือโอนสิทธิ์เจ้าของให้อยู่ในกรอบ
+                    กรุณาวาง QR
+                    ของคำเชิญรับสิทธิ์ ดูแลร่วม หรือ เจ้าของสัตว์เลี้ยง ให้อยู่ในกรอบ
                   </Text>
 
                   <TouchableOpacity
@@ -688,7 +688,7 @@ export default function ClaimPetSharePage() {
                       size={iconSizes.md}
                     />
                     <Text style={styles.switchModeText}>
-                      กรอกโค้ด/ลิงก์ด้วยตนเอง
+                      กรอก Code ด้วยตนเอง
                     </Text>
                   </TouchableOpacity>
                 </>

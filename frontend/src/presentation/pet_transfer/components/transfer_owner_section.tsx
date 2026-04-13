@@ -42,7 +42,7 @@ export default function TransferOwnerSection({
     <View style={styles.sectionCard}>
       <Text style={styles.sectionTitle}>โอนสิทธิ์เจ้าของ</Text>
       <Text style={styles.sectionSubtitle}>
-        โอนความเป็นเจ้าของให้บัญชีอื่นผ่าน QR Code หรือรหัสโอนสิทธิ์
+        โอนความเป็นเจ้าของให้บัญชีอื่นผ่าน QR หรือ Code โอนสิทธิ์
       </Text>
 
       {isOwner ? (
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
   primaryActionButton: {
-    backgroundColor: colors.info.DEFAULT,
+    backgroundColor: colors.primary.light,
   },
   receiveButton: {
     borderRadius: borderRadius.full,
