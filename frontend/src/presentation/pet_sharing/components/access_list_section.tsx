@@ -5,12 +5,10 @@ import {
   spacing,
   typography,
 } from '@/constants/design-system'
-import { IPendingTransfer } from '@/src/domain/pet_transfer.domain'
 import { ICaregiver } from '@/src/domain/pet_sharing.domain'
 import { Crown, Users } from 'lucide-react-native'
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import TransferOwnerSection from '../../pet_transfer/components/transfer_owner_section'
 import Button from '../../components/button'
 import { getInitials } from '../../../utils/pet_sharing_utils'
 
@@ -22,16 +20,6 @@ interface PetSharingAccessListProps {
   canManageAccess?: boolean
   ownerDisplayName?: string
   selfAccessId?: string
-  isDeceasedPet?: boolean
-  pendingTransfer?: IPendingTransfer | null
-  transferClaimLink?: string
-  initiatingTransfer?: boolean
-  cancelingTransfer?: boolean
-  onInitiateTransfer?: () => void
-  onOpenTransferQr?: () => void
-  onShareTransfer?: () => void
-  onCancelTransfer?: () => void
-  onOpenReceiveTransfer?: () => void
 }
 
 function SectionTitle({ children }: { children: string }) {
@@ -60,16 +48,6 @@ export default function AccessListSection({
   canManageAccess,
   ownerDisplayName = 'เจ้าของสัตว์เลี้ยง',
   selfAccessId,
-  isDeceasedPet = false,
-  pendingTransfer = null,
-  transferClaimLink = '',
-  initiatingTransfer = false,
-  cancelingTransfer = false,
-  onInitiateTransfer,
-  onOpenTransferQr,
-  onShareTransfer,
-  onCancelTransfer,
-  onOpenReceiveTransfer,
 }: PetSharingAccessListProps) {
   const canManage = canManageAccess ?? isOwner
 
@@ -156,20 +134,6 @@ export default function AccessListSection({
           </View>
         ))}
       </View>
-
-      <TransferOwnerSection
-        isOwner={isOwner}
-        isDeceasedPet={isDeceasedPet}
-        pendingTransfer={pendingTransfer}
-        claimLink={transferClaimLink}
-        initiating={initiatingTransfer}
-        canceling={cancelingTransfer}
-        onInitiateTransfer={onInitiateTransfer ?? (() => {})}
-        onOpenQr={onOpenTransferQr ?? (() => {})}
-        onShare={onShareTransfer ?? (() => {})}
-        onCancel={onCancelTransfer ?? (() => {})}
-        onOpenReceiveTransfer={onOpenReceiveTransfer ?? (() => {})}
-      />
     </View>
   )
 }

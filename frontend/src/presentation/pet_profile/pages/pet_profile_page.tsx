@@ -516,7 +516,7 @@ export default function PetProfilePage() {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    router.push('./scan_pet_transfer')
+                    router.push('/(tabs)/pet_transfer')
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
