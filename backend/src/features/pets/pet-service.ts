@@ -19,6 +19,7 @@ import prisma from '../../libs/db'
 
 export type PetCreationData = {
   pet_name: string
+  avatar_background_color?: string | null
   species_id: string
   breed_id?: string | null
   gender: 'male' | 'female' | 'unknown'
@@ -33,9 +34,7 @@ const assertPetProfileObjectKey = (
 ) => {
   const expectedPrefix = `pet-images/${userId}/${petId}/`
   if (!objectKey.startsWith(expectedPrefix)) {
-    throw new BadRequestError(
-      'Invalid object key for this pet profile image.',
-    )
+    throw new BadRequestError('Invalid object key for this pet profile image.')
   }
 }
 
@@ -57,6 +56,7 @@ const formatPetProfile = async (pet: any) => {
   return {
     id: pet.id,
     pet_name: pet.pet_name,
+    avatar_background_color: pet.avatar_background_color ?? null,
     gender: pet.gender,
     birth_date: pet.birth_date,
     weight: pet.weight ? parseFloat(pet.weight.toString()) : null,
@@ -82,6 +82,7 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
 
   const data: Prisma.petsCreateInput = {
     pet_name: petData.pet_name,
+    avatar_background_color: petData.avatar_background_color ?? null,
     gender: petData.gender,
     weight: petData.weight,
     birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
@@ -120,6 +121,7 @@ export const createMultiplePets = async (
     for (const petData of petsData) {
       const data: Prisma.petsCreateInput = {
         pet_name: petData.pet_name,
+        avatar_background_color: petData.avatar_background_color ?? null,
         gender: petData.gender,
         weight: petData.weight,
         birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
@@ -163,6 +165,9 @@ export const updatePet = async (
 
   if (petData.pet_name != null) {
     updateData.pet_name = petData.pet_name
+  }
+  if (petData.avatar_background_color !== undefined) {
+    updateData.avatar_background_color = petData.avatar_background_color
   }
   if (petData.gender != null) {
     updateData.gender = petData.gender
@@ -415,7 +420,8 @@ export const softDeletePet = async (
 
   // JUST_DELETE — block if last active pet (including shared pets)
   const ownedActivePets = await petRepository.countActivePetsByUserId(userId)
-  const sharedActivePets = await sharingRepository.countSharedActivePetsByUserId(userId)
+  const sharedActivePets =
+    await sharingRepository.countSharedActivePetsByUserId(userId)
   const totalActivePets = ownedActivePets + sharedActivePets
 
   if (totalActivePets <= 1) {
@@ -444,7 +450,6 @@ export const getPastPets = async (userId: string) => {
   const sharedDeceased = (
     await sharingRepository.findSharedDeceasedPetsByUserId(userId)
   ).map((pet) => ({ ...pet, petRole: 'CAREGIVER' }))
-
 
   const allDeceased = [...(ownedDeceased ?? []), ...sharedDeceased]
   if (allDeceased.length === 0) return []
@@ -476,7 +481,8 @@ export const restorePet = async (petId: string, userId: string) => {
 
   // Check if user already has 30 active pets (owned + shared from other users)
   const ownedActivePets = await petRepository.countActivePetsByUserId(userId)
-  const sharedActivePets = await sharingRepository.countSharedActivePetsByUserId(userId)
+  const sharedActivePets =
+    await sharingRepository.countSharedActivePetsByUserId(userId)
   const totalActivePets = ownedActivePets + sharedActivePets
 
   if (totalActivePets >= 30) {

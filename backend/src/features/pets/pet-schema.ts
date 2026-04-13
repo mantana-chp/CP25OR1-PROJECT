@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const createPetSchema = z.object({
   body: z.object({
     pet_name: z.string().min(1, 'Pet name is required'),
+    avatar_background_color: z.string().optional().nullable(),
     species_id: z.uuid('Invalid species ID'),
     breed_id: z.uuid('Invalid breed ID').optional().nullable(),
     gender: z.enum(['male', 'female', 'unknown']),
@@ -24,6 +25,7 @@ export const createMultiplePetsSchema = z.object({
       .array(
         z.object({
           pet_name: z.string().min(1, 'Pet name is required'),
+          avatar_background_color: z.string().optional().nullable(),
           species_id: z.uuid('Invalid species ID'),
           breed_id: z.uuid('Invalid breed ID').optional().nullable(),
           gender: z.enum(['male', 'female', 'unknown']),
@@ -55,6 +57,7 @@ export const updatePetSchema = z.object({
   }),
   body: z.object({
     pet_name: z.string().min(1, 'Pet name is required').optional().nullable(),
+    avatar_background_color: z.string().optional().nullable(),
     species_id: z.uuid('Invalid species ID').optional().nullable(),
     breed_id: z.uuid('Invalid breed ID').optional().nullable(),
     birth_date: z.iso
