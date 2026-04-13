@@ -1,5 +1,5 @@
 import { Link } from 'expo-router'
-import React, { useEffect } from 'react'
+import React from 'react'
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import { IPetProfile } from '@/src/domain/pet.domain'
@@ -13,7 +13,6 @@ import { colors } from '@/constants/design-system'
 import {
   getDefaultAvatarBackgroundColorBySpecies,
   getPetPlaceholderIcon,
-  PET_AVATAR_COLOR_OPTIONS,
 } from '@/src/utils/pet_avatar'
 
 interface PetInfoCardProps {
@@ -35,7 +34,6 @@ export default function PetInfoCard({
   isDeceased = false,
   readOnly = false,
   avatarBackgroundColor,
-  onAvatarBackgroundColorChange,
 }: PetInfoCardProps) {
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
@@ -200,31 +198,6 @@ export default function PetInfoCard({
             </Text>
           </View>
         </View>
-
-        {!isDeceased &&
-          !readOnly &&
-          !data.profile_image_url &&
-          onAvatarBackgroundColorChange && (
-            <View style={styles.avatarColorPickerRow}>
-              <Text style={styles.avatarColorPickerLabel}>
-                สีประจำสัตว์เลี้ยง
-              </Text>
-              <View style={styles.avatarColorOptions}>
-                {PET_AVATAR_COLOR_OPTIONS.map((colorOption) => (
-                  <TouchableOpacity
-                    key={colorOption}
-                    style={[
-                      styles.avatarColorOption,
-                      { backgroundColor: colorOption },
-                      resolvedAvatarBackgroundColor === colorOption &&
-                        styles.avatarColorOptionActive,
-                    ]}
-                    onPress={() => onAvatarBackgroundColorChange(colorOption)}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
       </View>
     </View>
   )
@@ -343,33 +316,6 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: 2,
-  },
-  avatarColorPickerRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  avatarColorPickerLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontFamily: 'Prompt_400Regular',
-  },
-  avatarColorOptions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  avatarColorOption: {
-    width: 18,
-    height: 18,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  avatarColorOptionActive: {
-    borderWidth: 2,
-    borderColor: '#111827',
   },
   editButton: {
     padding: 4,
