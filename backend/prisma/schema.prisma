@@ -43,7 +43,7 @@ model pets {
   species_id          String           @db.Uuid
   breed_id            String?          @db.Uuid
   pet_name            String           @db.VarChar
-  avatar_background_color String?      @db.VarChar
+  avatar_background_color String?      @default("#5FA7D1") @db.VarChar
   gender              pet_gender       @default(unknown)
   birth_date          DateTime?        @db.Date
   weight              Decimal?         @db.Decimal

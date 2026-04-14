@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react'
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name']
 
-export const DEFAULT_PET_AVATAR_BACKGROUND_COLOR = '#5BA3D0'
+export const DEFAULT_PET_AVATAR_BACKGROUND_COLOR = '#5FA7D1'
 
 const SPECIES_ICON_MAP: Record<string, IconName> = {
   แมว: 'cat',
