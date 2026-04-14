@@ -17,6 +17,16 @@ import { formatAgeFromBirthDate } from '../../shared/utils'
 import { generateDownloadUrl, deleteFile } from '../file-uploads/upload-service'
 import prisma from '../../libs/db'
 
+const DEFAULT_PET_AVATAR_BACKGROUND_COLOR = '#5FA7D1'
+
+const resolveAvatarBackgroundColor = (color?: string | null) => {
+  if (!color) return DEFAULT_PET_AVATAR_BACKGROUND_COLOR
+  const normalized = color.trim()
+  return normalized.length > 0
+    ? normalized
+    : DEFAULT_PET_AVATAR_BACKGROUND_COLOR
+}
+
 export type PetCreationData = {
   pet_name: string
   avatar_background_color?: string | null
@@ -125,7 +135,9 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
 
   const data: Prisma.petsCreateInput = {
     pet_name: petData.pet_name,
-    avatar_background_color: petData.avatar_background_color ?? null,
+    avatar_background_color: resolveAvatarBackgroundColor(
+      petData.avatar_background_color,
+    ),
     gender: petData.gender,
     weight: petData.weight,
     birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
@@ -211,7 +223,9 @@ export const createMultiplePets = async (
     for (const petData of petsData) {
       const data: Prisma.petsCreateInput = {
         pet_name: petData.pet_name,
-        avatar_background_color: petData.avatar_background_color ?? null,
+        avatar_background_color: resolveAvatarBackgroundColor(
+          petData.avatar_background_color,
+        ),
         gender: petData.gender,
         weight: petData.weight,
         birth_date: petData.birth_date ? new Date(petData.birth_date) : null,
@@ -258,7 +272,9 @@ export const updatePet = async (
     updateData.pet_name = petData.pet_name
   }
   if (petData.avatar_background_color !== undefined) {
-    updateData.avatar_background_color = petData.avatar_background_color
+    updateData.avatar_background_color = resolveAvatarBackgroundColor(
+      petData.avatar_background_color,
+    )
   }
   if (petData.gender != null) {
     updateData.gender = petData.gender
