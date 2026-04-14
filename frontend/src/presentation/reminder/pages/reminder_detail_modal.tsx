@@ -38,7 +38,8 @@ import {
 import LoadingComponent from '../../components/loading_component'
 import VaccineListSection from '../components/vaccine_list_section'
 import AttachmentPreviewModal from '../components/attachment_preview_modal'
-import { Ionicons } from '@expo/vector-icons'
+import { AntDesign, FontAwesome6, Ionicons } from '@expo/vector-icons'
+import { colors } from '@/constants/design-system'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -390,7 +391,7 @@ export default function ReminderDetailModal({
               <View style={styles.dateTimeCard}>
                 <View style={styles.dateTimeRow}>
                   <CalendarDays
-                    size={16}
+                    size={14}
                     color={isOverdue ? '#DC2626' : '#5FA7D1'}
                   />
                   <Text
@@ -406,7 +407,7 @@ export default function ReminderDetailModal({
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.dateTimeRow}>
-                  <Clock size={16} color={isOverdue ? '#DC2626' : '#5FA7D1'} />
+                  <Clock size={14} color={isOverdue ? '#DC2626' : '#5FA7D1'} />
                   <Text
                     style={[
                       styles.dateTimeText,
@@ -468,7 +469,22 @@ export default function ReminderDetailModal({
                           resizeMode="cover"
                         />
                       ) : (
-                        <File size={20} color="#5FA7D1" />
+                        <View
+                          style={[
+                            {
+                              width: 40,
+                              height: 40,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }
+                          ]}
+                        >
+                          <AntDesign
+                            name="file-pdf"
+                            size={26}
+                            color={colors.danger.DEFAULT}
+                          />
+                        </View>
                       )}
                       <View style={styles.attachmentInfo}>
                         <Text
@@ -481,7 +497,6 @@ export default function ReminderDetailModal({
                           {formatFileSize(attachment.fileSize)}
                         </Text>
                       </View>
-                      <Download size={18} color="#6b7280" />
                     </Pressable>
                   )
                 })}
