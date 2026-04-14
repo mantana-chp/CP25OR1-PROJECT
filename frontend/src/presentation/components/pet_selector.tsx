@@ -6,7 +6,6 @@ import {
   getDefaultAvatarBackgroundColorBySpecies,
   getPetPlaceholderIcon
 } from '@/src/utils/pet_avatar'
-import Button from './button'
 import {
   Image,
   Modal,
@@ -17,6 +16,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import Button from './button'
 
 interface PetSelectorProps {
   pets: IPetProfile[]
@@ -71,6 +71,19 @@ export default function PetSelector({
     if (!disabled && onSelectPets) {
       onSelectPets(selectedPetIds.filter((id) => id !== petId))
     }
+  }
+
+  const allPetIds = pets.map((pet) => pet.id)
+  const isAllSelected =
+    allPetIds.length > 0 &&
+    allPetIds.every((petId) => tempSelectedIds.includes(petId))
+
+  const handleSelectAll = () => {
+    setTempSelectedIds(allPetIds)
+  }
+
+  const handleDeselectAll = () => {
+    setTempSelectedIds([])
   }
 
   return (
@@ -167,10 +180,31 @@ export default function PetSelector({
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <X size={20} color="#9ca3af" />
-              </TouchableOpacity>
+              <View style={styles.modalHeaderActions}>
+                <TouchableOpacity
+                  onPress={() => setIsModalVisible(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <X size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
             </View>
+
+            <Pressable
+              onPress={isAllSelected ? handleDeselectAll : handleSelectAll}
+              disabled={pets.length === 0}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ padding: 8, alignSelf: 'flex-end' }}
+            >
+              <Text
+                style={[
+                  styles.bulkActionText,
+                  pets.length === 0 && styles.bulkActionTextDisabled
+                ]}
+              >
+                {isAllSelected ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}
+              </Text>
+            </Pressable>
 
             <ScrollView style={styles.petList}>
               {pets.map((pet) => {
@@ -390,7 +424,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb'
   },
@@ -398,6 +432,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
     color: '#225877'
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  bulkActionText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium',
+    color: '#2E759E'
+  },
+  bulkActionTextDisabled: {
+    color: '#9ca3af'
+  },
+  modalCloseButton: {
+    padding: 2
   },
   closeButton: {
     fontSize: 24,
