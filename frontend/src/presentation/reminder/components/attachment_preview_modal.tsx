@@ -191,7 +191,7 @@ export default function AttachmentPreviewModal({
       }
 
       await saveFileToFilesApp(result.uri)
-      Alert.alert('ดาวน์โหลดสำเร็จ', 'ส่งไฟล์ไปยังแอป Files แล้ว')
+      Alert.alert('ดาวน์โหลดสำเร็จ', 'บันทึกไฟล์ไปยังอุปกรณ์ของคุณแล้ว')
     } catch (error) {
       Alert.alert(
         'ดาวน์โหลดไม่สำเร็จ',
