@@ -574,18 +574,10 @@ export default function MedicalDocumentsPage({
 
   // Handle delete document
   const handleDeleteDocument = (document: IDisplayMedicalDocument) => {
-    if (isReminderAttachmentDocument(document)) {
-      Alert.alert(
-        'ไม่สามารถลบได้จากหน้านี้',
-        'ไฟล์แนบจากการเตือนความจำต้องลบจากหน้ารายการเตือนความจำ',
-      )
-      return
-    }
-
     const isPending = isPendingDocument(document)
 
     // For caregivers trying to delete uploaded documents, show permission modal immediately
-    if (!isOwner && !isPending) {
+    if (!isOwner && !isPending && !isReminderAttachmentDocument(document)) {
       setBlockedDocumentName(document.fileName)
       setShowDeletePermissionModal(true)
       return
@@ -607,6 +599,29 @@ export default function MedicalDocumentsPage({
         onPress: async () => {
           if (isPending) {
             removePendingFile(document.id)
+          } else if (isReminderAttachmentDocument(document)) {
+            try {
+              setDeletingId(document.id)
+              await reminderService.deleteAttachment(
+                document.reminderId,
+                document.attachmentId,
+              )
+              setReminderAttachmentDocuments((prev) =>
+                prev.filter((item) => item.id !== document.id),
+              )
+              Alert.alert('สำเร็จ', 'ลบไฟล์แนบเรียบร้อยแล้ว')
+            } catch (error: any) {
+              if (error?.statusCode === 403) {
+                Alert.alert(
+                  'ไม่สามารถลบไฟล์ได้',
+                  'คุณไม่มีสิทธิ์ในการดำเนินการนี้',
+                )
+              } else {
+                Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบไฟล์แนบได้')
+              }
+            } finally {
+              setDeletingId(null)
+            }
           } else {
             try {
               setDeletingId(document.id)
@@ -626,10 +641,10 @@ export default function MedicalDocumentsPage({
     setShowPreview(true)
   }
 
-  const handleOpenReminderAttachment = async (
+  const resolveReminderAttachmentUrl = async (
     attachment: IReminderAttachmentDocument,
-  ) => {
-    if (resolvingDownloadId) return
+  ): Promise<string | null> => {
+    if (resolvingDownloadId) return null
 
     try {
       setResolvingDownloadId(attachment.id)
@@ -646,7 +661,7 @@ export default function MedicalDocumentsPage({
 
       if (!resolvedUrl) {
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
-        return
+        return null
       }
 
       if (!existingUrl) {
@@ -659,18 +674,50 @@ export default function MedicalDocumentsPage({
         )
       }
 
-      await Linking.openURL(resolvedUrl)
+      return resolvedUrl
     } catch (error) {
-      console.error('Error opening reminder attachment:', error)
+      console.error('Error resolving reminder attachment URL:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
+      return null
     } finally {
       setResolvingDownloadId(null)
     }
   }
 
+  const handlePreviewReminderAttachment = async (
+    attachment: IReminderAttachmentDocument,
+  ) => {
+    const resolvedUrl = await resolveReminderAttachmentUrl(attachment)
+    if (!resolvedUrl) return
+
+    const previewPayload: IMedicalDocument = {
+      id: attachment.id,
+      petId,
+      createdByUserId: '',
+      fileName: attachment.fileName,
+      fileType: attachment.fileType,
+      fileSize: attachment.fileSize,
+      objectKey: '',
+      downloadUrl: resolvedUrl,
+      createdAt: attachment.createdAt,
+    }
+
+    handlePreviewDocument(previewPayload)
+  }
+
+  const handleOpenReminderAttachment = async (
+    attachment: IReminderAttachmentDocument,
+  ) => {
+    const resolvedUrl = await resolveReminderAttachmentUrl(attachment)
+    if (!resolvedUrl) return
+    await Linking.openURL(resolvedUrl)
+  }
+
   // Handle direct download
   const handleDirectDownload = async (document: IDisplayMedicalDocument) => {
     try {
+      if (isPendingDocument(document)) return
+
       if (isReminderAttachmentDocument(document)) {
         await handleOpenReminderAttachment(document)
         return
@@ -769,7 +816,7 @@ export default function MedicalDocumentsPage({
           if (isPending) return
 
           if (isReminderAttachment) {
-            void handleOpenReminderAttachment(doc)
+            void handlePreviewReminderAttachment(doc)
             return
           }
 
@@ -847,19 +894,17 @@ export default function MedicalDocumentsPage({
               )}
             </TouchableOpacity>
           )}
-          {!isReminderAttachment && (
-            <TouchableOpacity
-              style={[styles.cardActionButton, styles.deleteButton]}
-              onPress={() => handleDeleteDocument(doc)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <ActivityIndicator size='small' color='#BF1737' />
-              ) : (
-                <Trash2 size={18} color='#BF1737' />
-              )}
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.cardActionButton, styles.deleteButton]}
+            onPress={() => handleDeleteDocument(doc)}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size='small' color='#BF1737' />
+            ) : (
+              <Trash2 size={18} color='#BF1737' />
+            )}
+          </TouchableOpacity>
         </View>
       </Pressable>
     )
