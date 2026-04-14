@@ -51,10 +51,7 @@ export const acceptTransfer = asyncHandler(
     const { params } = acceptTransferSchema.parse(req)
     const { id: userId } = req.user!
 
-    const result = await petTransferService.acceptTransfer(
-      params.token,
-      userId,
-    )
+    const result = await petTransferService.acceptTransfer(params.token, userId)
 
     sendSuccess(res, result, 200)
   },

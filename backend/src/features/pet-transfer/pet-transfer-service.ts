@@ -9,7 +9,10 @@ import {
   ForbiddenError,
   ConflictError,
 } from '../../shared/errors'
-import { transfer_token_status, pet_status } from '../../generated/prisma/client'
+import {
+  transfer_token_status,
+  pet_status,
+} from '../../generated/prisma/client'
 import { logger } from '../../libs/logger'
 import {
   MAX_PET_LIMIT,
@@ -137,7 +140,8 @@ export const previewTransfer = async (
     pets: petProfiles,
     receiverCurrentPetCount,
     incomingPetCount,
-    wouldExceedLimit: receiverCurrentPetCount + incomingPetCount > MAX_PET_LIMIT,
+    wouldExceedLimit:
+      receiverCurrentPetCount + incomingPetCount > MAX_PET_LIMIT,
     maxPetLimit: MAX_PET_LIMIT,
   }
 }

@@ -168,9 +168,25 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name='pet_transfer'
+        options={{
+          title: 'โอนสิทธิ์เจ้าของ',
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
         name='scan_pet_share'
         options={{
           title: 'รับสิทธิ์ดูแลร่วม',
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name='scan_pet_transfer'
+        options={{
+          title: 'รับโอนสิทธิ์เจ้าของ',
           href: null,
           tabBarStyle: { display: 'none' },
         }}

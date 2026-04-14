@@ -8,7 +8,7 @@ import {
   Share,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 
 import { colors, iconSizes, spacing } from '@/constants/design-system'
@@ -27,7 +27,7 @@ import { CLAIM_SCHEME, unwrapData } from '../../../utils/pet_sharing_utils'
 import PendingInviteCard from '../components/pending_invite_card'
 import {
   IGenerateInviteResponse,
-  IPendingInvite
+  IPendingInvite,
 } from '@/src/domain/pet_sharing.domain'
 
 export default function PetSharingPage() {
@@ -41,7 +41,7 @@ export default function PetSharingPage() {
   const [showQrModal, setShowQrModal] = useState(false)
   const [showCancelInviteModal, setShowCancelInviteModal] = useState(false)
   const [inviteToCancel, setInviteToCancel] = useState<IPendingInvite | null>(
-    null
+    null,
   )
   const isRealtimeSyncingRef = useRef(false)
   const pendingInvitesRef = useRef<IPendingInvite[]>([])
@@ -50,28 +50,28 @@ export default function PetSharingPage() {
     useState<IPendingInvite | null>(null)
 
   const listInvitesApi = useApi(petSharingService.listPendingInvites, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
   const generateInviteApi = useApi(petSharingService.generateInvite, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
   const cancelInviteApi = useApi(petSharingService.cancelInvite, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const allPets = useMemo(
     () => [...activePets, ...deceasedPets],
-    [activePets, deceasedPets]
+    [activePets, deceasedPets],
   )
 
   const ownerPets = useMemo(
     () => allPets.filter((pet) => pet.petRole === 'OWNER'),
-    [allPets]
+    [allPets],
   )
 
   const ownerShareablePets = useMemo(
     () => ownerPets.filter((pet) => pet.status !== 'DECEASED'),
-    [ownerPets]
+    [ownerPets],
   )
 
   const loadData = useCallback(async () => {
@@ -121,8 +121,8 @@ export default function PetSharingPage() {
             text: 'รับทราบ',
             onPress: () => {
               router.push('/(tabs)/pet_profile')
-            }
-          }
+            },
+          },
         ])
       }
     } catch (error) {
@@ -135,7 +135,7 @@ export default function PetSharingPage() {
   useFocusEffect(
     useCallback(() => {
       void loadData()
-    }, [loadData])
+    }, [loadData]),
   )
 
   useFocusEffect(
@@ -151,7 +151,7 @@ export default function PetSharingPage() {
       return () => {
         clearInterval(pollInterval)
       }
-    }, [pendingInvites.length, syncRealtimeData])
+    }, [pendingInvites.length, syncRealtimeData]),
   )
 
   const openCreateInviteModal = () => {
@@ -186,7 +186,7 @@ export default function PetSharingPage() {
   const handleInfo = () => {
     Alert.alert(
       'การเชิญผู้ดูแลร่วม',
-      'เชิญเพื่อนหรือครอบครัวมาช่วยดูแลสัตว์เลี้ยงของคุณ คุณสามารถเลือกแชร์สัตว์เลี้ยงหลายตัวในคำเชิญเดียวได้'
+      'เชิญเพื่อนหรือครอบครัวมาช่วยดูแลสัตว์เลี้ยงของคุณ คุณสามารถเลือกแชร์สัตว์เลี้ยงหลายตัวในคำเชิญเดียวได้',
     )
   }
 
@@ -194,7 +194,7 @@ export default function PetSharingPage() {
     if (ownerShareablePets.length === 0) {
       Alert.alert(
         'ไม่สามารถสร้างคำเชิญได้',
-        'ไม่มีสัตว์เลี้ยงที่สามารถแชร์ได้ในขณะนี้'
+        'ไม่มีสัตว์เลี้ยงที่สามารถแชร์ได้ในขณะนี้',
       )
       return
     }
@@ -208,7 +208,7 @@ export default function PetSharingPage() {
     if (selectedPetIds.length === 0) {
       Alert.alert(
         'กรุณาเลือกสัตว์เลี้ยง',
-        'กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว'
+        'กรุณาเลือกสัตว์เลี้ยงอย่างน้อย 1 ตัว',
       )
       return
     }
@@ -219,7 +219,7 @@ export default function PetSharingPage() {
     if (result.error) {
       Alert.alert(
         'เกิดข้อผิดพลาด',
-        'ไม่สามารถสร้างรหัสเชิญได้ กรุณาลองใหม่อีกครั้ง'
+        'ไม่สามารถสร้างรหัสเชิญได้ กรุณาลองใหม่อีกครั้ง',
       )
       return
     }
@@ -240,7 +240,7 @@ export default function PetSharingPage() {
   const handleShareInvite = async (invite: IPendingInvite) => {
     try {
       await Share.share({
-        message: `🐾 คุณได้รับคำเชิญเป็นผู้ดูแลสัตว์เลี้ยง\n\n📋 รหัสคำเชิญ:\n${invite.inviteId}\n\nคัดลอกรหัสด้านบนและนำไปกรอกในแอพเพื่อเข้าร่วมเป็นผู้ดูแล`
+        message: `🐾 คุณได้รับคำเชิญเป็นผู้ดูแลสัตว์เลี้ยง\n\n📋 รหัสคำเชิญ:\n${invite.inviteId}\n\nคัดลอกรหัสด้านบนและนำไปกรอกในแอพเพื่อเข้าร่วมเป็นผู้ดูแล`,
       })
     } catch {
       // User can close native share sheet; no action needed.
@@ -278,7 +278,7 @@ export default function PetSharingPage() {
     }
 
     setPendingInvites((prev) =>
-      prev.filter((inv) => inv.inviteId !== inviteToCancel.inviteId)
+      prev.filter((inv) => inv.inviteId !== inviteToCancel.inviteId),
     )
     setShowCancelInviteModal(false)
     setInviteToCancel(null)
@@ -296,7 +296,7 @@ export default function PetSharingPage() {
   return (
     <View style={styles.container}>
       <Header
-        title="เชิญผู้ดูแลร่วม"
+        title='เชิญผู้ดูแลร่วม'
         rightChildren={headerRight}
         onBackPress={handleBackPress}
         goBack
@@ -304,15 +304,15 @@ export default function PetSharingPage() {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.light} />
+          <ActivityIndicator size='large' color={colors.primary.light} />
         </View>
       ) : pendingInvites.length === 0 ? (
         canCreateInvite ? (
           <InviteCaregiver onCreateInvite={openCreateInviteModal} />
         ) : (
           <PetSharingStateView
-            title="ยังไม่มีสัตว์เลี้ยงที่แชร์ได้"
-            subtitle="คุณต้องเป็นเจ้าของสัตว์เลี้ยงอย่างน้อย 1 ตัวที่ยังไม่ถูกทำเครื่องหมายว่าเสียชีวิต"
+            title='ยังไม่มีสัตว์เลี้ยงที่แชร์ได้'
+            subtitle='คุณต้องเป็นเจ้าของสัตว์เลี้ยงอย่างน้อย 1 ตัวที่ยังไม่ถูกทำเครื่องหมายว่าเสียชีวิต'
           />
         )
       ) : (
@@ -352,30 +352,26 @@ export default function PetSharingPage() {
 
       <QrModal
         visible={showQrModal}
-        pendingInvite={selectedInviteForQr}
         claimLink={
           selectedInviteForQr
             ? `${CLAIM_SCHEME}/${selectedInviteForQr.inviteId}`
             : CLAIM_SCHEME
         }
+        expiresAt={selectedInviteForQr?.expiresAt ?? null}
+        mode='share'
         onClose={closeQrModal}
-        onShare={() => {
-          if (selectedInviteForQr) {
-            void handleShareInvite(selectedInviteForQr)
-          }
-        }}
       />
 
       <Modal
         visible={showCancelInviteModal}
         onClose={closeCancelInviteModal}
-        variant="confirmation"
-        icon="warning"
-        title="ยกเลิกรหัสเชิญ"
-        message="คุณต้องการยกเลิกรหัสเชิญนี้ใช่หรือไม่?"
-        confirmText="ยกเลิกคำเชิญ"
-        cancelText="ไม่"
-        confirmVariant="error"
+        variant='confirmation'
+        icon='warning'
+        title='ยกเลิกรหัสเชิญ'
+        message='คุณต้องการยกเลิกรหัสเชิญนี้ใช่หรือไม่?'
+        confirmText='ยกเลิกคำเชิญ'
+        cancelText='ไม่'
+        confirmVariant='error'
         onConfirm={handleConfirmCancelInvite}
         isLoading={cancelInviteApi.loading}
       />
@@ -386,22 +382,22 @@ export default function PetSharingPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary
+    backgroundColor: colors.background.primary,
   },
   infoButton: {
-    padding: spacing[1]
+    padding: spacing[1],
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   scrollContentContainer: {
     paddingHorizontal: spacing[4],
     paddingTop: spacing[4],
-    paddingBottom: 120
-  }
+    paddingBottom: 120,
+  },
 })

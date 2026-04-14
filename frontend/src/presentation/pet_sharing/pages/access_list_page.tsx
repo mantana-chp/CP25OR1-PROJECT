@@ -5,15 +5,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 import AccessListSection from '../components/access_list_section'
 import Header from '../../components/header_component'
 import {
   IAccessListResponse,
   ICaregiver,
-  petSharingService
-} from '@/src/utils/api/services/pet_sharing_service'
+} from '@/src/domain/pet_sharing.domain'
+import { petSharingService } from '@/src/utils/api/services/pet_sharing_service'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useApi } from '@/src/utils/api/use_api'
 import { unwrapData } from '@/src/utils/pet_sharing_utils'
@@ -24,7 +24,7 @@ import {
   borderRadius,
   colors,
   spacing,
-  typography
+  typography,
 } from '@/constants/design-system'
 import PetSharingStateView from '../components/state_view'
 
@@ -36,12 +36,12 @@ export default function AccessListPage() {
   const [caregivers, setCaregivers] = useState<ICaregiver[]>([])
   const [selfAccessId, setSelfAccessId] = useState<string | null>(null)
   const [caregiverToRevoke, setCaregiverToRevoke] = useState<ICaregiver | null>(
-    null
+    null,
   )
 
   const allPets = useMemo(
     () => [...activePets, ...deceasedPets],
-    [activePets, deceasedPets]
+    [activePets, deceasedPets],
   )
 
   const currentPet = useMemo(() => {
@@ -54,10 +54,10 @@ export default function AccessListPage() {
   const canManageAccess = isOwner && !isDeceasedPet
 
   const listAccessListApi = useApi(petSharingService.listAccessList, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
   const revokeApi = useApi(petSharingService.revokeCaregiver, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const loadAccessList = useCallback(async () => {
@@ -68,7 +68,7 @@ export default function AccessListPage() {
 
     const accessData = unwrapData<IAccessListResponse>(accessRes.data)
     setCaregivers(
-      Array.isArray(accessData?.caregivers) ? accessData.caregivers : []
+      Array.isArray(accessData?.caregivers) ? accessData.caregivers : [],
     )
     setSelfAccessId(accessData?.selfAccessId ?? null)
   }, [listAccessListApi.execute, petId])
@@ -76,7 +76,7 @@ export default function AccessListPage() {
   useFocusEffect(
     useCallback(() => {
       void loadAccessList()
-    }, [loadAccessList])
+    }, [loadAccessList]),
   )
 
   const handleRevokeCaregiver = (caregiver: ICaregiver) => {
@@ -95,13 +95,13 @@ export default function AccessListPage() {
     if (result.error) {
       Alert.alert(
         'เกิดข้อผิดพลาด',
-        'ไม่สามารถลบผู้ดูแลได้ กรุณาลองใหม่อีกครั้ง'
+        'ไม่สามารถลบผู้ดูแลได้ กรุณาลองใหม่อีกครั้ง',
       )
       return
     }
 
     setCaregivers((prev) =>
-      prev.filter((item) => item.accessId !== caregiverToRevoke.accessId)
+      prev.filter((item) => item.accessId !== caregiverToRevoke.accessId),
     )
     setCaregiverToRevoke(null)
   }
@@ -111,24 +111,24 @@ export default function AccessListPage() {
   return (
     <View style={styles.container}>
       <Header
-        title="จัดการผู้ดูแลร่วม"
+        title='จัดการผู้ดูแลร่วม'
         goBack
         onBackPress={() => router.push('/(tabs)/pet_profile')}
       />
 
       {!petId ? (
         <PetSharingStateView
-          title="ไม่พบสัตว์เลี้ยง"
-          subtitle="กรุณากลับไปเลือกสัตว์เลี้ยงอีกครั้ง"
+          title='ไม่พบสัตว์เลี้ยง'
+          subtitle='กรุณากลับไปเลือกสัตว์เลี้ยงอีกครั้ง'
         />
       ) : isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.light} />
+          <ActivityIndicator size='large' color={colors.primary.light} />
         </View>
       ) : !currentPet ? (
         <PetSharingStateView
-          title="ไม่พบข้อมูลสัตว์เลี้ยง"
-          subtitle="สัตว์เลี้ยงที่เลือกอาจถูกลบหรือไม่สามารถเข้าถึงได้"
+          title='ไม่พบข้อมูลสัตว์เลี้ยง'
+          subtitle='สัตว์เลี้ยงที่เลือกอาจถูกลบหรือไม่สามารถเข้าถึงได้'
         />
       ) : (
         <ScrollView
@@ -144,7 +144,8 @@ export default function AccessListPage() {
             caregivers={caregivers}
             revoking={revokeApi.loading}
             onRevoke={handleRevokeCaregiver}
-            isOwner={canManageAccess}
+            isOwner={Boolean(isOwner)}
+            canManageAccess={canManageAccess}
             selfAccessId={selfAccessId ?? undefined}
           />
 
@@ -161,13 +162,13 @@ export default function AccessListPage() {
       <Modal
         visible={Boolean(caregiverToRevoke)}
         onClose={closeRevokeCaregiverModal}
-        variant="confirmation"
-        icon="trash"
-        title="ยกเลิกสิทธิ์ผู้ดูแล"
+        variant='confirmation'
+        icon='trash'
+        title='ยกเลิกสิทธิ์ผู้ดูแล'
         message={`ต้องการลบ "${caregiverToRevoke?.alias ?? ''}" ออกจากรายชื่อผู้ดูแลหรือไม่?`}
-        confirmText="ลบผู้ดูแล"
-        cancelText="ไม่"
-        confirmVariant="error"
+        confirmText='ลบผู้ดูแล'
+        cancelText='ไม่'
+        confirmVariant='error'
         onConfirm={handleConfirmRevokeCaregiver}
         isLoading={revokeApi.loading}
       />
@@ -178,26 +179,26 @@ export default function AccessListPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary
+    backgroundColor: colors.background.primary,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   scrollContentContainer: {
     paddingHorizontal: spacing[4],
     paddingTop: spacing[4],
-    paddingBottom: spacing[6]
+    paddingBottom: spacing[6],
   },
   petInfoSection: {
     marginBottom: spacing[4],
     backgroundColor: colors.background.secondary,
     borderRadius: 12,
-    padding: spacing[3]
+    padding: spacing[3],
   },
   deceasedNote: {
     marginTop: spacing[4],
@@ -205,13 +206,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[100] || '#F3F4F6',
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.gray[300] || '#D1D5DB'
+    borderColor: colors.gray[300] || '#D1D5DB',
   },
   deceasedNoteText: {
     fontSize: typography.fontSize.sm,
     color: colors.gray[700] || '#374151',
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.relaxed
-  }
+    lineHeight: typography.lineHeight.relaxed,
+  },
 })

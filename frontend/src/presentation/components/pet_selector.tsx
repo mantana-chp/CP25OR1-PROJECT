@@ -101,9 +101,9 @@ export default function PetSelector({
                     styles.petAvatar,
                     styles.placeholderAvatar,
                     {
-                      backgroundColor: getDefaultAvatarBackgroundColorBySpecies(
-                        pet.species,
-                      ),
+                      backgroundColor:
+                        pet.avatar_background_color ||
+                        getDefaultAvatarBackgroundColorBySpecies(pet.species),
                     },
                   ]}
                 >
