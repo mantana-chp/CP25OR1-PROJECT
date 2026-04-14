@@ -587,6 +587,9 @@ export const restorePet = async (petId: string, userId: string) => {
     throw new BadRequestError('Only soft-deleted pets can be restored.')
   }
 
+  // Restoring creates an ACTIVE pet, so it must not duplicate any existing ACTIVE owner pet name.
+  await assertUniqueActivePetName(userId, existingPet.pet_name, petId)
+
   // Check if user already has 30 active pets (owned + shared from other users)
   const ownedActivePets = await petRepository.countActivePetsByUserId(userId)
   const sharedActivePets =

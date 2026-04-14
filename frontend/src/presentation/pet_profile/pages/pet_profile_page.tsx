@@ -76,6 +76,12 @@ export default function PetProfilePage() {
     Record<string, string>
   >({})
 
+  const normalizePetNameForComparison = useCallback(
+    (name?: string | null) =>
+      (name || '').trim().replace(/\s+/g, ' ').toLowerCase(),
+    [],
+  )
+
   const tabPets = activeTab === 'active' ? activePets : contextDeceasedPets
 
   const selectedPetIndex = tabPets.findIndex((p) => p.id === selectedPetId)
@@ -328,18 +334,66 @@ export default function PetProfilePage() {
 
   const handleRestorePet = useCallback(
     async (petId: string) => {
+      const targetDeletedPet = deletedPets.find((pet) => pet.id === petId)
+
+      if (targetDeletedPet) {
+        const targetName = normalizePetNameForComparison(
+          targetDeletedPet.pet_name,
+        )
+        const hasDuplicateActiveOwnerPetName = activePets
+          .filter((pet) => pet.petRole !== 'CAREGIVER')
+          .some(
+            (pet) => normalizePetNameForComparison(pet.pet_name) === targetName,
+          )
+
+        if (hasDuplicateActiveOwnerPetName) {
+          Alert.alert(
+            'กู้คืนไม่สำเร็จ',
+            'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อสัตว์เลี้ยงตัวที่ใช้งานอยู่ก่อน แล้วลองกู้คืนอีกครั้ง',
+          )
+          return
+        }
+      }
+
       try {
         await restorePet(petId)
-        Alert.alert('สำเร็จ', 'กู้คืนสัตว์เลี้ยงเรียบร้อยแล้ว')
-      } catch (error) {
-        console.error('Error restoring pet:', error)
         Alert.alert(
-          'เกิดข้อผิดพลาด',
-          'ไม่สามารถกู้คืนสัตว์เลี้ยงได้ เนื่องจากสัตว์เลี้ยงของคุณมีจำนวนสูงสุดแล้ว',
+          'กู้คืนสำเร็จ',
+          'สัตว์เลี้ยงกลับมาอยู่ในรายการที่ใช้งานแล้ว',
+        )
+      } catch (error: any) {
+        console.error('Error restoring pet:', error)
+
+        const message = error?.message || ''
+        const lowerMessage = String(message).toLowerCase()
+
+        if (
+          error?.statusCode === 409 &&
+          (lowerMessage.includes('active pet named') ||
+            lowerMessage.includes('choose a different name'))
+        ) {
+          Alert.alert(
+            'กู้คืนไม่สำเร็จ',
+            'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อสัตว์เลี้ยงตัวที่ใช้งานอยู่ก่อน แล้วลองกู้คืนอีกครั้ง',
+          )
+          return
+        }
+
+        if (error?.statusCode === 409) {
+          Alert.alert(
+            'กู้คืนไม่สำเร็จ',
+            'ไม่สามารถกู้คืนได้ เพราะจำนวนสัตว์เลี้ยงที่ใช้งานอยู่ครบตามจำนวนสูงสุดแล้ว',
+          )
+          return
+        }
+
+        Alert.alert(
+          'กู้คืนไม่สำเร็จ',
+          'ไม่สามารถกู้คืนสัตว์เลี้ยงได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง',
         )
       }
     },
-    [restorePet],
+    [restorePet, deletedPets, activePets, normalizePetNameForComparison],
   )
 
   const handlePermanentDeletePet = useCallback(
