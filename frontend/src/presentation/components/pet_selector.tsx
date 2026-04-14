@@ -4,7 +4,7 @@ import { Check, X, Users } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   getDefaultAvatarBackgroundColorBySpecies,
-  getPetPlaceholderIcon,
+  getPetPlaceholderIcon
 } from '@/src/utils/pet_avatar'
 import {
   Image,
@@ -14,7 +14,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 
 interface PetSelectorProps {
@@ -34,7 +34,7 @@ export default function PetSelector({
   label = 'เลือกสัตว์เลี้ยง',
   required = false,
   error,
-  disabled = false,
+  disabled = false
 }: PetSelectorProps) {
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [tempSelectedIds, setTempSelectedIds] =
@@ -103,14 +103,14 @@ export default function PetSelector({
                     {
                       backgroundColor:
                         pet.avatar_background_color ||
-                        getDefaultAvatarBackgroundColorBySpecies(pet.species),
-                    },
+                        getDefaultAvatarBackgroundColorBySpecies(pet.species)
+                    }
                   ]}
                 >
                   <MaterialCommunityIcons
                     name={getPetPlaceholderIcon(pet.species)}
                     size={32}
-                    color='white'
+                    color="white"
                   />
                 </View>
               )}
@@ -120,9 +120,9 @@ export default function PetSelector({
                   onPress={() => handleRemovePet(pet.id)}
                 >
                   <MaterialCommunityIcons
-                    name='close'
+                    name="close"
                     size={14}
-                    color='white'
+                    color="white"
                   />
                 </TouchableOpacity>
               )}
@@ -132,7 +132,7 @@ export default function PetSelector({
                 {pet.pet_name}
               </Text>
               {pet.petRole === 'CAREGIVER' && (
-                <Users size={12} color='#5FA7D1' style={{ marginLeft: 4 }} />
+                <Users size={12} color="#5FA7D1" style={{ marginLeft: 4 }} />
               )}
             </View>
           </View>
@@ -155,7 +155,7 @@ export default function PetSelector({
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       {/* Pet Selection Modal */}
-      <Modal visible={isModalVisible} transparent={true} animationType='fade'>
+      <Modal visible={isModalVisible} transparent={true} animationType="fade">
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setIsModalVisible(false)}
@@ -167,7 +167,7 @@ export default function PetSelector({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <X size={20} color='#9ca3af' />
+                <X size={20} color="#9ca3af" />
               </TouchableOpacity>
             </View>
 
@@ -180,36 +180,67 @@ export default function PetSelector({
                     key={pet.id}
                     style={[
                       styles.petItem,
-                      isSelected && styles.petItemSelected,
+                      isSelected && styles.petItemSelected
                     ]}
                     onPress={() => handleSelectPet(pet.id)}
                   >
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.petNameContainer}>
-                        <Text
-                          style={[
-                            styles.petName,
-                            isSelected && styles.petNameSelected,
-                          ]}
-                        >
-                          {pet.pet_name}
-                        </Text>
-                        {pet.petRole === 'CAREGIVER' && (
-                          <Users size={14} color='#5FA7D1' />
+                    <View style={styles.petItemContent}>
+                      <View style={styles.modalPetAvatarWrapper}>
+                        {pet.profile_image_url ? (
+                          <Image
+                            source={{ uri: pet.profile_image_url }}
+                            style={styles.modalPetAvatar}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.modalPetAvatar,
+                              styles.placeholderAvatar,
+                              {
+                                backgroundColor:
+                                  pet.avatar_background_color ||
+                                  getDefaultAvatarBackgroundColorBySpecies(
+                                    pet.species
+                                  )
+                              }
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={getPetPlaceholderIcon(pet.species)}
+                              size={18}
+                              color="white"
+                            />
+                          </View>
                         )}
                       </View>
-                      <Text style={styles.petInfo}>
-                        {pet.species} • {pet.breed}
-                      </Text>
+
+                      <View style={styles.petDetailsContainer}>
+                        <View style={styles.petNameContainer}>
+                          <Text
+                            style={[
+                              styles.petName,
+                              isSelected && styles.petNameSelected
+                            ]}
+                          >
+                            {pet.pet_name}
+                          </Text>
+                          {pet.petRole === 'CAREGIVER' && (
+                            <Users size={14} color="#5FA7D1" />
+                          )}
+                        </View>
+                        <Text style={styles.petInfo}>
+                          {pet.species} • {pet.breed}
+                        </Text>
+                      </View>
                     </View>
                     <View
                       style={[
                         styles.checkbox,
-                        isSelected && styles.checkboxSelected,
+                        isSelected && styles.checkboxSelected
                       ]}
                     >
                       {isSelected && (
-                        <Check size={16} color='white' strokeWidth={2} />
+                        <Check size={16} color="white" strokeWidth={2} />
                       )}
                     </View>
                   </TouchableOpacity>
@@ -242,43 +273,43 @@ export default function PetSelector({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   label: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    marginBottom: 8,
+    marginBottom: 8
   },
   required: {
-    color: '#dc2626',
+    color: '#dc2626'
   },
   petListContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: 8
   },
   selectedPetItem: {
     alignItems: 'center',
-    width: 72,
+    width: 72
   },
   petAvatarWrapper: {
     width: 64,
     height: 64,
     borderRadius: 32,
     marginBottom: 6,
-    position: 'relative',
+    position: 'relative'
   },
   petAvatar: {
     width: '100%',
     height: '100%',
     borderRadius: 32,
-    backgroundColor: '#5FA7D1',
+    backgroundColor: '#5FA7D1'
   },
   placeholderAvatar: {
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   removePetButton: {
     position: 'absolute',
@@ -291,19 +322,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#fff'
   },
   selectedPetName: {
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   selectedPetNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
+    width: '100%'
   },
   addPetWrapper: {
     width: 64,
@@ -315,32 +346,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F0F8FF',
-    marginBottom: 6,
+    marginBottom: 6
   },
   addPetIcon: {
     fontSize: 28,
     color: '#5FA7D1',
-    fontWeight: '300',
+    fontWeight: '300'
   },
   addPetText: {
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
     color: '#5FA7D1',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   errorText: {
     color: '#BF1737',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     marginTop: 4,
-    marginLeft: 4,
+    marginLeft: 4
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 20
   },
   modalContent: {
     backgroundColor: '#fff',
@@ -348,7 +379,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     maxHeight: '70%',
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
   modalHeader: {
     flexDirection: 'row',
@@ -356,17 +387,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e5e7eb'
   },
   modalTitle: {
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877',
+    color: '#225877'
   },
   closeButton: {
     fontSize: 24,
     color: '#6b7280',
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   checkbox: {
     width: 24,
@@ -377,18 +408,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 12
   },
   checkboxSelected: {
     backgroundColor: '#5FA7D1',
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   modalFooter: {
     flexDirection: 'row',
     padding: 16,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#e5e7eb'
   },
   cancelButton: {
     flex: 1,
@@ -397,27 +428,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d1d5db',
     backgroundColor: '#fff',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   cancelButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   confirmButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
     backgroundColor: '#5FA7D1',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   confirmButtonText: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
-    color: '#fff',
+    color: '#fff'
   },
   petList: {
-    maxHeight: 400,
+    maxHeight: 400
   },
   petItem: {
     flexDirection: 'row',
@@ -425,34 +456,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f3f4f6'
+  },
+  petItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  modalPetAvatarWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    overflow: 'hidden'
+  },
+  modalPetAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#5FA7D1'
+  },
+  petDetailsContainer: {
+    flex: 1
   },
   petItemSelected: {
-    backgroundColor: '#E8F4F8',
+    backgroundColor: '#E8F4F8'
   },
   petName: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
     color: '#225877',
-    marginBottom: 4,
+    marginBottom: 4
   },
   petNameSelected: {
     color: '#5FA7D1',
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_500Medium'
   },
   petNameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 6
   },
   petInfo: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   checkmark: {
     fontSize: 20,
     color: '#5FA7D1',
-    fontFamily: 'Prompt_700Bold',
-  },
+    fontFamily: 'Prompt_700Bold'
+  }
 })
