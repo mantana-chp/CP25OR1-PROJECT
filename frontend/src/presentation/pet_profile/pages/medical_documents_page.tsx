@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -36,6 +36,9 @@ import {
 } from '@/src/hooks/usePetMedicalDocuments'
 import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { IMedicalDocument } from '@/src/utils/api/services/pet_medical_document_service'
+import { IReminder } from '@/src/domain/reminder.domain'
+import { reminderService } from '@/src/utils/api/services/reminder_service'
+import { useApi } from '@/src/utils/api/use_api'
 import {
   borderRadius,
   colors,
@@ -69,6 +72,36 @@ interface MedicalDocumentsPageProps {
   headerContent?: React.ReactNode
 }
 
+interface IReminderAttachmentDocument {
+  id: string
+  source: 'reminder'
+  reminderId: string
+  attachmentId: string
+  reminderName: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+  downloadUrl?: string
+}
+
+type IDisplayMedicalDocument =
+  | (IMedicalDocument & { source: 'medical' })
+  | (IPendingDocument & { source: 'pending' })
+  | IReminderAttachmentDocument
+
+const isPendingDocument = (
+  doc: IDisplayMedicalDocument,
+): doc is IPendingDocument & { source: 'pending' } => doc.source === 'pending'
+
+const isReminderAttachmentDocument = (
+  doc: IDisplayMedicalDocument,
+): doc is IReminderAttachmentDocument => doc.source === 'reminder'
+
+const isUploadedMedicalDocument = (
+  doc: IDisplayMedicalDocument,
+): doc is IMedicalDocument & { source: 'medical' } => doc.source === 'medical'
+
 export default function MedicalDocumentsPage({
   petIdOverride,
   isEmbedded = false,
@@ -94,11 +127,19 @@ export default function MedicalDocumentsPage({
     uploadPendingFiles,
     deleteDocument,
   } = usePetMedicalDocuments({ petId })
+  const getRemindersApi = useApi(reminderService.getReminders, {
+    showErrorAlert: false,
+  })
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [resolvingDownloadId, setResolvingDownloadId] = useState<string | null>(
+    null,
+  )
   const [showUploadOptions, setShowUploadOptions] = useState(false)
   const [isPickerOpening, setIsPickerOpening] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState<FileFilter>('all')
+  const [reminderAttachmentDocuments, setReminderAttachmentDocuments] =
+    useState<IReminderAttachmentDocument[]>([])
   const isPickerActiveRef = useRef(false)
   const pickerRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -108,6 +149,41 @@ export default function MedicalDocumentsPage({
   const [previewDocument, setPreviewDocument] =
     useState<IMedicalDocument | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+
+  const loadReminderAttachmentDocuments = useCallback(async () => {
+    if (!petId) {
+      setReminderAttachmentDocuments([])
+      return
+    }
+
+    const result = await getRemindersApi.execute({})
+    if (result.error) return
+
+    const reminders: IReminder[] = result.data?.data?.reminders || []
+
+    const mapped = reminders
+      .filter((reminder) => reminder.petId === petId)
+      .flatMap((reminder) =>
+        (reminder.attachments || []).map((attachment) => ({
+          id: `reminder-attachment-${reminder.id}-${attachment.id}`,
+          source: 'reminder' as const,
+          reminderId: reminder.id,
+          attachmentId: attachment.id,
+          reminderName: reminder.reminderName,
+          fileName: attachment.fileName,
+          fileType: attachment.fileType,
+          fileSize: attachment.fileSize,
+          createdAt: attachment.createdAt,
+          downloadUrl: attachment.downloadUrl,
+        })),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+
+    setReminderAttachmentDocuments(mapped)
+  }, [getRemindersApi.execute, petId])
 
   // Delete permission modal state
   const [showDeletePermissionModal, setShowDeletePermissionModal] =
@@ -119,16 +195,20 @@ export default function MedicalDocumentsPage({
     useCallback(() => {
       if (petId) {
         fetchDocuments()
+        loadReminderAttachmentDocuments()
       }
       resetPickerState()
       return () => {
         resetPickerState()
       }
-    }, [fetchDocuments, petId]),
+    }, [fetchDocuments, loadReminderAttachmentDocuments, petId]),
   )
 
-  const { isRefreshing, onRefresh: handleRefresh } =
-    usePullToRefresh(fetchDocuments)
+  const { isRefreshing, onRefresh: handleRefresh } = usePullToRefresh(
+    async () => {
+      await Promise.all([fetchDocuments(), loadReminderAttachmentDocuments()])
+    },
+  )
 
   // Picker state management
   const clearPickerRecoveryTimeout = () => {
@@ -202,17 +282,10 @@ export default function MedicalDocumentsPage({
   }
 
   // Get thumbnail URI for image files
-  const getThumbnailUri = (
-    doc: IMedicalDocument | IPendingDocument,
-  ): string | null => {
-    const isPending = 'isPending' in doc && doc.isPending
-
+  const getThumbnailUri = (doc: IDisplayMedicalDocument): string | null => {
     if (doc.fileType.startsWith('image/')) {
-      if (isPending) {
-        return (doc as IPendingDocument).uri
-      } else {
-        return (doc as IMedicalDocument).downloadUrl || null
-      }
+      if (isPendingDocument(doc)) return doc.uri
+      return doc.downloadUrl || null
     }
 
     return null
@@ -500,13 +573,11 @@ export default function MedicalDocumentsPage({
   }
 
   // Handle delete document
-  const handleDeleteDocument = (
-    document: IMedicalDocument | IPendingDocument,
-  ) => {
-    const isPending = 'isPending' in document && document.isPending
+  const handleDeleteDocument = (document: IDisplayMedicalDocument) => {
+    const isPending = isPendingDocument(document)
 
     // For caregivers trying to delete uploaded documents, show permission modal immediately
-    if (!isOwner && !isPending) {
+    if (!isOwner && !isPending && !isReminderAttachmentDocument(document)) {
       setBlockedDocumentName(document.fileName)
       setShowDeletePermissionModal(true)
       return
@@ -517,10 +588,8 @@ export default function MedicalDocumentsPage({
   }
 
   // Show delete confirmation dialog
-  const showDeleteConfirmation = (
-    document: IMedicalDocument | IPendingDocument,
-  ) => {
-    const isPending = 'isPending' in document && document.isPending
+  const showDeleteConfirmation = (document: IDisplayMedicalDocument) => {
+    const isPending = isPendingDocument(document)
 
     Alert.alert('ลบเอกสาร', `คุณต้องการลบ "${document.fileName}" หรือไม่?`, [
       { text: 'ยกเลิก', style: 'cancel' },
@@ -530,6 +599,29 @@ export default function MedicalDocumentsPage({
         onPress: async () => {
           if (isPending) {
             removePendingFile(document.id)
+          } else if (isReminderAttachmentDocument(document)) {
+            try {
+              setDeletingId(document.id)
+              await reminderService.deleteAttachment(
+                document.reminderId,
+                document.attachmentId,
+              )
+              setReminderAttachmentDocuments((prev) =>
+                prev.filter((item) => item.id !== document.id),
+              )
+              Alert.alert('สำเร็จ', 'ลบไฟล์แนบเรียบร้อยแล้ว')
+            } catch (error: any) {
+              if (error?.statusCode === 403) {
+                Alert.alert(
+                  'ไม่สามารถลบไฟล์ได้',
+                  'คุณไม่มีสิทธิ์ในการดำเนินการนี้',
+                )
+              } else {
+                Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบไฟล์แนบได้')
+              }
+            } finally {
+              setDeletingId(null)
+            }
           } else {
             try {
               setDeletingId(document.id)
@@ -549,13 +641,90 @@ export default function MedicalDocumentsPage({
     setShowPreview(true)
   }
 
-  // Handle direct download
-  const handleDirectDownload = (document: IMedicalDocument) => {
+  const resolveReminderAttachmentUrl = async (
+    attachment: IReminderAttachmentDocument,
+  ): Promise<string | null> => {
+    if (resolvingDownloadId) return null
+
     try {
+      setResolvingDownloadId(attachment.id)
+
+      const existingUrl = attachment.downloadUrl
+      const resolvedUrl = existingUrl
+        ? existingUrl
+        : (
+            await reminderService.getAttachmentDownloadUrl(
+              attachment.reminderId,
+              attachment.attachmentId,
+            )
+          ).data.downloadUrl
+
+      if (!resolvedUrl) {
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
+        return null
+      }
+
+      if (!existingUrl) {
+        setReminderAttachmentDocuments((prev) =>
+          prev.map((item) =>
+            item.id === attachment.id
+              ? { ...item, downloadUrl: resolvedUrl }
+              : item,
+          ),
+        )
+      }
+
+      return resolvedUrl
+    } catch (error) {
+      console.error('Error resolving reminder attachment URL:', error)
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
+      return null
+    } finally {
+      setResolvingDownloadId(null)
+    }
+  }
+
+  const handlePreviewReminderAttachment = async (
+    attachment: IReminderAttachmentDocument,
+  ) => {
+    const resolvedUrl = await resolveReminderAttachmentUrl(attachment)
+    if (!resolvedUrl) return
+
+    const previewPayload: IMedicalDocument = {
+      id: attachment.id,
+      petId,
+      createdByUserId: '',
+      fileName: attachment.fileName,
+      fileType: attachment.fileType,
+      fileSize: attachment.fileSize,
+      objectKey: '',
+      downloadUrl: resolvedUrl,
+      createdAt: attachment.createdAt,
+    }
+
+    handlePreviewDocument(previewPayload)
+  }
+
+  const handleOpenReminderAttachment = async (
+    attachment: IReminderAttachmentDocument,
+  ) => {
+    const resolvedUrl = await resolveReminderAttachmentUrl(attachment)
+    if (!resolvedUrl) return
+    await Linking.openURL(resolvedUrl)
+  }
+
+  // Handle direct download
+  const handleDirectDownload = async (document: IDisplayMedicalDocument) => {
+    try {
+      if (isPendingDocument(document)) return
+
+      if (isReminderAttachmentDocument(document)) {
+        await handleOpenReminderAttachment(document)
+        return
+      }
+
       if (document.downloadUrl) {
-        Linking.openURL(document.downloadUrl).catch(() => {
-          Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
-        })
+        await Linking.openURL(document.downloadUrl)
       }
     } catch (error) {
       console.error('Error downloading document:', error)
@@ -590,10 +759,22 @@ export default function MedicalDocumentsPage({
   }
 
   // Filter documents
-  const allDocuments: Array<IMedicalDocument | IPendingDocument> = [
-    ...pendingDocuments,
-    ...documents,
-  ]
+  const allDocuments: IDisplayMedicalDocument[] = useMemo(() => {
+    const pending = pendingDocuments.map((doc) => ({
+      ...doc,
+      source: 'pending' as const,
+    }))
+    const uploaded = documents.map((doc) => ({
+      ...doc,
+      source: 'medical' as const,
+    }))
+    const persisted = [...reminderAttachmentDocuments, ...uploaded].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+
+    return [...pending, ...persisted]
+  }, [documents, pendingDocuments, reminderAttachmentDocuments])
 
   const filteredDocuments = allDocuments.filter((doc) => {
     if (selectedFilter === 'all') return true
@@ -619,21 +800,31 @@ export default function MedicalDocumentsPage({
   const renderDocumentCard = ({
     item: doc,
   }: {
-    item: IMedicalDocument | IPendingDocument
+    item: IDisplayMedicalDocument
   }) => {
-    const isPending = 'isPending' in doc && doc.isPending
+    const isPending = isPendingDocument(doc)
+    const isReminderAttachment = isReminderAttachmentDocument(doc)
+    const isUploadedMedical = isUploadedMedicalDocument(doc)
     const isDeleting = deletingId === doc.id
+    const isResolvingDownload = resolvingDownloadId === doc.id
     const thumbnailUri = getThumbnailUri(doc)
 
     return (
       <Pressable
         style={styles.documentCard}
         onPress={() => {
-          if (!isPending && 'downloadUrl' in doc && doc.downloadUrl) {
+          if (isPending) return
+
+          if (isReminderAttachment) {
+            void handlePreviewReminderAttachment(doc)
+            return
+          }
+
+          if (isUploadedMedical && doc.downloadUrl) {
             handlePreviewDocument(doc)
           }
         }}
-        disabled={isPending}
+        disabled={isPending || isResolvingDownload}
       >
         {/* Thumbnail / Icon */}
         <View style={styles.cardThumbnail}>
@@ -664,7 +855,7 @@ export default function MedicalDocumentsPage({
             <Text style={styles.cardFileSize}>
               {formatFileSize(doc.fileSize)}
             </Text>
-            {!isPending && 'createdAt' in doc && (
+            {!isPending && (
               <>
                 <Text style={styles.cardMetaDivider}>•</Text>
                 <Text style={styles.cardFileDate}>
@@ -673,17 +864,34 @@ export default function MedicalDocumentsPage({
               </>
             )}
           </View>
+          {isReminderAttachment && (
+            <View style={styles.sourceBadge}>
+              <Text style={styles.sourceBadgeText} numberOfLines={1}>
+                จากเตือนความจำ: {doc.reminderName}
+              </Text>
+            </View>
+          )}
           {isPending && getProgressBadge(doc.uploadProgress)}
         </View>
 
         {/* Actions */}
         <View style={styles.cardActions}>
-          {!isPending && 'downloadUrl' in doc && doc.downloadUrl && (
+          {!isPending && (
             <TouchableOpacity
               style={styles.cardActionButton}
-              onPress={() => handleDirectDownload(doc)}
+              onPress={() => {
+                void handleDirectDownload(doc)
+              }}
+              disabled={isResolvingDownload}
             >
-              <Download size={18} color={colors.primary.DEFAULT} />
+              {isResolvingDownload ? (
+                <ActivityIndicator
+                  size='small'
+                  color={colors.primary.DEFAULT}
+                />
+              ) : (
+                <Download size={18} color={colors.primary.DEFAULT} />
+              )}
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -811,8 +1019,7 @@ export default function MedicalDocumentsPage({
       <Text style={styles.emptyTitle}>ยังไม่มีเอกสาร</Text>
       <Text style={styles.emptySubtitle}>
         อัปโหลดเอกสารสุขภาพและวัคซีนของสัตว์เลี้ยง{'\n'}
-        เช่น ใบรับรองการฉีดวัคซีน ผลตรวจสุขภาพ{'\n'}
-        หรือเอกสารจากคลินิก
+        พร้อมไฟล์แนบจากการเตือนความจำจะแสดงที่นี่อัตโนมัติ
       </Text>
       <TouchableOpacity
         style={[
@@ -1160,6 +1367,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: colors.gray[500],
+  },
+  sourceBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    backgroundColor: '#EAF3FF',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    maxWidth: '100%',
+  },
+  sourceBadgeText: {
+    fontSize: 11,
+    color: '#1D4E89',
+    fontFamily: 'Prompt_400Regular',
   },
   cardActions: {
     flexDirection: 'row',
