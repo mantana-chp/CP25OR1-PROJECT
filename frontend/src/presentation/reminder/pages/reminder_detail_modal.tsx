@@ -390,7 +390,7 @@ export default function ReminderDetailModal({
               <View style={styles.dateTimeCard}>
                 <View style={styles.dateTimeRow}>
                   <CalendarDays
-                    size={16}
+                    size={14}
                     color={isOverdue ? '#DC2626' : '#5FA7D1'}
                   />
                   <Text
@@ -406,7 +406,7 @@ export default function ReminderDetailModal({
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.dateTimeRow}>
-                  <Clock size={16} color={isOverdue ? '#DC2626' : '#5FA7D1'} />
+                  <Clock size={14} color={isOverdue ? '#DC2626' : '#5FA7D1'} />
                   <Text
                     style={[
                       styles.dateTimeText,
