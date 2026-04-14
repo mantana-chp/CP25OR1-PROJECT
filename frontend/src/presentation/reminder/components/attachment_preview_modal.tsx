@@ -193,19 +193,19 @@ export default function AttachmentPreviewModal({
       await saveFileToFilesApp(result.uri)
       Alert.alert('ดาวน์โหลดสำเร็จ', 'ส่งไฟล์ไปยังแอป Files แล้ว')
     } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : 'ไม่สามารถดาวน์โหลดไฟล์ได้ กรุณาลองอีกครั้ง'
-      Alert.alert('ดาวน์โหลดไม่สำเร็จ', message, [
-        { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'ลองใหม่',
-          onPress: () => {
-            void handleDownload()
+      Alert.alert(
+        'ดาวน์โหลดไม่สำเร็จ',
+        'ไม่สามารถดาวน์โหลดไฟล์ได้ กรุณาลองอีกครั้ง',
+        [
+          { text: 'ยกเลิก', style: 'cancel' },
+          {
+            text: 'ลองใหม่',
+            onPress: () => {
+              void handleDownload()
+            }
           }
-        }
-      ])
+        ]
+      )
     } finally {
       setIsDownloading(false)
     }
