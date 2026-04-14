@@ -6,6 +6,7 @@ import {
   getDefaultAvatarBackgroundColorBySpecies,
   getPetPlaceholderIcon
 } from '@/src/utils/pet_avatar'
+import Button from './button'
 import {
   Image,
   Modal,
@@ -249,20 +250,24 @@ export default function PetSelector({
             </ScrollView>
 
             <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={handleConfirmSelection}
-              >
-                <Text style={styles.confirmButtonText}>
-                  ยืนยัน ({tempSelectedIds.length})
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.footerButton}>
+                <Button
+                  title="ยกเลิก"
+                  onPress={() => setIsModalVisible(false)}
+                  variant="ghost"
+                  size="medium"
+                  fullWidth
+                />
+              </View>
+              <View style={styles.footerButton}>
+                <Button
+                  title={`ยืนยัน (${tempSelectedIds.length})`}
+                  onPress={handleConfirmSelection}
+                  variant="base"
+                  size="medium"
+                  fullWidth
+                />
+              </View>
             </View>
           </View>
         </Pressable>
@@ -421,31 +426,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb'
   },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#fff',
-    alignItems: 'center'
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#6b7280'
-  },
-  confirmButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#5FA7D1',
-    alignItems: 'center'
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_500Medium',
-    color: '#fff'
+  footerButton: {
+    flex: 1
   },
   petList: {
     maxHeight: 400
