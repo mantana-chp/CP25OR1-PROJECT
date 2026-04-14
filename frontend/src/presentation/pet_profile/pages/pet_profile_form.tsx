@@ -52,6 +52,12 @@ interface PetProfileFormProps {
   isOnboarding?: boolean
 }
 
+const normalizePetNameForComparison = (name?: string | null) =>
+  (name || '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+const PET_NAME_DUPLICATE_MESSAGE =
+  'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่แล้ว กรุณาใช้ชื่ออื่น'
+
 export default function PetProfileForm({
   isOnboarding = false,
 }: PetProfileFormProps) {
@@ -80,11 +86,17 @@ export default function PetProfileForm({
 
   // Multi-pet form state - array of pet forms
   const [petForms, setPetForms] = useState<IPetFormState[]>([])
+  const [nameConflictErrors, setNameConflictErrors] = useState<
+    Record<string, string>
+  >({})
 
   // For edit mode - keep single form state
   const [initialPetData, setInitialPetData] = useState<IPetProfileForm | null>(
     null,
   )
+  const [editNameConflictError, setEditNameConflictError] = useState<
+    string | undefined
+  >(undefined)
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>('')
   const [selectedImageUri, setSelectedImageUri] = useState<string | undefined>(
     undefined,
@@ -208,6 +220,15 @@ export default function PetProfileForm({
     fieldName: string,
     value: any,
   ) => {
+    if (fieldName === 'pet_name') {
+      setNameConflictErrors((prev) => {
+        if (!prev[formId]) return prev
+        const next = { ...prev }
+        delete next[formId]
+        return next
+      })
+    }
+
     setPetForms((prevForms) =>
       prevForms.map((form) =>
         form.id === formId
@@ -284,8 +305,82 @@ export default function PetProfileForm({
       Alert.alert('เกิดข้อผิดพลาด', 'ต้องมีอย่างน้อยหนึ่งฟอร์มสัตว์เลี้ยง')
       return
     }
+
+    setNameConflictErrors((prev) => {
+      if (!prev[formId]) return prev
+      const next = { ...prev }
+      delete next[formId]
+      return next
+    })
+
     setPetForms((prev) => prev.filter((form) => form.id !== formId))
   }
+
+  const getOwnerActivePetNames = useCallback(
+    (excludePetId?: string) =>
+      activePets
+        .filter((pet) => pet.petRole !== 'CAREGIVER')
+        .filter((pet) => pet.id !== excludePetId)
+        .map((pet) => pet.pet_name),
+    [activePets],
+  )
+
+  const findDuplicateNameErrorsForForms = useCallback(
+    (forms: IPetFormState[]) => {
+      const errors: Record<string, string> = {}
+      const localNameMap = new Map<string, string[]>()
+
+      forms.forEach((form) => {
+        const normalized = normalizePetNameForComparison(form.values.pet_name)
+        if (!normalized) return
+
+        const current = localNameMap.get(normalized) || []
+        localNameMap.set(normalized, [...current, form.id])
+      })
+
+      localNameMap.forEach((formIds) => {
+        if (formIds.length > 1) {
+          formIds.forEach((formId) => {
+            errors[formId] = 'ชื่อนี้ซ้ำในรายการที่กำลังสร้าง กรุณาแก้ไข'
+          })
+        }
+      })
+
+      const existingNormalizedOwnerNames = new Set(
+        getOwnerActivePetNames().map((name) =>
+          normalizePetNameForComparison(name),
+        ),
+      )
+
+      forms.forEach((form) => {
+        const normalized = normalizePetNameForComparison(form.values.pet_name)
+        if (!normalized) return
+
+        if (existingNormalizedOwnerNames.has(normalized)) {
+          errors[form.id] = PET_NAME_DUPLICATE_MESSAGE
+        }
+      })
+
+      return errors
+    },
+    [getOwnerActivePetNames],
+  )
+
+  const isEditPetNameDuplicate = useCallback(
+    (petName: string) => {
+      const normalizedName = normalizePetNameForComparison(petName)
+      if (!normalizedName) return false
+
+      const existingNormalizedOwnerNames = new Set(
+        getOwnerActivePetNames(petId).map((name) =>
+          normalizePetNameForComparison(name),
+        ),
+      )
+
+      return existingNormalizedOwnerNames.has(normalizedName)
+    },
+    [getOwnerActivePetNames, petId],
+  )
 
   const formik = useFormik<IPetProfileForm>({
     initialValues: petProfileInitValue(
@@ -300,6 +395,13 @@ export default function PetProfileForm({
       // This is only used in EDIT MODE
       try {
         setIsSubmitting(true)
+        setEditNameConflictError(undefined)
+
+        if (isEditPetNameDuplicate(values.pet_name)) {
+          setEditNameConflictError(PET_NAME_DUPLICATE_MESSAGE)
+          setIsSubmitting(false)
+          return
+        }
 
         const { id, breed_id, weight, profileImage, ...petData } = values
 
@@ -443,6 +545,16 @@ export default function PetProfileForm({
         setSelectedImageUri(undefined)
       } catch (error: any) {
         console.error('❌ Error updating pet profile:', error)
+
+        if (error?.statusCode === 409) {
+          const conflictMessage =
+            error?.message ||
+            'ชื่อสัตว์เลี้ยงซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อแล้วลองอีกครั้ง'
+          setEditNameConflictError(conflictMessage)
+          Alert.alert('ชื่อสัตว์เลี้ยงซ้ำ', conflictMessage)
+          return
+        }
+
         Alert.alert(
           'เกิดข้อผิดพลาด',
           error?.message ||
@@ -459,6 +571,7 @@ export default function PetProfileForm({
   const handleCreateMultiplePets = async () => {
     try {
       setIsSubmitting(true)
+      setNameConflictErrors({})
 
       // Validate all forms first
       const validationErrors: { [key: string]: string[] } = {}
@@ -474,6 +587,16 @@ export default function PetProfileForm({
       if (Object.keys(validationErrors).length > 0) {
         const errorMessages = Object.values(validationErrors).flat().join('\n')
         Alert.alert('ข้อผิดพลาดในการตรวจสอบ', errorMessages)
+        return
+      }
+
+      const duplicateNameErrors = findDuplicateNameErrorsForForms(petForms)
+      if (Object.keys(duplicateNameErrors).length > 0) {
+        setNameConflictErrors(duplicateNameErrors)
+        Alert.alert(
+          'ชื่อสัตว์เลี้ยงซ้ำ',
+          'ตรวจพบชื่อสัตว์เลี้ยงซ้ำกับสัตว์เลี้ยงที่ใช้งานอยู่ หรือซ้ำกันเองในรายการที่กำลังสร้าง',
+        )
         return
       }
 
@@ -581,6 +704,18 @@ export default function PetProfileForm({
       router.push('/(tabs)/pet_profile')
     } catch (error: any) {
       console.error('❌ Error creating pets:', error)
+
+      if (error?.statusCode === 409) {
+        const conflictMessage =
+          error?.message ||
+          'ชื่อสัตว์เลี้ยงซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อแล้วลองอีกครั้ง'
+
+        const fallbackErrors = findDuplicateNameErrorsForForms(petForms)
+        setNameConflictErrors(fallbackErrors)
+        Alert.alert('ชื่อสัตว์เลี้ยงซ้ำ', conflictMessage)
+        return
+      }
+
       Alert.alert(
         'เกิดข้อผิดพลาด',
         error?.message || 'ไม่สามารถบันทึกโปรไฟล์สัตว์เลี้ยงได้',
@@ -811,7 +946,7 @@ export default function PetProfileForm({
           placeholder='ชื่อสัตว์เลี้ยง เช่น มะลิ, โบ้, Lucky'
           required={true}
           onChangeText={(v) => updatePetFormField(form.id, 'pet_name', v)}
-          error={undefined}
+          error={nameConflictErrors[form.id]}
         />
 
         <Dropdown
@@ -923,8 +1058,13 @@ export default function PetProfileForm({
               value={formik.values?.pet_name}
               placeholder='ชื่อสัตว์เลี้ยง เช่น มะลิ, โบ้, Lucky'
               required={true}
-              onChangeText={(v) => formik.setFieldValue('pet_name', v)}
-              error={formik?.errors?.pet_name}
+              onChangeText={(v) => {
+                if (editNameConflictError) {
+                  setEditNameConflictError(undefined)
+                }
+                formik.setFieldValue('pet_name', v)
+              }}
+              error={editNameConflictError || formik?.errors?.pet_name}
             />
             <Dropdown
               title='เพศสัตว์เลี้ยง'

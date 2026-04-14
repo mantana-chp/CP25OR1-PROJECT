@@ -128,7 +128,7 @@ const formatPetProfile = async (pet: any) => {
 export const createPet = async (userId: string, petData: PetCreationData) => {
   const petCount = await petRepository.countByUserId(userId)
   if (petCount >= 30) {
-    throw new ConflictError('You have reached the maximum limit of 10 pets.')
+    throw new ConflictError('You have reached the maximum limit of 30 pets.')
   }
 
   await assertUniqueActivePetName(userId, petData.pet_name)
@@ -192,9 +192,8 @@ export const createMultiplePets = async (
     )
   }
 
-  const existingActivePets = await petRepository.findActivePetNamesByUserId(
-    userId,
-  )
+  const existingActivePets =
+    await petRepository.findActivePetNamesByUserId(userId)
   const existingNormalizedNames = new Set(
     existingActivePets.map((pet) =>
       normalizePetNameForComparison(pet.pet_name),
@@ -203,7 +202,9 @@ export const createMultiplePets = async (
 
   const conflictingNames = [
     ...new Set(
-      normalizedIncomingNames.filter((name) => existingNormalizedNames.has(name)),
+      normalizedIncomingNames.filter((name) =>
+        existingNormalizedNames.has(name),
+      ),
     ),
   ]
 
