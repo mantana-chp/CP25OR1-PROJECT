@@ -1,6 +1,6 @@
 import { IDeletedPet } from '@/src/domain/pet.domain'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { History, RotateCcw, Trash2, X } from 'lucide-react-native'
+import { History, Trash2, X } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
   ActivityIndicator,
@@ -30,6 +30,10 @@ export default function RecentlyDeletedModal({
   onPermanentDelete
 }: RecentlyDeletedModalProps) {
   const [processingId, setProcessingId] = useState<string | null>(null)
+
+  const getAvatarBackgroundColor = (pet: IDeletedPet): string => {
+    return pet.avatar_background_color || '#9CA3AF'
+  }
 
   const formatDeletedDate = (dateStr: string): string => {
     const date = new Date(dateStr)
@@ -133,7 +137,12 @@ export default function RecentlyDeletedModal({
                 {deletedPets.map((pet) => (
                   <View key={pet.id} style={styles.petItem}>
                     <View style={styles.petInfo}>
-                      <View style={styles.petAvatar}>
+                      <View
+                        style={[
+                          styles.petAvatar,
+                          { backgroundColor: getAvatarBackgroundColor(pet) }
+                        ]}
+                      >
                         {pet.profile_image_url ? (
                           <Image
                             source={{ uri: pet.profile_image_url }}
