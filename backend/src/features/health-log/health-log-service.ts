@@ -8,7 +8,7 @@ import {
 } from '../../shared/errors'
 import { canAccessPet } from '../pet-sharing/pet-sharing-repository'
 import prisma from '../../libs/db'
-import { HealthLogDto, CreateHealthLogInput } from './health-log-types'
+import { HealthLogDto, CreateHealthLogInput, CreateHealthLogResult } from './health-log-types'
 import { Prisma } from '../../generated/prisma/client'
 import { UpdateHealthLogPayload } from './health-log-schema'
 import { logger } from '../../libs/logger'
@@ -16,7 +16,7 @@ import * as healthInsightDetection from '../health-insights/health-insight-detec
 import * as healthInsightGeneration from '../health-insights/health-insight-generation-service'
 import * as healthInsightRepository from '../health-insights/health-insight-repository'
 import * as notificationService from '../notifications/notification-service'
-import { getSeverityEmoji } from '../health-insights/health-insight-types'
+import { getSeverityEmoji, getWeightThreshold } from '../health-insights/health-insight-types'
 
 const validateLoggedAt = (loggedAt?: Date) => {
   if (!loggedAt) return
@@ -66,14 +66,82 @@ const resolveCreatedBy = async (
 }
 
 /**
+ * Multiplier applied to the species gain/loss threshold to get the hard rejection limit.
+ * e.g. Dog gainPercent=15% → reject if gain >75% (regardless of time).
+ */
+const WEIGHT_REJECTION_MULTIPLIER = 5
+
+/**
+ * Species-aware, time-aware two-tier weight validity check.
+ *
+ * Soft (suspicious): species threshold scaled by daysSince/windowDays, floored at 10%.
+ * Hard (impossible): species threshold × WEIGHT_REJECTION_MULTIPLIER, NOT time-scaled.
+ */
+const checkWeightValidity = (
+  newWeight: number,
+  previousWeight: number,
+  daysSince: number,
+  speciesName: string
+): { suspicious: boolean; impossible: boolean; changePercent: number } => {
+  const rawChange = ((newWeight - previousWeight) / previousWeight) * 100
+  const changePercent = Math.abs(rawChange)
+  const isGain = rawChange > 0
+
+  const threshold = getWeightThreshold(speciesName)
+  const limitPercent = isGain ? threshold.gainPercent : threshold.lossPercent
+
+  // Soft: time-scaled, minimum 10% floor so short windows aren't overly strict
+  const timeScale = Math.min(Math.max(daysSince, 1) / threshold.windowDays, 1.0)
+  const warnThreshold = Math.max(10, limitPercent * timeScale)
+
+  // Hard: absolute physiological limit, independent of time
+  const rejectThreshold = limitPercent * WEIGHT_REJECTION_MULTIPLIER
+
+  return {
+    suspicious: changePercent > warnThreshold,
+    impossible: changePercent > rejectThreshold,
+    changePercent
+  }
+}
+
+/**
+ * Format warning message for suspicious weight change (Thai, friendly tone).
+ */
+const formatWeightWarningMessage = (
+  previousWeight: number,
+  previousDate: Date,
+  newWeight: number
+): string => {
+  const dateStr = previousDate.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+  return `น้ำหนักเปลี่ยนแปลงค่อนข้างมากจากครั้งก่อน (จาก ${previousWeight.toFixed(2)} kg เมื่อ ${dateStr} เป็น ${newWeight.toFixed(2)} kg) กรุณาตรวจสอบความถูกต้องอีกครั้ง`
+}
+
+/**
+ * Format rejection message for an impossible weight change (Thai).
+ */
+const formatWeightImpossibleMessage = (
+  previousWeight: number,
+  newWeight: number,
+  changePercent: number
+): string => {
+  const dir = newWeight > previousWeight ? 'เพิ่มขึ้น' : 'ลดลง'
+  return `น้ำหนักที่บันทึก (${newWeight.toFixed(2)} kg) ${dir}จากครั้งก่อน (${previousWeight.toFixed(2)} kg) มากผิดปกติ (${changePercent.toFixed(1)}%) กรุณาตรวจสอบค่าน้ำหนักที่บันทึกอีกครั้ง`
+}
+
+/**
  * Create a new health log for a pet.
  * If category is WEIGHT and weight is provided, also update the pet's current weight.
+ * For WEIGHT category: throws ConflictError with conflict details if same-day log exists (unless upsert=true).
  */
 export const createHealthLog = async (
   petId: string,
   userId: string,
   input: CreateHealthLogInput
-): Promise<HealthLogDto> => {
+): Promise<CreateHealthLogResult> => {
   validateLoggedAt(input.loggedAt)
 
   // 1. Validate access
@@ -85,11 +153,103 @@ export const createHealthLog = async (
   // 2. Get pet owner ID
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
-    select: { user_id: true },
+    select: { user_id: true, species: { select: { name: true } } },
   });
 
   if (!pet) {
     throw new NotFoundError('Pet not found');
+  }
+
+  // ─── WEIGHT CATEGORY: Weight validation & same-day conflict detection ──────────
+
+  let newLogSuspiciousChange: boolean | undefined
+  let newLogWarningMessage: string | undefined
+
+  if (input.category === 'WEIGHT' && input.weight !== undefined && input.weight !== null) {
+    const logDate = input.loggedAt || new Date()
+    const startOfDay = new Date(logDate)
+    startOfDay.setHours(0, 0, 0, 0)
+    const speciesName = pet.species?.name ?? 'DEFAULT'
+
+    // Fetch both same-day log and historical log in parallel
+    const [existingLog, previousWeightLog] = await Promise.all([
+      healthLogRepository.findWeightLogByDate(petId, logDate),
+      healthLogRepository.findMostRecentPreviousWeight(petId, startOfDay)
+    ])
+
+    // ── Step 1: Impossible check (always runs before any DB write) ────────────────
+    // Compares against today's existing log first (most relevant for upsert);
+    // falls back to the most recent historical log.
+    const baselineLog = existingLog ?? previousWeightLog
+    if (baselineLog && baselineLog.weight !== null) {
+      const baselineWeight = Number(baselineLog.weight)
+      // daysSince=0 for same-day; formula internally floors to 1 so thresholds stay meaningful
+      const daysSince = existingLog
+        ? 0
+        : (startOfDay.getTime() - new Date(previousWeightLog!.logged_at).getTime()) / (1000 * 60 * 60 * 24)
+      const validity = checkWeightValidity(input.weight, baselineWeight, daysSince, speciesName)
+
+      if (validity.impossible) {
+        throw new BadRequestError(
+          formatWeightImpossibleMessage(baselineWeight, input.weight, validity.changePercent)
+        )
+      }
+    }
+
+    // ── Step 2: Suspicious warning check (historical trend only, before today) ─────
+    if (previousWeightLog && previousWeightLog.weight !== null) {
+      const previousWeight = Number(previousWeightLog.weight)
+      const daysSince =
+        (startOfDay.getTime() - new Date(previousWeightLog.logged_at).getTime()) / (1000 * 60 * 60 * 24)
+      const validity = checkWeightValidity(input.weight, previousWeight, daysSince, speciesName)
+
+      if (validity.suspicious) {
+        newLogSuspiciousChange = true
+        newLogWarningMessage = formatWeightWarningMessage(
+          previousWeight,
+          new Date(previousWeightLog.logged_at),
+          input.weight
+        )
+        logger.warn(
+          `[WeightLog] Suspicious weight change for pet ${petId}: ` +
+          `${previousWeight}kg → ${input.weight}kg (${validity.changePercent.toFixed(1)}%, ${daysSince.toFixed(1)} days)`
+        )
+      }
+    }
+
+    // ── Step 3: Same-day conflict resolution ──────────────────────────────────────
+    if (existingLog) {
+      if (input.upsert) {
+        // Upsert: overwrite existing same-day log (impossible check already passed above)
+        const updatedLog = await healthLogRepository.updateWeightLogWithWeight(
+          existingLog.id,
+          input.weight,
+          input.description,
+          input.note,
+          input.loggedAt
+        )
+
+        await prisma.pets.update({
+          where: { id: petId },
+          data: { weight: new Prisma.Decimal(input.weight) }
+        })
+
+        const createdBy = await resolveCreatedBy(userId, pet.user_id, userId)
+
+        return {
+          kind: 'created',
+          log: toDto(updatedLog, createdBy),
+          statusCode: 200,
+          suspiciousChange: newLogSuspiciousChange,
+          warningMessage: newLogWarningMessage
+        }
+      } else {
+        // No upsert flag — ask the user first
+        return { kind: 'conflict' }
+      }
+    }
+    // No same-day conflict — fall through to create new log
+    // (suspicious info already captured above)
   }
 
   // 3. Create health log and optionally update pet weight in a transaction
@@ -202,7 +362,13 @@ export const createHealthLog = async (
     });
   }
 
-  return toDto(result, createdBy);
+  return {
+    kind: 'created',
+    log: toDto(result, createdBy),
+    statusCode: 201,
+    suspiciousChange: newLogSuspiciousChange,
+    warningMessage: newLogWarningMessage
+  }
 };
 
 /**

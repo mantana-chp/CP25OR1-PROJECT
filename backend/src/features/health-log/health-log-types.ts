@@ -20,4 +20,19 @@ export interface CreateHealthLogInput {
   weight?: number
   note?: string
   loggedAt?: Date
+  upsert?: boolean
 }
+
+// ─── Create Result Types ─────────────────────────────────────────────────────
+
+export type CreateHealthLogResult =
+  | {
+      kind: 'created'
+      log: HealthLogDto
+      statusCode: 200 | 201
+      suspiciousChange?: boolean
+      warningMessage?: string
+    }
+  | {
+      kind: 'conflict'
+    }

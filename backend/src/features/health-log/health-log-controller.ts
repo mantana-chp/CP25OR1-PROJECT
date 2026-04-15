@@ -9,15 +9,30 @@ import {
   healthLogIdParamsSchema,
   getHealthLogsQuerySchema,
 } from './health-log-schema';
-
 export const createHealthLog = asyncHandler(async (req: Request, res: Response) => {
   const { body } = createHealthLogSchema.parse(req);
   const { petId } = petIdParamsSchema.parse(req.params);
   const { id: userId } = req.user!;
 
-  const log = await healthLogService.createHealthLog(petId, userId, body);
+  const result = await healthLogService.createHealthLog(petId, userId, body);
 
-  sendSuccess(res, { log }, 201);
+  if (result.kind === 'conflict') {
+    res.status(409).json({
+      status: { code: '888', description: 'Conflict' },
+      data: { conflict: true, message: 'Weight already logged today' }
+    });
+    return;
+  }
+
+  const { log, statusCode, suspiciousChange, warningMessage } = result;
+  sendSuccess(
+    res,
+    {
+      log,
+      ...(suspiciousChange && { suspiciousChange: true, warningMessage })
+    },
+    statusCode
+  );
 });
 
 export const getHealthLogs = asyncHandler(async (req: Request, res: Response) => {

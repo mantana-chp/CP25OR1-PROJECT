@@ -1,8 +1,3 @@
-// ---------------------------------------------------------------------------
-// AI Chat Service - Severity Context Module
-// Query intent classification and severity state derivation
-// ---------------------------------------------------------------------------
-
 import { v4 as uuidv4 } from 'uuid';
 import { AIChatRuntimeConfig } from './ai-chat-config-loader';
 import { SessionEntry } from './ai-chat-session-manager';
@@ -11,9 +6,6 @@ import {
   SeverityContextStatus,
 } from './ai-chat-types';
 
-// ---------------------------------------------------------------------------
-// Text processing helpers
-// ---------------------------------------------------------------------------
 
 const LEGACY_SEVERITY_PREFIX = /^\s*\[SEVERITY:\s*([1-5])\/5\]\s*/i;
 

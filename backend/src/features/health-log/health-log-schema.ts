@@ -8,7 +8,8 @@ export const createHealthLogSchema = z.object({
     description: z.string().min(1, 'Description is required').max(5000, 'Description is too long'),
     weight: z.number().positive('Weight must be positive').optional(),
     note: z.string().max(2000, 'Note is too long').optional(),
-    loggedAt: z.coerce.date().optional()
+    loggedAt: z.coerce.date().optional(),
+    upsert: z.boolean().optional()
   }).superRefine((data, ctx) => {
     if (data.category === 'WEIGHT' && (data.weight === undefined || data.weight === null)) {
       ctx.addIssue({
