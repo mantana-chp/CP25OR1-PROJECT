@@ -86,8 +86,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         'expo-image-picker',
         {
-          photosPermission: 'Allow $(PRODUCT_NAME) to access your photos.',
-          cameraPermission: 'Allow $(PRODUCT_NAME) to access your camera.'
+          photosPermission: 'Allow PAWMI to access your photos.',
+          cameraPermission: 'Allow PAWMI to access your camera.'
         }
       ]
     ],
