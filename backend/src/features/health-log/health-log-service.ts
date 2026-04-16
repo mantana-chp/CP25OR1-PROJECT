@@ -17,6 +17,7 @@ import * as healthInsightGeneration from '../health-insights/health-insight-gene
 import * as healthInsightRepository from '../health-insights/health-insight-repository'
 import * as notificationService from '../notifications/notification-service'
 import { getSeverityEmoji, getWeightThreshold } from '../health-insights/health-insight-types'
+import { THAI_MONTHS_SHORT } from '../../shared/constants'
 
 const validateLoggedAt = (loggedAt?: Date) => {
   if (!loggedAt) return
@@ -645,4 +646,155 @@ export const deleteHealthLog = async (
   }
 
   await healthLogRepository.deleteById(logId)
+}
+
+// ─── Weight Chart ─────────────────────────────────────────────────────────────
+
+/**
+ * Calculate the inclusive date range (startDate 00:00:00 → endDate 23:59:59)
+ * for a given chart view anchored to a specific date.
+ *
+ * - week:  last 7 days including anchor
+ * - month: last 30 days including anchor
+ * - year:  last 12 full calendar months including anchor's month
+ */
+const getChartDateRange = (
+  view: import('./health-log-types').WeightChartView,
+  anchor: Date
+): { startDate: Date; endDate: Date } => {
+  const endDate = new Date(anchor)
+  endDate.setHours(23, 59, 59, 999)
+
+  const startDate = new Date(anchor)
+
+  switch (view) {
+    case 'week':
+      startDate.setDate(startDate.getDate() - 6)
+      startDate.setHours(0, 0, 0, 0)
+      break
+    case 'month':
+      startDate.setDate(startDate.getDate() - 29)
+      startDate.setHours(0, 0, 0, 0)
+      break
+    case 'year':
+      // 12 months back: start at 1st of that month
+      startDate.setMonth(startDate.getMonth() - 11)
+      startDate.setDate(1)
+      startDate.setHours(0, 0, 0, 0)
+      break
+  }
+
+  return { startDate, endDate }
+}
+
+type RawWeightLog = { id: string; logged_at: Date; weight: import('../../generated/prisma/client').Prisma.Decimal | null }
+
+/**
+ * Convert raw weight logs into chart-ready points.
+ *
+ * week/month → one point per day (we enforce one weight log per day)
+ * year       → one averaged point per calendar month
+ */
+const aggregateWeightLogs = (
+  logs: RawWeightLog[],
+  view: import('./health-log-types').WeightChartView
+): import('./health-log-types').WeightChartPoint[] => {
+  if (logs.length === 0) return []
+
+  if (view === 'week' || view === 'month') {
+    return logs.map(log => {
+      const date = new Date(log.logged_at)
+      const dateStr = date.toISOString().split('T')[0]
+      const label = date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+
+      return {
+        date: dateStr,
+        label,
+        weight: Number(log.weight),
+        logId: log.id,
+        logCount: 1
+      }
+    })
+  }
+
+  // Year view: group by calendar month, then average
+  const byMonth: Record<string, { weights: number[]; firstDate: string }> = {}
+
+  for (const log of logs) {
+    const date = new Date(log.logged_at)
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`
+
+    if (!byMonth[monthKey]) {
+      byMonth[monthKey] = {
+        weights: [],
+        firstDate: `${monthKey}-01`
+      }
+    }
+    byMonth[monthKey].weights.push(Number(log.weight))
+  }
+
+  return Object.entries(byMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([monthKey, { weights, firstDate }]) => {
+      const [year, month] = monthKey.split('-').map(Number)
+      const avgWeight = weights.reduce((sum, w) => sum + w, 0) / weights.length
+      const thaiYear = year + 543
+      const label = `${THAI_MONTHS_SHORT[month - 1]} ${thaiYear}`
+
+      return {
+        date: firstDate,
+        label,
+        weight: Math.round(avgWeight * 100) / 100,
+        logCount: weights.length
+        // logId intentionally absent — this is an aggregate
+      }
+    })
+}
+
+/**
+ * Get pre-aggregated weight chart data for a pet.
+ *
+ * view=week  → last 7 days, one point per day logged
+ * view=month → last 30 days, one point per day logged
+ * view=year  → last 12 calendar months, one averaged point per month
+ */
+export const getWeightChartData = async (
+  petId: string,
+  userId: string,
+  view: import('./health-log-types').WeightChartView,
+  anchorDate?: Date
+): Promise<import('./health-log-types').WeightChartData> => {
+  // 1. Validate access
+  const hasAccess = await canAccessPet(petId, userId)
+  if (!hasAccess) {
+    throw new BadRequestError('Access denied to this pet')
+  }
+
+  const pet = await prisma.pets.findUnique({
+    where: { id: petId },
+    select: { user_id: true }
+  })
+  if (!pet) {
+    throw new NotFoundError('Pet not found')
+  }
+
+  // 2. Compute date range
+  const anchor = anchorDate ?? new Date()
+  const { startDate, endDate } = getChartDateRange(view, anchor)
+
+  // 3. Fetch weight logs in range
+  const logs = await healthLogRepository.findWeightLogsInRange(petId, startDate, endDate)
+
+  // 4. Aggregate into chart points
+  const points = aggregateWeightLogs(logs, view)
+
+  return {
+    view,
+    rangeStart: startDate.toISOString().split('T')[0],
+    rangeEnd: endDate.toISOString().split('T')[0],
+    points,
+    hasData: points.length > 0
+  }
 }

@@ -8,6 +8,7 @@ import {
   petIdParamsSchema,
   healthLogIdParamsSchema,
   getHealthLogsQuerySchema,
+  getWeightChartQuerySchema,
 } from './health-log-schema';
 export const createHealthLog = asyncHandler(async (req: Request, res: Response) => {
   const { body } = createHealthLogSchema.parse(req);
@@ -76,4 +77,14 @@ export const deleteHealthLog = asyncHandler(async (req: Request, res: Response) 
   await healthLogService.deleteHealthLog(logId, petId, userId);
 
   sendSuccess(res, undefined, 200);
+});
+
+export const getWeightChart = asyncHandler(async (req: Request, res: Response) => {
+  const { petId } = petIdParamsSchema.parse(req.params);
+  const { view, date } = getWeightChartQuerySchema.parse(req.query);
+  const { id: userId } = req.user!;
+
+  const chartData = await healthLogService.getWeightChartData(petId, userId, view, date);
+
+  sendSuccess(res, chartData, 200);
 });

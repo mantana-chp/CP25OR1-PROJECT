@@ -103,3 +103,10 @@ export type UpdateHealthLogPayload = z.infer<
   typeof updateHealthLogSchema
 >['body']
 export type GetHealthLogsQuery = z.infer<typeof getHealthLogsQuerySchema>
+
+export const getWeightChartQuerySchema = z.object({
+  view: z.enum(['week', 'month', 'year']).default('month'),
+  date: z.coerce.date().optional()   // anchor date — defaults to today in service
+})
+
+export type GetWeightChartQuery = z.infer<typeof getWeightChartQuerySchema>

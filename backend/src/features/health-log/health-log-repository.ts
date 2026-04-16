@@ -259,3 +259,34 @@ export const updateWeightLogWithWeight = async (
     }
   })
 }
+
+// ─── Weight Chart Repository Functions ────────────────────────────────────────
+
+/**
+ * Find all WEIGHT logs for a pet within a date range (inclusive).
+ * Ordered oldest → newest so chart points are naturally left-to-right.
+ */
+export const findWeightLogsInRange = async (
+  petId: string,
+  startDate: Date,
+  endDate: Date
+) => {
+  return await prisma.health_logs.findMany({
+    where: {
+      pet_id: petId,
+      category: 'WEIGHT',
+      logged_at: {
+        gte: startDate,
+        lte: endDate
+      }
+    },
+    select: {
+      id: true,
+      logged_at: true,
+      weight: true
+    },
+    orderBy: {
+      logged_at: 'asc'
+    }
+  })
+}
