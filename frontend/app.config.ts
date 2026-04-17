@@ -59,14 +59,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     web: {
       bundler: 'metro',
       output: 'static',
-      favicon: './assets/images/Pawmi-icon.png'
+      favicon: './assets/images/icons/Pawmi-icon.png'
     },
     plugins: [
       'expo-router',
       [
         'expo-splash-screen',
         {
-          image: './assets/images/Pawmi-icon.png',
+          image: './assets/images/icons/Pawmi-icon.png',
           imageWidth: 200,
           resizeMode: 'contain',
           backgroundColor: '#ffffff'
@@ -75,7 +75,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         'expo-notifications',
         {
-          icon: './assets/images/Pawmi-icon.png',
+          icon: './assets/images/icons/Pawmi-icon.png',
           color: '#ffffff',
           sounds: [],
           defaultChannel: 'default'
