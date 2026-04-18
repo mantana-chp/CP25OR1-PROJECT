@@ -1,12 +1,3 @@
-/**
- * Pet Name Matcher — Layers 1 & 2 of the 3-layer pet detection system.
- *
- * Layer 1 (exactMatch)  — O(n), zero cost, catches normal usage
- * Layer 2 (fuzzyMatch)  — O(n * queryLen), zero cost, catches same-script typos
- * Layer 3               — LLM call, lives in ai-chat-service.ts, only fires when
- *                         L1+L2 both miss AND no resolvedPetId exists in the session
- */
-
 export type PetCandidate = {
     id: string;
     pet_name: string;

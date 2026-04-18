@@ -1,8 +1,3 @@
-// ---------------------------------------------------------------------------
-// AI Chat Service - Pet Context Module
-// Pet extraction, disambiguation, and context building
-// ---------------------------------------------------------------------------
-
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config';

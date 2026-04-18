@@ -137,3 +137,156 @@ export const update = async (
     }
   })
 }
+
+// ─── Weight-Specific Repository Functions ──────────────────────────────────────
+
+/**
+ * Find existing WEIGHT log for a pet on a specific date (same day).
+ */
+export const findWeightLogByDate = async (
+  petId: string,
+  date: Date
+) => {
+  const startOfDay = new Date(date)
+  startOfDay.setHours(0, 0, 0, 0)
+
+  const endOfDay = new Date(date)
+  endOfDay.setHours(23, 59, 59, 999)
+
+  return await prisma.health_logs.findFirst({
+    where: {
+      pet_id: petId,
+      category: 'WEIGHT',
+      logged_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
+    },
+    include: {
+      created_by: {
+        select: {
+          id: true,
+          current_installation_id: true
+        }
+      },
+      pet: {
+        select: {
+          user_id: true
+        }
+      }
+    },
+    orderBy: {
+      logged_at: 'desc'
+    }
+  })
+}
+
+/**
+ * Find the most recent WEIGHT log before a specific date.
+ */
+export const findMostRecentPreviousWeight = async (
+  petId: string,
+  beforeDate: Date
+) => {
+  return await prisma.health_logs.findFirst({
+    where: {
+      pet_id: petId,
+      category: 'WEIGHT',
+      logged_at: {
+        lt: beforeDate
+      }
+    },
+    include: {
+      created_by: {
+        select: {
+          id: true,
+          current_installation_id: true
+        }
+      },
+      pet: {
+        select: {
+          user_id: true
+        }
+      }
+    },
+    orderBy: {
+      logged_at: 'desc'
+    }
+  })
+}
+
+/**
+ * Update a weight log with new weight value.
+ */
+export const updateWeightLogWithWeight = async (
+  logId: string,
+  newWeight: number,
+  description?: string,
+  note?: string | null,
+  loggedAt?: Date
+) => {
+  const updateData: any = {
+    weight: new Prisma.Decimal(newWeight)
+  }
+
+  if (description !== undefined) {
+    updateData.description = description
+  }
+
+  if (note !== undefined) {
+    updateData.note = note
+  }
+
+  if (loggedAt !== undefined) {
+    updateData.logged_at = loggedAt
+  }
+
+  return await prisma.health_logs.update({
+    where: { id: logId },
+    data: updateData,
+    include: {
+      created_by: {
+        select: {
+          id: true,
+          current_installation_id: true
+        }
+      },
+      pet: {
+        select: {
+          user_id: true
+        }
+      }
+    }
+  })
+}
+
+// ─── Weight Chart Repository Functions ────────────────────────────────────────
+
+/**
+ * Find all WEIGHT logs for a pet within a date range (inclusive).
+ * Ordered oldest → newest so chart points are naturally left-to-right.
+ */
+export const findWeightLogsInRange = async (
+  petId: string,
+  startDate: Date,
+  endDate: Date
+) => {
+  return await prisma.health_logs.findMany({
+    where: {
+      pet_id: petId,
+      category: 'WEIGHT',
+      logged_at: {
+        gte: startDate,
+        lte: endDate
+      }
+    },
+    select: {
+      id: true,
+      logged_at: true,
+      weight: true
+    },
+    orderBy: {
+      logged_at: 'asc'
+    }
+  })
+}

@@ -8,7 +8,8 @@ export const createHealthLogSchema = z.object({
     description: z.string().min(1, 'Description is required').max(5000, 'Description is too long'),
     weight: z.number().positive('Weight must be positive').optional(),
     note: z.string().max(2000, 'Note is too long').optional(),
-    loggedAt: z.coerce.date().optional()
+    loggedAt: z.coerce.date().optional(),
+    upsert: z.boolean().optional()
   }).superRefine((data, ctx) => {
     if (data.category === 'WEIGHT' && (data.weight === undefined || data.weight === null)) {
       ctx.addIssue({
@@ -102,3 +103,10 @@ export type UpdateHealthLogPayload = z.infer<
   typeof updateHealthLogSchema
 >['body']
 export type GetHealthLogsQuery = z.infer<typeof getHealthLogsQuerySchema>
+
+export const getWeightChartQuerySchema = z.object({
+  view: z.enum(['week', 'month', 'year']).default('month'),
+  date: z.coerce.date().optional()   // anchor date — defaults to today in service
+})
+
+export type GetWeightChartQuery = z.infer<typeof getWeightChartQuerySchema>

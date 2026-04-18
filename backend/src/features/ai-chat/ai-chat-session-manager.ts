@@ -3,10 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config';
 import { logger } from '../../libs/logger';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type SeverityContextStatus =
   | 'not_required'
   | 'pending_clarification'
@@ -49,10 +45,6 @@ export type SessionEntry = {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes inactivity
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // sweep every 5 minutes
 
@@ -70,10 +62,6 @@ const sessions = new Map<string, SessionEntry>();
 
 const genAI = new GoogleGenAI({ apiKey: config.google.apiKey });
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const buildSessionKey = (
   installationId: string,
   clientChatSessionId: string
@@ -86,10 +74,6 @@ const maskKey = (key: string): string => {
   );
   return masked.join(':');
 };
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 /**
  * Returns an existing session or creates a new Gemini chat session.

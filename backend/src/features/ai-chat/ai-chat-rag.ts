@@ -1,8 +1,3 @@
-// ---------------------------------------------------------------------------
-// AI Chat Service - RAG (Retrieval Augmented Generation)
-// Vector store and document retrieval
-// ---------------------------------------------------------------------------
-
 import { PineconeStore } from '@langchain/pinecone';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
