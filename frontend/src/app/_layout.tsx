@@ -6,7 +6,7 @@ import * as Notifications from 'expo-notifications'
 import { NotificationProvider } from '@/src/context/NotificationContext'
 import { PetProvider } from '@/src/context/PetContext'
 import { UnreadNotificationProvider } from '@/src/context/UnreadNotificationContext'
-import { AuthProvider } from '../context/AuthContext'
+import { AuthProvider, useAuth } from '../context/AuthContext'
 import { TokenRefreshProvider } from '../context/TokenRefreshContext'
 import { ErrorProvider } from '../presentation/components/error_context'
 import PushNotificationInitializer from '../presentation/components/push_notification_initializer'
@@ -39,6 +39,49 @@ Notifications.setNotificationHandler({
   })
 })
 
+function AppRuntimeEffects() {
+  const { isAuthenticated, isLoading, hasCompletedOnboarding } = useAuth()
+
+  if (isLoading || !isAuthenticated || !hasCompletedOnboarding) {
+    return null
+  }
+
+  return (
+    <>
+      <PushNotificationInitializer />
+      <RealtimeReminderNotification />
+    </>
+  )
+}
+
+function AppStackNavigator() {
+  const { isAuthenticated, isLoading, hasCompletedOnboarding } = useAuth()
+
+  const isRoutingReady = !isLoading
+
+  if (!isRoutingReady) {
+    return <LoadingComponent />
+  }
+
+  const canAccessTabs = isAuthenticated && hasCompletedOnboarding
+  const canAccessOnboarding = !isAuthenticated || !hasCompletedOnboarding
+
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+
+      <Stack.Protected guard={canAccessOnboarding}>
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={canAccessTabs}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack.Protected>
+    </Stack>
+  )
+}
+
 export default function RootLayout() {
   console.log('📱 [RootLayout] Component rendering...')
 
@@ -68,27 +111,9 @@ export default function RootLayout() {
             <NotificationProvider>
               <UnreadNotificationProvider>
                 <PetProvider>
-                  <PushNotificationInitializer />
-                  <RealtimeReminderNotification />
+                  <AppRuntimeEffects />
                   <StatusBar style="auto" />
-                  <Stack>
-                    <Stack.Screen
-                      name="index"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="home"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="onboarding"
-                      options={{ headerShown: false }}
-                    />
-                  </Stack>
+                  <AppStackNavigator />
                 </PetProvider>
               </UnreadNotificationProvider>
             </NotificationProvider>

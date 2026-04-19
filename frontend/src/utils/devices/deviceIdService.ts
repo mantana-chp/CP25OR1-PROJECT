@@ -3,9 +3,10 @@ import * as Application from 'expo-application'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
 import 'react-native-get-random-values'
-import { v4 as uuidv4 } from 'uuid'
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid'
 
 const INSTALLATION_ID_KEY = '@app:installationId'
+const ANDROID_SSAID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
 
 export interface DeviceIdentifiers {
   installationId: string // Unique per app installation (UUID)
@@ -60,6 +61,17 @@ class DeviceIdService {
 
         return { deviceId: fallbackId, source: 'ios_keychain' }
       } else if (platform === 'android') {
+        const androidId = await Application.getAndroidId()
+
+        if (androidId) {
+          // Backend requires UUID format, so derive a deterministic UUID from Android ID.
+          const derivedDeviceId = uuidv5(androidId, ANDROID_SSAID_NAMESPACE)
+          return { deviceId: derivedDeviceId, source: 'android_ssaid' }
+        }
+
+        console.warn(
+          '⚠️ [DeviceId] Android ID unavailable, falling back to installation ID'
+        )
         const installationId = await this.getInstallationId()
         return { deviceId: installationId, source: 'android_ssaid' }
       } else {
