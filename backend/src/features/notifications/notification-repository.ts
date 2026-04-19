@@ -19,7 +19,11 @@ export const findManyByUserId = async (userId: string, isRead?: boolean) => {
     include: {
       reminders: {
         include: {
-          pets: true,
+          pets: {
+            include: {
+              species: true,
+            },
+          },
         },
       },
       user: {
@@ -27,7 +31,11 @@ export const findManyByUserId = async (userId: string, isRead?: boolean) => {
           push_tokens: true,
         },
       },
-      pet: true,
+      pet: {
+        include: {
+          species: true,
+        },
+      },
     },
   })
 }
@@ -44,7 +52,11 @@ export const findByIdWithRelations = async (id: string) => {
     include: {
       reminders: {
         include: {
-          pets: true,
+          pets: {
+            include: {
+              species: true,
+            },
+          },
         },
       },
       user: {
@@ -52,14 +64,18 @@ export const findByIdWithRelations = async (id: string) => {
           push_tokens: true,
         },
       },
-      pet: true,
+      pet: {
+        include: {
+          species: true,
+        },
+      },
     },
   })
 }
 
 export const update = async (
   id: string,
-  data: Prisma.notificationsUpdateInput
+  data: Prisma.notificationsUpdateInput,
 ) => {
   return await prisma.notifications.update({
     where: { id },

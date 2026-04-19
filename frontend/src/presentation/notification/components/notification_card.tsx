@@ -8,6 +8,10 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import utc from 'dayjs/plugin/utc'
 import { AlertCircle, Bell, ChevronRight, Lightbulb } from 'lucide-react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon,
+} from '@/src/utils/pet_avatar'
 
 dayjs.extend(utc)
 dayjs.extend(relativeTime)
@@ -22,7 +26,7 @@ interface NotificationCardProps {
 export default function NotificationCard({
   notification,
   onPress,
-  isRead
+  isRead,
 }: NotificationCardProps) {
   const { reminder, petTips, petInfo } = notification
 
@@ -33,7 +37,26 @@ export default function NotificationCard({
       null
     )
   }
+
+  const getPetSpecies = (notification: INotification) => {
+    return (
+      notification.petInfo?.species ||
+      notification.reminder?.pets?.species ||
+      null
+    )
+  }
+
+  const getPetAvatarBackgroundColor = (notification: INotification) => {
+    return (
+      notification.petInfo?.avatarBackgroundColor ||
+      notification.reminder?.pets?.avatarBackgroundColor ||
+      getDefaultAvatarBackgroundColorBySpecies(getPetSpecies(notification))
+    )
+  }
+
   const petImageUri = getPetImageUri(notification)
+  const petSpecies = getPetSpecies(notification)
+  const petAvatarBackgroundColor = getPetAvatarBackgroundColor(notification)
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -130,7 +153,7 @@ export default function NotificationCard({
             <Text
               style={[
                 styles.tipsDescription,
-                isRead && styles.readSecondaryText
+                isRead && styles.readSecondaryText,
               ]}
               numberOfLines={2}
             >
@@ -157,7 +180,7 @@ export default function NotificationCard({
   const statusBadge = getStatusBadge(reminder.reminderStatus)
   const timeDisplay = formatRelativeTime(
     reminder.reminderDate,
-    reminder.reminderTime
+    reminder.reminderTime,
   )
   const isOverdue = reminder.reminderStatus === 'overdue'
 
@@ -166,7 +189,7 @@ export default function NotificationCard({
       style={[
         styles.card,
         isOverdue && styles.overdueCard,
-        isRead && styles.readCard
+        isRead && styles.readCard,
       ]}
       activeOpacity={0.7}
       onPress={() => onPress(notification)}
@@ -180,8 +203,18 @@ export default function NotificationCard({
                 style={styles.petAvatarImage}
               />
             ) : (
-              <View style={[styles.image, styles.placeholderImage]}>
-                <MaterialCommunityIcons name="dog" size={24} color="white" />
+              <View
+                style={[
+                  styles.image,
+                  styles.placeholderImage,
+                  { backgroundColor: petAvatarBackgroundColor },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={getPetPlaceholderIcon(petSpecies)}
+                  size={24}
+                  color='white'
+                />
               </View>
             )}
           </View>
@@ -194,7 +227,7 @@ export default function NotificationCard({
               style={[
                 styles.reminderTitle,
                 isOverdue && styles.overdueText,
-                isRead && styles.readText
+                isRead && styles.readText,
               ]}
               numberOfLines={1}
             >
@@ -204,7 +237,7 @@ export default function NotificationCard({
               <View
                 style={[
                   styles.statusBadge,
-                  { backgroundColor: statusBadge.bgColor }
+                  { backgroundColor: statusBadge.bgColor },
                 ]}
               >
                 <Text
@@ -225,7 +258,7 @@ export default function NotificationCard({
               style={[
                 styles.timeText,
                 isOverdue && styles.overdueText,
-                isRead && styles.readSecondaryText
+                isRead && styles.readSecondaryText,
               ]}
             >
               {timeDisplay}
@@ -256,28 +289,28 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     borderLeftWidth: 3,
-    borderLeftColor: '#2E759E'
+    borderLeftColor: '#2E759E',
   },
   readCard: {
     backgroundColor: '#F9FAFB',
-    borderLeftColor: '#D1D5DB'
+    borderLeftColor: '#D1D5DB',
   },
   tipsCard: {
-    borderLeftColor: '#F59E0B'
+    borderLeftColor: '#F59E0B',
   },
   overdueCard: {
     borderLeftColor: '#BF1737',
-    backgroundColor: '#FFF5F5'
+    backgroundColor: '#FFF5F5',
   },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10
+    gap: 10,
   },
   leadingColumn: {
     alignItems: 'center',
     gap: 8,
-    paddingTop: 1
+    paddingTop: 1,
   },
   petAvatarWrap: {
     width: 32,
@@ -286,26 +319,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   petAvatarImage: {
     width: '100%',
-    height: '100%'
+    height: '100%',
   },
   petAvatarFallbackText: {
     fontFamily: 'Prompt_500Medium',
     fontSize: 12,
-    color: '#6B7280'
+    color: '#6B7280',
   },
   image: {
     width: '100%',
     height: '100%',
     borderRadius: 33,
-    backgroundColor: '#5FA7D1'
+    backgroundColor: '#5FA7D1',
   },
   placeholderImage: {
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   iconContainer: {
     width: 32,
@@ -314,47 +347,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2
+    marginTop: 2,
   },
   contentSection: {
     flex: 1,
-    gap: 4
+    gap: 4,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   reminderTitle: {
     fontFamily: 'Prompt_500Medium',
     fontSize: 15,
     color: '#1F2937',
-    flex: 1
+    flex: 1,
   },
   tipsTitle: {
     fontFamily: 'Prompt_500Medium',
     fontSize: 14,
     color: '#F59E0B',
-    flex: 1
+    flex: 1,
   },
   overdueText: {
-    color: '#BF1737'
+    color: '#BF1737',
   },
   readText: {
-    color: '#9CA3AF'
+    color: '#9CA3AF',
   },
   readSecondaryText: {
-    color: '#D1D5DB'
+    color: '#D1D5DB',
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8
+    borderRadius: 8,
   },
   statusBadgeText: {
     fontFamily: 'Prompt_500Medium',
-    fontSize: 11
+    fontSize: 11,
   },
   petBadge: {
     fontFamily: 'Prompt_400Regular',
@@ -363,36 +396,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8
+    borderRadius: 8,
   },
   detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   petName: {
     fontFamily: 'Prompt_400Regular',
     fontSize: 13,
-    color: '#6B7280'
+    color: '#6B7280',
   },
   separator: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#D1D5DB'
+    backgroundColor: '#D1D5DB',
   },
   timeText: {
     fontFamily: 'Prompt_400Regular',
     fontSize: 13,
-    color: '#6B7280'
+    color: '#6B7280',
   },
   tipsDescription: {
     fontFamily: 'Prompt_400Regular',
     fontSize: 13,
     color: '#6B7280',
-    lineHeight: 18
+    lineHeight: 18,
   },
   chevron: {
-    marginTop: 6
-  }
+    marginTop: 6,
+  },
 })
