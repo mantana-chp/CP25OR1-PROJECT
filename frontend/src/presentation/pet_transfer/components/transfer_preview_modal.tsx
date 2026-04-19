@@ -103,13 +103,14 @@ export default function TransferPreviewModal({
 
           <ScrollView
             style={styles.listContainer}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps='handled'
           >
-            <View style={styles.listContent}>
-              {preview.pets.map((pet) => (
-                <PreviewPetItem key={pet.id} pet={pet} />
-              ))}
-            </View>
+            {preview.pets.map((pet) => (
+              <PreviewPetItem key={pet.id} pet={pet} />
+            ))}
           </ScrollView>
 
           <View style={styles.footerButtons}>
@@ -193,6 +194,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     maxHeight: 260,
+    flexGrow: 0,
   },
   listContent: {
     gap: spacing[2],

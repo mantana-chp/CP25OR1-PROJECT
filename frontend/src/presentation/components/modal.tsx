@@ -1,11 +1,12 @@
 import React, { ReactNode } from 'react'
 import {
   Modal as RNModal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
-  ViewStyle
+  ViewStyle,
 } from 'react-native'
 import Button from './button'
 import { AlertTriangle, CheckCircle, Info, Trash2 } from 'lucide-react-native'
@@ -50,27 +51,27 @@ const ICON_CONFIG: Record<
   trash: {
     bg: colors.danger.light,
     color: colors.danger.DEFAULT,
-    node: <Trash2 size={28} color={colors.danger.DEFAULT} strokeWidth={2} />
+    node: <Trash2 size={28} color={colors.danger.DEFAULT} strokeWidth={2} />,
   },
   warning: {
     bg: colors.warning.light,
     color: colors.warning.DEFAULT,
     node: (
       <AlertTriangle size={28} color={colors.warning.DEFAULT} strokeWidth={2} />
-    )
+    ),
   },
   info: {
     bg: colors.info.light,
     color: colors.info.DEFAULT,
-    node: <Info size={28} color={colors.info.DEFAULT} strokeWidth={2} />
+    node: <Info size={28} color={colors.info.DEFAULT} strokeWidth={2} />,
   },
   success: {
     bg: colors.success.light,
     color: colors.success.DEFAULT,
     node: (
       <CheckCircle size={28} color={colors.success.DEFAULT} strokeWidth={2} />
-    )
-  }
+    ),
+  },
 }
 
 function ModalIconView({ icon }: { icon: ModalIcon | ReactNode }) {
@@ -98,7 +99,7 @@ export default function Modal(props: ModalProps) {
     title,
     icon,
     maxWidth = 360,
-    containerStyle
+    containerStyle,
   } = props
 
   const renderContent = () => {
@@ -110,7 +111,7 @@ export default function Modal(props: ModalProps) {
         onConfirm,
         confirmVariant = icon === 'trash' ? 'error' : 'base',
         isLoading = false,
-        showCancelButton = true
+        showCancelButton = true,
       } = props as ConfirmationModalProps
 
       return (
@@ -123,7 +124,7 @@ export default function Modal(props: ModalProps) {
               <Button
                 title={cancelText}
                 onPress={onClose}
-                variant="ghost"
+                variant='ghost'
                 disabled={isLoading}
                 style={styles.buttonHalf}
               />
@@ -153,17 +154,22 @@ export default function Modal(props: ModalProps) {
     <RNModal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType='fade'
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable
-          style={[styles.container, { maxWidth }, containerStyle]}
-          onPress={(e) => e.stopPropagation()}
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View
+          style={[
+            styles.container,
+            { maxWidth },
+            Platform.OS === 'android' ? styles.androidElevation : null,
+            containerStyle,
+          ]}
         >
           {renderContent()}
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </RNModal>
   )
 }
@@ -174,7 +180,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20
+    padding: 20,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
   container: {
     backgroundColor: colors.background.secondary,
@@ -185,7 +194,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 5
+    elevation: 0,
+  },
+  androidElevation: {
+    elevation: 5,
   },
   iconCircle: {
     width: 64,
@@ -194,14 +206,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 12,
   },
   title: {
     fontSize: 18,
     fontFamily: 'Prompt_500Medium',
     color: colors.primary.DEFAULT,
     textAlign: 'center',
-    marginBottom: 4
+    marginBottom: 4,
   },
   message: {
     fontSize: 14,
@@ -209,16 +221,16 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 22
+    lineHeight: 22,
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12
+    gap: 12,
   },
   buttonHalf: {
-    flex: 1
+    flex: 1,
   },
   buttonFull: {
-    flex: 1
-  }
+    flex: 1,
+  },
 })
