@@ -65,7 +65,13 @@ export const updatePetController = asyncHandler(
 
     if (result.conflict) {
       // Weight was held — return pet + conflict flag for frontend modal
-      sendSuccess(res, { pet: result.pet, conflict: true, message: result.message })
+      sendSuccess(res, {
+        pet: result.pet,
+        conflict: true,
+        message: result.message,
+        updatedFields: result.updatedFields,
+      })
+
     } else {
       // Normal path — send pet directly (same shape as before)
       sendSuccess(res, result.pet)

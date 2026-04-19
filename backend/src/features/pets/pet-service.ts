@@ -434,9 +434,38 @@ export const updatePet = async (
   const updatedPet = await getPetProfileById(petId, userId)
 
   if (weightConflict) {
+    // Determine which non-weight fields were actually different from the existing values.
+    // Frontend always sends all non-null fields, so comparing against existingPet is accurate.
+    const changedFields: string[] = []
+    if (petData.pet_name != null && petData.pet_name !== existingPet.pet_name)
+      changedFields.push('ชื่อ')
+    if (petData.gender != null && petData.gender !== existingPet.gender)
+      changedFields.push('เพศ')
+    if (petData.breed_id != null && petData.breed_id !== existingPet.breed_id)
+      changedFields.push('สายพันธุ์')
+    if (petData.species_id != null && petData.species_id !== existingPet.species_id)
+      changedFields.push('ชนิดสัตว์')
+    if (
+      petData.birth_date != null &&
+      new Date(petData.birth_date).getTime() !==
+      (existingPet.birth_date ? new Date(existingPet.birth_date).getTime() : NaN)
+    )
+      changedFields.push('วันเกิด')
+    if (
+      petData.avatar_background_color !== undefined &&
+      petData.avatar_background_color !== existingPet.avatar_background_color
+    )
+      changedFields.push('สีโปรไฟล์')
+
+    const savedSummary =
+      changedFields.length > 0
+        ? `บันทึก${changedFields.join(', ')}สำเร็จ — `
+        : ''
+
     return {
       conflict: true as const,
-      message: 'มีการบันทึกน้ำหนักในวันนี้แล้ว คุณต้องการอัปเดตบันทึกวันนี้ด้วยหรือไม่?',
+      message: `${savedSummary}มีการบันทึกน้ำหนักในวันนี้แล้ว คุณยังต้องการอัปเดตน้ำหนักอยู่หรือไม่?`,
+      updatedFields: changedFields,
       pet: updatedPet,
     }
   }
