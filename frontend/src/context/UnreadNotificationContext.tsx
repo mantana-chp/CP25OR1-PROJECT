@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useState
 } from 'react'
+import { useAuth } from './AuthContext'
 
 interface UnreadNotificationContextType {
   unreadCount: number
@@ -36,6 +37,11 @@ export const UnreadNotificationProvider: React.FC<
   UnreadNotificationProviderProps
 > = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0)
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    hasCompletedOnboarding
+  } = useAuth()
 
   const refreshUnreadCount = useCallback(async () => {
     try {
@@ -59,8 +65,13 @@ export const UnreadNotificationProvider: React.FC<
   }, [])
 
   useEffect(() => {
-    refreshUnreadCount()
-  }, [refreshUnreadCount])
+    if (!authLoading && isAuthenticated && hasCompletedOnboarding) {
+      refreshUnreadCount()
+      return
+    }
+
+    setUnreadCount(0)
+  }, [authLoading, isAuthenticated, hasCompletedOnboarding, refreshUnreadCount])
 
   return (
     <UnreadNotificationContext.Provider
