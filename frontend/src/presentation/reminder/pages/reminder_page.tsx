@@ -11,7 +11,7 @@ import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PanResponder, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import TodayRemindersModal from '../../components/today_reminders_modal'
 import Calendar from '../components/calendar_component'
@@ -95,7 +95,6 @@ export default function ReminderPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [virtualReminders, setVirtualReminders] = useState<any[]>([])
-  const swipeStartY = useRef(0)
 
   // ------------------
   // FETCH
@@ -247,35 +246,6 @@ export default function ReminderPage() {
     )
   }, [remindersWithRecurrence, virtualReminders])
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dy) > 10 &&
-          Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
-        )
-      },
-      onPanResponderGrant: (_, gestureState) => {
-        swipeStartY.current = gestureState.y0
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const swipeDistance = gestureState.dy
-        const swipeVelocity = gestureState.vy
-
-        if (swipeDistance < -50 || swipeVelocity < -0.5) {
-          if (isCalendarExpanded) {
-            setIsCalendarExpanded(false)
-          }
-        } else if (swipeDistance > 50 || swipeVelocity > 0.5) {
-          if (!isCalendarExpanded) {
-            setIsCalendarExpanded(true)
-          }
-        }
-      }
-    })
-  ).current
-
   // ------------------
   // HANDLER
   // ------------------
@@ -343,7 +313,7 @@ export default function ReminderPage() {
         isCategoryFilterActive={selectedCategory !== null}
       />
 
-      <View style={styles.reminderContainer} {...panResponder.panHandlers}>
+      <View style={styles.reminderContainer}>
         <ReminderList
           reminders={filteredReminders}
           pets={pets}
