@@ -18,6 +18,7 @@ import * as healthInsightRepository from '../health-insights/health-insight-repo
 import * as notificationService from '../notifications/notification-service'
 import { getSeverityEmoji, getWeightThreshold } from '../health-insights/health-insight-types'
 import { THAI_MONTHS_SHORT } from '../../shared/constants'
+import { exceedsSpeciesMaxWeight } from '../../shared/weight-validation'
 
 const validateLoggedAt = (loggedAt?: Date) => {
   if (!loggedAt) return
@@ -67,16 +68,12 @@ const resolveCreatedBy = async (
 }
 
 /**
- * Multiplier applied to the species gain/loss threshold to get the hard rejection limit.
- * e.g. Dog gainPercent=15% → reject if gain >75% (regardless of time).
- */
-const WEIGHT_REJECTION_MULTIPLIER = 5
-
-/**
  * Species-aware, time-aware two-tier weight validity check.
  *
- * Soft (suspicious): species threshold scaled by daysSince/windowDays, floored at 10%.
- * Hard (impossible): species threshold × WEIGHT_REJECTION_MULTIPLIER, NOT time-scaled.
+ * Hard (impossible): new weight exceeds the absolute biological max for the species.
+ *                    No comparison against previous weight needed.
+ * Soft (suspicious):  rate-of-change exceeds the time-scaled species threshold.
+ *                    Floored at 10% to avoid false positives on short windows.
  */
 const checkWeightValidity = (
   newWeight: number,
@@ -84,23 +81,22 @@ const checkWeightValidity = (
   daysSince: number,
   speciesName: string
 ): { suspicious: boolean; impossible: boolean; changePercent: number } => {
+  // Hard block — biologically impossible value for this species
+  const impossible = exceedsSpeciesMaxWeight(newWeight, speciesName)
+
+  // Soft warning — unusual rate of change relative to previous log
   const rawChange = ((newWeight - previousWeight) / previousWeight) * 100
   const changePercent = Math.abs(rawChange)
   const isGain = rawChange > 0
 
   const threshold = getWeightThreshold(speciesName)
   const limitPercent = isGain ? threshold.gainPercent : threshold.lossPercent
-
-  // Soft: time-scaled, minimum 10% floor so short windows aren't overly strict
   const timeScale = Math.min(Math.max(daysSince, 1) / threshold.windowDays, 1.0)
   const warnThreshold = Math.max(10, limitPercent * timeScale)
 
-  // Hard: absolute physiological limit, independent of time
-  const rejectThreshold = limitPercent * WEIGHT_REJECTION_MULTIPLIER
-
   return {
     suspicious: changePercent > warnThreshold,
-    impossible: changePercent > rejectThreshold,
+    impossible,
     changePercent
   }
 }
