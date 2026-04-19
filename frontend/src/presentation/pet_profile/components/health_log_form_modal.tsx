@@ -2,7 +2,7 @@ import {
   borderRadius,
   colors,
   spacing,
-  typography
+  typography,
 } from '@/constants/design-system'
 import { useFormik } from 'formik'
 import DatePicker from '@/src/presentation/components/date_picker'
@@ -16,7 +16,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
 import Button from '../../components/button'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
@@ -29,7 +29,7 @@ const TYPE_OPTIONS: Array<{
 }> = [
   { type: 'WEIGHT', label: 'น้ำหนัก', icon: Scale },
   { type: 'SYMPTOMS', label: 'อาการป่วย', icon: Stethoscope },
-  { type: 'BEHAVIOR', label: 'พฤติกรรม', icon: Activity }
+  { type: 'BEHAVIOR', label: 'พฤติกรรม', icon: Activity },
 ]
 
 interface HealthLogFormModalProps {
@@ -88,20 +88,20 @@ export default function HealthLogFormModal({
   initialWeight,
   editingLog = null,
   onClose,
-  onSubmit
+  onSubmit,
 }: HealthLogFormModalProps) {
   // Parse editing log to extract category from backend
   const parseEditingLog = (
     log: IHealthLog | null,
-    fallbackLoggedAt: string
+    fallbackLoggedAt: string,
   ): HealthLogFormValues => {
     if (!log) {
       return {
         type: 'WEIGHT',
         description: '',
-        weight: String(initialWeight ?? ''),
+        weight: '',
         note: '',
-        loggedAt: fallbackLoggedAt
+        loggedAt: fallbackLoggedAt,
       }
     }
 
@@ -110,7 +110,7 @@ export default function HealthLogFormModal({
       description: log.description,
       weight: log.weight ? String(log.weight) : '',
       note: log.note || '',
-      loggedAt: log.loggedAt || fallbackLoggedAt
+      loggedAt: log.loggedAt || fallbackLoggedAt,
     }
   }
 
@@ -151,9 +151,9 @@ export default function HealthLogFormModal({
         description: String(values.description ?? '').trim(),
         weight: String(values.weight ?? '').trim(),
         note: String(values.note ?? '').trim(),
-        loggedAt: values.loggedAt
+        loggedAt: values.loggedAt,
       })
-    }
+    },
   })
 
   const selectedLoggedAtDate = useMemo(() => {
@@ -173,7 +173,7 @@ export default function HealthLogFormModal({
     if (!visible) return
 
     formik.resetForm({
-      values: parseEditingLog(editingLog, new Date().toISOString())
+      values: parseEditingLog(editingLog, new Date().toISOString()),
     })
   }, [visible, editingLog, initialWeight])
 
@@ -226,7 +226,7 @@ export default function HealthLogFormModal({
                 <Text
                   style={[
                     styles.typeButtonText,
-                    active && styles.typeButtonTextActive
+                    active && styles.typeButtonTextActive,
                   ]}
                 >
                   {option.label}
@@ -238,10 +238,10 @@ export default function HealthLogFormModal({
 
         {formik.values.type === 'WEIGHT' && (
           <InputText
-            title="น้ำหนัก (กิโลกรัม)"
+            title='น้ำหนัก (กิโลกรัม)'
             value={formik.values.weight}
-            placeholder="เช่น 4.8"
-            keyboardType="numeric"
+            placeholder='เช่น 4.8'
+            keyboardType='numeric'
             required
             error={formik.errors.weight || null}
             onChangeText={(text) => formik.setFieldValue('weight', text)}
@@ -249,7 +249,7 @@ export default function HealthLogFormModal({
         )}
 
         <InputText
-          title="รายละเอียด"
+          title='รายละเอียด'
           value={formik.values.description}
           placeholder={descriptionPlaceholder}
           multiline
@@ -260,9 +260,9 @@ export default function HealthLogFormModal({
         />
 
         <InputText
-          title="หมายเหตุเพิ่มเติม"
+          title='หมายเหตุเพิ่มเติม'
           value={formik.values.note}
-          placeholder="รายละเอียดที่อยากบันทึกเพิ่มเติม (ไม่บังคับ)"
+          placeholder='รายละเอียดที่อยากบันทึกเพิ่มเติม (ไม่บังคับ)'
           multiline
           numberOfLines={3}
           onChangeText={(text) => formik.setFieldValue('note', text)}
@@ -272,18 +272,18 @@ export default function HealthLogFormModal({
         <View style={styles.dateTimeRow}>
           <View style={styles.dateTimeItem}>
             <DatePicker
-              title="วันที่"
+              title='วันที่'
               value={selectedLoggedAtDate}
               onChange={(nextDate) => {
                 const next = new Date(selectedLoggedAtDate)
                 next.setFullYear(
                   nextDate.getFullYear(),
                   nextDate.getMonth(),
-                  nextDate.getDate()
+                  nextDate.getDate(),
                 )
                 formik.setFieldValue(
                   'loggedAt',
-                  toIsoStringSafe(clampToNowIfToday(next))
+                  toIsoStringSafe(clampToNowIfToday(next)),
                 )
               }}
               maximumDate={new Date()}
@@ -291,17 +291,17 @@ export default function HealthLogFormModal({
           </View>
           <View style={styles.dateTimeItem}>
             <TimePicker
-              title="เวลา"
+              title='เวลา'
               value={selectedLoggedAtTime}
               maximumTime={maxSelectableTime}
               onChange={(timeValue) => {
                 const merged = combineDateAndTime(
                   selectedLoggedAtDate,
-                  timeValue
+                  timeValue,
                 )
                 formik.setFieldValue(
                   'loggedAt',
-                  toIsoStringSafe(clampToNowIfToday(merged))
+                  toIsoStringSafe(clampToNowIfToday(merged)),
                 )
               }}
             />
@@ -311,8 +311,8 @@ export default function HealthLogFormModal({
 
       <View style={styles.actionRow}>
         <Button
-          title="ยกเลิก"
-          variant="ghost"
+          title='ยกเลิก'
+          variant='ghost'
           onPress={onClose}
           style={styles.halfButton}
           disabled={loading}
@@ -331,13 +331,13 @@ export default function HealthLogFormModal({
 
 const styles = StyleSheet.create({
   modalContainer: {
-    maxHeight: '90%'
+    maxHeight: '90%',
   },
   title: {
     fontSize: typography.fontSize['2xl'],
     fontFamily: typography.fontFamily.bold,
     color: colors.primary.DEFAULT,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   subtitle: {
     marginTop: spacing[1],
@@ -346,28 +346,28 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     color: colors.gray[500],
     textAlign: 'center',
-    lineHeight: typography.lineHeight.normal
+    lineHeight: typography.lineHeight.normal,
   },
   scrollArea: {
-    maxHeight: 520
+    maxHeight: 520,
   },
   sectionLabel: {
     marginBottom: spacing[2],
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.medium,
-    color: colors.gray[600]
+    color: colors.gray[600],
   },
   typeRow: {
     flexDirection: 'row',
     gap: spacing[2],
-    marginBottom: spacing[3]
+    marginBottom: spacing[3],
   },
   dateTimeRow: {
     flexDirection: 'row',
-    gap: spacing[2]
+    gap: spacing[2],
   },
   dateTimeItem: {
-    flex: 1
+    flex: 1,
   },
   typeButton: {
     flex: 1,
@@ -378,26 +378,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing[1]
+    gap: spacing[1],
   },
   typeButtonActive: {
     borderColor: colors.primary.light,
-    backgroundColor: colors.primary.light
+    backgroundColor: colors.primary.light,
   },
   typeButtonText: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.medium,
-    color: colors.primary.DEFAULT
+    color: colors.primary.DEFAULT,
   },
   typeButtonTextActive: {
-    color: colors.background.secondary
+    color: colors.background.secondary,
   },
   actionRow: {
     flexDirection: 'row',
     gap: spacing[2],
-    marginTop: spacing[3]
+    marginTop: spacing[3],
   },
   halfButton: {
-    flex: 1
-  }
+    flex: 1,
+  },
 })
