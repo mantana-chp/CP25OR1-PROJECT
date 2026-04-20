@@ -37,6 +37,12 @@ export type CreateHealthLogResult =
       kind: 'conflict'
     }
 
+export type UpdateHealthLogResult = {
+  log: HealthLogDto
+  suspiciousChange?: boolean
+  warningMessage?: string
+}
+
 // ─── Weight Chart Types ───────────────────────────────────────────────────────
 
 export type WeightChartView = 'week' | 'month' | 'year'

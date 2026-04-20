@@ -65,9 +65,15 @@ export const updateHealthLog = asyncHandler(async (req: Request, res: Response) 
   const { body } = updateHealthLogSchema.parse(req);
   const { id: userId } = req.user!;
 
-  const log = await healthLogService.updateHealthLog(logId, petId, userId, body);
+  const result = await healthLogService.updateHealthLog(logId, petId, userId, body);
 
-  sendSuccess(res, { log }, 200);
+  sendSuccess(res, {
+    log: result.log,
+    ...(result.suspiciousChange && {
+      suspiciousChange: true,
+      warningMessage: result.warningMessage
+    })
+  }, 200);
 });
 
 export const deleteHealthLog = asyncHandler(async (req: Request, res: Response) => {

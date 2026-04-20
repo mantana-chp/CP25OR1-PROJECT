@@ -221,3 +221,80 @@ WEIGHT_REJECTION_MULTIPLIER = 5   // hard reject at 5× species threshold
 3. If user confirms → resend with `upsert: true`
 4. On any success (200 or 201): check `data.suspiciousChange` — if true, show `data.warningMessage` as a non-blocking alert
 5. On 400: show the error message from `errors[0].message`
+
+---
+
+## Edit Weight Log Validation
+
+### `loggedAt` is Immutable
+
+The `loggedAt` timestamp of a health log is set at **creation time** and **cannot be changed**.
+- Removed from the update schema (`updateHealthLogSchema`)
+- The DB field `logged_at` is never written during an update
+- This ensures the log's position in the pet's weight history is stable and trustworthy as a comparison baseline
+
+### Validation on Edit (`PATCH /pets/:petId/health-logs/:logId`)
+
+Runs when `weight` is provided and the final category is `WEIGHT`:
+
+**Tier 1 — Hard block (impossible)**
+Same as create: if `newWeight > SPECIES_MAX_WEIGHT_KG[species]` → **400 Bad Request**, log not saved.
+
+**Tier 2 — Soft warning (suspicious rate of change)**
+Compares the new weight against the **most recent WEIGHT log before this log's `logged_at`**.
+Since `logged_at` is immutable, this baseline is always the correct historical context for the edited log.
+
+```
+daysSince = (log.logged_at − prevLog.logged_at) in days
+→ same time-scaled threshold as create
+→ 200 OK with suspiciousChange: true + warningMessage if suspicious
+```
+
+- If no previous log exists → skip soft warning (first-ever log)
+- Non-WEIGHT edits (description, note, category change) → skip all weight checks
+
+### Response (edit)
+
+**Normal (200):**
+```json
+{ "status": { "code": "000" }, "data": { "log": { ... } } }
+```
+
+**With suspicious warning (200):**
+```json
+{
+  "status": { "code": "000" },
+  "data": {
+    "log": { ... },
+    "suspiciousChange": true,
+    "warningMessage": "น้ำหนักเปลี่ยนแปลงค่อนข้างมากจากครั้งก่อน ..."
+  }
+}
+```
+
+**Impossible weight (400):**
+```json
+{
+  "status": { "code": "888" },
+  "errors": [{ "message": "น้ำหนักที่ระบุ (X kg) เกินค่าสูงสุด...", "code": 400 }]
+}
+```
+
+### Implementation
+
+| File | Change |
+|---|---|
+| `health-log-types.ts` | Added `UpdateHealthLogResult` type |
+| `health-log-schema.ts` | Removed `loggedAt` from `updateHealthLogSchema` |
+| `health-log-service.ts` | Added hard-block + soft-warning validation in `updateHealthLog`; fetch species name; return `UpdateHealthLogResult` |
+| `health-log-controller.ts` | Spreads `suspiciousChange`/`warningMessage` into response |
+
+### Scenario Matrix (edit)
+
+| Scenario | Result |
+|---|---|
+| Edit description/note only | ✅ 200, no weight checks |
+| Edit weight, no prior log | ✅ 200, hard block only (no rate check) |
+| Edit weight, small change | ✅ 200, no warning |
+| Edit weight, suspicious rate vs prev log | ✅ 200 + `suspiciousChange: true` |
+| Edit weight, impossible value | ❌ 400 Bad Request |
