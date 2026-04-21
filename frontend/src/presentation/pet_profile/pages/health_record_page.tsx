@@ -131,7 +131,7 @@ export default function HealthRecordPage() {
     showErrorAlert: true,
   })
   const getWeightChartApi = useApi(healthLogService.getWeightChart, {
-    showErrorAlert: false
+    showErrorAlert: false,
   })
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -196,7 +196,7 @@ export default function HealthRecordPage() {
     if (!petId) return
 
     await getWeightChartApi.execute(petId, {
-      view: selectedWeightChartView
+      view: selectedWeightChartView,
     })
   }, [petId, selectedWeightChartView, getWeightChartApi.execute])
 
@@ -205,7 +205,7 @@ export default function HealthRecordPage() {
       loadHealthRecords(),
       loadHealthLogs(false),
       loadPetProfileTimestamp(),
-      loadWeightChart()
+      loadWeightChart(),
     ])
   })
 
@@ -219,8 +219,8 @@ export default function HealthRecordPage() {
       loadHealthRecords,
       loadHealthLogs,
       loadPetProfileTimestamp,
-      loadWeightChart
-    ])
+      loadWeightChart,
+    ]),
   )
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
@@ -387,7 +387,7 @@ export default function HealthRecordPage() {
     }
 
     if (isEditing) {
-      await completeSaveFlow()
+      await completeSaveFlow(result.data?.data)
       return
     }
 

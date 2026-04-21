@@ -3,9 +3,28 @@ import {
   DeletePetResponse,
   IPetProfile,
   IPetProfileForm,
-  ISpeciesAndBreeds
+  ISpeciesAndBreeds,
 } from '@/src/domain/pet.domain'
 import { apiClient } from '../api_client'
+
+export interface UpdatePetProfilePayload extends Partial<IPetProfileForm> {
+  overwriteWeightLog?: boolean
+}
+
+export interface UpdatePetProfileConflictData {
+  pet: IPetProfileForm
+  conflict: true
+  message: string
+  updatedFields?: string[]
+}
+
+export type UpdatePetProfileResponseData =
+  | IPetProfileForm
+  | UpdatePetProfileConflictData
+
+export interface UpdatePetProfileResponse {
+  data: UpdatePetProfileResponseData
+}
 
 export const petProfileService = {
   /**
@@ -31,11 +50,13 @@ export const petProfileService = {
    * @returns Response with array of created pet profiles
    */
   createMultiplePets: async (pets: Omit<IPetProfileForm, 'id'>[]) => {
-    return apiClient.post<{ data: IPetProfileForm[] }>('/v1/pets/bulk', { pets })
+    return apiClient.post<{ data: IPetProfileForm[] }>('/v1/pets/bulk', {
+      pets,
+    })
   },
 
-  updatePetProfile: async (id: string, data: Partial<IPetProfileForm>) => {
-    return apiClient.patch<{ data: IPetProfileForm }>(`/v1/pets/me/${id}`, data)
+  updatePetProfile: async (id: string, data: UpdatePetProfilePayload) => {
+    return apiClient.patch<UpdatePetProfileResponse>(`/v1/pets/me/${id}`, data)
   },
 
   getSpeciesAndBreeds: async () => {
@@ -51,7 +72,7 @@ export const petProfileService = {
   updateProfileImage: async (petId: string, objectKey: string) => {
     return apiClient.put<{ data: IPetProfile }>(
       `/v1/pets/me/${petId}/profile-image`,
-      { objectKey }
+      { objectKey },
     )
   },
 
@@ -61,7 +82,7 @@ export const petProfileService = {
    */
   deleteProfileImage: async (petId: string) => {
     return apiClient.delete<{ data: IPetProfile }>(
-      `/v1/pets/me/${petId}/profile-image`
+      `/v1/pets/me/${petId}/profile-image`,
     )
   },
 
@@ -73,15 +94,15 @@ export const petProfileService = {
   softDeletePet: async (petId: string) => {
     console.log('🗑️ Calling softDeletePet API for:', petId)
     const requestBody = {
-      reason: 'JUST_DELETE' as const
+      reason: 'JUST_DELETE' as const,
     }
     console.log('📤 Request body:', requestBody)
 
     const response = await apiClient.delete<{ data: DeletePetResponse }>(
       `/v1/pets/me/${petId}`,
       {
-        data: requestBody
-      }
+        data: requestBody,
+      },
     )
     console.log('📥 Soft delete response:', response)
     return response
@@ -99,9 +120,9 @@ export const petProfileService = {
       {
         data: {
           reason: 'DECEASED',
-          deceased_date: deceasedDate
-        } as DeletePetRequest
-      }
+          deceased_date: deceasedDate,
+        } as DeletePetRequest,
+      },
     )
   },
 
@@ -147,9 +168,9 @@ export const petProfileService = {
   permanentDeletePet: async (petId: string) => {
     console.log('🗑️ Permanently deleting pet:', petId)
     const response = await apiClient.delete<{ data: { message: string } }>(
-      `/v1/pets/me/${petId}/permanent`
+      `/v1/pets/me/${petId}/permanent`,
     )
     console.log('📥 Permanent delete response:', response)
     return response
-  }
+  },
 }

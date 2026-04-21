@@ -19,6 +19,41 @@ import {
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { uploadService } from '@/src/utils/api/services/upload_service'
+
+const isUpdatePetConflictData = (
+  data: unknown,
+): data is {
+  conflict: true
+  message?: string
+} => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'conflict' in data &&
+    (data as { conflict?: boolean }).conflict === true
+  )
+}
+
+const confirmOverwriteWeightLog = (message: string): Promise<boolean> => {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'มีบันทึกน้ำหนักวันนี้แล้ว',
+      message,
+      [
+        {
+          text: 'ยกเลิก',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'อัปเดตน้ำหนัก',
+          onPress: () => resolve(true),
+        },
+      ],
+      { cancelable: false },
+    )
+  })
+}
 import {
   DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
   getPetPlaceholderIcon,
@@ -417,7 +452,30 @@ export default function PetProfileForm({
         // Create/update pet profile first
         let newPetId = petId
         if (isEditMode) {
-          await petProfileService.updatePetProfile(petId, petDataToSend)
+          const updateResponse = await petProfileService.updatePetProfile(
+            petId,
+            petDataToSend,
+          )
+
+          if (isUpdatePetConflictData(updateResponse.data)) {
+            const conflictMessage =
+              updateResponse.data.message ||
+              'มีการบันทึกน้ำหนักในวันนี้แล้ว คุณยังต้องการอัปเดตน้ำหนักอยู่หรือไม่?'
+
+            const shouldOverwrite =
+              await confirmOverwriteWeightLog(conflictMessage)
+
+            if (!shouldOverwrite) {
+              await checkPetProfile()
+              await refreshPets()
+              return
+            }
+
+            await petProfileService.updatePetProfile(petId, {
+              ...petDataToSend,
+              overwriteWeightLog: true,
+            })
+          }
         } else {
           const createResponse =
             await petProfileService.createPetProfile(petDataToSend)
