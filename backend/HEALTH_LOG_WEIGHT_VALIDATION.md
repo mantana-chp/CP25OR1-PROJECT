@@ -197,22 +197,24 @@ POST /pets/{petId}/health-logs
 
 | File | Change |
 |---|---|
+| `shared/weight-validation.ts` | Added `checkWeightValidity()` and `formatWeightWarningMessage()` as shared exports; thresholds inlined |
 | `health-log-types.ts` | Added `upsert?: boolean` to `CreateHealthLogInput`; added `CreateHealthLogResult` discriminated union |
 | `health-log-schema.ts` | Added `upsert: z.boolean().optional()` to create schema |
 | `health-log-repository.ts` | Added `findWeightLogByDate()`, `findMostRecentPreviousWeight()`, `updateWeightLogWithWeight()` |
-| `health-log-service.ts` | Two-tier species-aware validation; discriminated union return type |
+| `health-log-service.ts` | Two-tier species-aware validation; imports shared helpers from `weight-validation.ts`; discriminated union return type |
 | `health-log-controller.ts` | Handles `conflict` kind → 409 directly; spreads `suspiciousChange`/`warningMessage` into response |
 
 ### Architecture Pattern
 - **Thin Controller**: Reads the result kind, sends the appropriate HTTP response
 - **Business Logic in Service**: All validation, conflict detection, upsert logic
 - **No ConflictError thrown**: Conflict is returned as `{ kind: 'conflict' }` — controller builds the 409 JSON directly
-- **Species thresholds shared**: Reuses `WEIGHT_THRESHOLDS` + `getWeightThreshold()` from `health-insight-types.ts`
+- **Shared weight helpers**: `checkWeightValidity` + `formatWeightWarningMessage` live in `src/shared/weight-validation.ts` and are used by both `health-log-service.ts` and `pet-service.ts`
+- **Species thresholds**: `WEIGHT_THRESHOLDS` are inlined in `weight-validation.ts` to avoid coupling a shared utility to the `health-insights` feature
 
 ### Key Constants
 ```ts
-WEIGHT_REJECTION_MULTIPLIER = 5   // hard reject at 5× species threshold
-// warn floor = 10%               // minimum warn threshold regardless of time window
+// warn floor = 10%   // minimum warn threshold regardless of time window
+// hard block         // weight > SPECIES_MAX_WEIGHT_KG[species] → 400 Bad Request
 ```
 
 ## Frontend Handling
@@ -250,7 +252,8 @@ daysSince = (log.logged_at − prevLog.logged_at) in days
 → 200 OK with suspiciousChange: true + warningMessage if suspicious
 ```
 
-- If no previous log exists → skip soft warning (first-ever log)
+- If no previous log exists → use `pets.weight` as fallback baseline (set when log was first created); `daysSince=0` activates the 10% floor threshold
+- If both previous log and `pets.weight` are null → skip soft warning (brand new pet, no weight history at all)
 - Non-WEIGHT edits (description, note, category change) → skip all weight checks
 
 ### Response (edit)
@@ -286,15 +289,18 @@ daysSince = (log.logged_at − prevLog.logged_at) in days
 |---|---|
 | `health-log-types.ts` | Added `UpdateHealthLogResult` type |
 | `health-log-schema.ts` | Removed `loggedAt` from `updateHealthLogSchema` |
-| `health-log-service.ts` | Added hard-block + soft-warning validation in `updateHealthLog`; fetch species name; return `UpdateHealthLogResult` |
+| `health-log-service.ts` | Hard-block + soft-warning in `updateHealthLog`; imports `checkWeightValidity`/`formatWeightWarningMessage` from `weight-validation.ts`; return `UpdateHealthLogResult` |
 | `health-log-controller.ts` | Spreads `suspiciousChange`/`warningMessage` into response |
+| `shared/weight-validation.ts` | Source of `checkWeightValidity` + `formatWeightWarningMessage` (shared with `pet-service.ts`) |
 
 ### Scenario Matrix (edit)
 
 | Scenario | Result |
 |---|---|
 | Edit description/note only | ✅ 200, no weight checks |
-| Edit weight, no prior log | ✅ 200, hard block only (no rate check) |
+| Edit weight, no prior log, `pets.weight` set | ✅ 200, compare vs `pets.weight` (10% floor) |
+| Edit weight, no prior log, no `pets.weight` | ✅ 200, no warning (brand new pet) |
 | Edit weight, small change | ✅ 200, no warning |
 | Edit weight, suspicious rate vs prev log | ✅ 200 + `suspiciousChange: true` |
+| Edit weight, suspicious jump vs `pets.weight` | ✅ 200 + `suspiciousChange: true` |
 | Edit weight, impossible value | ❌ 400 Bad Request |
