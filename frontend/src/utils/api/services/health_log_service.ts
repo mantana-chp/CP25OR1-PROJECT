@@ -1,4 +1,8 @@
 import { apiClient } from '../api_client'
+import {
+  WeightChartResponse,
+  WeightChartView
+} from '@/src/domain/weight-chart.domain'
 
 export type HealthLogCategory = 'WEIGHT' | 'SYMPTOMS' | 'BEHAVIOR'
 
@@ -56,6 +60,11 @@ export interface UpdateHealthLogPayload {
   loggedAt?: string
 }
 
+export interface GetWeightChartParams {
+  view?: WeightChartView
+  date?: string
+}
+
 export const healthLogService = {
   getHealthLogs: async (
     petId: string,
@@ -72,6 +81,15 @@ export const healthLogService = {
   getHealthLogById: async (petId: string, logId: string) => {
     return apiClient.get<{ data: { log: IHealthLog } }>(
       `/v1/pets/${petId}/health-logs/${logId}`,
+    )
+  },
+
+  getWeightChart: async (petId: string, params?: GetWeightChartParams) => {
+    return apiClient.get<WeightChartResponse>(
+      `/v1/pets/${petId}/health-logs/weight-chart`,
+      {
+        params
+      }
     )
   },
 

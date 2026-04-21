@@ -43,7 +43,7 @@ interface AuthContextType {
   hasPetProfile: boolean
   completeOnboarding: () => Promise<void>
   refreshAuth: () => Promise<void>
-  checkPetProfile: () => Promise<void>
+  checkPetProfile: () => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -115,6 +115,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const reconcileOnboardingState = async (
+    localOnboardingCompleted: boolean
+  ) => {
+    const hasPets = await checkPetProfile()
+
+    // Reinstall case: local onboarding flag is gone, but this account already has pets.
+    if (hasPets && !localOnboardingCompleted) {
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true')
+      setHasCompletedOnboarding(true)
+    }
+  }
+
   const initAuth = async () => {
     console.log('🔐 Starting authentication...')
 
@@ -139,13 +151,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (existingToken && existingRefreshToken) {
         console.log('✅ Using existing token')
-        
+
         // Decode token to get userId
         const decoded = decodeJWT(existingToken)
         if (decoded?.userId) {
           setUserId(decoded.userId)
         }
-        
+
         setToken(existingToken)
         setIsAuthenticated(true)
         setError(null)
@@ -155,11 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           await registerPushNotification()
 
-          // Step 3: Check if user has pet profile (only if onboarding completed and auth successful)
-          if (hasSeenOnboarding) {
-            await checkPetProfile()
-          }
-        } catch (error: any) {
+          await reconcileOnboardingState(hasSeenOnboarding)
+        } catch {
           console.warn(
             '⚠️ Token validation failed, clearing and re-authenticating...'
           )
@@ -169,20 +178,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(null)
           await performDeviceLogin()
 
-          // After successful re-login, check pet profile again
-          if (hasSeenOnboarding) {
-            await checkPetProfile()
-          }
+          await reconcileOnboardingState(hasSeenOnboarding)
         }
       } else {
         // Step 3: Clear any partial tokens and perform device-based login
         await apiClient.clearTokens()
         await performDeviceLogin()
 
-        // Step 4: Check if user has pet profile (only if onboarding completed)
-        if (hasSeenOnboarding) {
-          await checkPetProfile()
-        }
+        await reconcileOnboardingState(hasSeenOnboarding)
       }
 
       console.log('🎉 Authentication successful!')
@@ -198,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const checkPetProfile = async () => {
+  const checkPetProfile = async (): Promise<boolean> => {
     try {
       console.log('🐾 Checking for pet profiles...')
       const [activeResponse, pastResponse] = await Promise.all([
@@ -210,10 +213,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         (pastResponse.data && pastResponse.data.length > 0)
       console.log('Has pet profiles:', hasPets)
       setHasPetProfile(hasPets)
+      return hasPets
     } catch (error) {
       console.warn('⚠️ Error checking pet profiles:', error)
-      setHasCompletedOnboarding(false)
       setHasPetProfile(false)
+      return false
     }
   }
 

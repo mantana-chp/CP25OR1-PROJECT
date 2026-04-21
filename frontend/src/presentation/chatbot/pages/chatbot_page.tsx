@@ -6,9 +6,16 @@ import {
   StyleSheet,
   View
 } from 'react-native'
+import 'react-native-get-random-values'
+import { v4 as uuidv4 } from 'uuid'
 
 import { useError } from '@/src/presentation/components/error_context'
-import { HistoryItem } from '@/src/domain/chatbot.domain'
+import {
+  ChatResponse,
+  PetClarificationOption,
+  PetClarificationRequestData,
+  SeverityLevel
+} from '@/src/domain/chatbot.domain'
 import { chatbotService } from '@/src/utils/api/services/chatbot_service'
 
 import Header from '../../components/header_component'
@@ -16,9 +23,9 @@ import { DisclaimerModal } from '../components/ai_chatbot_disclaimer_modal'
 import ChatBubble from '../components/chat_bubble'
 import ChatInput from '../components/chat_input'
 import { InfoButton } from '../components/info_button'
+import PetClarificationWidget from '../components/pet_clarification_widget'
 import TryAgainHandler from '../components/try_again_handler'
 import SeverityScaleWidget from '../components/severity_scale_widget'
-import { SeverityLevel } from '@/src/domain/chatbot.domain'
 
 interface Message {
   id: string
@@ -27,21 +34,82 @@ interface Message {
   requiresSeverityInput?: boolean
   awaitingSeverity?: boolean
   originalQuery?: string
+  severityPrompt?: string
+  severityContextId?: string
+  requiresPetClarificationInput?: boolean
+  awaitingPetClarification?: boolean
+  petClarificationPrompt?: string
+  petClarificationContextId?: string
+  petClarificationOptions?: PetClarificationOption[]
+}
+
+function getPetOptions(
+  request?: PetClarificationRequestData
+): PetClarificationOption[] {
+  if (!request) {
+    return []
+  }
+
+  if (request.ambiguousPets && request.ambiguousPets.length > 0) {
+    return request.ambiguousPets
+  }
+
+  return request.options ?? []
+}
+
+function getPetDisplayName(option: PetClarificationOption): string {
+  return option.petName ?? option.pet_name ?? 'สัตว์เลี้ยง'
+}
+
+function getPetId(option: PetClarificationOption): string | undefined {
+  return option.petId ?? option.id
+}
+
+function mapAiMessageFromResponse(
+  responseData: ChatResponse,
+  fallbackQuery?: string
+): Message {
+  const requiresSeverity =
+    responseData.contextStatus === 'pending_severity' ||
+    responseData.severityFlag === true
+  const petOptions = getPetOptions(responseData.petClarificationRequest)
+  const requiresPetClarification =
+    responseData.petContextStatus === 'pending_clarification' &&
+    petOptions.length > 0
+
+  return {
+    id: (Date.now() + 1).toString(),
+    text: responseData.answer,
+    isUser: false,
+    requiresSeverityInput: requiresSeverity,
+    awaitingSeverity: requiresSeverity,
+    originalQuery: requiresSeverity ? fallbackQuery : undefined,
+    severityPrompt: responseData.severityRequest?.prompt,
+    severityContextId:
+      responseData.severityRequest?.contextId ?? responseData.contextId,
+    requiresPetClarificationInput: requiresPetClarification,
+    awaitingPetClarification: requiresPetClarification,
+    petClarificationPrompt: responseData.petClarificationRequest?.prompt,
+    petClarificationContextId:
+      responseData.petClarificationRequest?.contextId ?? responseData.contextId,
+    petClarificationOptions: requiresPetClarification ? petOptions : undefined
+  }
 }
 
 export default function ChatbotPage() {
   const { showError } = useError()
+  const clientChatSessionId = useRef(uuidv4()).current
 
   const [disclaimerVisible, setDisclaimerVisible] = useState(true)
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
   const [resolvedPetId, setResolvedPetId] = useState<string | undefined>(
     undefined
   )
+  const [activeContextId, setActiveContextId] = useState<string | undefined>()
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const [isError, setIsError] = useState(false)
   const [lastFailedMessage, setLastFailedMessage] = useState<string>('')
-  const [chatHistory, setChatHistory] = useState<HistoryItem[]>([])
   const scrollViewRef = useRef<ScrollView>(null)
 
   // Show welcome message after disclaimer is accepted
@@ -79,37 +147,20 @@ export default function ChatbotPage() {
     }, 100)
 
     try {
-      // Call the API with query, optional resolvedPetId, and conversation history
+      // Send message with persistent client chat session and current context.
       const response = await chatbotService.sendMessage(
         text,
-        resolvedPetId,
-        chatHistory
+        clientChatSessionId,
+        {
+          resolvedPetId,
+          contextId: activeContextId
+        }
       )
 
-      // Always update resolvedPetId with what server returns
-      // - New pet detected → server returns new uuid → state updates
-      // - Same pet continuing → server echoes same uuid → no change
-      // - No pet in query → server returns undefined → state resets to undefined
       setResolvedPetId(response.data.resolvedPetId)
-      
-      const requiresSeverity = response.data.severityFlag === true
+      setActiveContextId(response.data.contextId)
 
-      // Update chat history with this exchange
-      setChatHistory((prev) => [
-        ...prev,
-        { role: 'user', content: text },
-        { role: 'assistant', content: response.data.answer }
-      ])
-
-      // Add AI response
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response.data.answer,
-        isUser: false,
-        requiresSeverityInput: requiresSeverity,
-        awaitingSeverity: requiresSeverity,
-        originalQuery: requiresSeverity ? text : undefined
-      }
+      const aiMessage = mapAiMessageFromResponse(response.data, text)
       setMessages((prev) => [...prev, aiMessage])
 
       // Scroll to bottom
@@ -133,21 +184,21 @@ export default function ChatbotPage() {
     level: SeverityLevel,
     label: string
   ) => {
-    // Find the original symptom query from the severity-triggering AI message
     const targetMessage = messages.find((msg) => msg.id === messageId)
-    const originalQuery = targetMessage?.originalQuery || ''
+    const originalQuery = targetMessage?.originalQuery || 'ช่วยประเมินอาการนี้'
+    const targetContextId = targetMessage?.severityContextId ?? activeContextId
 
-    // Mark the message as no longer awaiting severity
+    if (!targetContextId) {
+      showError('ไม่พบข้อมูลบริบทของอาการ กรุณาลองส่งคำถามใหม่อีกครั้ง')
+      return
+    }
+
     setMessages((prev) =>
       prev.map((msg) =>
         msg.id === messageId ? { ...msg, awaitingSeverity: false } : msg
       )
     )
 
-    // Build severity query with prefix expected by the backend
-    const severityQuery = `[SEVERITY: ${level}/5] ${originalQuery}`
-
-    // Show the severity selection as user message (friendly display)
     const userSeverityMessage: Message = {
       id: Date.now().toString(),
       text: `เลือกระดับความรุนแรง: ${label} (${level}/5)`,
@@ -163,29 +214,23 @@ export default function ChatbotPage() {
     }, 100)
 
     try {
-      // Send severity query with conversation history back to AI
       const response = await chatbotService.sendMessage(
-        severityQuery,
-        resolvedPetId,
-        chatHistory
+        originalQuery,
+        clientChatSessionId,
+        {
+          resolvedPetId,
+          contextId: targetContextId,
+          severitySubmission: {
+            contextId: targetContextId,
+            level,
+            label
+          }
+        }
       )
 
-      // Update resolvedPetId from response
       setResolvedPetId(response.data.resolvedPetId)
-
-      // Update chat history with the severity exchange
-      setChatHistory((prev) => [
-        ...prev,
-        { role: 'user', content: severityQuery },
-        { role: 'assistant', content: response.data.answer }
-      ])
-
-      // Add AI's follow-up response
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response.data.answer,
-        isUser: false
-      }
+      setActiveContextId(response.data.contextId)
+      const aiMessage = mapAiMessageFromResponse(response.data, originalQuery)
       setMessages((prev) => [...prev, aiMessage])
 
       // Scroll to bottom
@@ -199,6 +244,81 @@ export default function ChatbotPage() {
       setIsTyping(false)
     }
   }
+
+  const handlePetClarificationSelect = async (
+    messageId: string,
+    selectedPetId: string
+  ) => {
+    const targetMessage = messages.find((msg) => msg.id === messageId)
+    const targetContextId =
+      targetMessage?.petClarificationContextId ?? activeContextId
+    const originalQuery =
+      targetMessage?.originalQuery || 'ช่วยวิเคราะห์อาการนี้'
+
+    if (!targetContextId) {
+      showError('ไม่พบข้อมูลบริบทของการเลือกสัตว์เลี้ยง กรุณาลองใหม่อีกครั้ง')
+      return
+    }
+
+    const selectedPet = targetMessage?.petClarificationOptions?.find(
+      (option) => getPetId(option) === selectedPetId
+    )
+
+    const selectedPetName = selectedPet
+      ? getPetDisplayName(selectedPet)
+      : 'สัตว์เลี้ยงที่เลือก'
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, awaitingPetClarification: false } : msg
+      )
+    )
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        text: `เลือกสัตว์เลี้ยง: ${selectedPetName}`,
+        isUser: true
+      }
+    ])
+
+    setIsTyping(true)
+
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true })
+    }, 100)
+
+    try {
+      const response = await chatbotService.sendMessage(
+        originalQuery,
+        clientChatSessionId,
+        {
+          resolvedPetId: selectedPetId,
+          contextId: targetContextId,
+          petClarificationSubmission: {
+            contextId: targetContextId,
+            selectedPetId
+          }
+        }
+      )
+
+      setResolvedPetId(response.data.resolvedPetId)
+      setActiveContextId(response.data.contextId)
+      const aiMessage = mapAiMessageFromResponse(response.data, originalQuery)
+      setMessages((prev) => [...prev, aiMessage])
+
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    } catch (error: any) {
+      console.error('Error sending pet clarification:', error)
+      showError('เกิดข้อผิดพลาดในการยืนยันสัตว์เลี้ยง กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setIsTyping(false)
+    }
+  }
+
   const handleRetry = () => {
     if (lastFailedMessage) {
       handleSendMessage(lastFailedMessage)
@@ -236,8 +356,26 @@ export default function ChatbotPage() {
                     handleSeveritySelect(message.id, level, label)
                   }
                   disabled={isTyping}
+                  prompt={message.severityPrompt}
                 />
               )}
+
+              {message.requiresPetClarificationInput &&
+                message.awaitingPetClarification &&
+                message.petClarificationOptions &&
+                message.petClarificationOptions.length > 0 && (
+                  <PetClarificationWidget
+                    prompt={
+                      message.petClarificationPrompt ||
+                      'กรุณาเลือกสัตว์เลี้ยงที่คุณกำลังถามถึง'
+                    }
+                    options={message.petClarificationOptions}
+                    onSelect={(petId) =>
+                      handlePetClarificationSelect(message.id, petId)
+                    }
+                    disabled={isTyping}
+                  />
+                )}
             </React.Fragment>
           ))}
 

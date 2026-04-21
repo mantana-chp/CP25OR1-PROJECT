@@ -61,8 +61,21 @@ export const updatePetController = asyncHandler(
     const { params, body: petData } = updatePetSchema.parse(req)
     const { id: petId } = params
     const { id: userId } = req.user!
-    const updatedPet = await petService.updatePet(petId, userId, petData)
-    sendSuccess(res, updatedPet)
+    const result = await petService.updatePet(petId, userId, petData)
+
+    if (result.conflict) {
+      // Weight was held — return pet + conflict flag for frontend modal
+      sendSuccess(res, {
+        pet: result.pet,
+        conflict: true,
+        message: result.message,
+        updatedFields: result.updatedFields,
+      })
+
+    } else {
+      // Normal path — send pet directly (same shape as before)
+      sendSuccess(res, result.pet)
+    }
   },
 )
 

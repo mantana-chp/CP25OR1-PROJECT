@@ -16,6 +16,7 @@ import {
   healthLogService,
   IHealthLog,
 } from '@/src/utils/api/services/health_log_service'
+import { WeightChartView } from '@/src/domain/weight-chart.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
@@ -40,7 +41,7 @@ import HealthLogFormModal from '../components/health_log_form_modal'
 import HealthRecordDetailModal from '../components/health_record_detail_modal'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import HealthLogEntryCard from '../components/health_log_entry_card'
-import WeightTrendChart from '../components/weight_trend_chart'
+import WeightTrendChart from '@/src/presentation/pet_profile/components/weight_trend_chart'
 import MedicalDocumentsPage from './medical_documents_page'
 
 type HealthTypeFilter = 'ALL' | HealthLogType
@@ -129,10 +130,15 @@ export default function HealthRecordPage() {
   const deleteHealthLogApi = useApi(healthLogService.deleteHealthLog, {
     showErrorAlert: true,
   })
+  const getWeightChartApi = useApi(healthLogService.getWeightChart, {
+    showErrorAlert: false
+  })
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMoreLogs, setHasMoreLogs] = useState(true)
   const [editingLog, setEditingLog] = useState<IHealthLog | null>(null)
+  const [selectedWeightChartView, setSelectedWeightChartView] =
+    useState<WeightChartView>('month')
   const [petProfileWithTimestamp, setPetProfileWithTimestamp] = useState<{
     weight: string
     updated_at: string
@@ -186,11 +192,20 @@ export default function HealthRecordPage() {
     }
   }, [petId])
 
+  const loadWeightChart = useCallback(async () => {
+    if (!petId) return
+
+    await getWeightChartApi.execute(petId, {
+      view: selectedWeightChartView
+    })
+  }, [petId, selectedWeightChartView, getWeightChartApi.execute])
+
   const { isRefreshing, onRefresh } = usePullToRefresh(async () => {
     await Promise.all([
       loadHealthRecords(),
       loadHealthLogs(false),
       loadPetProfileTimestamp(),
+      loadWeightChart()
     ])
   })
 
@@ -199,7 +214,13 @@ export default function HealthRecordPage() {
       loadHealthRecords()
       loadHealthLogs(false)
       loadPetProfileTimestamp()
-    }, [loadHealthRecords, loadHealthLogs, loadPetProfileTimestamp]),
+      loadWeightChart()
+    }, [
+      loadHealthRecords,
+      loadHealthLogs,
+      loadPetProfileTimestamp,
+      loadWeightChart
+    ])
   )
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
@@ -371,6 +392,11 @@ export default function HealthRecordPage() {
     }
 
     await completeSaveFlow(result.data?.data)
+    setShowCreateModal(false)
+    setEditingLog(null)
+    await loadHealthLogs(false) // Reload from start to show updated log
+    await loadWeightChart()
+    refreshPets()
   }
 
   const handleEditLog = (log: IHealthLog) => {
@@ -397,6 +423,7 @@ export default function HealthRecordPage() {
             if (result.error) return
 
             await loadHealthLogs(false) // Reload to reflect deletion
+            await loadWeightChart()
             refreshPets()
           },
         },
@@ -433,7 +460,12 @@ export default function HealthRecordPage() {
       )}
 
       <WeightTrendChart
-        logs={parsedLogs}
+        chartData={getWeightChartApi.data?.data}
+        selectedView={selectedWeightChartView}
+        onChangeView={setSelectedWeightChartView}
+        loading={getWeightChartApi.loading}
+        error={!!getWeightChartApi.error}
+        onRetry={loadWeightChart}
         petProfileWeight={petProfileWithTimestamp}
       />
 

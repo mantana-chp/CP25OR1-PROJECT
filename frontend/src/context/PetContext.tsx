@@ -36,7 +36,11 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   const [deletedPets, setDeletedPets] = useState<IDeletedPet[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    hasCompletedOnboarding
+  } = useAuth()
 
   const fetchActivePets = useCallback(async () => {
     const response = await petProfileService.getMyPets()
@@ -193,12 +197,26 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   )
 
   useEffect(() => {
-    // Only fetch pets when authentication is complete and user is authenticated
-    if (!authLoading && isAuthenticated) {
+    // Only fetch pets for authenticated users after onboarding is completed.
+    if (!authLoading && isAuthenticated && hasCompletedOnboarding) {
       refreshPets()
       refreshDeletedPets()
+      return
     }
-  }, [authLoading, isAuthenticated, refreshPets, refreshDeletedPets])
+
+    // Keep context stable and avoid loading spinners while onboarding screens are active.
+    setLoading(false)
+    setActivePetsData([])
+    setDeceasedPetsData([])
+    setDeletedPets([])
+    setSelectedPetId(null)
+  }, [
+    authLoading,
+    isAuthenticated,
+    hasCompletedOnboarding,
+    refreshPets,
+    refreshDeletedPets
+  ])
 
   // Combine all pets for the provider value
   const allPets = [...activePetsData, ...deceasedPetsData]

@@ -8,7 +8,7 @@ import {
 } from '../../shared/errors'
 import { canAccessPet } from '../pet-sharing/pet-sharing-repository'
 import prisma from '../../libs/db'
-import { HealthLogDto, CreateHealthLogInput, CreateHealthLogResult } from './health-log-types'
+import { HealthLogDto, CreateHealthLogInput, CreateHealthLogResult, UpdateHealthLogResult } from './health-log-types'
 import { Prisma } from '../../generated/prisma/client'
 import { UpdateHealthLogPayload } from './health-log-schema'
 import { logger } from '../../libs/logger'
@@ -18,6 +18,7 @@ import * as healthInsightRepository from '../health-insights/health-insight-repo
 import * as notificationService from '../notifications/notification-service'
 import { getSeverityEmoji, getWeightThreshold } from '../health-insights/health-insight-types'
 import { THAI_MONTHS_SHORT } from '../../shared/constants'
+import { exceedsSpeciesMaxWeight, getSpeciesMaxWeightKg } from '../../shared/weight-validation'
 
 const validateLoggedAt = (loggedAt?: Date) => {
   if (!loggedAt) return
@@ -67,16 +68,12 @@ const resolveCreatedBy = async (
 }
 
 /**
- * Multiplier applied to the species gain/loss threshold to get the hard rejection limit.
- * e.g. Dog gainPercent=15% → reject if gain >75% (regardless of time).
- */
-const WEIGHT_REJECTION_MULTIPLIER = 5
-
-/**
  * Species-aware, time-aware two-tier weight validity check.
  *
- * Soft (suspicious): species threshold scaled by daysSince/windowDays, floored at 10%.
- * Hard (impossible): species threshold × WEIGHT_REJECTION_MULTIPLIER, NOT time-scaled.
+ * Hard (impossible): new weight exceeds the absolute biological max for the species.
+ *                    No comparison against previous weight needed.
+ * Soft (suspicious):  rate-of-change exceeds the time-scaled species threshold.
+ *                    Floored at 10% to avoid false positives on short windows.
  */
 const checkWeightValidity = (
   newWeight: number,
@@ -84,23 +81,22 @@ const checkWeightValidity = (
   daysSince: number,
   speciesName: string
 ): { suspicious: boolean; impossible: boolean; changePercent: number } => {
+  // Hard block — biologically impossible value for this species
+  const impossible = exceedsSpeciesMaxWeight(newWeight, speciesName)
+
+  // Soft warning — unusual rate of change relative to previous log
   const rawChange = ((newWeight - previousWeight) / previousWeight) * 100
   const changePercent = Math.abs(rawChange)
   const isGain = rawChange > 0
 
   const threshold = getWeightThreshold(speciesName)
   const limitPercent = isGain ? threshold.gainPercent : threshold.lossPercent
-
-  // Soft: time-scaled, minimum 10% floor so short windows aren't overly strict
   const timeScale = Math.min(Math.max(daysSince, 1) / threshold.windowDays, 1.0)
   const warnThreshold = Math.max(10, limitPercent * timeScale)
 
-  // Hard: absolute physiological limit, independent of time
-  const rejectThreshold = limitPercent * WEIGHT_REJECTION_MULTIPLIER
-
   return {
     suspicious: changePercent > warnThreshold,
-    impossible: changePercent > rejectThreshold,
+    impossible,
     changePercent
   }
 }
@@ -475,8 +471,8 @@ export const updateHealthLog = async (
   petId: string,
   userId: string,
   updateData: UpdateHealthLogPayload
-): Promise<HealthLogDto> => {
-  validateLoggedAt(updateData.loggedAt)
+): Promise<UpdateHealthLogResult> => {
+  // loggedAt is immutable — not accepted in updateData, timestamp never changes after creation
 
   const log = await healthLogRepository.findById(logId)
 
@@ -501,7 +497,10 @@ export const updateHealthLog = async (
   // Owners can edit any log; caregivers can only edit logs they created
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
-    select: { user_id: true }
+    select: {
+      user_id: true,
+      species: { select: { name: true } }
+    }
   })
 
   if (!pet) {
@@ -524,21 +523,52 @@ export const updateHealthLog = async (
   // Determine the category (use updated value or fallback to existing)
   const finalCategory = updateData.category || log.category
 
-  // Update in transaction if weight needs to be updated
+  // ─── Weight validation for WEIGHT edits ─────────────────────────────────────
+  let suspiciousChange = false
+  let warningMessage: string | undefined
+
+  if (updateData.weight !== undefined && finalCategory === 'WEIGHT') {
+    const speciesName = pet.species?.name ?? 'DEFAULT'
+
+    // Hard block — biologically impossible value for this species
+    if (exceedsSpeciesMaxWeight(updateData.weight, speciesName)) {
+      const maxKg = getSpeciesMaxWeightKg(speciesName)
+      throw new BadRequestError(
+        `น้ำหนักที่ระบุ (${updateData.weight.toFixed(2)} kg) เกินค่าสูงสุดที่เป็นไปได้สำหรับสัตว์เลี้ยงประเภทนี้ (สูงสุด ${maxKg} kg) กรุณาตรวจสอบอีกครั้ง`
+      )
+    }
+
+    // Soft warning — compare new value against the WEIGHT log immediately before this log’s timestamp
+    // (log.logged_at is immutable, so it reliably identifies the log’s position in the history)
+    const prevLog = await healthLogRepository.findMostRecentPreviousWeight(petId, log.logged_at)
+    if (prevLog && prevLog.weight !== null) {
+      const prevWeight = Number(prevLog.weight)
+      const daysSince = Math.max(
+        (log.logged_at.getTime() - prevLog.logged_at.getTime()) / (1000 * 60 * 60 * 24),
+        0
+      )
+      const validity = checkWeightValidity(updateData.weight, prevWeight, daysSince, speciesName)
+      if (validity.suspicious) {
+        suspiciousChange = true
+        warningMessage = formatWeightWarningMessage(prevWeight, prevLog.logged_at, updateData.weight)
+      }
+    }
+  }
+
+  // ─── Persist ────────────────────────────────────────────────────────────────
+  // logged_at is NOT included in any update — it is immutable after creation
   let updatedLog
 
   if (updateData.weight !== undefined) {
-    // Weight is provided, update both log and pet's weight (if category is WEIGHT)
+    // Weight is provided, update both log and pet’s weight (if category is WEIGHT)
     updatedLog = await prisma.$transaction(async (tx) => {
-      // Update the health log
       const updated = await tx.health_logs.update({
         where: { id: logId },
         data: {
           category: updateData.category,
           description: updateData.description,
           weight: new Prisma.Decimal(updateData.weight!),
-          note: updateData.note,
-          logged_at: updateData.loggedAt
+          note: updateData.note
         },
         include: {
           created_by: {
@@ -550,7 +580,7 @@ export const updateHealthLog = async (
         }
       })
 
-      // Only update the pet's weight if the final category is WEIGHT
+      // Only update the pet’s weight if the final category is WEIGHT
       if (finalCategory === 'WEIGHT') {
         await tx.pets.update({
           where: { id: petId },
@@ -569,8 +599,7 @@ export const updateHealthLog = async (
       data: {
         category: updateData.category,
         description: updateData.description,
-        note: updateData.note,
-        logged_at: updateData.loggedAt
+        note: updateData.note
       },
       include: {
         created_by: {
@@ -583,14 +612,16 @@ export const updateHealthLog = async (
     })
   }
 
-  // Resolve createdBy display value
   const createdBy = await resolveCreatedBy(
     updatedLog.created_by_user_id,
     pet.user_id,
     userId
   )
 
-  return toDto(updatedLog, createdBy)
+  return {
+    log: toDto(updatedLog, createdBy),
+    ...(suspiciousChange && { suspiciousChange: true, warningMessage })
+  }
 }
 
 /**

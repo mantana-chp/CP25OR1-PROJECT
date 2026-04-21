@@ -226,7 +226,8 @@ const petProfileSelect = {
   deceased_date: true,
   deleted_at: true,
   deletion_reason: true,
-  species: { select: { name_th: true } },
+  species: { select: { name: true, name_th: true } },
+
   breeds: { select: { name_th: true } },
 }
 

@@ -41,7 +41,7 @@ export const updateHealthLogSchema = z.object({
     description: z.string().min(1, 'Description is required').max(5000, 'Description is too long').optional(),
     weight: z.number().positive('Weight must be positive').optional(),
     note: z.string().max(2000, 'Note is too long').optional().nullable(),
-    loggedAt: z.coerce.date().optional()
+    // loggedAt is intentionally excluded — the timestamp is immutable after creation
   }).superRefine((data, ctx) => {
     // If category is being updated to WEIGHT, weight must be provided
     if (data.category === 'WEIGHT' && (data.weight === undefined || data.weight === null)) {
@@ -50,20 +50,6 @@ export const updateHealthLogSchema = z.object({
         message: 'Weight is required when updating to WEIGHT category',
         path: ['weight']
       });
-    }
-
-    // Check if loggedAt is not in the future (with 2 minute buffer for clock skew)
-    if (data.loggedAt) {
-      const now = new Date();
-      const maxAllowedDate = new Date(now.getTime() + 2 * 60 * 1000); // 2 minutes buffer
-
-      if (data.loggedAt > maxAllowedDate) {
-        ctx.addIssue({
-          code: "custom",
-          message: 'Date cannot be in the future',
-          path: ['loggedAt']
-        });
-      }
     }
   })
 })

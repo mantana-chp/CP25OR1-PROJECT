@@ -20,7 +20,7 @@ export default function StartPage() {
 
   // Redirect to onboarding if not completed
   if (!hasCompletedOnboarding) {
-    return <Redirect href='/onboarding' />
+    return <Redirect href="/onboarding" />
   }
 
   // Wait for pets to load before checking
@@ -33,10 +33,10 @@ export default function StartPage() {
   // isPostOnboarding=true indicates this is the edge case after onboarding was completed
   if (hasCompletedOnboarding && pets.length === 0) {
     console.log(
-      '📍 User completed onboarding with NO pets - Showing pet option selection',
+      '📍 User completed onboarding with NO pets - Showing pet option selection'
     )
-    return <Redirect href='/onboarding/pet-options?isPostOnboarding=true' />
+    return <Redirect href="/onboarding/pet-options?isPostOnboarding=true" />
   }
 
-  return <Redirect href='/(tabs)' />
+  return <Redirect href="/(tabs)" />
 }
