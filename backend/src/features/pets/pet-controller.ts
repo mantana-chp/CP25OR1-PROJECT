@@ -73,8 +73,14 @@ export const updatePetController = asyncHandler(
       })
 
     } else {
-      // Normal path — send pet directly (same shape as before)
-      sendSuccess(res, result.pet)
+      // Normal path — include soft warning if weight jump was suspicious
+      sendSuccess(res, {
+        pet: result.pet,
+        ...(result.suspiciousChange && {
+          suspiciousChange: true,
+          warningMessage: result.warningMessage,
+        }),
+      })
     }
   },
 )

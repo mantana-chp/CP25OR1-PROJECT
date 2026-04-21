@@ -16,9 +16,9 @@ import * as healthInsightDetection from '../health-insights/health-insight-detec
 import * as healthInsightGeneration from '../health-insights/health-insight-generation-service'
 import * as healthInsightRepository from '../health-insights/health-insight-repository'
 import * as notificationService from '../notifications/notification-service'
-import { getSeverityEmoji, getWeightThreshold } from '../health-insights/health-insight-types'
+import { getSeverityEmoji } from '../health-insights/health-insight-types'
 import { THAI_MONTHS_SHORT } from '../../shared/constants'
-import { exceedsSpeciesMaxWeight, getSpeciesMaxWeightKg } from '../../shared/weight-validation'
+import { exceedsSpeciesMaxWeight, getSpeciesMaxWeightKg, checkWeightValidity, formatWeightWarningMessage } from '../../shared/weight-validation'
 
 const validateLoggedAt = (loggedAt?: Date) => {
   if (!loggedAt) return
@@ -67,55 +67,6 @@ const resolveCreatedBy = async (
   return contact?.alias ?? 'ผู้ดูแล' // Caregiver's alias or fallback "Caregiver"
 }
 
-/**
- * Species-aware, time-aware two-tier weight validity check.
- *
- * Hard (impossible): new weight exceeds the absolute biological max for the species.
- *                    No comparison against previous weight needed.
- * Soft (suspicious):  rate-of-change exceeds the time-scaled species threshold.
- *                    Floored at 10% to avoid false positives on short windows.
- */
-const checkWeightValidity = (
-  newWeight: number,
-  previousWeight: number,
-  daysSince: number,
-  speciesName: string
-): { suspicious: boolean; impossible: boolean; changePercent: number } => {
-  // Hard block — biologically impossible value for this species
-  const impossible = exceedsSpeciesMaxWeight(newWeight, speciesName)
-
-  // Soft warning — unusual rate of change relative to previous log
-  const rawChange = ((newWeight - previousWeight) / previousWeight) * 100
-  const changePercent = Math.abs(rawChange)
-  const isGain = rawChange > 0
-
-  const threshold = getWeightThreshold(speciesName)
-  const limitPercent = isGain ? threshold.gainPercent : threshold.lossPercent
-  const timeScale = Math.min(Math.max(daysSince, 1) / threshold.windowDays, 1.0)
-  const warnThreshold = Math.max(10, limitPercent * timeScale)
-
-  return {
-    suspicious: changePercent > warnThreshold,
-    impossible,
-    changePercent
-  }
-}
-
-/**
- * Format warning message for suspicious weight change (Thai, friendly tone).
- */
-const formatWeightWarningMessage = (
-  previousWeight: number,
-  previousDate: Date,
-  newWeight: number
-): string => {
-  const dateStr = previousDate.toLocaleDateString('th-TH', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
-  return `น้ำหนักเปลี่ยนแปลงค่อนข้างมากจากครั้งก่อน (จาก ${previousWeight.toFixed(2)} kg เมื่อ ${dateStr} เป็น ${newWeight.toFixed(2)} kg) กรุณาตรวจสอบความถูกต้องอีกครั้ง`
-}
 
 /**
  * Format rejection message for an impossible weight change (Thai).
@@ -499,6 +450,7 @@ export const updateHealthLog = async (
     where: { id: petId },
     select: {
       user_id: true,
+      weight: true,
       species: { select: { name: true } }
     }
   })
@@ -542,6 +494,7 @@ export const updateHealthLog = async (
     // (log.logged_at is immutable, so it reliably identifies the log’s position in the history)
     const prevLog = await healthLogRepository.findMostRecentPreviousWeight(petId, log.logged_at)
     if (prevLog && prevLog.weight !== null) {
+      // Normal case: a prior log exists — use it as the timed baseline
       const prevWeight = Number(prevLog.weight)
       const daysSince = Math.max(
         (log.logged_at.getTime() - prevLog.logged_at.getTime()) / (1000 * 60 * 60 * 24),
@@ -552,7 +505,17 @@ export const updateHealthLog = async (
         suspiciousChange = true
         warningMessage = formatWeightWarningMessage(prevWeight, prevLog.logged_at, updateData.weight)
       }
+    } else if (pet.weight !== null) {
+      // Fallback: first-ever log — compare against pets.weight (set when log was created).
+      // daysSince=0 activates the 10% floor threshold, appropriate without a time reference.
+      const prevWeight = Number(pet.weight)
+      const validity = checkWeightValidity(updateData.weight, prevWeight, 0, speciesName)
+      if (validity.suspicious) {
+        suspiciousChange = true
+        warningMessage = `น้ำหนักเปลี่ยนแปลงค่อนข้างมากจากน้ำหนักล่าสุดของสัตว์เลี้ยง (จาก ${prevWeight.toFixed(2)} kg เป็น ${updateData.weight.toFixed(2)} kg) กรุณาตรวจสอบความถูกต้องอีกครั้ง`
+      }
     }
+    // If both prevLog and pet.weight are null — brand new pet with no weight history at all — skip warning
   }
 
   // ─── Persist ────────────────────────────────────────────────────────────────

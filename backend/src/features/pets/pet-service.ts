@@ -17,7 +17,7 @@ import { type PetUpdatePayload } from './pet-schema'
 import { formatAgeFromBirthDate } from '../../shared/utils'
 import { generateDownloadUrl, deleteFile } from '../file-uploads/upload-service'
 import prisma from '../../libs/db'
-import { exceedsSpeciesMaxWeight, getSpeciesMaxWeightKg } from '../../shared/weight-validation'
+import { exceedsSpeciesMaxWeight, getSpeciesMaxWeightKg, checkWeightValidity, formatWeightWarningMessage } from '../../shared/weight-validation'
 import * as healthLogRepository from '../health-log/health-log-repository'
 
 const DEFAULT_PET_AVATAR_BACKGROUND_COLOR = '#5FA7D1'
@@ -359,10 +359,13 @@ export const updatePet = async (
   // ─── Weight: validate → conflict check → conditionally update ───────────────
   let weightConflict = false
   let todayWeightLog: Awaited<ReturnType<typeof healthLogRepository.findWeightLogByDate>> | null = null
+  let suspiciousChange = false
+  let weightWarningMessage: string | undefined
 
   if (petData.weight != null) {
-    // 1. Hard block: species absolute max
     const speciesName = existingPet.species?.name ?? 'DEFAULT'
+
+    // 1. Hard block: species absolute max
     if (exceedsSpeciesMaxWeight(petData.weight, speciesName)) {
       const maxKg = getSpeciesMaxWeightKg(speciesName)
       throw new BadRequestError(
@@ -370,7 +373,37 @@ export const updatePet = async (
       )
     }
 
-    // 2. Same-day weight log conflict check
+    // 2. Soft warning: compare against the most recent weight log before today
+    //    Use start-of-today as cutoff so any existing same-day log is excluded from baseline
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const prevLog = await healthLogRepository.findMostRecentPreviousWeight(petId, startOfToday)
+    if (prevLog && prevLog.weight !== null) {
+      // Normal case: prior-to-today log exists — use it as the timed baseline
+      const prevWeight = Number(prevLog.weight)
+      const daysSince = Math.max(
+        (Date.now() - new Date(prevLog.logged_at).getTime()) / (1000 * 60 * 60 * 24),
+        0
+      )
+      const validity = checkWeightValidity(petData.weight, prevWeight, daysSince, speciesName)
+      if (validity.suspicious) {
+        suspiciousChange = true
+        weightWarningMessage = formatWeightWarningMessage(prevWeight, prevLog.logged_at, petData.weight)
+      }
+    } else if (existingPet.weight !== null && existingPet.weight !== undefined) {
+      // Fallback: no prior-to-today log (all history is from today, or pet has no logs yet).
+      // existingPet.weight is the last known weight before this update — use it as the baseline.
+      // daysSince=0 activates the 10% floor threshold, appropriate without a time reference.
+      const prevWeight = Number(existingPet.weight)
+      const validity = checkWeightValidity(petData.weight, prevWeight, 0, speciesName)
+      if (validity.suspicious) {
+        suspiciousChange = true
+        weightWarningMessage = `น้ำหนักเปลี่ยนแปลงค่อนข้างมากจากน้ำหนักล่าสุดของสัตว์เลี้ยง (จาก ${prevWeight.toFixed(2)} kg เป็น ${petData.weight.toFixed(2)} kg) กรุณาตรวจสอบความถูกต้องอีกครั้ง`
+      }
+    }
+    // If both prevLog and existingPet.weight are null — brand new pet with no weight — skip warning
+
+    // 3. Same-day weight log conflict check
     todayWeightLog = await healthLogRepository.findWeightLogByDate(petId, new Date())
     const hasConflict = todayWeightLog !== null && !petData.overwriteWeightLog
 
@@ -470,7 +503,12 @@ export const updatePet = async (
     }
   }
 
-  return { conflict: false as const, pet: updatedPet }
+  // Non-conflict path — include soft warning if the new weight looked suspicious
+  return {
+    conflict: false as const,
+    pet: updatedPet,
+    ...(suspiciousChange && { suspiciousChange: true, warningMessage: weightWarningMessage }),
+  }
 }
 
 export const getAllPetProfilesForUser = async (
