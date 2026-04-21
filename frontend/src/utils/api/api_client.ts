@@ -12,7 +12,7 @@ export class ApiError extends Error {
   constructor(
     public statusCode: number,
     public message: string,
-    public errors?: any
+    public errors?: any,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -55,7 +55,7 @@ const storage = {
     } catch (error) {
       console.error(`Error removing item ${key}:`, error)
     }
-  }
+  },
 }
 
 class ApiClient {
@@ -71,8 +71,8 @@ class ApiClient {
       baseURL: API_BASE_URL,
       timeout: 30000,
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
 
     console.log('✅ API Client initialized:', API_BASE_URL)
@@ -133,7 +133,7 @@ class ApiClient {
       (error) => {
         console.error('❌ Request error:', error)
         return Promise.reject(error)
-      }
+      },
     )
 
     this.client.interceptors.response.use(
@@ -152,7 +152,7 @@ class ApiClient {
           const { status, data } = error.response
           const errorMessage = this.extractApiErrorMessage(
             data,
-            'เกิดข้อผิดพลาดที่ไม่คาดคิด'
+            'เกิดข้อผิดพลาดที่ไม่คาดคิด',
           )
           const errorDetails = (data as any)?.errors
           console.error('Status:', status, 'Data:', data)
@@ -191,7 +191,7 @@ class ApiClient {
               const response = await this.client.post<{
                 data: { accessToken: string; refreshToken: string }
               }>('/v1/auth/refresh', {
-                refreshToken
+                refreshToken,
               })
 
               const { accessToken, refreshToken: newRefreshToken } =
@@ -245,6 +245,13 @@ class ApiClient {
             case 400:
               throw new ApiError(400, errorMessage, errorDetails)
 
+            case 409:
+              throw new ApiError(
+                409,
+                (data as any)?.data?.message || errorMessage,
+                (data as any)?.data || errorDetails,
+              )
+
             case 403:
               throw new ApiError(403, 'คุณไม่มีสิทธิ์ในการดำเนินการนี้')
 
@@ -255,13 +262,13 @@ class ApiClient {
               throw new ApiError(
                 422,
                 'การตรวจสอบล้มเหลว',
-                (data as any)?.errors
+                (data as any)?.errors,
               )
 
             case 500:
               throw new ApiError(
                 500,
-                'เกิดข้อผิดพลาดของเซิร์ฟเวอร์ โปรดลองอีกครั้ง'
+                'เกิดข้อผิดพลาดของเซิร์ฟเวอร์ โปรดลองอีกครั้ง',
               )
 
             default:
@@ -271,12 +278,12 @@ class ApiClient {
           console.error('❌ Network error - no response received')
           throw new ApiError(
             0,
-            'ข้อผิดพลาดของเครือข่าย โปรดตรวจสอบการเชื่อมต่อของคุณ'
+            'ข้อผิดพลาดของเครือข่าย โปรดตรวจสอบการเชื่อมต่อของคุณ',
           )
         } else {
           throw new ApiError(0, error.message || 'เกิดข้อผิดพลาดที่ไม่คาดคิด')
         }
-      }
+      },
     )
   }
 
@@ -292,7 +299,7 @@ class ApiClient {
   async post<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     return this.request<T>({ ...config, method: 'POST', url, data })
   }
@@ -300,7 +307,7 @@ class ApiClient {
   async put<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     return this.request<T>({ ...config, method: 'PUT', url, data })
   }
@@ -308,7 +315,7 @@ class ApiClient {
   async patch<T>(
     url: string,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T> {
     return this.request<T>({ ...config, method: 'PATCH', url, data })
   }

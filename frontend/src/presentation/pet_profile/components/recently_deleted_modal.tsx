@@ -3,6 +3,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { History, Trash2, X } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon,
+} from '@/src/utils/pet_avatar'
+import {
   ActivityIndicator,
   Alert,
   Image,
@@ -11,7 +15,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 
 interface RecentlyDeletedModalProps {
@@ -27,12 +31,15 @@ export default function RecentlyDeletedModal({
   deletedPets,
   onClose,
   onRestore,
-  onPermanentDelete
+  onPermanentDelete,
 }: RecentlyDeletedModalProps) {
   const [processingId, setProcessingId] = useState<string | null>(null)
 
   const getAvatarBackgroundColor = (pet: IDeletedPet): string => {
-    return pet.avatar_background_color || '#9CA3AF'
+    return (
+      pet.avatar_background_color ||
+      getDefaultAvatarBackgroundColorBySpecies(pet.species)
+    )
   }
 
   const formatDeletedDate = (dateStr: string): string => {
@@ -66,9 +73,9 @@ export default function RecentlyDeletedModal({
             } finally {
               setProcessingId(null)
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     )
   }
 
@@ -91,9 +98,9 @@ export default function RecentlyDeletedModal({
             } finally {
               setProcessingId(null)
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     )
   }
 
@@ -101,7 +108,7 @@ export default function RecentlyDeletedModal({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType='slide'
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -112,14 +119,14 @@ export default function RecentlyDeletedModal({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Trash2 size={18} color="#BF1737" />
+              <Trash2 size={18} color='#BF1737' />
               <Text style={styles.title}>เพิ่งลบล่าสุด</Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{deletedPets.length}</Text>
               </View>
             </View>
             <Pressable style={styles.closeButton} onPress={onClose}>
-              <X size={20} color="#6B7280" />
+              <X size={20} color='#6B7280' />
             </Pressable>
           </View>
 
@@ -140,7 +147,7 @@ export default function RecentlyDeletedModal({
                       <View
                         style={[
                           styles.petAvatar,
-                          { backgroundColor: getAvatarBackgroundColor(pet) }
+                          { backgroundColor: getAvatarBackgroundColor(pet) },
                         ]}
                       >
                         {pet.profile_image_url ? (
@@ -150,9 +157,9 @@ export default function RecentlyDeletedModal({
                           />
                         ) : (
                           <MaterialCommunityIcons
-                            name="dog"
+                            name={getPetPlaceholderIcon(pet.species)}
                             size={18}
-                            color="white"
+                            color='white'
                           />
                         )}
                       </View>
@@ -173,9 +180,9 @@ export default function RecentlyDeletedModal({
                         disabled={processingId === pet.id}
                       >
                         {processingId === pet.id ? (
-                          <ActivityIndicator size="small" color="#5FA7D1" />
+                          <ActivityIndicator size='small' color='#5FA7D1' />
                         ) : (
-                          <History size={16} color="#5FA7D1" />
+                          <History size={16} color='#5FA7D1' />
                         )}
                       </Pressable>
                       <Pressable
@@ -183,7 +190,7 @@ export default function RecentlyDeletedModal({
                         onPress={() => handlePermanentDelete(pet)}
                         disabled={processingId === pet.id}
                       >
-                        <Trash2 size={16} color="#BF1737" />
+                        <Trash2 size={16} color='#BF1737' />
                       </Pressable>
                     </View>
                   </View>
@@ -201,14 +208,14 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
   },
   container: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '60%',
-    paddingBottom: 32
+    paddingBottom: 32,
   },
   header: {
     flexDirection: 'row',
@@ -217,47 +224,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6'
+    borderBottomColor: '#F3F4F6',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   title: {
     fontSize: 16,
     fontFamily: 'Prompt_500Medium',
-    color: '#374151'
+    color: '#374151',
   },
   badge: {
     backgroundColor: '#FEE2E2',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10
+    borderRadius: 10,
   },
   badgeText: {
     fontSize: 12,
     fontFamily: 'Prompt_500Medium',
-    color: '#BF1737'
+    color: '#BF1737',
   },
   closeButton: {
-    padding: 4
+    padding: 4,
   },
   scrollView: {
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
   },
   emptyState: {
     paddingVertical: 40,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   emptyText: {
     fontSize: 14,
     fontFamily: 'Prompt_400Regular',
-    color: '#9CA3AF'
+    color: '#9CA3AF',
   },
   petList: {
     paddingVertical: 12,
-    gap: 8
+    gap: 8,
   },
   petItem: {
     flexDirection: 'row',
@@ -265,12 +272,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FEF2F2',
     borderRadius: 12,
-    padding: 12
+    padding: 12,
   },
   petInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1
+    flex: 1,
   },
   petAvatar: {
     width: 36,
@@ -280,29 +287,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   petAvatarImage: {
     width: 36,
     height: 36,
-    borderRadius: 18
+    borderRadius: 18,
   },
   petDetails: {
-    flex: 1
+    flex: 1,
   },
   petName: {
     fontSize: 14,
     color: '#374151',
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   deletedDate: {
     fontSize: 11,
     color: '#9CA3AF',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   actions: {
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
   },
   restoreButton: {
     width: 36,
@@ -310,7 +317,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#E8F4F8',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   deleteButton: {
     width: 36,
@@ -318,6 +325,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FEE2E2',
     justifyContent: 'center',
-    alignItems: 'center'
-  }
+    alignItems: 'center',
+  },
 })
