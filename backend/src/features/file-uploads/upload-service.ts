@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { minioClient } from '../../libs/minio-client';
 import { UploadUrlRequest } from './upload-schema';
 import { logger } from '../../libs/logger';
+import { BadRequestError } from '../../shared/errors';
 
 /**
  * File Upload Service
@@ -70,7 +71,9 @@ export async function generateUploadUrl(
 ): Promise<UploadUrlResponse> {
     // Validate MIME type matches extension
     if (!validateMimeType(request.fileName, request.fileType)) {
-        throw new Error('File extension does not match MIME type');
+        throw new BadRequestError(
+            `fileName and fileType are conflicting: "${request.fileName}" does not match MIME type "${request.fileType}"`
+        );
     }
 
     // Generate object key
