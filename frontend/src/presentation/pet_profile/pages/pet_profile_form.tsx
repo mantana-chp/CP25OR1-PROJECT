@@ -93,6 +93,21 @@ const normalizePetNameForComparison = (name?: string | null) =>
 const PET_NAME_DUPLICATE_MESSAGE =
   'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่แล้ว กรุณาใช้ชื่ออื่น'
 
+const isSpeciesWeightLimitMessage = (message?: string) => {
+  return (
+    typeof message === 'string' &&
+    (message.includes('เกินค่าสูงสุดที่เป็นไปได้') ||
+      message.includes('น้ำหนักที่ระบุ'))
+  )
+}
+
+const showSpeciesWeightLimitAlert = (message?: string) => {
+  Alert.alert(
+    'ค่าน้ำหนักเกินช่วงที่เป็นไปได้',
+    message || 'กรุณาตรวจสอบค่าน้ำหนักให้เหมาะสมกับชนิดสัตว์เลี้ยงอีกครั้ง',
+  )
+}
+
 export default function PetProfileForm({
   isOnboarding = false,
 }: PetProfileFormProps) {
@@ -613,6 +628,11 @@ export default function PetProfileForm({
           return
         }
 
+        if (isSpeciesWeightLimitMessage(error?.message)) {
+          showSpeciesWeightLimitAlert(error?.message)
+          return
+        }
+
         Alert.alert(
           'เกิดข้อผิดพลาด',
           error?.message ||
@@ -771,6 +791,11 @@ export default function PetProfileForm({
         const fallbackErrors = findDuplicateNameErrorsForForms(petForms)
         setNameConflictErrors(fallbackErrors)
         Alert.alert('ชื่อสัตว์เลี้ยงซ้ำ', conflictMessage)
+        return
+      }
+
+      if (isSpeciesWeightLimitMessage(error?.message)) {
+        showSpeciesWeightLimitAlert(error?.message)
         return
       }
 

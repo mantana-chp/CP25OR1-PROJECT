@@ -519,7 +519,7 @@ export default function PetProfilePage() {
                         activeTab === 'past' && styles.pastTabText,
                       ]}
                     >
-                      ในความทรงจำ
+                      กลับดาว
                     </Text>
                     {contextDeceasedPets.length > 0 && (
                       <View

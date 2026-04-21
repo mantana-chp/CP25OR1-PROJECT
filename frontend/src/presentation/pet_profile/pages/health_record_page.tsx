@@ -84,6 +84,21 @@ const parseInitialPageMode = (value?: string): PageMode => {
   return 'records'
 }
 
+const isSpeciesWeightLimitMessage = (message?: string) => {
+  return (
+    typeof message === 'string' &&
+    (message.includes('เกินค่าสูงสุดที่เป็นไปได้') ||
+      message.includes('น้ำหนักที่ระบุ'))
+  )
+}
+
+const showSpeciesWeightLimitAlert = (message?: string) => {
+  Alert.alert(
+    'ค่าน้ำหนักเกินช่วงที่เป็นไปได้',
+    message || 'กรุณาตรวจสอบค่าน้ำหนักให้เหมาะสมกับชนิดสัตว์เลี้ยงอีกครั้ง',
+  )
+}
+
 export default function HealthRecordPage() {
   const router = useRouter()
   const { petId, mode, subTab } = useLocalSearchParams<{
@@ -125,7 +140,7 @@ export default function HealthRecordPage() {
     showErrorAlert: false,
   })
   const updateHealthLogApi = useApi(healthLogService.updateHealthLog, {
-    showErrorAlert: true,
+    showErrorAlert: false,
   })
   const deleteHealthLogApi = useApi(healthLogService.deleteHealthLog, {
     showErrorAlert: true,
@@ -367,6 +382,11 @@ export default function HealthRecordPage() {
               onPress: async () => {
                 const upsertResult = await executeCreate(true)
                 if (upsertResult.error) {
+                  if (isSpeciesWeightLimitMessage(upsertResult.error.message)) {
+                    showSpeciesWeightLimitAlert(upsertResult.error.message)
+                    return
+                  }
+
                   Alert.alert(
                     'ไม่สามารถบันทึกข้อมูล',
                     upsertResult.error.message,
@@ -379,6 +399,11 @@ export default function HealthRecordPage() {
             },
           ],
         )
+        return
+      }
+
+      if (isSpeciesWeightLimitMessage(result.error.message)) {
+        showSpeciesWeightLimitAlert(result.error.message)
         return
       }
 
