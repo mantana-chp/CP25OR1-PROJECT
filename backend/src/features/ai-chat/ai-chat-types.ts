@@ -47,6 +47,7 @@ export type PetClarificationRequestData = {
     petId: string;
     petName: string;
     role: 'OWNER' | 'CAREGIVER';
+    petProfileUrl?: string;
   }>;
 };
 

@@ -4,6 +4,7 @@ import { config } from '../../config';
 import { logger } from '../../libs/logger';
 import prisma from '../../libs/db';
 import { formatBirthDateToYearsMonths } from '../../shared/utils';
+import { generateDownloadUrl } from '../file-uploads/upload-service';
 import { PetCandidate, PetMatch } from './ai-chat-name-matcher';
 import { PetClarificationSubmissionInput } from './ai-chat-schema';
 import { SessionEntry } from './ai-chat-session-manager';
@@ -226,21 +227,21 @@ ${healthHistory || 'No recent health records.'}
  * Handles duplicate pet name disambiguation when a user has multiple pets
  * with the same name (e.g., owned "Snow" and caregiver "Snow").
  */
-export const derivePetContextState = (
+export const derivePetContextState = async (
   session: SessionEntry,
   detectedPets: PetMatch[],
   incomingResolvedPetId: string | undefined,
   petClarificationSubmission: PetClarificationSubmissionInput | undefined,
   incomingContextId: string | undefined,
   userPets: PetMatch[]
-): {
+): Promise<{
   effectiveContextId: string;
   petContextStatus: PetContextStatus;
   petContextChanged: boolean;
   resolvedPet: PetMatch | undefined;
   ambiguousPets: PetMatch[];
   petClarificationRequest?: PetClarificationRequestData;
-} => {
+}> => {
   // If user is submitting a pet clarification selection
   if (petClarificationSubmission) {
     const selectedPet = userPets.find((p) => p.id === petClarificationSubmission.selectedPetId);
@@ -299,11 +300,37 @@ export const derivePetContextState = (
   const newContextId = uuidv4();
   const petName = detectedPets[0].pet_name; // All have same name
 
+  // Fetch profile image keys for the ambiguous pets in one DB call,
+  // then generate presigned download URLs (same pattern as pet-service.ts).
+  const petIds = detectedPets.map((p) => p.id);
+  const petProfiles = await prisma.pets.findMany({
+    where: { id: { in: petIds } },
+    select: { id: true, profile_image_key: true },
+  });
+
+  const profileUrlById = new Map<string, string | undefined>();
+  await Promise.all(
+    petProfiles.map(async (p) => {
+      if (p.profile_image_key) {
+        try {
+          const url = await generateDownloadUrl(p.profile_image_key, 3600);
+          profileUrlById.set(p.id, url);
+        } catch {
+          // Non-fatal: if URL generation fails, just omit the field
+          profileUrlById.set(p.id, undefined);
+        }
+      }
+    })
+  );
+
   // Build options for the frontend to display
   const options = detectedPets.map((p) => ({
     petId: p.id,
     petName: p.pet_name,
     role: p.role,
+    ...(profileUrlById.get(p.id)
+      ? { petProfileUrl: profileUrlById.get(p.id) }
+      : {}),
   }));
 
   // Find owned and caregiver options for the prompt

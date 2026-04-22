@@ -236,7 +236,7 @@ export const chatWithAI = async (
       resolvedPet,
       ambiguousPets,
       petClarificationRequest,
-    } = derivePetContextState(
+    } = await derivePetContextState(
       session,
       detectedPets,
       incomingResolvedPetId,
