@@ -2,10 +2,12 @@ import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
+import { IReminder } from '@/src/domain/reminder.domain'
 import {
   generateAllVirtualReminders,
+  IVirtualReminder,
   mergeRealAndVirtualReminders
-} from '@/src/utils/recurring_reminder_generator'
+} from '../../../utils/recurring_reminder_generator'
 import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -94,7 +96,9 @@ export default function ReminderPage() {
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
-  const [virtualReminders, setVirtualReminders] = useState<any[]>([])
+  const [virtualReminders, setVirtualReminders] = useState<IVirtualReminder[]>(
+    []
+  )
 
   // ------------------
   // FETCH
@@ -267,10 +271,11 @@ export default function ReminderPage() {
   const filteredReminders = useMemo(
     () =>
       hasUserSelectedDate && selectedDate
-        ? allRemindersForSelectedDate.filter((reminder) =>
+        ? allRemindersForSelectedDate.filter(
+            (reminder: IReminder | IVirtualReminder) =>
             dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
           )
-        : allReminders.filter((reminder) => {
+        : allReminders.filter((reminder: IReminder | IVirtualReminder) => {
             if (!reminder.isVirtual) return true
 
             return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
