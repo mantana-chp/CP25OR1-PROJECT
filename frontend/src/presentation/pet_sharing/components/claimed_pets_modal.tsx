@@ -6,6 +6,11 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Cake, CheckCircle2, PawPrint, X } from 'lucide-react-native'
 import React from 'react'
 import {
@@ -85,10 +90,21 @@ export default function ClaimedPetsModal({
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.petImagePlaceholder}>
-              <Text style={styles.petImagePlaceholderText}>
-                {petName.charAt(0).toUpperCase()}
-              </Text>
+            <View
+              style={[
+                styles.petImagePlaceholder,
+                {
+                  backgroundColor:
+                    item.avatar_background_color ||
+                    getDefaultAvatarBackgroundColorBySpecies(item.species)
+                }
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={getPetPlaceholderIcon(item.species)}
+                size={30}
+                color={colors.background.secondary}
+              />
             </View>
           )}
         </View>

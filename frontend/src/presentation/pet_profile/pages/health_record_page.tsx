@@ -3,7 +3,7 @@ import {
   colors,
   iconSizes,
   spacing,
-  typography,
+  typography
 } from '@/constants/design-system'
 import { useAuth } from '@/src/context/AuthContext'
 import { usePets } from '@/src/context/PetContext'
@@ -14,7 +14,7 @@ import {
   CreateHealthLogData,
   CreateHealthLogPayload,
   healthLogService,
-  IHealthLog,
+  IHealthLog
 } from '@/src/utils/api/services/health_log_service'
 import { WeightChartView } from '@/src/domain/weight-chart.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
@@ -31,7 +31,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 import Header from '../../components/header_component'
 import Button from '../../components/button'
@@ -61,14 +61,14 @@ const FILTER_TABS: { id: CategoryFilter; label: string; color: string }[] = [
   { id: 'Vaccination', label: 'วัคซีน', color: '#EC4899' },
   { id: 'Checkup', label: 'ตรวจสุขภาพ', color: '#3B82F6' },
   { id: 'Medication', label: 'ยา/อาหารเสริม', color: '#10B981' },
-  { id: 'Deworming', label: 'พยาธิ/เห็บหมัด', color: '#F59E0B' },
+  { id: 'Deworming', label: 'พยาธิ/เห็บหมัด', color: '#F59E0B' }
 ]
 
 const TYPE_LABEL: Record<HealthTypeFilter, string> = {
   ALL: 'ทั้งหมด',
   WEIGHT: 'น้ำหนัก',
   SYMPTOMS: 'อาการป่วย',
-  BEHAVIOR: 'พฤติกรรม',
+  BEHAVIOR: 'พฤติกรรม'
 }
 
 const parseWeightInput = (raw: string) => {
@@ -95,7 +95,7 @@ export default function HealthRecordPage() {
   const { activePets, deceasedPets, refreshPets } = usePets()
 
   const [pageMode, setPageMode] = useState<PageMode>(() =>
-    parseInitialPageMode(mode || subTab),
+    parseInitialPageMode(mode || subTab)
   )
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>('All')
@@ -110,25 +110,25 @@ export default function HealthRecordPage() {
   const canCreateLog = Boolean(petId && currentPet && !isDeceased)
 
   const getHealthRecordsApi = useApi(healthRecordService.getHealthRecords, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
   const getHealthRecordByIdApi = useApi(
     healthRecordService.getHealthRecordById,
     {
-      showErrorAlert: true,
-    },
+      showErrorAlert: true
+    }
   )
   const getHealthLogsApi = useApi(healthLogService.getHealthLogs, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
   const createHealthLogApi = useApi(healthLogService.createHealthLog, {
-    showErrorAlert: false,
+    showErrorAlert: false
   })
   const updateHealthLogApi = useApi(healthLogService.updateHealthLog, {
-    showErrorAlert: true,
+    showErrorAlert: true
   })
   const deleteHealthLogApi = useApi(healthLogService.deleteHealthLog, {
-    showErrorAlert: true,
+    showErrorAlert: true
   })
   const getWeightChartApi = useApi(healthLogService.getWeightChart, {
     showErrorAlert: false
@@ -157,7 +157,7 @@ export default function HealthRecordPage() {
 
       const result = await getHealthLogsApi.execute(petId, {
         limit: 50,
-        offset,
+        offset
       })
 
       if (append) {
@@ -170,7 +170,7 @@ export default function HealthRecordPage() {
         setHasMoreLogs(newTotal < total)
       }
     },
-    [petId, getHealthLogsApi.execute],
+    [petId, getHealthLogsApi.execute]
   )
 
   const loadHealthRecords = useCallback(async () => {
@@ -184,7 +184,7 @@ export default function HealthRecordPage() {
       if (response?.data) {
         setPetProfileWithTimestamp({
           weight: response.data.weight,
-          updated_at: response.data.updated_at,
+          updated_at: response.data.updated_at
         })
       }
     } catch (error) {
@@ -251,12 +251,12 @@ export default function HealthRecordPage() {
             ts(a.reminderDate, a.reminderTime)
           )
         }),
-    [allHealthRecords, petId],
+    [allHealthRecords, petId]
   )
 
   const filteredRecords = useMemo(
     () => getFilteredRecords(selectedCategory),
-    [getFilteredRecords, selectedCategory],
+    [getFilteredRecords, selectedCategory]
   )
 
   const rawLogs: IHealthLog[] = getHealthLogsApi.data?.data?.logs || []
@@ -267,12 +267,12 @@ export default function HealthRecordPage() {
         return {
           ...log,
           logType: log.category,
-          cleanDescription: log.description,
+          cleanDescription: log.description
         }
       })
       .sort(
         (a, b) =>
-          new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
+          new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
       )
   }, [rawLogs])
 
@@ -286,7 +286,7 @@ export default function HealthRecordPage() {
       ALL: parsedLogs.length,
       WEIGHT: parsedLogs.filter((l) => l.logType === 'WEIGHT').length,
       SYMPTOMS: parsedLogs.filter((l) => l.logType === 'SYMPTOMS').length,
-      BEHAVIOR: parsedLogs.filter((l) => l.logType === 'BEHAVIOR').length,
+      BEHAVIOR: parsedLogs.filter((l) => l.logType === 'BEHAVIOR').length
     }
   }, [parsedLogs])
 
@@ -315,7 +315,7 @@ export default function HealthRecordPage() {
       weight:
         values.type === 'WEIGHT' ? (parsedWeight ?? undefined) : undefined,
       note: values.note || undefined,
-      loggedAt: values.loggedAt || new Date().toISOString(),
+      loggedAt: values.loggedAt || new Date().toISOString()
     }
 
     const completeSaveFlow = async (createData?: CreateHealthLogData) => {
@@ -332,7 +332,7 @@ export default function HealthRecordPage() {
     const executeCreate = async (upsert = false) => {
       return createHealthLogApi.execute(petId, {
         ...payload,
-        ...(upsert ? { upsert: true } : {}),
+        ...(upsert ? { upsert: true } : {})
       })
     }
 
@@ -360,7 +360,7 @@ export default function HealthRecordPage() {
           [
             {
               text: 'ยกเลิก',
-              style: 'cancel',
+              style: 'cancel'
             },
             {
               text: 'อัปเดตค่าใหม่',
@@ -369,15 +369,15 @@ export default function HealthRecordPage() {
                 if (upsertResult.error) {
                   Alert.alert(
                     'ไม่สามารถบันทึกข้อมูล',
-                    upsertResult.error.message,
+                    upsertResult.error.message
                   )
                   return
                 }
 
                 await completeSaveFlow(upsertResult.data?.data)
-              },
-            },
-          ],
+              }
+            }
+          ]
         )
         return
       }
@@ -413,7 +413,7 @@ export default function HealthRecordPage() {
       [
         {
           text: 'ยกเลิก',
-          style: 'cancel',
+          style: 'cancel'
         },
         {
           text: 'ลบ',
@@ -425,9 +425,9 @@ export default function HealthRecordPage() {
             await loadHealthLogs(false) // Reload to reflect deletion
             await loadWeightChart()
             refreshPets()
-          },
-        },
-      ],
+          }
+        }
+      ]
     )
   }
 
@@ -473,14 +473,14 @@ export default function HealthRecordPage() {
         <TouchableOpacity
           style={[
             styles.modeChip,
-            pageMode === 'records' && styles.modeChipActive,
+            pageMode === 'records' && styles.modeChipActive
           ]}
           onPress={() => setPageMode('records')}
         >
           <Text
             style={[
               styles.modeChipText,
-              pageMode === 'records' && styles.modeChipTextActive,
+              pageMode === 'records' && styles.modeChipTextActive
             ]}
           >
             ประวัติสุขภาพ
@@ -489,14 +489,14 @@ export default function HealthRecordPage() {
         <TouchableOpacity
           style={[
             styles.modeChip,
-            pageMode === 'logs' && styles.modeChipActive,
+            pageMode === 'logs' && styles.modeChipActive
           ]}
           onPress={() => setPageMode('logs')}
         >
           <Text
             style={[
               styles.modeChipText,
-              pageMode === 'logs' && styles.modeChipTextActive,
+              pageMode === 'logs' && styles.modeChipTextActive
             ]}
           >
             บันทึกสุขภาพ
@@ -505,14 +505,14 @@ export default function HealthRecordPage() {
         <TouchableOpacity
           style={[
             styles.modeChip,
-            pageMode === 'documents' && styles.modeChipActive,
+            pageMode === 'documents' && styles.modeChipActive
           ]}
           onPress={() => setPageMode('documents')}
         >
           <Text
             style={[
               styles.modeChipText,
-              pageMode === 'documents' && styles.modeChipTextActive,
+              pageMode === 'documents' && styles.modeChipTextActive
             ]}
           >
             เอกสารสุขภาพ
@@ -538,8 +538,8 @@ export default function HealthRecordPage() {
                     styles.filterChipLegacy,
                     isActive && {
                       backgroundColor: tab.color,
-                      borderColor: tab.color,
-                    },
+                      borderColor: tab.color
+                    }
                   ]}
                   onPress={() => setSelectedCategory(tab.id)}
                   activeOpacity={0.75}
@@ -547,7 +547,7 @@ export default function HealthRecordPage() {
                   <Text
                     style={[
                       styles.filterChipLegacyText,
-                      isActive && styles.filterChipLegacyTextActive,
+                      isActive && styles.filterChipLegacyTextActive
                     ]}
                   >
                     {tab.label}
@@ -557,14 +557,14 @@ export default function HealthRecordPage() {
                       style={[
                         styles.chipBadge,
                         isActive && {
-                          backgroundColor: 'rgba(255,255,255,0.3)',
-                        },
+                          backgroundColor: 'rgba(255,255,255,0.3)'
+                        }
                       ]}
                     >
                       <Text
                         style={[
                           styles.chipBadgeText,
-                          isActive && { color: '#fff' },
+                          isActive && { color: '#fff' }
                         ]}
                       >
                         {count}
@@ -595,13 +595,13 @@ export default function HealthRecordPage() {
                     onPress={() => setSelectedFilter(filterKey)}
                     style={[
                       styles.filterChipLegacy,
-                      active && styles.logFilterChipActive,
+                      active && styles.logFilterChipActive
                     ]}
                   >
                     <Text
                       style={[
                         styles.filterChipLegacyText,
-                        active && styles.filterChipLegacyTextActive,
+                        active && styles.filterChipLegacyTextActive
                       ]}
                     >
                       {TYPE_LABEL[filterKey]}
@@ -610,13 +610,13 @@ export default function HealthRecordPage() {
                       <View
                         style={[
                           styles.chipBadge,
-                          active && styles.logChipBadgeActive,
+                          active && styles.logChipBadgeActive
                         ]}
                       >
                         <Text
                           style={[
                             styles.chipBadgeText,
-                            active && styles.logChipBadgeTextActive,
+                            active && styles.logChipBadgeTextActive
                           ]}
                         >
                           {count}
@@ -625,7 +625,7 @@ export default function HealthRecordPage() {
                     )}
                   </TouchableOpacity>
                 )
-              },
+              }
             )}
           </ScrollView>
         </>
@@ -637,7 +637,7 @@ export default function HealthRecordPage() {
     pageMode === 'records' ? (
       getHealthRecordsApi.loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator size='large' color={colors.primary.light} />
+          <ActivityIndicator size="large" color={colors.primary.light} />
           <Text style={styles.emptySubtitle}>กำลังโหลดประวัติสุขภาพ...</Text>
         </View>
       ) : (
@@ -653,7 +653,7 @@ export default function HealthRecordPage() {
       )
     ) : getHealthLogsApi.loading ? (
       <View style={styles.centerState}>
-        <ActivityIndicator size='large' color={colors.primary.light} />
+        <ActivityIndicator size="large" color={colors.primary.light} />
         <Text style={styles.emptySubtitle}>กำลังโหลดข้อมูลสุขภาพ...</Text>
       </View>
     ) : (
@@ -671,8 +671,8 @@ export default function HealthRecordPage() {
     pageMode === 'logs' && hasMoreLogs && !getHealthLogsApi.loading ? (
       <View style={styles.loadMoreContainer}>
         <Button
-          title='โหลดเพิ่มเติม'
-          variant='ghost'
+          title="โหลดเพิ่มเติม"
+          variant="ghost"
           onPress={() => loadHealthLogs(true)}
           loading={isLoadingMore}
           disabled={isLoadingMore}
@@ -680,7 +680,7 @@ export default function HealthRecordPage() {
       </View>
     ) : pageMode === 'logs' && isLoadingMore ? (
       <View style={styles.loadMoreContainer}>
-        <ActivityIndicator size='small' color={colors.primary.light} />
+        <ActivityIndicator size="small" color={colors.primary.light} />
       </View>
     ) : null
 
@@ -688,7 +688,7 @@ export default function HealthRecordPage() {
     return (
       <View style={styles.container}>
         <Header
-          title='บันทึกและติดตามสุขภาพ'
+          title="บันทึกและติดตามสุขภาพ"
           goBack
           onBackPress={() => router.push('/(tabs)/pet_profile')}
         />
@@ -706,7 +706,7 @@ export default function HealthRecordPage() {
     return (
       <View style={styles.container}>
         <Header
-          title='บันทึกและติดตามสุขภาพ'
+          title="บันทึกและติดตามสุขภาพ"
           goBack
           onBackPress={() => router.push('/(tabs)/pet_profile')}
         />
@@ -717,9 +717,9 @@ export default function HealthRecordPage() {
           </Text>
           <View style={styles.retryButtonWrap}>
             <Button
-              title='โหลดใหม่'
+              title="โหลดใหม่"
               onPress={() => loadHealthLogs(false)}
-              variant='ghost'
+              variant="ghost"
             />
           </View>
         </View>
@@ -735,7 +735,7 @@ export default function HealthRecordPage() {
     return (
       <View style={styles.container}>
         <Header
-          title='บันทึกและติดตามสุขภาพ'
+          title="บันทึกและติดตามสุขภาพ"
           goBack
           onBackPress={() => router.push('/(tabs)/pet_profile')}
         />
@@ -746,9 +746,9 @@ export default function HealthRecordPage() {
           </Text>
           <View style={styles.retryButtonWrap}>
             <Button
-              title='ลองอีกครั้ง'
+              title="ลองอีกครั้ง"
               onPress={() => loadHealthLogs(false)}
-              variant='ghost'
+              variant="ghost"
             />
           </View>
         </View>
@@ -759,7 +759,7 @@ export default function HealthRecordPage() {
   return (
     <View style={styles.container}>
       <Header
-        title='ประวัติและบันทึกสุขภาพ'
+        title="ประวัติและบันทึกสุขภาพ"
         goBack
         onBackPress={() => router.push('/(tabs)/pet_profile')}
       />
@@ -784,7 +784,7 @@ export default function HealthRecordPage() {
                 log={item}
                 parsed={{
                   type: item.logType,
-                  description: item.cleanDescription,
+                  description: item.cleanDescription
                 }}
                 canEdit={canModify}
                 canDelete={canModify}
@@ -835,7 +835,7 @@ export default function HealthRecordPage() {
       {pageMode === 'logs' && (
         <View style={styles.fabContainer}>
           <Button
-            title='เพิ่มบันทึกสุขภาพ'
+            title="เพิ่มบันทึกสุขภาพ"
             onPress={() => setShowCreateModal(true)}
             icon={
               <Plus size={iconSizes.md} color={colors.background.secondary} />
@@ -875,19 +875,19 @@ export default function HealthRecordPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background.primary
   },
   listContent: {
     paddingHorizontal: spacing[4],
     paddingBottom: 90,
-    flexGrow: 1,
+    flexGrow: 1
   },
   petCardWrapper: {
     marginTop: spacing[4],
     marginBottom: spacing[3],
     backgroundColor: colors.background.secondary,
     borderRadius: 12,
-    padding: spacing[3],
+    padding: spacing[3]
   },
   modeSwitchRow: {
     flexDirection: 'row',
@@ -895,51 +895,51 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     padding: 4,
     marginBottom: spacing[3],
-    gap: 4,
+    gap: 4
   },
   modeChip: {
     flex: 1,
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 8
   },
   modeChipActive: {
-    backgroundColor: colors.background.secondary,
+    backgroundColor: colors.background.secondary
   },
   modeChipText: {
     fontSize: typography.fontSize.sm,
     color: colors.gray[600],
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium
   },
   modeChipTextActive: {
-    color: colors.primary.DEFAULT,
+    color: colors.primary.DEFAULT
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing[2],
+    marginBottom: spacing[2]
   },
   sectionTitle: {
     fontSize: typography.fontSize.xl,
     fontFamily: typography.fontFamily.bold,
-    color: colors.primary.DEFAULT,
+    color: colors.primary.DEFAULT
   },
   totalBadge: {
     backgroundColor: colors.primary.light,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: 20,
+    borderRadius: 20
   },
   totalBadgeText: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.medium,
-    color: colors.background.secondary,
+    color: colors.background.secondary
   },
   filterScroll: {
     paddingBottom: spacing[2],
-    gap: spacing[1],
+    gap: spacing[1]
   },
   filterChipLegacy: {
     flexDirection: 'row',
@@ -950,16 +950,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.light,
     backgroundColor: colors.background.secondary,
-    gap: 6,
+    gap: 6
   },
   filterChipLegacyText: {
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
-    color: colors.gray[600],
+    color: colors.gray[600]
   },
   filterChipLegacyTextActive: {
     fontFamily: typography.fontFamily.medium,
-    color: colors.background.secondary,
+    color: colors.background.secondary
   },
   chipBadge: {
     minWidth: 18,
@@ -968,36 +968,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[200],
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 4
   },
   chipBadgeText: {
     fontSize: 10,
     fontFamily: typography.fontFamily.medium,
-    color: colors.gray[600],
+    color: colors.gray[600]
   },
   logFilterChipActive: {
     borderColor: colors.primary.light,
-    backgroundColor: colors.primary.light,
+    backgroundColor: colors.primary.light
   },
   logChipBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.3)'
   },
   logChipBadgeTextActive: {
-    color: '#fff',
+    color: '#fff'
   },
   centerState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
-    paddingTop: spacing[10],
+    paddingTop: spacing[10]
   },
   emptyTitle: {
     marginTop: spacing[3],
     fontSize: typography.fontSize.lg,
     color: colors.gray[600],
     fontFamily: typography.fontFamily.medium,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   emptySubtitle: {
     marginTop: spacing[2],
@@ -1005,31 +1005,31 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.normal,
+    lineHeight: typography.lineHeight.normal
   },
   fabContainer: {
     position: 'absolute',
     left: spacing[4],
     right: spacing[4],
-    bottom: spacing[8],
+    bottom: spacing[8]
   },
   fabButton: {
     borderRadius: borderRadius.full,
     minHeight: 52,
-    backgroundColor: colors.primary.light,
+    backgroundColor: colors.primary.light
   },
   disabledHintText: {
     marginTop: spacing[2],
     fontSize: typography.fontSize.sm,
     color: colors.gray[500],
     fontFamily: typography.fontFamily.regular,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   retryButtonWrap: {
-    marginTop: spacing[3],
+    marginTop: spacing[3]
   },
   loadMoreContainer: {
     paddingVertical: spacing[4],
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+  }
 })

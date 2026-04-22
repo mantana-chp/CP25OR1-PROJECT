@@ -43,13 +43,7 @@ export interface ClarificationRequestData {
 export interface PetClarificationOption {
   petId?: string
   petName?: string
-  id?: string
-  pet_name?: string
-  profileImageUrl?: string | null
-  profile_image_url?: string | null
-  profileImage?: string | null
-  avatarUrl?: string | null
-  imageUrl?: string | null
+  petProfileUrl?: string | null
   role: 'OWNER' | 'CAREGIVER'
   ownerAlias?: string | null
 }
