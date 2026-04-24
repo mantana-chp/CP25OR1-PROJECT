@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 import {
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -22,13 +23,17 @@ interface NotificationListProps {
   isLoading?: boolean
   isRefreshing?: boolean
   onRefresh?: () => void
+  onMarkAllAsRead?: () => void
+  isMarkingAllAsRead?: boolean
 }
 
 export default function NotificationList({
   notifications,
   isLoading,
   isRefreshing = false,
-  onRefresh
+  onRefresh,
+  onMarkAllAsRead,
+  isMarkingAllAsRead = false
 }: NotificationListProps) {
   const router = useRouter()
   const { refreshUnreadCount } = useUnreadNotifications()
@@ -72,6 +77,10 @@ export default function NotificationList({
     [router, readIds, markAsReadApi]
   )
 
+  const unreadCount = notifications.filter(
+    (notification) => !notification.readAt && !readIds.includes(notification.id)
+  ).length
+
   return (
     <View style={styles.container}>
       {isLoading ? (
@@ -90,6 +99,28 @@ export default function NotificationList({
             />
           }
         >
+          {_.size(notifications) > 0 && (
+            <View style={styles.actionRow}>
+              <Text style={styles.actionHintText}>
+                ยังไม่ได้อ่าน {unreadCount} รายการ
+              </Text>
+              <Pressable
+                onPress={onMarkAllAsRead}
+                disabled={isMarkingAllAsRead || unreadCount === 0}
+              >
+                <Text
+                  style={[
+                    styles.readAllText,
+                    (isMarkingAllAsRead || unreadCount === 0) &&
+                      styles.readAllTextDisabled
+                  ]}
+                >
+                  {isMarkingAllAsRead ? 'กำลังอัปเดต...' : 'อ่านทั้งหมด'}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {_.size(notifications) === 0 ? (
             <View style={styles.emptyContainer}>
               <BellOff size={56} color="#C4C4C4" strokeWidth={1.5} />
@@ -128,6 +159,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
     flexGrow: 1
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  actionHintText: {
+    color: '#6B7280',
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular'
+  },
+  readAllText: {
+    color: '#2E759E',
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium'
+  },
+  readAllTextDisabled: {
+    color: '#C4C4C4'
   },
   emptyContainer: {
     alignItems: 'center',
