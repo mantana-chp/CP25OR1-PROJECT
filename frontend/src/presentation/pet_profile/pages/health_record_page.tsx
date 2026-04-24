@@ -417,11 +417,6 @@ export default function HealthRecordPage() {
     }
 
     await completeSaveFlow(result.data?.data)
-    setShowCreateModal(false)
-    setEditingLog(null)
-    await loadHealthLogs(false) // Reload from start to show updated log
-    await loadWeightChart()
-    refreshPets()
   }
 
   const handleEditLog = (log: IHealthLog) => {

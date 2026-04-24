@@ -467,7 +467,7 @@ export default function PetProfileForm({
         // Create/update pet profile first
         let newPetId = petId
         if (isEditMode) {
-          const updateResponse = await petProfileService.updatePetProfile(
+          let updateResponse = await petProfileService.updatePetProfile(
             petId,
             petDataToSend,
           )
@@ -486,10 +486,25 @@ export default function PetProfileForm({
               return
             }
 
-            await petProfileService.updatePetProfile(petId, {
+            updateResponse = await petProfileService.updatePetProfile(petId, {
               ...petDataToSend,
               overwriteWeightLog: true,
             })
+          }
+
+          // Check for suspicious weight change warnings
+          if (
+            updateResponse.data &&
+            typeof updateResponse.data === 'object' &&
+            'suspiciousChange' in updateResponse.data &&
+            updateResponse.data.suspiciousChange &&
+            'warningMessage' in updateResponse.data &&
+            updateResponse.data.warningMessage
+          ) {
+            Alert.alert(
+              'โปรดตรวจสอบค่าน้ำหนัก',
+              updateResponse.data.warningMessage as string,
+            )
           }
         } else {
           const createResponse =
