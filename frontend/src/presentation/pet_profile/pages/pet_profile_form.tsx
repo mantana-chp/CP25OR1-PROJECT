@@ -19,6 +19,41 @@ import {
 } from '@/src/domain/pet.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { uploadService } from '@/src/utils/api/services/upload_service'
+
+const isUpdatePetConflictData = (
+  data: unknown,
+): data is {
+  conflict: true
+  message?: string
+} => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'conflict' in data &&
+    (data as { conflict?: boolean }).conflict === true
+  )
+}
+
+const confirmOverwriteWeightLog = (message: string): Promise<boolean> => {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'มีบันทึกน้ำหนักวันนี้แล้ว',
+      message,
+      [
+        {
+          text: 'ยกเลิก',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'อัปเดตน้ำหนัก',
+          onPress: () => resolve(true),
+        },
+      ],
+      { cancelable: false },
+    )
+  })
+}
 import {
   DEFAULT_PET_AVATAR_BACKGROUND_COLOR,
   getPetPlaceholderIcon,
@@ -57,6 +92,21 @@ const normalizePetNameForComparison = (name?: string | null) =>
 
 const PET_NAME_DUPLICATE_MESSAGE =
   'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่แล้ว กรุณาใช้ชื่ออื่น'
+
+const isSpeciesWeightLimitMessage = (message?: string) => {
+  return (
+    typeof message === 'string' &&
+    (message.includes('เกินค่าสูงสุดที่เป็นไปได้') ||
+      message.includes('น้ำหนักที่ระบุ'))
+  )
+}
+
+const showSpeciesWeightLimitAlert = (message?: string) => {
+  Alert.alert(
+    'ค่าน้ำหนักเกินช่วงที่เป็นไปได้',
+    message || 'กรุณาตรวจสอบค่าน้ำหนักให้เหมาะสมกับชนิดสัตว์เลี้ยงอีกครั้ง',
+  )
+}
 
 export default function PetProfileForm({
   isOnboarding = false,
@@ -417,7 +467,45 @@ export default function PetProfileForm({
         // Create/update pet profile first
         let newPetId = petId
         if (isEditMode) {
-          await petProfileService.updatePetProfile(petId, petDataToSend)
+          let updateResponse = await petProfileService.updatePetProfile(
+            petId,
+            petDataToSend,
+          )
+
+          if (isUpdatePetConflictData(updateResponse.data)) {
+            const conflictMessage =
+              updateResponse.data.message ||
+              'มีการบันทึกน้ำหนักในวันนี้แล้ว คุณยังต้องการอัปเดตน้ำหนักอยู่หรือไม่?'
+
+            const shouldOverwrite =
+              await confirmOverwriteWeightLog(conflictMessage)
+
+            if (!shouldOverwrite) {
+              await checkPetProfile()
+              await refreshPets()
+              return
+            }
+
+            updateResponse = await petProfileService.updatePetProfile(petId, {
+              ...petDataToSend,
+              overwriteWeightLog: true,
+            })
+          }
+
+          // Check for suspicious weight change warnings
+          if (
+            updateResponse.data &&
+            typeof updateResponse.data === 'object' &&
+            'suspiciousChange' in updateResponse.data &&
+            updateResponse.data.suspiciousChange &&
+            'warningMessage' in updateResponse.data &&
+            updateResponse.data.warningMessage
+          ) {
+            Alert.alert(
+              'โปรดตรวจสอบค่าน้ำหนัก',
+              updateResponse.data.warningMessage as string,
+            )
+          }
         } else {
           const createResponse =
             await petProfileService.createPetProfile(petDataToSend)
@@ -552,6 +640,11 @@ export default function PetProfileForm({
             'ชื่อสัตว์เลี้ยงซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อแล้วลองอีกครั้ง'
           setEditNameConflictError(conflictMessage)
           Alert.alert('ชื่อสัตว์เลี้ยงซ้ำ', conflictMessage)
+          return
+        }
+
+        if (isSpeciesWeightLimitMessage(error?.message)) {
+          showSpeciesWeightLimitAlert(error?.message)
           return
         }
 
@@ -713,6 +806,11 @@ export default function PetProfileForm({
         const fallbackErrors = findDuplicateNameErrorsForForms(petForms)
         setNameConflictErrors(fallbackErrors)
         Alert.alert('ชื่อสัตว์เลี้ยงซ้ำ', conflictMessage)
+        return
+      }
+
+      if (isSpeciesWeightLimitMessage(error?.message)) {
+        showSpeciesWeightLimitAlert(error?.message)
         return
       }
 
