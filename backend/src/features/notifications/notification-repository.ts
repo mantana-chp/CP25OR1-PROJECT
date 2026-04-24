@@ -3,7 +3,7 @@ import { Prisma } from '../../generated/prisma/client'
 
 export const findManyByUserId = async (userId: string, isRead?: boolean) => {
   const where: Prisma.notificationsWhereInput = {
-    user_id: userId,
+    user_id: userId
   }
 
   // If the isRead filter is provided, add it to the where clause
@@ -14,35 +14,35 @@ export const findManyByUserId = async (userId: string, isRead?: boolean) => {
   return await prisma.notifications.findMany({
     where,
     orderBy: {
-      created_at: 'desc',
+      created_at: 'desc'
     },
     include: {
       reminders: {
         include: {
           pets: {
             include: {
-              species: true,
-            },
-          },
-        },
+              species: true
+            }
+          }
+        }
       },
       user: {
         include: {
-          push_tokens: true,
-        },
+          push_tokens: true
+        }
       },
       pet: {
         include: {
-          species: true,
-        },
-      },
-    },
+          species: true
+        }
+      }
+    }
   })
 }
 
 export const findById = async (id: string) => {
   return await prisma.notifications.findUnique({
-    where: { id },
+    where: { id }
   })
 }
 
@@ -54,37 +54,49 @@ export const findByIdWithRelations = async (id: string) => {
         include: {
           pets: {
             include: {
-              species: true,
-            },
-          },
-        },
+              species: true
+            }
+          }
+        }
       },
       user: {
         include: {
-          push_tokens: true,
-        },
+          push_tokens: true
+        }
       },
       pet: {
         include: {
-          species: true,
-        },
-      },
-    },
+          species: true
+        }
+      }
+    }
   })
 }
 
 export const update = async (
   id: string,
-  data: Prisma.notificationsUpdateInput,
+  data: Prisma.notificationsUpdateInput
 ) => {
   return await prisma.notifications.update({
     where: { id },
-    data,
+    data
   })
 }
 
 export const create = async (data: Prisma.notificationsCreateInput) => {
   return await prisma.notifications.create({
-    data,
+    data
+  })
+}
+
+export const markAllAsReadByUser = async (userId: string) => {
+  return await prisma.notifications.updateMany({
+    where: {
+      user_id: userId,
+      read_at: null
+    },
+    data: {
+      read_at: new Date()
+    }
   })
 }
