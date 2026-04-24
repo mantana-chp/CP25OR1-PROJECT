@@ -12,11 +12,11 @@ interface PetClarificationWidgetProps {
 }
 
 function getPetId(option: PetClarificationOption): string | undefined {
-  return option.petId ?? option.id
+  return option.petId
 }
 
 function getPetName(option: PetClarificationOption): string {
-  return option.petName ?? option.pet_name ?? 'สัตว์เลี้ยง'
+  return option.petName ?? 'สัตว์เลี้ยง'
 }
 
 function getRoleLabel(option: PetClarificationOption): string {
@@ -30,14 +30,7 @@ function getRoleLabel(option: PetClarificationOption): string {
 }
 
 function getAvatarUri(option: PetClarificationOption): string | undefined {
-  return (
-    option.profileImageUrl ??
-    option.profile_image_url ??
-    option.profileImage ??
-    option.avatarUrl ??
-    option.imageUrl ??
-    undefined
-  )
+  return option.petProfileUrl ?? undefined
 }
 
 function getInitial(name: string): string {

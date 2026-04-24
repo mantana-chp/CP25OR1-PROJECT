@@ -1,10 +1,17 @@
-import { Router } from 'express';
-import { getNotifications, updateNotification } from './notification-controller';
-import { authGuard } from '../../middlewares/authGuard';
-import { validate } from '../../middlewares/validate';
-import { getNotificationsSchema, updateNotificationSchema } from './notification-schema';
+import { Router } from 'express'
+import {
+  getNotifications,
+  markAllNotificationsAsRead,
+  updateNotification
+} from './notification-controller'
+import { authGuard } from '../../middlewares/authGuard'
+import { validate } from '../../middlewares/validate'
+import {
+  getNotificationsSchema,
+  updateNotificationSchema
+} from './notification-schema'
 
-const notificationRoutes = Router();
+const notificationRoutes = Router()
 
 /**
  * @openapi
@@ -33,7 +40,30 @@ const notificationRoutes = Router();
  *       401:
  *         description: Unauthorized.
  */
-notificationRoutes.get('/', authGuard, validate(getNotificationsSchema), getNotifications);
+notificationRoutes.get(
+  '/',
+  authGuard,
+  validate(getNotificationsSchema),
+  getNotifications
+)
+
+/**
+ * @openapi
+ * /notifications/read-all:
+ *   patch:
+ *     tags: [Notifications]
+ *     summary: Mark all unread notifications as read for the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     responses:
+ *       200:
+ *         description: Number of notifications updated.
+ *       401:
+ *         description: Unauthorized.
+ */
+notificationRoutes.patch('/read-all', authGuard, markAllNotificationsAsRead)
 
 /**
  * @openapi
@@ -72,6 +102,11 @@ notificationRoutes.get('/', authGuard, validate(getNotificationsSchema), getNoti
  *       404:
  *         description: Notification not found.
  */
-notificationRoutes.patch('/:id', authGuard, validate(updateNotificationSchema), updateNotification);
+notificationRoutes.patch(
+  '/:id',
+  authGuard,
+  validate(updateNotificationSchema),
+  updateNotification
+)
 
-export default notificationRoutes;
+export default notificationRoutes

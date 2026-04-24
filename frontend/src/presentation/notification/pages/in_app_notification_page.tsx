@@ -13,6 +13,9 @@ export default function InAppNotificationPage() {
   const getNotificationsApi = useApi(notificationService.getNotifications, {
     showErrorAlert: true
   })
+  const markAllAsReadApi = useApi(notificationService.markAllAsRead, {
+    showErrorAlert: true
+  })
 
   const loadNotifications = useCallback(() => {
     return getNotificationsApi.execute()
@@ -36,6 +39,16 @@ export default function InAppNotificationPage() {
   const notifications = getNotificationsApi.data?.data || []
   const isLoading = getNotificationsApi.loading
 
+  const handleMarkAllAsRead = useCallback(async () => {
+    const unreadCount = notifications.filter((n: any) => !n.readAt).length
+    if (unreadCount === 0) return
+
+    const result = await markAllAsReadApi.execute()
+    if (result.error) return
+
+    await Promise.all([loadNotifications(), refreshUnreadCount()])
+  }, [notifications, markAllAsReadApi, loadNotifications, refreshUnreadCount])
+
   return (
     <View style={styles.container}>
       <Header title="กล่องแจ้งเตือน" />
@@ -45,6 +58,8 @@ export default function InAppNotificationPage() {
         isLoading={isLoading}
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        isMarkingAllAsRead={markAllAsReadApi.loading}
       />
     </View>
   )
