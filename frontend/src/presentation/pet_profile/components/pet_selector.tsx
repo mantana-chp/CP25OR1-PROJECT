@@ -9,12 +9,12 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 import ActionSheet from '../../components/action-sheet'
 import {
   getDefaultAvatarBackgroundColorBySpecies,
-  getPetPlaceholderIcon,
+  getPetPlaceholderIcon
 } from '@/src/utils/pet_avatar'
 
 const PET_ITEM_WIDTH = 72
@@ -53,14 +53,14 @@ export default function PetSelector({
   onEditPet,
   onDeletePet,
   isViewingDeceased,
-  avatarColorsByPetId = {},
+  avatarColorsByPetId = {}
 }: PetSelectorProps) {
   const router = useRouter()
   const horizontalScrollRef = useRef<ScrollView>(null)
   const [actionMenuVisible, setActionMenuVisible] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [selectedPetForAction, setSelectedPetForAction] = useState<Pet | null>(
-    null,
+    null
   )
   const showAddButton = pets.length < maxPets && !isViewingDeceased
   const shouldShowExpandToggle = pets.length > EXPAND_THRESHOLD
@@ -117,7 +117,7 @@ export default function PetSelector({
           onEditPet(selectedPetForAction.id)
         }
       },
-      disabled: !onEditPet || selectedPetForAction?.petRole === 'CAREGIVER',
+      disabled: !onEditPet || selectedPetForAction?.petRole === 'CAREGIVER'
     },
     {
       icon: 'delete-outline' as const,
@@ -128,8 +128,8 @@ export default function PetSelector({
         }
       },
       variant: 'error' as const,
-      disabled: !onDeletePet || selectedPetForAction?.petRole === 'CAREGIVER',
-    },
+      disabled: !onDeletePet || selectedPetForAction?.petRole === 'CAREGIVER'
+    }
   ]
 
   const renderPetItem = (pet: Pet, index: number) => (
@@ -148,7 +148,7 @@ export default function PetSelector({
       <View
         style={[
           styles.imageWrapper,
-          selectedIndex === index && styles.selectedImageWrapper,
+          selectedIndex === index && styles.selectedImageWrapper
         ]}
       >
         {pet.profile_image_url ? (
@@ -158,13 +158,13 @@ export default function PetSelector({
             style={[
               styles.image,
               styles.placeholderImage,
-              { backgroundColor: getPetAvatarBackgroundColor(pet) },
+              { backgroundColor: getPetAvatarBackgroundColor(pet) }
             ]}
           >
             <MaterialCommunityIcons
               name={getPetPlaceholderIcon(pet.species)}
               size={36}
-              color='white'
+              color="white"
             />
           </View>
         )}
@@ -174,12 +174,12 @@ export default function PetSelector({
           numberOfLines={1}
           style={[
             styles.petName,
-            selectedIndex === index && styles.selectedPetName,
+            selectedIndex === index && styles.selectedPetName
           ]}
         >
           {pet.pet_name}
         </Text>
-        {pet.petRole === 'CAREGIVER' && <Users size={11} color='#5FA7D1' />}
+        {pet.petRole === 'CAREGIVER' && <Users size={11} color="#5FA7D1" />}
       </View>
     </TouchableOpacity>
   )
@@ -195,7 +195,7 @@ export default function PetSelector({
         style={isExpanded ? styles.expandedScrollView : undefined}
         contentContainerStyle={[
           styles.container,
-          isExpanded ? styles.expandedContainer : styles.collapsedContainer,
+          isExpanded ? styles.expandedContainer : styles.collapsedContainer
         ]}
       >
         {_.map(pets, renderPetItem)}
@@ -218,7 +218,7 @@ export default function PetSelector({
         <TouchableOpacity
           style={[
             styles.expandButton,
-            isExpanded && styles.expandButtonExpanded,
+            isExpanded && styles.expandButtonExpanded
           ]}
           onPress={handleToggleExpand}
           activeOpacity={0.7}
@@ -231,7 +231,7 @@ export default function PetSelector({
           <View
             style={{ transform: [{ rotate: isExpanded ? '0deg' : '180deg' }] }}
           >
-            <ChevronUp size={20} color='#225877' />
+            <ChevronUp size={20} color="#225877" />
           </View>
         </TouchableOpacity>
       )}
@@ -250,27 +250,27 @@ export default function PetSelector({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 8,
-    rowGap: 8,
+    rowGap: 8
   },
   collapsedContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row'
   },
   expandedContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingBottom: 4,
-    justifyContent: 'flex-start',
+    justifyContent: 'flex-start'
   },
   expandedScrollView: {
-    maxHeight: 240,
+    maxHeight: 240
   },
   petItem: {
     alignItems: 'center',
-    width: PET_ITEM_WIDTH,
+    width: PET_ITEM_WIDTH
   },
   expandedPetItem: {
     width: '20%',
-    paddingHorizontal: 2,
+    paddingHorizontal: 2
   },
   imageWrapper: {
     width: 60,
@@ -279,35 +279,35 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'transparent',
     padding: 2,
-    marginBottom: 2,
+    marginBottom: 2
   },
   selectedImageWrapper: {
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 33,
+    borderRadius: 33
   },
   placeholderImage: {
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   petName: {
     fontSize: 13,
     fontFamily: 'Prompt_400Regular',
     color: '#666',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   petNameWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 3
   },
   selectedPetName: {
     color: '#225877',
-    fontFamily: 'Prompt_500Medium',
+    fontFamily: 'Prompt_500Medium'
   },
   addPetWrapper: {
     width: 60,
@@ -319,12 +319,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F0F8FF',
-    marginBottom: 2,
+    marginBottom: 2
   },
   addPetIcon: {
     fontSize: 32,
     color: '#5FA7D1',
-    fontWeight: '300',
+    fontWeight: '300'
   },
   expandButton: {
     alignSelf: 'center',
@@ -333,14 +333,14 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 12,
     paddingVertical: 2,
-    marginTop: 2,
+    marginTop: 2
   },
   expandButtonExpanded: {
-    marginTop: 6,
+    marginTop: 6
   },
   expandButtonText: {
     fontSize: 12,
     color: '#225877',
-    fontFamily: 'Prompt_500Medium',
-  },
+    fontFamily: 'Prompt_500Medium'
+  }
 })
