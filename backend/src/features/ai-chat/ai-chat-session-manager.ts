@@ -43,6 +43,15 @@ export type SessionEntry = {
     contextId: string;
     ambiguousPetIds: string[];
   };
+  /**
+   * When a symptom turn (pending_severity) coincides with pet name ambiguity,
+   * the severity request is deferred here and activated once the pet is resolved.
+   */
+  pendingSymptomSeverity?: {
+    contextId: string;
+    contextChanged: boolean;
+    symptomTopics: Set<string>;
+  };
 };
 
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes inactivity
@@ -116,6 +125,7 @@ export const getOrCreateSession = (
     severityLevel: undefined,
     lastSymptomTopics: new Set(),
     pendingPetClarification: undefined,
+    pendingSymptomSeverity: undefined,
   };
 
   sessions.set(key, entry);

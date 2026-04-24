@@ -279,6 +279,16 @@ export const chatWithAI = async (
         };
         session.activeContextId = effectiveContextId;
 
+        // If the original query was a symptom turn, defer the severity request
+        // until after the user resolves the pet ambiguity.
+        if (contextStatus === 'pending_severity') {
+          session.pendingSymptomSeverity = {
+            contextId: effectiveContextId,
+            contextChanged,
+            symptomTopics: currentSymptomTopics,
+          };
+        }
+
         logger.info(
           `[AI Chat][${traceId}] Ambiguous pet detected. Returning clarification prompt.`
         );
@@ -288,7 +298,7 @@ export const chatWithAI = async (
             clientChatSessionId,
             sessionTurnCount: session.turnCount,
             contextId: effectiveContextId,
-            contextStatus,
+            contextStatus: 'not_required',
             startedAt,
             metrics,
             finalState: 'clarification_returned',
@@ -301,7 +311,7 @@ export const chatWithAI = async (
         return {
           answer: petClarificationRequest!.prompt,
           contextId: effectiveContextId,
-          contextStatus,
+          contextStatus: 'not_required',
           petContextStatus,
           petContextChanged: true,
           petClarificationRequest,
@@ -520,13 +530,45 @@ ${prompt} `);
     const answer = rawAnswer.replace(/\[NEEDS_SEVERITY\]/g, '').trimEnd();
 
     // -----------------------------------------------------------------------
-    // 7. Update session metadata for this completed turn
+    // 7a. Resolve deferred severity when pet ambiguity was just cleared
+    //     (pet clarification submission on this turn + severity was deferred)
+    // -----------------------------------------------------------------------
+    let finalContextStatus: SeverityContextStatus = contextStatus;
+    let finalSeverityRequest = severityRequest;
+    let finalEffectiveContextId = effectiveContextId;
+    let finalContextChanged = contextChanged;
+
+    if (
+      petClarificationSubmission &&
+      finalPetContextStatus === 'resolved' &&
+      session.pendingSymptomSeverity
+    ) {
+      const deferred = session.pendingSymptomSeverity;
+      finalContextStatus = 'pending_severity';
+      finalEffectiveContextId = deferred.contextId;
+      finalContextChanged = deferred.contextChanged;
+      finalSeverityRequest = {
+        contextId: deferred.contextId,
+        prompt: 'กรุณาเลือกระดับความรุนแรงของอาการที่สังเกตเห็น (1-5)',
+        reason: deferred.contextChanged
+          ? 'new_symptom_context'
+          : 'symptom_needs_assessment',
+      };
+      session.lastSymptomTopics = new Set(deferred.symptomTopics);
+      session.pendingSymptomSeverity = undefined;
+      logger.info(
+        `[AI Chat][${traceId}] Deferred severity activated after pet resolution. contextId=${deferred.contextId}`
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    // 7b. Update session metadata for this completed turn
     // -----------------------------------------------------------------------
     session.resolvedPetId = finalResolvedPetId ?? session.resolvedPetId;
     session.resolvedPetRole = finalResolvedPetRole ?? session.resolvedPetRole;
-    session.activeContextId = effectiveContextId;
-    session.contextStatus = contextStatus;
-    if (contextStatus === 'resolved' && submittedSeverityLevel !== undefined) {
+    session.activeContextId = finalEffectiveContextId;
+    session.contextStatus = finalContextStatus;
+    if (finalContextStatus === 'resolved' && submittedSeverityLevel !== undefined) {
       session.severityLevel = submittedSeverityLevel;
     }
     if (finalResolvedPetId && hasPetProfileContext) {
@@ -559,8 +601,8 @@ ${answer} `);
         traceId,
         clientChatSessionId,
         sessionTurnCount: session.turnCount + 1, // +1 because touch hasn't run yet at this log point
-        contextId: effectiveContextId,
-        contextStatus,
+        contextId: finalEffectiveContextId,
+        contextStatus: finalContextStatus,
         startedAt,
         metrics,
         finalState: 'completed',
@@ -574,13 +616,13 @@ ${answer} `);
       answer,
       resolvedPetId: finalResolvedPetId,
       resolvedPetRole: finalResolvedPetRole,
-      severityFlag: severityFlag || undefined,
-      contextId: effectiveContextId,
-      contextChanged: contextChanged || undefined,
-      contextStatus,
+      severityFlag: (finalSeverityRequest !== undefined) || undefined,
+      contextId: finalEffectiveContextId,
+      contextChanged: finalContextChanged || undefined,
+      contextStatus: finalContextStatus,
       petContextStatus: finalPetContextStatus,
       petContextChanged: finalPetContextChanged || undefined,
-      severityRequest,
+      severityRequest: finalSeverityRequest,
       clarificationRequest,
       severityLevel: submittedSeverityLevel,
     };
