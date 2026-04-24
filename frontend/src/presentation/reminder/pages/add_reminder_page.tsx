@@ -20,7 +20,6 @@ import {
 
 import { usePets } from '@/src/context/PetContext'
 import { useLocalSearchParams } from 'expo-router'
-import { Plus, Trash2 } from 'lucide-react-native'
 import {
   BackHandler,
   KeyboardAvoidingView,
@@ -36,9 +35,7 @@ import {
 import DatePicker from '../../components/date_picker'
 import DiscardChangesModal from '../../components/discard_changes_modal'
 import Header from '../../components/header_component'
-import Button from '../../components/button'
 import PetSelector from '../../components/pet_selector'
-import PrimaryButton from '../../components/primary_button'
 import InputText from '../../components/text_input'
 import TimePicker from '../../components/time_picker'
 import CategorySelector from '../components/category_selector'
@@ -47,32 +44,16 @@ import RecurrencePicker from '../components/recurrence/recurrence_picker'
 import VaccineScheduleSection from '../components/recurrence/vaccine_schedule_section'
 import ReminderSuggestions from '../components/reminder_suggestions'
 import AttachmentManager from '../components/attachment_manager'
+import {
+  CreateReminderFormHandle,
+  CreateReminderFormResult
+} from '../components/create_reminder_form_card'
+import CreateReminderFormsSection from '../components/create_reminder_forms_section'
 import { useReminderAttachments } from '@/src/hooks/useReminderAttachments'
-
-type CreateReminderFormSubmitData = {
-  reminderName: string
-  description: string
-  reminderDate: string
-  reminderTime: string
-  categoryName: string
-  petId: string[]
-  recurrence?: any
-  children?: any[]
-}
-
-type CreateReminderFormResult = {
-  submitData: CreateReminderFormSubmitData
-  pendingAttachments: IPendingAttachment[]
-}
 
 type BatchCreateResponse = {
   created: Array<{ id?: string }>
   errors: Array<{ index?: number; error?: string }>
-}
-
-type CreateReminderFormHandle = {
-  validateAndBuild: () => Promise<CreateReminderFormResult | null>
-  isDirty: () => boolean
 }
 
 const extractCreatedReminderIds = (responseData: any): string[] => {
@@ -119,479 +100,6 @@ const parseDateStringToLocalDate = (dateValue?: string): Date | undefined => {
   const parsed = new Date(normalized)
   return Number.isNaN(parsed.getTime()) ? undefined : parsed
 }
-
-type CreateReminderFormCardProps = {
-  index: number
-  totalForms: number
-  activePets: any[]
-  pets: any[]
-  existingReminders: IReminder[]
-  defaultPetId: string
-  isSubmitting: boolean
-  showError: (message: string) => void
-  onRemove?: () => void
-}
-
-const CreateReminderFormCard = React.forwardRef<
-  CreateReminderFormHandle,
-  CreateReminderFormCardProps
->(
-  (
-    {
-      index,
-      totalForms,
-      activePets,
-      pets,
-      existingReminders,
-      defaultPetId,
-      isSubmitting,
-      showError,
-      onRemove
-    },
-    ref
-  ) => {
-    const [doses, setDoses] = useState<IDose[]>([])
-    const [customVaccineName, setCustomVaccineName] = useState<string>('')
-    const [vaccineResetKey, setVaccineResetKey] = useState<number>(0)
-    const [recurrenceRule, setRecurrenceRule] =
-      useState<IRecurrenceRule | null>(null)
-    const [suggestions, setSuggestions] = useState<IReminder[]>([])
-    const [showSuggestions, setShowSuggestions] = useState(false)
-    const [selectedPetIds, setSelectedPetIds] = useState<string[]>(
-      defaultPetId ? [defaultPetId] : []
-    )
-
-    const formik = useFormik<IReminder>({
-      initialValues: {
-        ...reminderInitValue({} as IReminder),
-        petId: defaultPetId,
-        pendingAttachments: []
-      },
-      enableReinitialize: false,
-      validationSchema: reminderValidationSchema,
-      validateOnBlur: false,
-      validateOnChange: false,
-      onSubmit: () => undefined
-    })
-
-    useEffect(() => {
-      if (!formik.values.petId && defaultPetId) {
-        formik.setFieldValue('petId', defaultPetId)
-      }
-      if (selectedPetIds.length === 0 && defaultPetId) {
-        setSelectedPetIds([defaultPetId])
-      }
-    }, [defaultPetId])
-
-    const currentPet = pets.find((p) => p.id === formik.values.petId)
-    const canUseVaccineSchedule =
-      currentPet &&
-      !currentPet.species?.includes('แฮมสเตอร์') &&
-      !!currentPet.age
-    const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
-    const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
-    const hasPetSelected = selectedPetIds.length > 0
-
-    const handleReminderNameChange = (value: string) => {
-      formik.setFieldValue('reminderName', value)
-
-      if (value.trim().length >= 2) {
-        const filtered = existingReminders
-          .filter((reminder) =>
-            reminder.reminderName.toLowerCase().includes(value.toLowerCase())
-          )
-          .slice(0, 5)
-
-        setSuggestions(filtered)
-        setShowSuggestions(filtered.length > 0)
-      } else {
-        setSuggestions([])
-        setShowSuggestions(false)
-      }
-    }
-
-    const handleSuggestionSelect = (reminder: IReminder) => {
-      formik.setFieldValue('reminderName', reminder.reminderName)
-      formik.setFieldValue('description', reminder.description)
-      formik.setFieldValue('categoryName', reminder.categoryName || 'General')
-      formik.setFieldValue('reminderTime', reminder.reminderTime || '')
-      formik.setFieldValue('reminderDate', reminder.reminderDate || '')
-
-      if (reminder.petId && pets.some((p) => p.id === reminder.petId)) {
-        formik.setFieldValue('petId', reminder.petId)
-        setSelectedPetIds([reminder.petId])
-      }
-
-      if (reminder.recurrence) {
-        const convertedRecurrence = convertFromBackendRecurrence(
-          reminder.recurrence
-        )
-        setRecurrenceRule(convertedRecurrence)
-      } else {
-        setRecurrenceRule(null)
-      }
-
-      if (
-        reminder.categoryName === 'Vaccination' &&
-        reminder.children &&
-        reminder.children.length > 0
-      ) {
-        setVaccineResetKey((prev) => prev + 1)
-
-        const childrenWithDoseNumbers = reminder.children.map((child: any) => {
-          const doseMatch = child.reminderName.match(/เข็มที่\s*(\d+)/)
-          const doseNumber = doseMatch ? parseInt(doseMatch[1], 10) : 0
-          return { ...child, extractedDoseNumber: doseNumber }
-        })
-
-        const sortedChildren = childrenWithDoseNumbers.sort(
-          (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
-        )
-
-        const childrenDoses: IDose[] = sortedChildren.map((child: any) => ({
-          doseNumber: child.extractedDoseNumber,
-          date: child.reminderDate || '',
-          time: child.reminderTime || '',
-          isAutoCalculated: child.extractedDoseNumber > 1,
-          isEdited: false,
-          childReminderId: undefined
-        }))
-        setDoses(childrenDoses)
-
-        const firstChildName = reminder.children[0]?.reminderName || ''
-        const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
-        if (nameMatch) {
-          setCustomVaccineName(nameMatch[1])
-        }
-      }
-
-      setShowSuggestions(false)
-      setSuggestions([])
-    }
-
-    const convertDateToString = (date: Date): string => {
-      try {
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      } catch (e) {
-        return new Date().toISOString().split('T')[0]
-      }
-    }
-
-    const handleAddAttachment = async (file: {
-      uri: string
-      name: string
-      size: number
-      mimeType: string
-    }): Promise<void> => {
-      const pendingFile: IPendingAttachment = {
-        id: `temp-${Date.now()}-${Math.random()}`,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.mimeType,
-        objectKey: '',
-        uri: file.uri,
-        isPending: true
-      }
-
-      formik.setFieldValue('pendingAttachments', [
-        ...(formik.values.pendingAttachments || []),
-        pendingFile
-      ])
-    }
-
-    const handleDeleteAttachment = async (
-      attachmentId: string
-    ): Promise<void> => {
-      formik.setFieldValue(
-        'pendingAttachments',
-        (formik.values.pendingAttachments || []).filter(
-          (a) => a.id !== attachmentId
-        )
-      )
-    }
-
-    React.useImperativeHandle(
-      ref,
-      () => ({
-        validateAndBuild: async () => {
-          const errors = await formik.validateForm()
-          if (Object.keys(errors).length > 0) {
-            const errorMessages = Object.values(errors).join('\n')
-            showError(
-              `ฟอร์มที่ ${index + 1}: ${errorMessages || 'กรุณากรอกข้อมูลให้ครบถ้วน'}`
-            )
-            return null
-          }
-
-          if (!hasPetSelected) {
-            showError(`ฟอร์มที่ ${index + 1}: กรุณาเลือกสัตว์เลี้ยง`)
-            return null
-          }
-
-          if (isVaccinationCategory && canUseVaccineSchedule) {
-            if (doses.length === 0 || !doses[0].date) {
-              showError(
-                `ฟอร์มที่ ${index + 1}: กรุณากรอกข้อมูลวัคซีนให้ครบถ้วน`
-              )
-              return null
-            }
-            if (!allDosesHaveDates) {
-              showError(
-                `ฟอร์มที่ ${index + 1}: กรุณากรอกวันที่วัคซีนให้ครบทุกเข็ม`
-              )
-              return null
-            }
-          }
-
-          const submitData: CreateReminderFormSubmitData = {
-            reminderName: formik.values.reminderName,
-            description: formik.values.description,
-            reminderDate: formik.values.reminderDate,
-            reminderTime: formik.values.reminderTime || '',
-            categoryName: formik.values.categoryName || 'General',
-            petId: selectedPetIds
-          }
-
-          if (recurrenceRule && recurrenceRule.type !== 'none') {
-            const backendRecurrence = convertToBackendRecurrence(recurrenceRule)
-            if (backendRecurrence) {
-              submitData.recurrence = backendRecurrence
-            }
-          }
-
-          if (
-            formik.values.categoryName === 'Vaccination' &&
-            canUseVaccineSchedule &&
-            doses.length > 0
-          ) {
-            const syncedDoses = doses.map((dose) =>
-              dose.doseNumber === 1
-                ? { ...dose, date: formik.values.reminderDate }
-                : dose
-            )
-
-            submitData.children = syncedDoses.map((dose) => ({
-              reminderName: customVaccineName
-                ? `${customVaccineName} เข็มที่ ${dose.doseNumber}`
-                : `วัคซีน เข็มที่ ${dose.doseNumber}`,
-              description: formik.values.description,
-              reminderDate: dose.date,
-              reminderTime: dose.time || '',
-              categoryName: 'Vaccination'
-            }))
-          }
-
-          return {
-            submitData,
-            pendingAttachments: formik.values.pendingAttachments || []
-          }
-        },
-        isDirty: () => {
-          return (
-            formik.dirty ||
-            !!customVaccineName ||
-            doses.length > 0 ||
-            (recurrenceRule?.type || 'none') !== 'none' ||
-            (formik.values.pendingAttachments || []).length > 0
-          )
-        }
-      }),
-      [
-        index,
-        formik,
-        doses,
-        recurrenceRule,
-        customVaccineName,
-        hasPetSelected,
-        canUseVaccineSchedule,
-        isVaccinationCategory,
-        allDosesHaveDates,
-        showError
-      ]
-    )
-
-    const doneChildReminderIds = new Set<string>()
-
-    return (
-      <>
-        {totalForms > 1 && (
-          <View style={styles.createFormHeaderRow}>
-            <Text style={styles.createFormHeaderText}>
-              เตือนความจำที่ {index + 1}
-            </Text>
-            {onRemove && (
-              <Pressable
-                onPress={onRemove}
-                disabled={isSubmitting}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Trash2 size={18} color="#BF1737" />
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        <InputText
-          value={formik.values.reminderName}
-          onChangeText={handleReminderNameChange}
-          placeholder="หัวข้อเตือนความจำ"
-          title="หัวข้อ"
-          required={true}
-          error={formik.errors.reminderName}
-        />
-
-        <ReminderSuggestions
-          suggestions={suggestions}
-          onSelect={handleSuggestionSelect}
-          visible={showSuggestions}
-        />
-
-        <PetSelector
-          pets={activePets}
-          selectedPetIds={selectedPetIds}
-          onSelectPets={(petIds: string[]) => {
-            setSelectedPetIds(petIds)
-            if (petIds.length > 0) {
-              formik.setFieldValue('petId', petIds[0])
-            }
-            if (
-              petIds.length > 1 &&
-              formik.values.categoryName === 'Vaccination'
-            ) {
-              formik.setFieldValue('categoryName', 'General')
-              setDoses([])
-              setCustomVaccineName('')
-            }
-          }}
-          label="สัตว์เลี้ยง"
-          required={true}
-          disabled={isSubmitting}
-        />
-
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <DatePicker
-              title="วันที่เตือนความจำ"
-              placeholder="วัน/เดือน/ปี"
-              value={
-                formik.values.reminderDate
-                  ? parseDateStringToLocalDate(formik.values.reminderDate)
-                  : undefined
-              }
-              onChange={(v) => {
-                const dateString = convertDateToString(v)
-                formik.setFieldValue('reminderDate', dateString)
-              }}
-              error={formik.errors.reminderDate}
-              required={true}
-              disabled={isSubmitting}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <TimePicker
-              title="เวลาที่เตือนความจำ"
-              placeholder="เลือกเวลา"
-              value={formik.values.reminderTime}
-              onChange={(v) => formik.setFieldValue('reminderTime', v)}
-            />
-          </View>
-        </View>
-
-        <CategorySelector
-          value={formik.values.categoryName}
-          onChange={(v) => formik.setFieldValue('categoryName', v)}
-          error={formik.errors.categoryName}
-          required={true}
-          disabled={isSubmitting}
-        />
-
-        {formik.values.reminderDate &&
-          formik.values.categoryName !== 'Vaccination' && (
-            <>
-              <RecurrencePicker
-                value={
-                  recurrenceRule || {
-                    type: 'none',
-                    interval: 1,
-                    endType: 'never'
-                  }
-                }
-                onChange={setRecurrenceRule}
-                reminderDate={
-                  formik.values.reminderDate
-                    ? parseDateStringToLocalDate(formik.values.reminderDate)
-                    : undefined
-                }
-              />
-
-              {recurrenceRule && recurrenceRule.type !== 'none' && (
-                <EndRepeatSelector
-                  recurrenceRule={recurrenceRule}
-                  onChange={setRecurrenceRule}
-                />
-              )}
-            </>
-          )}
-
-        <VaccineScheduleSection
-          key={vaccineResetKey}
-          isVaccinationCategory={isVaccinationCategory}
-          canUseVaccineSchedule={
-            (canUseVaccineSchedule || false) && selectedPetIds.length <= 1
-          }
-          petId={formik.values.petId}
-          reminderDate={formik.values.reminderDate}
-          doses={doses}
-          setDoses={setDoses}
-          onDose1DateChange={(dateString) => {
-            formik.setFieldValue('reminderDate', dateString)
-          }}
-          onDose1TimeChange={(time) => {
-            formik.setFieldValue('reminderTime', time)
-          }}
-          onCustomVaccineNameChange={setCustomVaccineName}
-          initialVaccineId={null}
-          initialVaccineName={customVaccineName ? customVaccineName : undefined}
-          isEditMode={false}
-          doneChildReminderIds={doneChildReminderIds}
-          onCustomDosesGenerated={() => undefined}
-        />
-
-        <View>
-          <TextInput
-            style={[styles.input, styles.textarea]}
-            placeholder="รายละเอียดอื่นๆ"
-            multiline
-            numberOfLines={4}
-            value={formik.values.description}
-            onChangeText={formik.handleChange('description')}
-            onBlur={formik.handleBlur('description')}
-            editable={!isSubmitting}
-          />
-          {formik.touched.description && formik.errors.description && (
-            <Text style={styles.errorText}>{formik.errors.description}</Text>
-          )}
-        </View>
-
-        <AttachmentManager
-          attachments={[]}
-          pendingAttachments={formik.values.pendingAttachments || []}
-          onAddAttachment={handleAddAttachment}
-          onDeleteAttachment={handleDeleteAttachment}
-          onDownloadAttachment={async () => undefined}
-          maxFiles={2}
-          maxFileSize={10}
-          allowedTypes={['application/pdf', 'image/jpeg', 'image/png']}
-          disabled={isSubmitting}
-          isUploading={false}
-        />
-      </>
-    )
-  }
-)
 
 export default function AddReminderPage() {
   const router = useRouter()
@@ -1151,22 +659,11 @@ export default function AddReminderPage() {
       setRecurrenceRule(null)
       setAttachmentsToDelete([])
     }
-  }, [isEditMode, reminderId, showError, hasUserStartedCreateMode])
+  }, [isEditMode, reminderId, showError, hasUserStartedCreateMode, pets])
 
   useEffect(() => {
-    if (isEditMode && reminderId) {
-      loadReminderData()
-    } else if (!isEditMode && !hasUserStartedCreateMode) {
-      setInitialReminderData(null)
-      setLoadingReminder(false)
-      setLoadedVaccineIsCustom(false)
-      setInitialChildReminders([])
-      setDoses([])
-      setCustomVaccineName('')
-      setAttachmentsToDelete([])
-      setRecurrenceRule(null)
-    }
-  }, [reminderId, isEditMode])
+    loadReminderData()
+  }, [loadReminderData])
 
   useEffect(() => {
     if (!isEditMode && doses.length > 0) {
@@ -1176,94 +673,8 @@ export default function AddReminderPage() {
 
   useFocusEffect(
     useCallback(() => {
-      if (
-        isEditMode &&
-        reminderId &&
-        !initialReminderData &&
-        !hasUserStartedCreateMode
-      ) {
-        setLoadingReminder(true)
-        reminderService
-          .getReminderById(reminderId)
-          .then((response) => {
-            const reminderData = response.data
-            if (reminderData) {
-              const formattedReminderData = {
-                ...reminderData,
-                reminderTime: (reminderData.reminderTime || '').substring(0, 5)
-              }
-              setInitialReminderData(formattedReminderData)
-
-              if (reminderData.petId) {
-                const originalPet = pets.find(
-                  (p) => p.id === reminderData.petId
-                )
-                if (originalPet) {
-                  setOriginalPetSpecies(originalPet.species)
-                }
-              }
-
-              if (reminderData.recurrence) {
-                const convertedRecurrence = convertFromBackendRecurrence(
-                  reminderData.recurrence
-                )
-                setRecurrenceRule(convertedRecurrence)
-              }
-
-              if (reminderData.children && reminderData.children.length > 0) {
-                setInitialChildReminders(reminderData.children)
-
-                const childrenWithDoseNumbers = reminderData.children.map(
-                  (child: any) => {
-                    const doseMatch =
-                      child.reminderName.match(/เข็มที่\s*(\d+)/)
-                    const doseNumber = doseMatch
-                      ? parseInt(doseMatch[1], 10)
-                      : 0
-                    return { ...child, extractedDoseNumber: doseNumber }
-                  }
-                )
-
-                const sortedChildren = childrenWithDoseNumbers.sort(
-                  (a, b) => a.extractedDoseNumber - b.extractedDoseNumber
-                )
-
-                const childrenDoses: IDose[] = sortedChildren.map(
-                  (child: any) => ({
-                    doseNumber: child.extractedDoseNumber,
-                    date: child.reminderDate || '',
-                    time: (child.reminderTime || '').substring(0, 5),
-                    isAutoCalculated: child.extractedDoseNumber > 1,
-                    isEdited: child.extractedDoseNumber > 1,
-                    childReminderId: child.id
-                  })
-                )
-                setDoses(childrenDoses)
-                const firstChildName =
-                  reminderData.children[0]?.reminderName || ''
-                const nameMatch = firstChildName.match(/(.+?)\s+เข็ม/)
-                if (nameMatch) {
-                  const vaccineName = nameMatch[1]
-                  setCustomVaccineName(vaccineName)
-                  setLoadedVaccineIsCustom(true)
-                }
-              }
-            }
-          })
-          .catch((error) => {
-            showError('ไม่สามารถโหลดข้อมูลเตือนความจำได้')
-          })
-          .finally(() => {
-            setLoadingReminder(false)
-          })
-      }
-    }, [
-      isEditMode,
-      reminderId,
-      showError,
-      initialReminderData,
-      hasUserStartedCreateMode
-    ])
+      loadReminderData()
+    }, [loadReminderData])
   )
 
   // Fetch existing reminders for suggestions - refresh on screen focus
@@ -1690,138 +1101,34 @@ export default function AddReminderPage() {
                 />
               </View>
             ) : (
-              <>
-                {createFormIds.map((formId, index) => (
-                  <React.Fragment key={formId}>
-                    <View
-                      style={[styles.formCard, styles.createModeFormCard]}
-                      onLayout={(event) => {
-                        if (pendingScrollToFormIdRef.current === formId) {
-                          const y = event.nativeEvent.layout.y
-                          scrollViewRef.current?.scrollTo({
-                            y: Math.max(y - 8, 0),
-                            animated: true
-                          })
-                          pendingScrollToFormIdRef.current = null
-                        }
-                      }}
-                    >
-                      <CreateReminderFormCard
-                        ref={(instance) => {
-                          createFormRefs.current[formId] = instance
-                        }}
-                        index={index}
-                        totalForms={createFormIds.length}
-                        activePets={activePets}
-                        pets={pets}
-                        existingReminders={existingReminders}
-                        defaultPetId={
-                          petIdFromParams || selectedPetId || getFirstPetId()
-                        }
-                        isSubmitting={isSubmitting}
-                        showError={showError}
-                        onRemove={
-                          index > 0
-                            ? () => {
-                                setCreateFormIds((prev) =>
-                                  prev.filter((id) => id !== formId)
-                                )
-                                delete createFormRefs.current[formId]
-                              }
-                            : undefined
-                        }
-                      />
-
-                      {index === createFormIds.length - 1 && (
-                        <>
-                          {duplicateError && (
-                            <View style={styles.duplicateErrorToast}>
-                              <Text style={styles.duplicateErrorText}>
-                                {duplicateError}
-                              </Text>
-                              <Pressable
-                                onPress={() => setDuplicateError(null)}
-                              >
-                                <Text style={styles.duplicateErrorDismiss}>
-                                  ✕
-                                </Text>
-                              </Pressable>
-                            </View>
-                          )}
-
-                          <View style={styles.createActionsFooter}>
-                            <View
-                              style={[
-                                styles.createActionItem,
-                                styles.createActionItemLeft
-                              ]}
-                            >
-                              <Button
-                                title="ยกเลิก"
-                                onPress={handleBack}
-                                variant="ghost"
-                                size="medium"
-                                fullWidth
-                                disabled={isSubmitting}
-                                style={styles.cancelGhostButton}
-                                textStyle={styles.cancelGhostButtonText}
-                              />
-                            </View>
-                            <View style={styles.createActionItem}>
-                              <PrimaryButton
-                                onPress={handleCreateSubmit}
-                                title={
-                                  createFormIds.length === 1
-                                    ? 'เพิ่ม'
-                                    : `เพิ่ม (${createFormIds.length})`
-                                }
-                                disabled={isSubmitting}
-                                isLoading={isSubmitting}
-                                loadingText="กำลังเพิ่ม..."
-                              />
-                            </View>
-                          </View>
-                        </>
-                      )}
-                    </View>
-
-                    {index === createFormIds.length - 1 && (
-                      <View style={styles.addFormContainer}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.addFormButton,
-                            pressed && styles.addFormButtonPressed
-                          ]}
-                          disabled={isSubmitting}
-                          onPress={() => {
-                            const nextId = createFormIdCounterRef.current
-                            createFormIdCounterRef.current += 1
-                            pendingScrollToFormIdRef.current = nextId
-                            setCreateFormIds((prev) => [...prev, nextId])
-                          }}
-                        >
-                          {({ pressed }) => (
-                            <>
-                              <Plus
-                                size={18}
-                                color={pressed ? '#225877' : '#2E759E'}
-                              />
-                              <Text
-                                style={[
-                                  styles.addFormText,
-                                  pressed && styles.addFormTextPressed
-                                ]}
-                              >
-                                เพิ่มเตือนความจำ
-                              </Text>
-                            </>
-                          )}
-                        </Pressable>
-                      </View>
-                    )}
-                  </React.Fragment>
-                ))}
-              </>
+              <CreateReminderFormsSection
+                createFormIds={createFormIds}
+                pendingScrollToFormIdRef={pendingScrollToFormIdRef}
+                scrollViewRef={scrollViewRef}
+                createFormRefs={createFormRefs}
+                activePets={activePets}
+                pets={pets}
+                existingReminders={existingReminders}
+                defaultPetId={
+                  petIdFromParams || selectedPetId || getFirstPetId()
+                }
+                isSubmitting={isSubmitting}
+                showError={showError}
+                duplicateError={duplicateError}
+                onDismissDuplicateError={() => setDuplicateError(null)}
+                onRemoveForm={(formId) => {
+                  setCreateFormIds((prev) => prev.filter((id) => id !== formId))
+                  delete createFormRefs.current[formId]
+                }}
+                onBack={handleBack}
+                onSubmit={handleCreateSubmit}
+                onAddForm={() => {
+                  const nextId = createFormIdCounterRef.current
+                  createFormIdCounterRef.current += 1
+                  pendingScrollToFormIdRef.current = nextId
+                  setCreateFormIds((prev) => [...prev, nextId])
+                }}
+              />
             )}
           </ScrollView>
         </View>
@@ -2025,58 +1332,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#B91C1C',
     paddingLeft: 8
-  },
-  addFormContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16
-  },
-  addFormButton: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8
-  },
-  addFormButtonPressed: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#93C5FD'
-  },
-  addFormText: {
-    color: '#2E759E',
-    fontSize: 15,
-    fontFamily: 'Prompt_700Bold'
-  },
-  addFormTextPressed: {
-    color: '#225877'
-  },
-  createActionsFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10
-  },
-  createActionItem: {
-    flex: 1
-  },
-  createActionItemLeft: {
-    marginRight: 12
-  },
-  cancelGhostButton: {
-    borderWidth: 1,
-    borderColor: '#BF1737',
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff'
-  },
-  cancelGhostButtonText: {
-    color: '#BF1737',
-    fontFamily: 'Prompt_500Medium',
-    fontSize: 16
   }
 })
