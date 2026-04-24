@@ -265,8 +265,8 @@ export const processAndSendNotifications = async () => {
           messagesToSend.push({
             to: token.token,
             sound: 'default',
-            title: `แจ้งเตือนน: ${reminderName}`,
-            body: `ถึงเวลาของน้อง ${petName} แล้วว`,
+            title: `เตือนความจำ: ${reminderName}`,
+            body: `ถึงเวลาของน้อง ${petName} แล้วนะ`,
             data: { reminderId: reminder.id, notificationId: notificationToProcess.id },
           });
         }
