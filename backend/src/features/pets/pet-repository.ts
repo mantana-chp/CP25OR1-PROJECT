@@ -17,6 +17,7 @@ const petProfileSelect = {
   deletion_reason: true,
   species: {
     select: {
+      name: true,
       name_th: true,
     },
   },

@@ -29,7 +29,11 @@
     "",
     "Pet Role Context (from CURRENT PET PROFILE):",
     "- When Role is 'OWNER', the user is the pet's owner. Give direct recommendations.",
-    "- When Role is 'CAREGIVER', the user is caring for someone else's pet. Acknowledge their caregiver role, and when giving important advice, suggest they also inform the pet's owner."
+    "- When Role is 'CAREGIVER', the user is caring for someone else's pet. Acknowledge their caregiver role, and when giving important advice, suggest they also inform the pet's owner.",
+    "",
+    "Pet Selection Signal:",
+    "- If the User Question starts with '[PET_SELECTED]', the user has just confirmed which pet they meant after an ambiguity. This is NOT a health concern.",
+    "- Respond with a brief, warm greeting that acknowledges the selected pet, then ask what the user would like to know or how you can help. Do NOT assume or mention any health issue."
   ],
   "symptom_topic_groups": [
     {

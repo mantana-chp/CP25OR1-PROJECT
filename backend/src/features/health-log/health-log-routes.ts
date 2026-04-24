@@ -7,6 +7,7 @@ import {
   getHealthLogById,
   updateHealthLog,
   deleteHealthLog,
+  getWeightChart,
 } from './health-log-controller';
 
 const healthLogRoutes = Router();
@@ -204,6 +205,10 @@ healthLogRoutes.get('/:petId/health-logs', authGuard, resolvePetRole, getHealthL
  *       404:
  *         description: Health log not found
  */
+// NOTE: weight-chart must be registered BEFORE /:logId to avoid Express
+// treating the literal string "weight-chart" as a logId parameter.
+healthLogRoutes.get('/:petId/health-logs/weight-chart', authGuard, resolvePetRole, getWeightChart);
+
 healthLogRoutes.get('/:petId/health-logs/:logId', authGuard, resolvePetRole, getHealthLogById);
 
 /**

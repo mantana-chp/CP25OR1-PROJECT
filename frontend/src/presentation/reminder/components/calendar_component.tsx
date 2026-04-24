@@ -73,7 +73,6 @@ export default function Calendar({
     previousMonth,
     nextMonth,
     goToToday,
-    allReminders,
     canGoPrev,
     canGoNext
   } = useCalendar(reminders, recurringRules, pets)

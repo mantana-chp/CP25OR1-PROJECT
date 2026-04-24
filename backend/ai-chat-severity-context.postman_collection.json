@@ -908,6 +908,180 @@
         }
       ]
     }
+  ,
+    {
+      "name": "Scenario 9 — Ambiguous Pet Name → Select → Switch Pet Mid-Session",
+      "description": "Full pet context flow in one session:\n1. User asks about a pet name that exists in both owned and caregiver lists → backend cannot resolve, triggers pet clarification (Scenario 8 style).\n2. User explicitly selects the owned pet via resolvedPetId → session locks onto that pet, AI responds with correct pet context.\n3. Mid-session, user asks about a completely different pet by name → L1/L2 detects the switch, session updates to new pet, new pet profile injected.\n4. Follow-up without any name → session stays on the newly switched pet.\n\nSetup before running:\n- Set petNameShared = a pet name that exists in BOTH your owned pets AND a caregiver pet (same spelling).\n- Set petNameOther = a different pet name you own (the pet to switch to in step 9.3).\n- petIdSharedOwned and petIdOther will be auto-filled from responses.",
+      "item": [
+        {
+          "name": "9.1 Shared pet name — triggers clarification (ambiguous)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetSwitch}}\",\n  \"query\": \"{{petNameShared}} กินอาหารวันละกี่มื้อดี\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User says a name shared between an owned pet and a caregiver pet. Backend cannot resolve uniquely. Expected: petContextStatus = pending_clarification, petClarificationRequest with 2 options (OWNER + CAREGIVER). Auto-saves both petIds from options."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('sessionPetSwitch', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "// Save both pet options so 9.2 can pass the owned one via resolvedPetId",
+                  "const opts = data.petClarificationRequest?.options || [];",
+                  "const owned = opts.find(o => o.role === 'OWNER');",
+                  "const carer = opts.find(o => o.role === 'CAREGIVER');",
+                  "if (owned?.petId) pm.collectionVariables.set('petIdSharedOwned', owned.petId);",
+                  "if (carer?.petId) pm.collectionVariables.set('petIdSharedCarer', carer.petId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('petClarificationRequest present', () => pm.expect(data.petClarificationRequest).to.be.an('object'));",
+                  "pm.test('Two pet options returned', () => pm.expect(data.petClarificationRequest.options).to.have.lengthOf(2));",
+                  "pm.test('One option is OWNER', () => pm.expect(opts.some(o => o.role === 'OWNER')).to.be.true);",
+                  "pm.test('One option is CAREGIVER', () => pm.expect(opts.some(o => o.role === 'CAREGIVER')).to.be.true);",
+                  "console.log('OWNER petId:', owned?.petId, '| CAREGIVER petId:', carer?.petId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9.2 User selects owned pet — session locks onto it, AI responds",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetSwitch}}\",\n  \"resolvedPetId\": \"{{petIdSharedOwned}}\",\n  \"query\": \"{{petNameShared}} ที่เป็นสัตว์เลี้ยงของฉัน กินอาหารวันละกี่มื้อดี\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User clarifies which pet by sending resolvedPetId of the owned pet. Session now locks onto owned pet. Expected: resolvedPetId = petIdSharedOwned, AI answers in owned pet's context, petProfileIncluded = true in logs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('resolvedPetId is the owned pet', () => pm.expect(data.resolvedPetId).to.eql(pm.collectionVariables.get('petIdSharedOwned')));",
+                  "pm.test('contextStatus is not_required', () => pm.expect(data.contextStatus).to.eql('not_required'));",
+                  "pm.test('Answer present (owned pet context)', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));",
+                  "console.log('Check server log: petProfileIncluded=true expected (first injection for owned pet)');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9.3 Switch to a different pet mid-session — AI acknowledges the new pet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetSwitch}}\",\n  \"query\": \"แล้ว {{petNameOther}} ล่ะ ควรกินอาหารแบบเดียวกันไหม\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "User naturally switches topic to a different pet (petNameOther) mid-conversation. L1/L2 name detection picks up the new name and updates session.resolvedPetId. Expected: resolvedPetId changes to petNameOther's ID (different from petIdSharedOwned), petProfileIncluded = true in logs (new pet injection), AI answers about the new pet."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "if (data.resolvedPetId) pm.collectionVariables.set('petIdOther', data.resolvedPetId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Pet switched — resolvedPetId differs from owned pet', () => {",
+                  "  pm.expect(data.resolvedPetId).to.be.a('string');",
+                  "  pm.expect(data.resolvedPetId).to.not.eql(pm.collectionVariables.get('petIdSharedOwned'));",
+                  "});",
+                  "pm.test('Answer about new pet present', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));",
+                  "console.log('New pet ID:', data.resolvedPetId);",
+                  "console.log('Check server log: petProfileIncluded=true expected (switched pet, new injection)');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9.4 Follow-up without pet name — stays on the new pet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "X-Installation-Id", "value": "{{installationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientChatSessionId\": \"{{sessionPetSwitch}}\",\n  \"query\": \"เขาควรออกกำลังกายวันละเท่าไหร่\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/ai-chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "ai-chat"]
+            },
+            "description": "No pet name in query. Session must stay on petNameOther from 9.3. Expected: resolvedPetId = petIdOther (same as 9.3), petProfileSkipped = true in logs, AI still responds about the new pet using session memory."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || {};",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Session stays on switched pet (petIdOther)', () => pm.expect(data.resolvedPetId).to.eql(pm.collectionVariables.get('petIdOther')));",
+                  "pm.test('Answer present', () => pm.expect(data.answer).to.be.a('string').with.length.above(0));",
+                  "console.log('Check server log: petProfileSkipped=true expected (same pet as 9.3)');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
@@ -932,6 +1106,12 @@
     { "key": "sessionPetAmbiguous", "value": "" },
     { "key": "ctxPetAmbiguous", "value": "" },
     { "key": "petIdOwned", "value": "" },
-    { "key": "petIdCaregiver", "value": "" }
+    { "key": "petIdCaregiver", "value": "" },
+    { "key": "sessionPetSwitch", "value": "" },
+    { "key": "petNameShared", "value": "" },
+    { "key": "petNameOther", "value": "" },
+    { "key": "petIdSharedOwned", "value": "" },
+    { "key": "petIdSharedCarer", "value": "" },
+    { "key": "petIdOther", "value": "" }
   ]
 }

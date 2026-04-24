@@ -3,9 +3,14 @@ import {
   colors,
   iconSizes,
   spacing,
-  typography,
+  typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Check, Lock, ShieldAlert, X } from 'lucide-react-native'
 import React, { useMemo } from 'react'
 import {
@@ -14,7 +19,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 import Button from '../../components/button'
 import Modal from '../../components/modal'
@@ -40,13 +45,13 @@ export default function TransferPetPickerModal({
   onTogglePet,
   onToggleSelectAll,
   onClose,
-  onConfirm,
+  onConfirm
 }: TransferPetPickerModalProps) {
   const pendingSet = useMemo(() => new Set(pendingPetIds), [pendingPetIds])
 
   const selectablePets = useMemo(
     () => pets.filter((pet) => !pendingSet.has(pet.id)),
-    [pets, pendingSet],
+    [pets, pendingSet]
   )
 
   const isAllSelectableSelected =
@@ -70,14 +75,14 @@ export default function TransferPetPickerModal({
       </View>
 
       <Text style={styles.modalDescription}>
-        คุณสามารถเลือกหลายตัวได้ในคำขอโอนเดียวกัน 
+        คุณสามารถเลือกหลายตัวได้ในคำขอโอนเดียวกัน
       </Text>
 
       <View style={styles.warningBox}>
         <ShieldAlert size={16} color={colors.warning.dark} />
         <Text style={styles.warningText}>
-          สำคัญ: เมื่อผู้รับโอนกดยืนยันสำเร็จ
-          เจ้าของเดิม หรือ คุณ จะถูกตัดสิทธิ์ทั้งหมดของสัตว์เลี้ยงที่เลือกทันที
+          สำคัญ: เมื่อผู้รับโอนกดยืนยันสำเร็จ เจ้าของเดิม หรือ คุณ
+          จะถูกตัดสิทธิ์ทั้งหมดของสัตว์เลี้ยงที่เลือกทันที
           และไม่สามารถเข้าถึงข้อมูลของสัตว์เลี้ยงเหล่านี้ได้อีก
         </Text>
       </View>
@@ -109,7 +114,7 @@ export default function TransferPetPickerModal({
                 style={[
                   styles.petItem,
                   isSelected && styles.petItemSelected,
-                  isPending && styles.petItemDisabled,
+                  isPending && styles.petItemDisabled
                 ]}
                 onPress={() => onTogglePet(pet.id)}
                 disabled={loading || isPending}
@@ -122,10 +127,23 @@ export default function TransferPetPickerModal({
                       style={styles.petImage}
                     />
                   ) : (
-                    <View style={styles.petImagePlaceholder}>
-                      <Text style={styles.petImagePlaceholderText}>
-                        {pet.pet_name.charAt(0).toUpperCase()}
-                      </Text>
+                    <View
+                      style={[
+                        styles.petImagePlaceholder,
+                        {
+                          backgroundColor:
+                            pet.avatar_background_color ||
+                            getDefaultAvatarBackgroundColorBySpecies(
+                              pet.species
+                            )
+                        }
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={getPetPlaceholderIcon(pet.species)}
+                        size={24}
+                        color={colors.background.secondary}
+                      />
                     </View>
                   )}
 
@@ -166,14 +184,14 @@ export default function TransferPetPickerModal({
 
       <View style={styles.buttonsRow}>
         <Button
-          title='ยกเลิก'
+          title="ยกเลิก"
           onPress={onClose}
-          variant='ghost'
+          variant="ghost"
           style={styles.buttonHalf}
           disabled={loading}
         />
         <Button
-          title='สร้างรหัสโอนสิทธิ์'
+          title="สร้างรหัสโอนสิทธิ์"
           onPress={onConfirm}
           loading={loading}
           disabled={loading || selectedPetIds.length === 0}
@@ -186,26 +204,26 @@ export default function TransferPetPickerModal({
 
 const styles = StyleSheet.create({
   modalContainer: {
-    padding: spacing[4],
+    padding: spacing[4]
   },
   modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between'
   },
   modalTitle: {
     flex: 1,
     marginRight: spacing[2],
     fontSize: typography.fontSize.lg,
     color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   modalDescription: {
     marginTop: spacing[1],
     fontSize: typography.fontSize.sm,
     color: colors.gray[600],
     fontFamily: typography.fontFamily.regular,
-    lineHeight: typography.lineHeight.relaxed,
+    lineHeight: typography.lineHeight.relaxed
   },
   warningBox: {
     marginTop: spacing[2],
@@ -216,38 +234,38 @@ const styles = StyleSheet.create({
     padding: spacing[2],
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing[1],
+    gap: spacing[1]
   },
   warningText: {
     flex: 1,
     fontSize: typography.fontSize.sm,
     color: colors.warning.dark,
     fontFamily: typography.fontFamily.medium,
-    lineHeight: typography.lineHeight.relaxed,
+    lineHeight: typography.lineHeight.relaxed
   },
   selectorHeaderRow: {
     marginTop: spacing[2],
     marginBottom: spacing[1],
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between'
   },
   selectorHeaderTitle: {
     fontSize: typography.fontSize.sm,
     color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   selectAllText: {
     fontSize: typography.fontSize.sm,
     color: colors.primary.light,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium
   },
   listContainer: {
-    maxHeight: 340,
+    maxHeight: 340
   },
   listContent: {
     gap: spacing[2],
-    paddingBottom: spacing[1],
+    paddingBottom: spacing[1]
   },
   petItem: {
     borderRadius: borderRadius.md,
@@ -258,27 +276,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing[2],
+    gap: spacing[2]
   },
   petItemSelected: {
     borderColor: colors.primary.light,
-    backgroundColor: colors.primary.light + '15',
+    backgroundColor: colors.primary.light + '15'
   },
   petItemDisabled: {
     opacity: 0.72,
     borderColor: colors.warning.DEFAULT,
-    backgroundColor: colors.warning.light,
+    backgroundColor: colors.warning.light
   },
   petItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    flex: 1,
+    flex: 1
   },
   petImage: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: 23
   },
   petImagePlaceholder: {
     width: 46,
@@ -286,36 +304,36 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     backgroundColor: colors.primary.light,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   petImagePlaceholderText: {
     fontSize: typography.fontSize.lg,
     color: colors.background.secondary,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   petInfo: {
-    flex: 1,
+    flex: 1
   },
   petName: {
     fontSize: typography.fontSize.md,
     color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   petMeta: {
     fontSize: typography.fontSize.sm,
     color: colors.gray[600],
-    fontFamily: typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular
   },
   pendingBadgeRow: {
     marginTop: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[1],
+    gap: spacing[1]
   },
   pendingBadgeText: {
     fontSize: typography.fontSize.xs,
     color: colors.warning.dark,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium
   },
   checkIcon: {
     width: 24,
@@ -323,21 +341,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.primary.light,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   selectionText: {
     marginTop: spacing[2],
     textAlign: 'center',
     fontSize: typography.fontSize.sm,
     color: colors.gray[600],
-    fontFamily: typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular
   },
   buttonsRow: {
     marginTop: spacing[2],
     flexDirection: 'row',
-    gap: spacing[2],
+    gap: spacing[2]
   },
   buttonHalf: {
-    flex: 1,
-  },
+    flex: 1
+  }
 })

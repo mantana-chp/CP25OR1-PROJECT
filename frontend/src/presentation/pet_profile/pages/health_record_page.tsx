@@ -11,9 +11,12 @@ import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
 import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { healthRecordService } from '@/src/utils/api/services/health_record_service'
 import {
+  CreateHealthLogData,
+  CreateHealthLogPayload,
   healthLogService,
   IHealthLog
 } from '@/src/utils/api/services/health_log_service'
+import { WeightChartView } from '@/src/domain/weight-chart.domain'
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
@@ -38,7 +41,7 @@ import HealthLogFormModal from '../components/health_log_form_modal'
 import HealthRecordDetailModal from '../components/health_record_detail_modal'
 import { HealthLogFormValues, HealthLogType } from '@/src/domain/pet.domain'
 import HealthLogEntryCard from '../components/health_log_entry_card'
-import WeightTrendChart from '../components/weight_trend_chart'
+import WeightTrendChart from '@/src/presentation/pet_profile/components/weight_trend_chart'
 import MedicalDocumentsPage from './medical_documents_page'
 
 type HealthTypeFilter = 'ALL' | HealthLogType
@@ -119,7 +122,7 @@ export default function HealthRecordPage() {
     showErrorAlert: false
   })
   const createHealthLogApi = useApi(healthLogService.createHealthLog, {
-    showErrorAlert: true
+    showErrorAlert: false
   })
   const updateHealthLogApi = useApi(healthLogService.updateHealthLog, {
     showErrorAlert: true
@@ -127,11 +130,19 @@ export default function HealthRecordPage() {
   const deleteHealthLogApi = useApi(healthLogService.deleteHealthLog, {
     showErrorAlert: true
   })
+  const getWeightChartApi = useApi(healthLogService.getWeightChart, {
+    showErrorAlert: false
+  })
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMoreLogs, setHasMoreLogs] = useState(true)
   const [editingLog, setEditingLog] = useState<IHealthLog | null>(null)
-  const [petProfileWithTimestamp, setPetProfileWithTimestamp] = useState<{ weight: string; updated_at: string } | null>(null)
+  const [selectedWeightChartView, setSelectedWeightChartView] =
+    useState<WeightChartView>('month')
+  const [petProfileWithTimestamp, setPetProfileWithTimestamp] = useState<{
+    weight: string
+    updated_at: string
+  } | null>(null)
 
   const loadHealthLogs = useCallback(
     async (append = false) => {
@@ -181,11 +192,20 @@ export default function HealthRecordPage() {
     }
   }, [petId])
 
+  const loadWeightChart = useCallback(async () => {
+    if (!petId) return
+
+    await getWeightChartApi.execute(petId, {
+      view: selectedWeightChartView
+    })
+  }, [petId, selectedWeightChartView, getWeightChartApi.execute])
+
   const { isRefreshing, onRefresh } = usePullToRefresh(async () => {
     await Promise.all([
       loadHealthRecords(),
       loadHealthLogs(false),
-      loadPetProfileTimestamp()
+      loadPetProfileTimestamp(),
+      loadWeightChart()
     ])
   })
 
@@ -194,7 +214,13 @@ export default function HealthRecordPage() {
       loadHealthRecords()
       loadHealthLogs(false)
       loadPetProfileTimestamp()
-    }, [loadHealthRecords, loadHealthLogs, loadPetProfileTimestamp])
+      loadWeightChart()
+    }, [
+      loadHealthRecords,
+      loadHealthLogs,
+      loadPetProfileTimestamp,
+      loadWeightChart
+    ])
   )
 
   const allHealthRecords: IReminder[] = getHealthRecordsApi.data?.data || []
@@ -283,7 +309,7 @@ export default function HealthRecordPage() {
         ? 'บันทึกน้ำหนัก'
         : normalizedDescription
 
-    const payload = {
+    const payload: CreateHealthLogPayload = {
       category: values.type,
       description: descriptionForPayload,
       weight:
@@ -292,18 +318,84 @@ export default function HealthRecordPage() {
       loggedAt: values.loggedAt || new Date().toISOString()
     }
 
+    const completeSaveFlow = async (createData?: CreateHealthLogData) => {
+      setShowCreateModal(false)
+      setEditingLog(null)
+      await loadHealthLogs(false)
+      refreshPets()
+
+      if (createData?.suspiciousChange && createData.warningMessage) {
+        Alert.alert('โปรดตรวจสอบค่าน้ำหนัก', createData.warningMessage)
+      }
+    }
+
+    const executeCreate = async (upsert = false) => {
+      return createHealthLogApi.execute(petId, {
+        ...payload,
+        ...(upsert ? { upsert: true } : {})
+      })
+    }
+
     let result
     if (isEditing && editingLog) {
       result = await updateHealthLogApi.execute(petId, editingLog.id, payload)
     } else {
-      result = await createHealthLogApi.execute(petId, payload)
+      result = await executeCreate(false)
     }
 
-    if (result.error) return
+    if (result.error) {
+      const createErrorDetails = (result.error.errors || {}) as {
+        conflict?: boolean
+      }
+      const shouldConfirmWeightUpsert =
+        !isEditing &&
+        values.type === 'WEIGHT' &&
+        result.error.statusCode === 409 &&
+        createErrorDetails.conflict === true
 
+      if (shouldConfirmWeightUpsert) {
+        Alert.alert(
+          'มีบันทึกน้ำหนักวันนี้แล้ว',
+          'วันนี้บันทึกน้ำหนักไปแล้ว ต้องการอัปเดตเป็นค่าใหม่ไหม?',
+          [
+            {
+              text: 'ยกเลิก',
+              style: 'cancel'
+            },
+            {
+              text: 'อัปเดตค่าใหม่',
+              onPress: async () => {
+                const upsertResult = await executeCreate(true)
+                if (upsertResult.error) {
+                  Alert.alert(
+                    'ไม่สามารถบันทึกข้อมูล',
+                    upsertResult.error.message
+                  )
+                  return
+                }
+
+                await completeSaveFlow(upsertResult.data?.data)
+              }
+            }
+          ]
+        )
+        return
+      }
+
+      Alert.alert('ไม่สามารถบันทึกข้อมูล', result.error.message)
+      return
+    }
+
+    if (isEditing) {
+      await completeSaveFlow()
+      return
+    }
+
+    await completeSaveFlow(result.data?.data)
     setShowCreateModal(false)
     setEditingLog(null)
     await loadHealthLogs(false) // Reload from start to show updated log
+    await loadWeightChart()
     refreshPets()
   }
 
@@ -331,6 +423,7 @@ export default function HealthRecordPage() {
             if (result.error) return
 
             await loadHealthLogs(false) // Reload to reflect deletion
+            await loadWeightChart()
             refreshPets()
           }
         }
@@ -366,8 +459,13 @@ export default function HealthRecordPage() {
         </View>
       )}
 
-      <WeightTrendChart 
-        logs={parsedLogs}
+      <WeightTrendChart
+        chartData={getWeightChartApi.data?.data}
+        selectedView={selectedWeightChartView}
+        onChangeView={setSelectedWeightChartView}
+        loading={getWeightChartApi.loading}
+        error={!!getWeightChartApi.error}
+        onRetry={loadWeightChart}
         petProfileWeight={petProfileWithTimestamp}
       />
 
@@ -458,7 +556,9 @@ export default function HealthRecordPage() {
                     <View
                       style={[
                         styles.chipBadge,
-                        isActive && { backgroundColor: 'rgba(255,255,255,0.3)' }
+                        isActive && {
+                          backgroundColor: 'rgba(255,255,255,0.3)'
+                        }
                       ]}
                     >
                       <Text
@@ -678,7 +778,7 @@ export default function HealthRecordPage() {
             const isOwner = currentPet?.petRole === 'OWNER'
             const isCreator = item.createdByUserId === userId
             const canModify = !isDeceased && (isOwner || isCreator)
-            
+
             return (
               <HealthLogEntryCard
                 log={item}

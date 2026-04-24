@@ -236,7 +236,7 @@ export const chatWithAI = async (
       resolvedPet,
       ambiguousPets,
       petClarificationRequest,
-    } = derivePetContextState(
+    } = await derivePetContextState(
       session,
       detectedPets,
       incomingResolvedPetId,
@@ -471,11 +471,19 @@ If NeedsSeverityNow = no: Never append[NEEDS_SEVERITY].
 --- END SEVERITY CONTEXT-- - `
     );
 
-    userPromptParts.push(`User Question: ${modelQuery} `);
+    // When user just resolved pet ambiguity by selecting a pet, the query from the
+    // frontend is a UI label like "เลือกสัตว์เลี้ยง: ชบาแก้ว" — not a real question.
+    // Replace it with a neutral internal signal so the model greets naturally
+    // without assuming any health concern.
+    const effectiveModelQuery = petClarificationSubmission
+      ? `[PET_SELECTED] ผู้ใช้เพิ่งยืนยันว่าหมายถึง "${finalResolvedPet?.pet_name ?? normalizedQuery}" (${finalResolvedPetRole === 'CAREGIVER' ? 'สัตว์เลี้ยงที่ดูแลอยู่' : 'สัตว์เลี้ยงของตัวเอง'}) ทักทายและถามว่าต้องการความช่วยเหลือเรื่องอะไร ห้ามสมมติว่ามีปัญหาสุขภาพ`
+      : modelQuery;
+
+    userPromptParts.push(`User Question: ${effectiveModelQuery}`);
 
     const prompt = userPromptParts.join('\n\n');
 
-    logger.info(`AI Chat Request - Question: "${modelQuery}"`);
+    logger.info(`AI Chat Request - Question: "${effectiveModelQuery}"`);
     logger.info(`Full AI Prompt: 
 ${prompt} `);
 

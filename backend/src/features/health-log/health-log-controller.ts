@@ -8,16 +8,32 @@ import {
   petIdParamsSchema,
   healthLogIdParamsSchema,
   getHealthLogsQuerySchema,
+  getWeightChartQuerySchema,
 } from './health-log-schema';
-
 export const createHealthLog = asyncHandler(async (req: Request, res: Response) => {
   const { body } = createHealthLogSchema.parse(req);
   const { petId } = petIdParamsSchema.parse(req.params);
   const { id: userId } = req.user!;
 
-  const log = await healthLogService.createHealthLog(petId, userId, body);
+  const result = await healthLogService.createHealthLog(petId, userId, body);
 
-  sendSuccess(res, { log }, 201);
+  if (result.kind === 'conflict') {
+    res.status(409).json({
+      status: { code: '888', description: 'Conflict' },
+      data: { conflict: true, message: 'Weight already logged today' }
+    });
+    return;
+  }
+
+  const { log, statusCode, suspiciousChange, warningMessage } = result;
+  sendSuccess(
+    res,
+    {
+      log,
+      ...(suspiciousChange && { suspiciousChange: true, warningMessage })
+    },
+    statusCode
+  );
 });
 
 export const getHealthLogs = asyncHandler(async (req: Request, res: Response) => {
@@ -49,9 +65,15 @@ export const updateHealthLog = asyncHandler(async (req: Request, res: Response) 
   const { body } = updateHealthLogSchema.parse(req);
   const { id: userId } = req.user!;
 
-  const log = await healthLogService.updateHealthLog(logId, petId, userId, body);
+  const result = await healthLogService.updateHealthLog(logId, petId, userId, body);
 
-  sendSuccess(res, { log }, 200);
+  sendSuccess(res, {
+    log: result.log,
+    ...(result.suspiciousChange && {
+      suspiciousChange: true,
+      warningMessage: result.warningMessage
+    })
+  }, 200);
 });
 
 export const deleteHealthLog = asyncHandler(async (req: Request, res: Response) => {
@@ -61,4 +83,14 @@ export const deleteHealthLog = asyncHandler(async (req: Request, res: Response) 
   await healthLogService.deleteHealthLog(logId, petId, userId);
 
   sendSuccess(res, undefined, 200);
+});
+
+export const getWeightChart = asyncHandler(async (req: Request, res: Response) => {
+  const { petId } = petIdParamsSchema.parse(req.params);
+  const { view, date } = getWeightChartQuerySchema.parse(req.query);
+  const { id: userId } = req.user!;
+
+  const chartData = await healthLogService.getWeightChartData(petId, userId, view, date);
+
+  sendSuccess(res, chartData, 200);
 });

@@ -1,8 +1,3 @@
-// ---------------------------------------------------------------------------
-// AI Chat Service - Utility Functions
-// ---------------------------------------------------------------------------
-
-import { logger } from '../../libs/logger';
 import {
   AIRequestMetrics,
   GeminiUsage,
@@ -11,9 +6,6 @@ import {
   UsageSummaryParams,
 } from './ai-chat-types';
 
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
 
 export const createTraceId = (): string =>
   `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -26,9 +18,6 @@ export const toSafeNumber = (value: unknown): number | undefined => {
 export const formatTokenLogValue = (value?: number): string =>
   value === undefined ? 'n/a' : String(value);
 
-// ---------------------------------------------------------------------------
-// Token usage extraction
-// ---------------------------------------------------------------------------
 
 /**
  * Extracts token usage from a LangChain LLM response (used for Layer 3 calls).
@@ -124,9 +113,6 @@ export const addUsageToMetrics = (
   }
 };
 
-// ---------------------------------------------------------------------------
-// Usage summary logger
-// ---------------------------------------------------------------------------
 
 export const buildRequestUsageSummary = ({
   traceId,

@@ -8,6 +8,7 @@ import {
 import {
   Prisma,
   pet_status,
+  HealthLogCategory,
   reminder_status,
   notification_status,
   RecurrenceStatusEnum,
@@ -16,6 +17,8 @@ import { type PetUpdatePayload } from './pet-schema'
 import { formatAgeFromBirthDate } from '../../shared/utils'
 import { generateDownloadUrl, deleteFile } from '../file-uploads/upload-service'
 import prisma from '../../libs/db'
+import { exceedsSpeciesMaxWeight, getSpeciesMaxWeightKg, checkWeightValidity, formatWeightWarningMessage } from '../../shared/weight-validation'
+import * as healthLogRepository from '../health-log/health-log-repository'
 
 const DEFAULT_PET_AVATAR_BACKGROUND_COLOR = '#5FA7D1'
 
@@ -133,6 +136,21 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
 
   await assertUniqueActivePetName(userId, petData.pet_name)
 
+  // Validate weight against the absolute biological max for this species
+  if (petData.weight != null) {
+    const species = await prisma.species.findUnique({
+      where: { id: petData.species_id },
+      select: { name: true },
+    })
+    const speciesName = species?.name ?? 'DEFAULT'
+    if (exceedsSpeciesMaxWeight(petData.weight, speciesName)) {
+      const maxKg = getSpeciesMaxWeightKg(speciesName)
+      throw new BadRequestError(
+        `น้ำหนักที่ระบุ (${petData.weight.toFixed(2)} kg) เกินค่าสูงสุดที่เป็นไปได้สำหรับสัตว์เลี้ยงประเภทนี้ (สูงสุด ${maxKg} kg) กรุณาตรวจสอบอีกครั้ง`
+      )
+    }
+  }
+
   const data: Prisma.petsCreateInput = {
     pet_name: petData.pet_name,
     avatar_background_color: resolveAvatarBackgroundColor(
@@ -146,7 +164,20 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
     ...(petData.breed_id && { breeds: { connect: { id: petData.breed_id } } }),
   }
 
-  return await petRepository.create(data)
+  const newPet = await petRepository.create(data)
+
+  // Auto-create initial weight log — new pet has no prior logs, no conflict possible
+  if (petData.weight != null) {
+    await healthLogRepository.create({
+      pet_id: newPet.id,
+      created_by_user_id: userId,
+      category: 'WEIGHT' as HealthLogCategory,
+      description: 'บันทึกน้ำหนักเริ่มต้น',
+      weight: petData.weight,
+    })
+  }
+
+  return newPet
 }
 
 export const createMultiplePets = async (
@@ -218,6 +249,32 @@ export const createMultiplePets = async (
     )
   }
 
+  // Batch weight validation — runs before the transaction so no partial writes occur.
+  // Fetches all unique species in one query then validates each pet.
+  // If any pet's weight is impossible, the ENTIRE batch is rejected.
+  const petsWithWeight = petsData.filter((p) => p.weight != null)
+  if (petsWithWeight.length > 0) {
+    const uniqueSpeciesIds = [...new Set(petsData.map((p) => p.species_id))]
+    const speciesList = await prisma.species.findMany({
+      where: { id: { in: uniqueSpeciesIds } },
+      select: { id: true, name: true },
+    })
+    const speciesNameById = new Map(speciesList.map((s) => [s.id, s.name]))
+
+    for (let i = 0; i < petsData.length; i++) {
+      const petData = petsData[i]
+      if (petData.weight == null) continue
+
+      const speciesName = speciesNameById.get(petData.species_id) ?? 'DEFAULT'
+      if (exceedsSpeciesMaxWeight(petData.weight, speciesName)) {
+        const maxKg = getSpeciesMaxWeightKg(speciesName)
+        throw new BadRequestError(
+          `สัตว์เลี้ยงตัวที่ ${i + 1} ("${petData.pet_name}"): น้ำหนักที่ระบุ (${petData.weight.toFixed(2)} kg) เกินค่าสูงสุดที่เป็นไปได้สำหรับสัตว์เลี้ยงประเภทนี้ (สูงสุด ${maxKg} kg)`
+        )
+      }
+    }
+  }
+
   // Create all pets in a transaction
   const createdPets = await prisma.$transaction(async (tx) => {
     const pets = []
@@ -242,6 +299,24 @@ export const createMultiplePets = async (
     }
     return pets
   })
+
+  // Auto-create initial weight logs for pets that had a weight specified.
+  // New pets have no prior logs — no same-day conflict possible — create directly in parallel.
+  await Promise.all(
+    createdPets
+      .map((newPet, i) => {
+        const weight = petsData[i].weight
+        if (weight == null) return null
+        return healthLogRepository.create({
+          pet_id: newPet.id,
+          created_by_user_id: userId,
+          category: 'WEIGHT' as HealthLogCategory,
+          description: 'บันทึกน้ำหนักเริ่มต้น',
+          weight,
+        })
+      })
+      .filter((p): p is Promise<any> => p !== null)
+  )
 
   return Promise.all(createdPets.map(formatPetProfile))
 }
@@ -280,9 +355,66 @@ export const updatePet = async (
   if (petData.gender != null) {
     updateData.gender = petData.gender
   }
+
+  // ─── Weight: validate → conflict check → conditionally update ───────────────
+  let weightConflict = false
+  let todayWeightLog: Awaited<ReturnType<typeof healthLogRepository.findWeightLogByDate>> | null = null
+  let suspiciousChange = false
+  let weightWarningMessage: string | undefined
+
   if (petData.weight != null) {
-    updateData.weight = petData.weight
+    const speciesName = existingPet.species?.name ?? 'DEFAULT'
+
+    // 1. Hard block: species absolute max
+    if (exceedsSpeciesMaxWeight(petData.weight, speciesName)) {
+      const maxKg = getSpeciesMaxWeightKg(speciesName)
+      throw new BadRequestError(
+        `น้ำหนักที่ระบุ (${petData.weight.toFixed(2)} kg) เกินค่าสูงสุดที่เป็นไปได้สำหรับ${existingPet.species?.name_th ? ' ' + existingPet.species.name_th : 'สัตว์เลี้ยงประเภทนี้'} (สูงสุด ${maxKg} kg) กรุณาตรวจสอบอีกครั้ง`
+      )
+    }
+
+    // 2. Soft warning: compare against the most recent weight log before today
+    //    Use start-of-today as cutoff so any existing same-day log is excluded from baseline
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const prevLog = await healthLogRepository.findMostRecentPreviousWeight(petId, startOfToday)
+    if (prevLog && prevLog.weight !== null) {
+      // Normal case: prior-to-today log exists — use it as the timed baseline
+      const prevWeight = Number(prevLog.weight)
+      const daysSince = Math.max(
+        (Date.now() - new Date(prevLog.logged_at).getTime()) / (1000 * 60 * 60 * 24),
+        0
+      )
+      const validity = checkWeightValidity(petData.weight, prevWeight, daysSince, speciesName)
+      if (validity.suspicious) {
+        suspiciousChange = true
+        weightWarningMessage = formatWeightWarningMessage(prevWeight, prevLog.logged_at, petData.weight)
+      }
+    } else if (existingPet.weight !== null && existingPet.weight !== undefined) {
+      // Fallback: no prior-to-today log (all history is from today, or pet has no logs yet).
+      // existingPet.weight is the last known weight before this update — use it as the baseline.
+      // daysSince=0 activates the 10% floor threshold, appropriate without a time reference.
+      const prevWeight = Number(existingPet.weight)
+      const validity = checkWeightValidity(petData.weight, prevWeight, 0, speciesName)
+      if (validity.suspicious) {
+        suspiciousChange = true
+        weightWarningMessage = `น้ำหนักเปลี่ยนแปลงค่อนข้างมากจากน้ำหนักล่าสุดของสัตว์เลี้ยง (จาก ${prevWeight.toFixed(2)} kg เป็น ${petData.weight.toFixed(2)} kg) กรุณาตรวจสอบความถูกต้องอีกครั้ง`
+      }
+    }
+    // If both prevLog and existingPet.weight are null — brand new pet with no weight — skip warning
+
+    // 3. Same-day weight log conflict check
+    todayWeightLog = await healthLogRepository.findWeightLogByDate(petId, new Date())
+    const hasConflict = todayWeightLog !== null && !petData.overwriteWeightLog
+
+    if (hasConflict) {
+      // Hold weight — do not add to updateData; non-weight fields still update
+      weightConflict = true
+    } else {
+      updateData.weight = petData.weight
+    }
   }
+
   if (petData.birth_date != null) {
     updateData.birth_date = petData.birth_date
       ? new Date(petData.birth_date)
@@ -295,15 +427,88 @@ export const updatePet = async (
     updateData.breeds = { connect: { id: petData.breed_id } }
   }
 
-  if (Object.keys(updateData).length === 0) {
+  // Allow empty updateData when weight was intentionally held due to conflict
+  if (Object.keys(updateData).length === 0 && !weightConflict) {
     throw new BadRequestError(
       'Request body must contain at least one valid field to update.',
     )
   }
 
-  return await petRepository.update(petId, userId, updateData)
+  // Write non-weight fields (and weight if no conflict)
+  if (Object.keys(updateData).length > 0) {
+    await petRepository.update(petId, userId, updateData)
+  }
 
-  // return await getPetProfileById(petId, userId);
+  // ─── Auto weight log side-effects ───────────────────────────────────────────
+  if (petData.weight != null && !weightConflict) {
+    if (todayWeightLog) {
+      // Overwrite confirmed: use the same upsert function as health-log-service,
+      // updating logged_at to now so this becomes the latest entry for the day
+      await healthLogRepository.updateWeightLogWithWeight(
+        todayWeightLog.id,
+        petData.weight,
+        'อัปเดตน้ำหนักจากโปรไฟล์',
+        undefined,
+        new Date()
+      )
+    } else {
+      // No conflict: auto-create a new weight log for today
+      await healthLogRepository.create({
+        pet_id: petId,
+        created_by_user_id: userId,
+        category: 'WEIGHT' as HealthLogCategory,
+        description: 'อัปเดตน้ำหนักจากโปรไฟล์',
+        weight: petData.weight,
+      })
+    }
+  }
+
+  // ─── Return ─────────────────────────────────────────────────────────────────
+  const updatedPet = await getPetProfileById(petId, userId)
+
+  if (weightConflict) {
+    // Determine which non-weight fields were actually different from the existing values.
+    // Frontend always sends all non-null fields, so comparing against existingPet is accurate.
+    const changedFields: string[] = []
+    if (petData.pet_name != null && petData.pet_name !== existingPet.pet_name)
+      changedFields.push('ชื่อ')
+    if (petData.gender != null && petData.gender !== existingPet.gender)
+      changedFields.push('เพศ')
+    if (petData.breed_id != null && petData.breed_id !== existingPet.breed_id)
+      changedFields.push('สายพันธุ์')
+    if (petData.species_id != null && petData.species_id !== existingPet.species_id)
+      changedFields.push('ชนิดสัตว์')
+    if (
+      petData.birth_date != null &&
+      new Date(petData.birth_date).getTime() !==
+      (existingPet.birth_date ? new Date(existingPet.birth_date).getTime() : NaN)
+    )
+      changedFields.push('วันเกิด')
+    if (
+      petData.avatar_background_color !== undefined &&
+      petData.avatar_background_color !== existingPet.avatar_background_color
+    )
+      changedFields.push('สีโปรไฟล์')
+
+    const savedSummary =
+      changedFields.length > 0
+        ? `บันทึก${changedFields.join(', ')}สำเร็จ — `
+        : ''
+
+    return {
+      conflict: true as const,
+      message: `${savedSummary}มีการบันทึกน้ำหนักในวันนี้แล้ว คุณยังต้องการอัปเดตน้ำหนักอยู่หรือไม่?`,
+      updatedFields: changedFields,
+      pet: updatedPet,
+    }
+  }
+
+  // Non-conflict path — include soft warning if the new weight looked suspicious
+  return {
+    conflict: false as const,
+    pet: updatedPet,
+    ...(suspiciousChange && { suspiciousChange: true, warningMessage: weightWarningMessage }),
+  }
 }
 
 export const getAllPetProfilesForUser = async (

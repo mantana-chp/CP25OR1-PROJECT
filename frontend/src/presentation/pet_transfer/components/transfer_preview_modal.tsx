@@ -2,12 +2,17 @@ import {
   borderRadius,
   colors,
   spacing,
-  typography,
+  typography
 } from '@/constants/design-system'
 import {
   ITransferPreviewPet,
-  ITransferPreviewResponse,
+  ITransferPreviewResponse
 } from '@/src/domain/pet_transfer.domain'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { PawPrint, TriangleAlert } from 'lucide-react-native'
 import React from 'react'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -31,10 +36,21 @@ function PreviewPetItem({ pet }: { pet: ITransferPreviewPet }) {
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.petImage} />
         ) : (
-          <View style={styles.petImagePlaceholder}>
-            <Text style={styles.petImagePlaceholderText}>
-              {pet.petName.charAt(0).toUpperCase()}
-            </Text>
+          <View
+            style={[
+              styles.petImagePlaceholder,
+              {
+                backgroundColor: getDefaultAvatarBackgroundColorBySpecies(
+                  pet.species
+                )
+              }
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={getPetPlaceholderIcon(pet.species)}
+              size={26}
+              color={colors.background.secondary}
+            />
           </View>
         )}
       </View>
@@ -59,7 +75,7 @@ export default function TransferPreviewModal({
   preview,
   loading,
   onClose,
-  onConfirm,
+  onConfirm
 }: TransferPreviewModalProps) {
   const wouldExceed = Boolean(preview?.wouldExceedLimit)
 
@@ -72,7 +88,7 @@ export default function TransferPreviewModal({
           <View
             style={[
               styles.countBox,
-              wouldExceed ? styles.countBoxWarning : styles.countBoxNormal,
+              wouldExceed ? styles.countBoxWarning : styles.countBoxNormal
             ]}
           >
             <Text style={styles.countText}>
@@ -103,25 +119,26 @@ export default function TransferPreviewModal({
 
           <ScrollView
             style={styles.listContainer}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.listContent}>
-              {preview.pets.map((pet) => (
-                <PreviewPetItem key={pet.id} pet={pet} />
-              ))}
-            </View>
+            {preview.pets.map((pet) => (
+              <PreviewPetItem key={pet.id} pet={pet} />
+            ))}
           </ScrollView>
 
           <View style={styles.footerButtons}>
             <Button
-              title='ยกเลิก'
+              title="ยกเลิก"
               onPress={onClose}
-              variant='ghost'
+              variant="ghost"
               style={styles.buttonHalf}
               disabled={loading}
             />
             <Button
-              title='ยืนยันรับโอน'
+              title="ยืนยันรับโอน"
               onPress={onConfirm}
               style={styles.buttonHalf}
               loading={loading}
@@ -140,63 +157,64 @@ const styles = StyleSheet.create({
     color: colors.primary.DEFAULT,
     fontFamily: typography.fontFamily.bold,
     textAlign: 'center',
-    marginBottom: spacing[2],
+    marginBottom: spacing[2]
   },
   countBox: {
     borderRadius: borderRadius.md,
     padding: spacing[3],
     borderWidth: 1,
-    marginBottom: spacing[2],
+    marginBottom: spacing[2]
   },
   countBoxNormal: {
     borderColor: colors.border.DEFAULT,
-    backgroundColor: colors.gray[50],
+    backgroundColor: colors.gray[50]
   },
   countBoxWarning: {
     borderColor: colors.warning.DEFAULT,
-    backgroundColor: colors.warning.light,
+    backgroundColor: colors.warning.light
   },
   countText: {
     fontSize: typography.fontSize.sm,
     color: colors.gray[700],
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium
   },
   countSubText: {
     marginTop: spacing[1],
     fontSize: typography.fontSize.xs,
     color: colors.gray[600],
-    fontFamily: typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular
   },
   warningRow: {
     marginBottom: spacing[2],
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing[1],
+    gap: spacing[1]
   },
   warningText: {
     flex: 1,
     fontSize: typography.fontSize.sm,
     color: colors.warning.dark,
     fontFamily: typography.fontFamily.medium,
-    lineHeight: typography.lineHeight.relaxed,
+    lineHeight: typography.lineHeight.relaxed
   },
   listHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[1],
-    marginBottom: spacing[1],
+    marginBottom: spacing[1]
   },
   listHeaderText: {
     fontSize: typography.fontSize.sm,
     color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   listContainer: {
     maxHeight: 260,
+    flexGrow: 0
   },
   listContent: {
     gap: spacing[2],
-    paddingBottom: spacing[1],
+    paddingBottom: spacing[1]
   },
   petCard: {
     flexDirection: 'row',
@@ -206,49 +224,49 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.light,
     backgroundColor: colors.background.secondary,
-    padding: spacing[2],
+    padding: spacing[2]
   },
   petImageContainer: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
   petImage: {
     width: '100%',
-    height: '100%',
+    height: '100%'
   },
   petImagePlaceholder: {
     width: '100%',
     height: '100%',
     backgroundColor: colors.primary.light,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   petImagePlaceholderText: {
     fontSize: typography.fontSize.lg,
     color: colors.background.secondary,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   petInfo: {
-    flex: 1,
+    flex: 1
   },
   petName: {
     fontSize: typography.fontSize.md,
     color: colors.primary.DEFAULT,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold
   },
   petSubInfo: {
     fontSize: typography.fontSize.sm,
     color: colors.gray[600],
-    fontFamily: typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular
   },
   footerButtons: {
     marginTop: spacing[3],
     flexDirection: 'row',
-    gap: spacing[2],
+    gap: spacing[2]
   },
   buttonHalf: {
-    flex: 1,
-  },
+    flex: 1
+  }
 })

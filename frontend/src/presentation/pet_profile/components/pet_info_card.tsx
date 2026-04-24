@@ -6,13 +6,13 @@ import { IPetProfile } from '@/src/domain/pet.domain'
 import {
   FontAwesome6,
   Ionicons,
-  MaterialCommunityIcons,
+  MaterialCommunityIcons
 } from '@expo/vector-icons'
 import { Cake, Edit2, Ribbon, Trash2, VenusAndMars } from 'lucide-react-native'
 import { colors } from '@/constants/design-system'
 import {
   getDefaultAvatarBackgroundColorBySpecies,
-  getPetPlaceholderIcon,
+  getPetPlaceholderIcon
 } from '@/src/utils/pet_avatar'
 
 interface PetInfoCardProps {
@@ -22,8 +22,6 @@ interface PetInfoCardProps {
   onMarkDeceased?: () => void
   isDeceased?: boolean
   readOnly?: boolean
-  avatarBackgroundColor?: string
-  onAvatarBackgroundColorChange?: (color: string) => void
 }
 
 export default function PetInfoCard({
@@ -32,8 +30,7 @@ export default function PetInfoCard({
   onDelete,
   onMarkDeceased,
   isDeceased = false,
-  readOnly = false,
-  avatarBackgroundColor,
+  readOnly = false
 }: PetInfoCardProps) {
   const convertDaysToThaiAge = (days: number): string => {
     if (!days) return '-'
@@ -68,7 +65,7 @@ export default function PetInfoCard({
   const getThaiGender = (gender: string): string => {
     const genderMap: { [key: string]: string } = {
       male: 'ผู้',
-      female: 'เมีย',
+      female: 'เมีย'
     }
 
     return genderMap[gender.toLowerCase()] || gender
@@ -80,7 +77,7 @@ export default function PetInfoCard({
   }
 
   const resolvedAvatarBackgroundColor =
-    avatarBackgroundColor ||
+    data.avatar_background_color ||
     getDefaultAvatarBackgroundColorBySpecies(data.species)
 
   return (
@@ -92,7 +89,7 @@ export default function PetInfoCard({
             style={[
               styles.petAvatar,
               { backgroundColor: resolvedAvatarBackgroundColor },
-              isDeceased && styles.deceasedPetAvatar,
+              isDeceased && styles.deceasedPetAvatar
             ]}
           >
             {data.profile_image_url ? (
@@ -104,7 +101,7 @@ export default function PetInfoCard({
               <MaterialCommunityIcons
                 name={getPetPlaceholderIcon(data.species)}
                 size={28}
-                color='white'
+                color="white"
               />
             )}
           </View>
@@ -129,7 +126,7 @@ export default function PetInfoCard({
                       style={styles.editButton}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Edit2 size={18} color='#5FA7D1' />
+                      <Edit2 size={18} color="#5FA7D1" />
                     </TouchableOpacity>
                   </Link>
                 )}
@@ -147,7 +144,7 @@ export default function PetInfoCard({
                       onPress={onMarkDeceased}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Ribbon size={18} color='#6b7280' />
+                      <Ribbon size={18} color="#6b7280" />
                     </TouchableOpacity>
                   )}
                   {canDelete && onDelete && (
@@ -156,7 +153,7 @@ export default function PetInfoCard({
                       onPress={onDelete}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <Trash2 size={18} color='#BF1737' />
+                      <Trash2 size={18} color="#BF1737" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -168,29 +165,29 @@ export default function PetInfoCard({
         <View
           style={[
             styles.infoGrid,
-            { flexDirection: 'row', justifyContent: 'space-between' },
+            { flexDirection: 'row', justifyContent: 'space-between' }
           ]}
         >
           <View style={styles.infoItem}>
-            <Ionicons name='paw-outline' size={12} color='#5BA3D0' />
+            <Ionicons name="paw-outline" size={12} color="#5BA3D0" />
             <Text style={styles.infoText} numberOfLines={1}>
               {data.species} {data.breed}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Cake size={12} color='#5BA3D0' />
+            <Cake size={12} color="#5BA3D0" />
             <Text style={styles.infoText} numberOfLines={1}>
               {convertDaysToThaiAge(data.age)}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <VenusAndMars size={12} color='#5BA3D0' />
+            <VenusAndMars size={12} color="#5BA3D0" />
             <Text style={styles.infoText} numberOfLines={1}>
               เพศ {getThaiGender(data.gender)}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <FontAwesome6 name='weight-scale' size={12} color='#5BA3D0' />
+            <FontAwesome6 name="weight-scale" size={12} color="#5BA3D0" />
             <Text style={styles.infoText} numberOfLines={1}>
               {data.weight
                 ? `${formatWeight(parseFloat(data.weight))} กก.`
@@ -209,20 +206,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#225877',
     fontFamily: 'Prompt_500Medium',
-    marginBottom: 4,
+    marginBottom: 4
   },
   card: {
     padding: 8,
     borderRadius: 12,
-    backgroundColor: colors.background.secondary,
+    backgroundColor: colors.background.secondary
   },
   deceasedCard: {
     borderColor: '#9ca3af',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   petAvatar: {
     width: 48,
@@ -231,37 +228,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
   avatarImage: {
     width: '100%',
-    height: '100%',
+    height: '100%'
   },
   deceasedPetAvatar: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: '#9ca3af'
   },
   cardHeaderText: {
     flex: 1,
-    minWidth: 0,
+    minWidth: 0
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between'
   },
   nameAndBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
-    gap: 6,
+    gap: 6
   },
   petName: {
     fontSize: 17,
     color: '#225877',
     marginBottom: 2,
     fontFamily: 'Prompt_500Medium',
-    flexShrink: 1,
+    flexShrink: 1
   },
   deceasedBadge: {
     backgroundColor: '#f3f4f6',
@@ -269,12 +266,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#d1d5db'
   },
   deceasedBadgeText: {
     fontSize: 10,
     fontFamily: 'Prompt_400Regular',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   caregiverBadge: {
     backgroundColor: '#E8F4F8',
@@ -282,12 +279,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
   },
   caregiverBadgeText: {
     fontSize: 10,
     fontFamily: 'Prompt_500Medium',
-    color: '#225877',
+    color: '#225877'
   },
   infoGrid: {
     flexDirection: 'row',
@@ -295,41 +292,41 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E8F4F8',
+    borderTopColor: '#E8F4F8'
   },
   infoGridItem: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '50%',
-    marginBottom: 4,
+    marginBottom: 4
   },
   infoItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   infoText: {
     fontSize: 12,
     color: '#225877',
     marginLeft: 4,
-    fontFamily: 'Prompt_400Regular',
+    fontFamily: 'Prompt_400Regular'
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 2,
+    gap: 2
   },
   editButton: {
-    padding: 4,
+    padding: 4
     // borderRadius: 6
     // backgroundColor: '#E8F4F8'
   },
   deceasedButton: {
-    padding: 4,
+    padding: 4
     // borderRadius: 6
     // backgroundColor: '#f3f4f6'
   },
   deleteButton: {
-    padding: 4,
+    padding: 4
     // borderRadius: 6
     // backgroundColor: '#FEF2F2'
-  },
+  }
 })

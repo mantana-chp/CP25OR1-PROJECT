@@ -6,6 +6,11 @@ import {
   typography
 } from '@/constants/design-system'
 import { IPetProfile } from '@/src/domain/pet.domain'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Check, Clock, X } from 'lucide-react-native'
 import React, { useEffect, useState } from 'react'
 import {
@@ -95,10 +100,21 @@ export default function AliasModal({
               style={styles.petImage}
             />
           ) : (
-            <View style={styles.petImagePlaceholder}>
-              <Text style={styles.petImagePlaceholderText}>
-                {item.pet_name.charAt(0).toUpperCase()}
-              </Text>
+            <View
+              style={[
+                styles.petImagePlaceholder,
+                {
+                  backgroundColor:
+                    item.avatar_background_color ||
+                    getDefaultAvatarBackgroundColorBySpecies(item.species)
+                }
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={getPetPlaceholderIcon(item.species)}
+                size={22}
+                color={colors.background.secondary}
+              />
             </View>
           )}
           <View style={styles.petInfo}>

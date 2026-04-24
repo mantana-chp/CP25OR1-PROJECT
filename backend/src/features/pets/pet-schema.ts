@@ -70,6 +70,7 @@ export const updatePetSchema = z.object({
       .positive('Weight must be a positive number')
       .optional()
       .nullable(),
+    overwriteWeightLog: z.boolean().optional(),
   }),
 })
 

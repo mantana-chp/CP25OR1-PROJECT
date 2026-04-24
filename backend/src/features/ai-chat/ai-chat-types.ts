@@ -1,12 +1,4 @@
-// ---------------------------------------------------------------------------
-// AI Chat Service - Type Definitions
-// ---------------------------------------------------------------------------
-
 import { SeveritySubmissionInput, PetClarificationSubmissionInput } from './ai-chat-schema';
-
-// ---------------------------------------------------------------------------
-// Metric & usage types
-// ---------------------------------------------------------------------------
 
 export type AIRequestMetrics = {
   geminiTextCalls: number;
@@ -55,6 +47,7 @@ export type PetClarificationRequestData = {
     petId: string;
     petName: string;
     role: 'OWNER' | 'CAREGIVER';
+    petProfileUrl?: string;
   }>;
 };
 

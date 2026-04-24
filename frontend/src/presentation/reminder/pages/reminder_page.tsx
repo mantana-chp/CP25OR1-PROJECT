@@ -2,16 +2,18 @@ import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
+import { IReminder } from '@/src/domain/reminder.domain'
 import {
   generateAllVirtualReminders,
+  IVirtualReminder,
   mergeRealAndVirtualReminders
-} from '@/src/utils/recurring_reminder_generator'
+} from '../../../utils/recurring_reminder_generator'
 import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PanResponder, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import TodayRemindersModal from '../../components/today_reminders_modal'
 import Calendar from '../components/calendar_component'
@@ -94,8 +96,9 @@ export default function ReminderPage() {
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
-  const [virtualReminders, setVirtualReminders] = useState<any[]>([])
-  const swipeStartY = useRef(0)
+  const [virtualReminders, setVirtualReminders] = useState<IVirtualReminder[]>(
+    []
+  )
 
   // ------------------
   // FETCH
@@ -247,35 +250,6 @@ export default function ReminderPage() {
     )
   }, [remindersWithRecurrence, virtualReminders])
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dy) > 10 &&
-          Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
-        )
-      },
-      onPanResponderGrant: (_, gestureState) => {
-        swipeStartY.current = gestureState.y0
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const swipeDistance = gestureState.dy
-        const swipeVelocity = gestureState.vy
-
-        if (swipeDistance < -50 || swipeVelocity < -0.5) {
-          if (isCalendarExpanded) {
-            setIsCalendarExpanded(false)
-          }
-        } else if (swipeDistance > 50 || swipeVelocity > 0.5) {
-          if (!isCalendarExpanded) {
-            setIsCalendarExpanded(true)
-          }
-        }
-      }
-    })
-  ).current
-
   // ------------------
   // HANDLER
   // ------------------
@@ -297,10 +271,11 @@ export default function ReminderPage() {
   const filteredReminders = useMemo(
     () =>
       hasUserSelectedDate && selectedDate
-        ? allRemindersForSelectedDate.filter((reminder) =>
+        ? allRemindersForSelectedDate.filter(
+            (reminder: IReminder | IVirtualReminder) =>
             dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
           )
-        : allReminders.filter((reminder) => {
+        : allReminders.filter((reminder: IReminder | IVirtualReminder) => {
             if (!reminder.isVirtual) return true
 
             return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
@@ -343,7 +318,7 @@ export default function ReminderPage() {
         isCategoryFilterActive={selectedCategory !== null}
       />
 
-      <View style={styles.reminderContainer} {...panResponder.panHandlers}>
+      <View style={styles.reminderContainer}>
         <ReminderList
           reminders={filteredReminders}
           pets={pets}
