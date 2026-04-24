@@ -253,6 +253,14 @@ const isReminderOverdue = (reminder: reminders, now: Date): boolean => {
   }
 }
 
+const isSameUtcDate = (a: Date, b: Date): boolean => {
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  )
+}
+
 export const getAllReminders = async (
   userId: string,
 ): Promise<{
@@ -1103,6 +1111,22 @@ export const updateReminder = async (
       if (reminderUpdateData.categoryName) {
         recurrenceUpdateData.category_name = reminderUpdateData.categoryName
       }
+      if (reminderUpdateData.reminderTime !== undefined) {
+        recurrenceUpdateData.reminder_time = finalTime
+      }
+
+      // If this instance is the current template anchor date, move anchor with edited date
+      // to avoid stale virtual occurrences on the previous date.
+      if (
+        reminderUpdateData.reminderDate &&
+        reminderToUpdate.recurrence_template?.template_start_date &&
+        isSameUtcDate(
+          reminderToUpdate.reminder_date,
+          reminderToUpdate.recurrence_template.template_start_date,
+        )
+      ) {
+        recurrenceUpdateData.template_start_date = finalDate
+      }
 
       // Only update if there are fields to update
       if (Object.keys(recurrenceUpdateData).length > 0) {
@@ -1189,6 +1213,14 @@ export const updateReminder = async (
 
         if (reminderToUpdate.recurrence_id) {
           // Update existing recurrence template
+          const shouldMoveTemplateAnchor =
+            !!reminderUpdateData.reminderDate &&
+            !!reminderToUpdate.recurrence_template?.template_start_date &&
+            isSameUtcDate(
+              reminderToUpdate.reminder_date,
+              reminderToUpdate.recurrence_template.template_start_date,
+            )
+
           await tx.recurrence.update({
             where: { id: reminderToUpdate.recurrence_id },
             data: {
@@ -1200,6 +1232,9 @@ export const updateReminder = async (
               daysOfWeek: recurrence.daysOfWeek,
               dayOfMonth: recurrence.dayOfMonth ?? null,
               reminder_time: finalTime,
+              ...(shouldMoveTemplateAnchor
+                ? { template_start_date: finalDate }
+                : {}),
               endDate: recurrence.endDate ? new Date(recurrence.endDate) : null,
               endAfterOccurrences: recurrence.endAfterOccurrences ?? null,
             },
