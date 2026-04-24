@@ -21,12 +21,14 @@ const PET_ITEM_WIDTH = 72
 const PET_ITEM_GAP = 6
 const PET_ITEM_SPAN = PET_ITEM_WIDTH + PET_ITEM_GAP
 const EXPAND_THRESHOLD = 5
+const DECEASED_AVATAR_BACKGROUND_COLOR = '#9E9E9E'
 
 interface Pet {
   id: string
   pet_name: string
   avatar_background_color?: string | null
   species?: string
+  status?: 'ACTIVE' | 'DECEASED' | 'DELETED' | string
   petRole?: 'OWNER' | 'CAREGIVER'
   imageUrl?: string
   profile_image_url?: string | null
@@ -95,6 +97,10 @@ export default function PetSelector({
   }
 
   const getPetAvatarBackgroundColor = (pet: Pet) => {
+    if (pet.status === 'DECEASED' || isViewingDeceased) {
+      return DECEASED_AVATAR_BACKGROUND_COLOR
+    }
+
     return (
       avatarColorsByPetId[pet.id] ||
       pet.avatar_background_color ||
