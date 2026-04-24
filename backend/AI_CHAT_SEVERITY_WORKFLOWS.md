@@ -18,10 +18,11 @@
 10. [Scenario 8: Duplicate Pet Names with LLM Disambiguation](#scenario-8-duplicate-pet-names-with-llm-disambiguation)
 11. [Scenario 9: Session Continuity with Pet Context](#scenario-9-session-continuity-with-pet-context)
 12. [Scenario 10: Severity Context with Pet Switch](#scenario-10-severity-context-with-pet-switch)
-13. [Error Scenarios](#error-scenarios)
-14. [Field Explanations](#field-explanations)
-15. [Context State Machine](#context-state-machine)
-16. [Pet Context State Machine](#pet-context-state-machine)
+13. [Scenario 11: Symptom Query with Ambiguous Pet Name (Deferred Severity)](#scenario-11-symptom-query-with-ambiguous-pet-name-deferred-severity)
+14. [Error Scenarios](#error-scenarios)
+15. [Field Explanations](#field-explanations)
+16. [Context State Machine](#context-state-machine)
+17. [Pet Context State Machine](#pet-context-state-machine)
 
 ---
 
@@ -34,13 +35,13 @@
 
 ### Context Management
 - **`contextId`** (server-generated): Unique identifier for a symptom context. Changes when user switches to a different symptom topic.
-- **`contextStatus`**: Current state of the context - `clean`, `pending_severity`, `pending_clarification`, or `resolved`.
+- **`contextStatus`**: Current state of the context - `not_required`, `pending_severity`, `pending_clarification`, or `resolved`.
 - **`contextChanged`**: Boolean flag indicating if this is a new context (different from previous turn).
 
 ### Pet Context Management
 - **`resolvedPetId`**: ID of the pet currently being discussed.
 - **`resolvedPetRole`**: Either `OWNER` (user's own pet) or `CAREGIVER` (shared pet).
-- **`petContextStatus`**: State of pet detection - `no_pet`, `resolved`, `pending_clarification`.
+- **`petContextStatus`**: State of pet detection - `not_required`, `resolved`, `pending_clarification`.
 - **`petContextChanged`**: Boolean flag indicating if pet changed from previous turn.
 
 ### Severity Flow
@@ -65,7 +66,7 @@
 | `severitySubmission.level` | number (1-5) | Yes* | Selected severity level |
 | `severitySubmission.contextId` | string | Yes* | Must match response contextId |
 | `petClarificationSubmission` | object | No | Pet selection response |
-| `petClarificationSubmission.petId` | string | Yes* | Selected pet ID |
+| `petClarificationSubmission.selectedPetId` | string | Yes* | Selected pet ID |
 | `petClarificationSubmission.contextId` | string | Yes* | Must match response contextId |
 
 **Headers Required:**
@@ -86,8 +87,8 @@
 | `data.severityFlag` | boolean | No | `true` = show severity selector |
 | `data.contextId` | string | Yes | Context identifier for this turn |
 | `data.contextChanged` | boolean | No | `true` if new context started |
-| `data.contextStatus` | string | Yes | `clean`, `pending_severity`, `pending_clarification`, `resolved` |
-| `data.petContextStatus` | string | Yes | `no_pet`, `resolved`, `pending_clarification` |
+| `data.contextStatus` | string | Yes | `not_required`, `pending_severity`, `pending_clarification`, `resolved` |
+| `data.petContextStatus` | string | Yes | `not_required`, `resolved`, `pending_clarification` |
 | `data.petContextChanged` | boolean | No | `true` if pet changed |
 | `data.severityRequest` | object | No | Prompt for severity selection |
 | `data.severityRequest.contextId` | string | Yes* | Context ID for severity submission |
@@ -99,7 +100,7 @@
 | `data.petClarificationRequest` | object | No | Prompt for ambiguous pet selection |
 | `data.petClarificationRequest.contextId` | string | Yes* | Context ID |
 | `data.petClarificationRequest.prompt` | string | Yes* | Thai pet selection prompt |
-| `data.petClarificationRequest.ambiguousPets` | array | Yes* | List of pets with same name |
+| `data.petClarificationRequest.options` | array | Yes* | List of pets with same name |
 | `data.severityLevel` | number | No | Submitted severity level (if applicable) |
 
 *Present when parent object exists.
@@ -205,7 +206,7 @@ X-Installation-Id: install_abc123
         "description": "Success"
     },
     "data": {
-        "answer": "ระดับ 4/5 ถือว่าอาการรุนแรงมาก แมวไม่กินอาหารเป็นเวลานานอาจทำให้เกิดภาวะไขมันที่ตับ (Hepatic Lipidosis) ซึ่งอันตรายถึงชีวิต\n\n**คำแนะนำด่วน:**\n1. พาน้องไปพบสัตวแพทย์ภายใน 24 ชั่วโมง\n2. พยายามให้น้องดื่มน้ำเพื่อป้องกันการขาดน้ำ\n3. หากมีอาการซึม อ่อนเพลีย หรือซีด ให้ไปพบสัตวแพทย์ทันที\n\nกรุณาติดตามอาการอย่างใกล้ชิดนะคะ",
+        "answer": "ระดับ 4/5 ถือว่าอาการรุนแรงมาก แมวไม่กินอาหารเป็นเวลานานอาจเกิดภาวะไขมันที่ตับ (Hepatic Lipidosis) ซึ่งอันตรายถึงชีวิต\n\n**คำแนะนำด่วน:**\n1. พาน้องไปพบสัตวแพทย์ภายใน 24 ชั่วโมง\n2. พยายามให้น้องดื่มน้ำเพื่อป้องกันการขาดน้ำ\n3. หากมีอาการซึม อ่อนเพลีย หรือซีด ให้ไปพบสัตวแพทย์ทันที\n\nกรุณาติดตามอาการอย่างใกล้ชิดนะคะ",
         "contextId": "ctx_uuid_v4_abc123",
         "contextStatus": "resolved",
         "contextChanged": false,
@@ -227,7 +228,7 @@ X-Installation-Id: install_abc123
 
 **Key Fields:**
 - **`contextId`** → Same context ID (continuity)
-- **`contextStatus: resolved`** → Context now has severity, ready for follow-ups
+- **`contextStatus: resolved`** → Context now has severity, ready for conversation
 - **`contextChanged: false`** → Same context continuing
 - **`severityFlag: undefined`** → No severity selector shown
 - **`severityLevel: 4`** → Confirms the submitted level
@@ -402,9 +403,9 @@ X-Installation-Id: install_abc123
     "data": {
         "answer": "การเลือกอาหารแมวที่ดีควรพิจารณาจาก:\n\n1. **อายุและสภาพสุขภาพ**\n   - ลูกแมว: อาหารสูตรสำหรับลูกแมว (Kitten)\n   - แมวโต: อาหารสูตรผู้ใหญ่ (Adult)\n   - แมวสูงอายุ: อาหารสูตร senior\n\n2. **ส่วนผสมที่สำคัญ**\n   - โปรตีนจากเนื้อสัตว์เป็นอันดับแรก\n   - ไม่มีสารปรุงแต่งเทียม\n   - Taurine ที่เพียงพอ\n\n3. **ยี่ห้อที่ได้รับความนิยม**\n   - Royal Canin, Hill's Science Diet, Purina Pro Plan\n   - หรืออาหารสดที่ปรุงโดยสัตวแพทย์\n\nควรปรึกษาสัตวแพทย์เพื่อเลือกอาหารที่เหมาะกับสุขภาพเฉพาะของน้องนะคะ",
         "contextId": "ctx_uuid_v4_abc123",
-        "contextStatus": "clean",
+        "contextStatus": "not_required",
         "contextChanged": false,
-        "petContextStatus": "no_pet",
+        "petContextStatus": "not_required",
         "severityFlag": false
     }
 }
@@ -415,19 +416,18 @@ X-Installation-Id: install_abc123
 **What Happened:**
 1. **Intent Classification**: Query classified as `general` (not symptom)
 2. **No Severity Trigger**: General questions don't trigger severity workflow
-3. **Clean Context**: `contextStatus: clean` = no severity context active
+3. **Clean Context**: `contextStatus: not_required` = no severity context active
 4. **No Pet Detected**: Question doesn't mention a specific pet
 
 **Key Fields:**
-- **`contextStatus: clean`** → Not a symptom context
+- **`contextStatus: not_required`** → Not a symptom context
 - **`severityFlag: false`** → No severity selector needed
-- **`petContextStatus: no_pet`** → No pet mentioned or detected
+- **`petContextStatus: not_required`** → No pet mentioned or detected
 - **No `severityRequest`** → No severity prompt
 
 **Intent Classification Rules:**
 - `symptom`: Keywords like "อาการ", "ป่วย", "ท้องเสีย", "อาเจียน", etc.
-- `general`: General pet care questions
-- `greeting`: "สวัสดี", "หวัดดี", etc.
+- `normal`: General pet care questions
 
 **Frontend Actions:**
 1. Display AI response normally
@@ -469,25 +469,23 @@ X-Installation-Id: install_abc123
     "data": {
         "answer": "พบสัตว์เลี้ยงชื่อ \"มะลิ\" หลายตัวในระบบ กรุณาเลือกว่าต้องการสอบถามเกี่ยวกับน้องตัวไหน:",
         "contextId": "ctx_uuid_v4_pet_ambig",
-        "contextStatus": "clean",
-        "contextChanged": false,
+        "contextStatus": "not_required",
         "petContextStatus": "pending_clarification",
         "petContextChanged": true,
         "petClarificationRequest": {
             "contextId": "ctx_uuid_v4_pet_ambig",
             "prompt": "พบสัตว์เลี้ยงชื่อ \"มะลิ\" หลายตัวในระบบ กรุณาเลือกว่าต้องการสอบถามเกี่ยวกับน้องตัวไหน:",
-            "ambiguousPets": [
+            "reason": "ambiguous_pet_name",
+            "options": [
                 {
-                    "id": "pet_owned_001",
-                    "pet_name": "มะลิ",
-                    "role": "OWNER",
-                    "ownerAlias": null
+                    "petId": "pet_owned_001",
+                    "petName": "มะลิ",
+                    "role": "OWNER"
                 },
                 {
-                    "id": "pet_shared_002",
-                    "pet_name": "มะลิ",
-                    "role": "CAREGIVER",
-                    "ownerAlias": "แนน"
+                    "petId": "pet_shared_002",
+                    "petName": "มะลิ",
+                    "role": "CAREGIVER"
                 }
             ]
         }
@@ -506,16 +504,15 @@ X-Installation-Id: install_abc123
 **Key Fields:**
 - **`petContextStatus: pending_clarification`** → Need user to select pet
 - **`petClarificationRequest`** → Contains list of ambiguous pets
-- **`ambiguousPets`** → Array of pets with same name, different roles
+- **`options`** → Array of pets with same name, different roles; each item has `petId`, `petName`, `role`, and optional `petProfileUrl`
 - **`role`**: `"OWNER"` or `"CAREGIVER"`
-- **`ownerAlias`**: For caregiver pets, shows owner's name (e.g., "แนน")
 
 **Frontend UI Requirement:**
 ```
 พบสัตว์เลี้ยงชื่อ "มะลิ" หลายตัวในระบบ กรุณาเลือกว่าต้องการสอบถามเกี่ยวกับน้องตัวไหน:
 
-[ ] มะลิ (สัตว์เลี้ยงของคุณ)
-[ ] มะลิ (สัตว์เลี้ยงของ แนน - ดูแลให้)
+[ ] มะลิ (สัตว์เลี้ยงของคุณ)      ← petId: pet_owned_001
+[ ] มะลิ (สัตว์เลี้ยงของ แนน)    ← petId: pet_shared_002
 
 [ยืนยัน]
 ```
@@ -544,7 +541,7 @@ X-Installation-Id: install_abc123
     "clientChatSessionId": "session_uuid_v4",
     "contextId": "ctx_uuid_v4_pet_ambig",
     "petClarificationSubmission": {
-        "petId": "pet_shared_002",
+        "selectedPetId": "pet_shared_002",
         "contextId": "ctx_uuid_v4_pet_ambig"
     }
 }
@@ -566,16 +563,14 @@ X-Installation-Id: install_abc123
     "data": {
         "answer": "เข้าใจแล้วค่ะ หมายถึงมะลิของคุณแนนที่คุณดูแลให้ใช่ไหมคะ\n\nอาการเบื่ออาหารในแมวเป็นเรื่องที่ต้องสังเกตอย่างใกล้ชิด เนื่องจากแมวที่ไม่กินอาหารเป็นเวลานานอาจเกิดภาวะไขมันที่ตับซึ่งอันตรายถึงชีวิต\n\nเพื่อให้คำแนะนำได้แม่นยำขึ้น รบกวนประเมินความรุนแรงของอาการน้องให้หน่อยได้ไหมครับ?",
         "severityFlag": true,
-        "contextId": "ctx_uuid_v4_pet_resolved",
+        "contextId": "ctx_uuid_v4_pet_ambig",
         "contextStatus": "pending_severity",
-        "contextChanged": true,
         "petContextStatus": "resolved",
         "petContextChanged": true,
         "resolvedPetId": "pet_shared_002",
         "resolvedPetRole": "CAREGIVER",
-        "resolvedOwnerAlias": "แนน",
         "severityRequest": {
-            "contextId": "ctx_uuid_v4_pet_resolved",
+            "contextId": "ctx_uuid_v4_pet_ambig",
             "prompt": "กรุณาเลือกระดับความรุนแรงของอาการที่สังเกตเห็น (1-5)",
             "reason": "new_symptom_context"
         }
@@ -594,13 +589,13 @@ X-Installation-Id: install_abc123
 **Key Fields:**
 - **`resolvedPetId`** → Selected pet ID
 - **`resolvedPetRole: "CAREGIVER"`** → User is caregiver, not owner
-- **`resolvedOwnerAlias: "แนน"`** → Shows original owner's name
 - **`petContextStatus: resolved`** → Pet now resolved
 - **`petContextChanged: true`** → Pet was just clarified
+- **`contextId` is the SAME as Turn 1** → The severity contextId is the deferred UUID from the original query
 
 **Important Validation:**
 - `petClarificationSubmission.contextId` MUST match response `contextId`
-- `petClarificationSubmission.petId` MUST be one of the `ambiguousPets[].id`
+- `petClarificationSubmission.selectedPetId` MUST be one of the `options[].petId` values from the clarification request
 
 **Caregiver vs Owner Differences:**
 - Owner pets: Full profile access, all health records
@@ -677,7 +672,7 @@ X-Installation-Id: install_abc123
 - No `petClarificationRequest` → LLM resolved it automatically
 - `petContextStatus: resolved` → Pet resolved via LLM
 - `petContextChanged: true` → Pet context established
-- `resolvedPetRole: "CAREGIVER"` → Correctly identified as shared pet
+- `resolvedPetRole: "CAREGIVER"`** → Correctly identified as shared pet
 
 **When LLM Disambiguation Fires:**
 - ✅ Multiple pets with same name detected
@@ -907,6 +902,189 @@ X-Installation-Id: install_abc123
 
 ---
 
+## Scenario 11: Symptom Query with Ambiguous Pet Name (Deferred Severity)
+
+**Description**: User's symptom query mentions a pet whose name is shared between their own pet and a caregiver pet. The backend **defers** severity assessment until after pet ambiguity is resolved — preventing two modals from appearing simultaneously.
+
+### Setup
+User has:
+- Owned pet: "จุ๊มเหม่ง" (ID: `pet_owned_001`)
+- Shared pet (caregiver): "จุ๊มเหม่ง" from friend "บอม" (ID: `pet_shared_002`)
+
+---
+
+### Turn 1: Symptom Query — Pet Clarification Only (Severity Deferred)
+
+**Request Body:**
+```json
+{
+    "query": "จุ๊มเหม่งไม่ค่อยกินข้าวเลย ซึมด้วยทำไงดี",
+    "clientChatSessionId": "session_uuid_v4"
+}
+```
+
+**Headers:** `Authorization: Bearer <token>`, `X-Installation-Id: install_abc123`
+
+**Response:**
+```json
+{
+    "status": { "code": "000", "description": "Success" },
+    "data": {
+        "answer": "คุณหมายถึง จุ๊มเหม่ง ที่เป็นสัตว์เลี้ยงของคุณ หรือ จุ๊มเหม่ง ที่คุณเป็นผู้ดูแล?",
+        "contextId": "ctx_uuid_shared_001",
+        "contextStatus": "not_required",
+        "petContextStatus": "pending_clarification",
+        "petContextChanged": true,
+        "petClarificationRequest": {
+            "contextId": "ctx_uuid_shared_001",
+            "prompt": "คุณหมายถึง จุ๊มเหม่ง ที่เป็นสัตว์เลี้ยงของคุณ หรือ จุ๊มเหม่ง ที่คุณเป็นผู้ดูแล?",
+            "reason": "ambiguous_pet_name",
+            "options": [
+                {
+                    "petId": "pet_owned_001",
+                    "petName": "จุ๊มเหม่ง",
+                    "role": "OWNER"
+                },
+                {
+                    "petId": "pet_shared_002",
+                    "petName": "จุ๊มเหม่ง",
+                    "role": "CAREGIVER",
+                    "petProfileUrl": "https://..."
+                }
+            ]
+        }
+    }
+}
+```
+
+**What Happened:**
+1. **Symptom Detected**: Query classified as `symptom` (not eating + lethargic)
+2. **Duplicate Pet Name**: Two pets named "จุ๊มเหม่ง" found; LLM disambiguation cannot resolve from query alone
+3. **Severity Deferred**: Backend stores severity internally (`session.pendingSymptomSeverity`) — does NOT surface it yet
+4. **Pet Clarification Returned**: `contextStatus: "not_required"` — only one modal shown
+
+⚠️ **Key Behavior**: `contextStatus` is `"not_required"` even though the query is a symptom query. This is intentional — severity is held back until the pet is identified.
+
+**Frontend Actions:**
+1. Show pet selection UI only (no severity modal)
+2. Store `contextId` (`"ctx_uuid_shared_001"`) — this same UUID will be used for severity later
+3. Wait for user to pick a pet
+
+---
+
+### Turn 2: Pet Selected — Severity Activated
+
+**Request Body:**
+```json
+{
+    "query": "เลือกสัตว์เลี้ยง: จุ๊มเหม่ง",
+    "clientChatSessionId": "session_uuid_v4",
+    "contextId": "ctx_uuid_shared_001",
+    "petClarificationSubmission": {
+        "contextId": "ctx_uuid_shared_001",
+        "selectedPetId": "pet_owned_001"
+    }
+}
+```
+
+**Headers:** `Authorization: Bearer <token>`, `X-Installation-Id: install_abc123`
+
+**Response:**
+```json
+{
+    "status": { "code": "000", "description": "Success" },
+    "data": {
+        "answer": "เข้าใจแล้วค่ะ จุ๊มเหม่งของคุณเองใช่ไหม มีอะไรให้ช่วยดูแลน้องได้บ้างคะ?",
+        "contextId": "ctx_uuid_shared_001",
+        "contextStatus": "pending_severity",
+        "petContextStatus": "resolved",
+        "petContextChanged": true,
+        "resolvedPetId": "pet_owned_001",
+        "resolvedPetRole": "OWNER",
+        "severityFlag": true,
+        "severityRequest": {
+            "contextId": "ctx_uuid_shared_001",
+            "prompt": "กรุณาเลือกระดับความรุนแรงของอาการที่สังเกตเห็น (1-5)",
+            "reason": "symptom_needs_assessment"
+        }
+    }
+}
+```
+
+**What Happened:**
+1. **Pet Resolved**: User selected the owned "จุ๊มเหม่ง"
+2. **Deferred Severity Activated**: Backend detects `session.pendingSymptomSeverity` and activates it
+3. **Same `contextId`**: The severity `contextId` is the **same UUID** from Turn 1 — no new context created
+4. **AI Greets Naturally**: Model responds via `[PET_SELECTED]` directive without assuming a health issue; severity UI appears alongside
+
+⚠️ **Key Point**: `contextId` in this response is **identical** to Turn 1. Send it unchanged in Turn 3.
+
+**Frontend Actions:**
+1. Close pet selection UI
+2. Display AI greeting
+3. Show severity selector (1–5 scale)
+4. Store `severityRequest.contextId` = `"ctx_uuid_shared_001"` for submission
+
+---
+
+### Turn 3: Severity Submitted — Context Resolved
+
+**Request Body:**
+```json
+{
+    "query": "จุ๊มเหม่งไม่ค่อยกินข้าวเลย ซึมด้วย",
+    "clientChatSessionId": "session_uuid_v4",
+    "contextId": "ctx_uuid_shared_001",
+    "severitySubmission": {
+        "contextId": "ctx_uuid_shared_001",
+        "level": 3,
+        "label": "ปานกลาง"
+    }
+}
+```
+
+**Headers:** `Authorization: Bearer <token>`, `X-Installation-Id: install_abc123`
+
+**Response:**
+```json
+{
+    "status": { "code": "000", "description": "Success" },
+    "data": {
+        "answer": "ระดับ 3/5 หมายถึงอาการปานกลาง ควรเฝ้าสังเกตน้องอย่างใกล้ชิดในช่วง 24 ชั่วโมงนี้...",
+        "contextId": "ctx_uuid_shared_001",
+        "contextStatus": "resolved",
+        "petContextStatus": "resolved",
+        "resolvedPetId": "pet_owned_001",
+        "resolvedPetRole": "OWNER",
+        "severityLevel": 3
+    }
+}
+```
+
+**What Happened:**
+1. **Severity Submitted**: Level 3 incorporated into the AI response
+2. **Context Resolved**: Ready for follow-up questions
+3. **Consistent Pet**: Same `resolvedPetId` across all 3 turns
+
+**Frontend Actions:**
+1. Hide severity selector
+2. Display severity-aware AI response
+3. Continue normal chat flow
+
+---
+
+### Turn Summary
+
+| Turn | User Action | `contextStatus` | `petContextStatus` | Modals Shown |
+|------|-------------|-----------------|-------------------|--------------|
+| 1 | Symptom query (ambiguous pet) | `not_required` | `pending_clarification` | Pet selection only |
+| 2 | Select pet | `pending_severity` | `resolved` | Severity selector only |
+| 3 | Submit severity | `resolved` | `resolved` | None |
+
+**`contextId` = `"ctx_uuid_shared_001"` across all 3 turns.**
+
+---
+
 ## Error Scenarios
 
 ### Error 1: Context ID Mismatch (Severity Submission)
@@ -951,7 +1129,7 @@ X-Installation-Id: install_abc123
     "clientChatSessionId": "session_uuid_v4",
     "contextId": "ctx_abc",
     "petClarificationSubmission": {
-        "petId": "pet_001",
+        "selectedPetId": "pet_001",
         "contextId": "ctx_xyz"
     }
 }
@@ -982,7 +1160,7 @@ X-Installation-Id: install_abc123
     "clientChatSessionId": "session_uuid_v4",
     "contextId": "ctx_ambig",
     "petClarificationSubmission": {
-        "petId": "pet_invalid_id",
+        "selectedPetId": "pet_invalid_id",
         "contextId": "ctx_ambig"
     }
 }
@@ -1004,7 +1182,7 @@ X-Installation-Id: install_abc123
 }
 ```
 
-**Fix:** Pet ID must be one of the IDs from `ambiguousPets` array in the previous response.
+**Fix:** `selectedPetId` must be one of the `petId` values from `options` array in the previous `petClarificationRequest`.
 
 ### Error 4: Server Error (Retryable)
 
@@ -1077,17 +1255,17 @@ Turn 3: Send ctx_001 but new symptom → Server returns ctx_002 (new context)
 **Values:**
 
 | Value | Meaning | Frontend Action |
-|-------|---------|-----------------|
-| `clean` | No active symptom context | Normal chat |
+|-------|---------|-----------------||
+| `not_required` | No active symptom context | Normal chat |
 | `pending_severity` | Symptom detected, need severity | Show severity selector |
 | `pending_clarification` | Ambiguous health query | Show clarification options |
 | `resolved` | Context has severity, ready for chat | Normal chat |
 
 **Transitions:**
 ```
-clean → pending_severity (symptom detected)
+not_required → pending_severity (symptom detected)
 pending_severity → resolved (severity submitted)
-resolved → clean (non-symptom query)
+resolved → not_required (non-symptom query)
 resolved → pending_severity (new symptom context)
 ```
 
@@ -1169,8 +1347,8 @@ if (response.data.contextChanged && response.data.severityFlag) {
 **Values:**
 
 | Value | Meaning | Frontend Action |
-|-------|---------|-----------------|
-| `no_pet` | No pet mentioned or detected | Normal chat |
+|-------|---------|-----------------||
+| `not_required` | No pet mentioned or detected | Normal chat |
 | `resolved` | Pet identified (by detection or user) | Show pet info if needed |
 | `pending_clarification` | Multiple pets with same name | Show pet selection UI |
 
@@ -1222,15 +1400,16 @@ if (response.data.petContextChanged) {
 **Fields:**
 - `contextId`: Context for this clarification
 - `prompt`: Thai text to display
-- `ambiguousPets`: Array of pets with same name
+- `reason`: Always `"ambiguous_pet_name"`
+- `options`: Array of pets with same name
 
-**ambiguousPets Item:**
+**options Item:**
 ```json
 {
-    "id": "pet_id",
-    "pet_name": "มะลิ",
+    "petId": "pet_id",
+    "petName": "มะลิ",
     "role": "OWNER" | "CAREGIVER",
-    "ownerAlias": "แนน" | null
+    "petProfileUrl": "https://..." // optional, presigned URL if pet has profile image
 }
 ```
 
@@ -1238,11 +1417,8 @@ if (response.data.petContextChanged) {
 ```
 พบสัตว์เลี้ยงชื่อ "มะลิ" หลายตัว:
 
-◎ มะลิ (สัตว์เลี้ยงของคุณ)
-  แมวไทย, 2 ปี
-
-◎ มะลิ (ดูแลให้ แนน)
-  เปอร์เซีย, 5 ปี
+◎ มะลิ (สัตว์เลี้ยงของคุณ)     ← petId: pet_owned_001
+◎ มะลิ (ดูแลให้ แนน)            ← petId: pet_shared_002
 
 [ยืนยันการเลือก]
 ```
@@ -1399,7 +1575,7 @@ function buildChatRequest(
     // Pet clarification submission
     if (state.selectedPetForClarification) {
         body.petClarificationSubmission = {
-            petId: state.selectedPetForClarification,
+            selectedPetId: state.selectedPetForClarification,
             contextId: state.pendingPetContextId || state.contextId
         };
     }
@@ -1433,7 +1609,7 @@ function handleChatResponse(response: ChatResponse, state: ChatState): void {
     // Handle pet clarification
     if (response.data.petContextStatus === 'pending_clarification') {
         state.showPetClarification = true;
-        state.ambiguousPets = response.data.petClarificationRequest?.ambiguousPets;
+        state.petOptions = response.data.petClarificationRequest?.options;
         state.pendingPetContextId = response.data.petClarificationRequest?.contextId;
     } else {
         state.showPetClarification = false;
@@ -1450,7 +1626,7 @@ function handleChatResponse(response: ChatResponse, state: ChatState): void {
 
 ## Document Information
 
-- **Created**: April 2026
+- **Last Updated**: April 24, 2026
 - **Purpose**: Frontend developer reference for AI Chatbot Severity Workflows
 - **Backend Files Referenced**:
   - `ai-chat-service.ts` - Main orchestration
