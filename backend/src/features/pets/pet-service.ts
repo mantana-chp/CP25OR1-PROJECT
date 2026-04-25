@@ -362,7 +362,7 @@ export const updatePet = async (
   let suspiciousChange = false
   let weightWarningMessage: string | undefined
 
-  if (petData.weight != null) {
+  if (petData.weight != null && Number(petData.weight) !== Number(existingPet.weight)) {
     const speciesName = existingPet.species?.name ?? 'DEFAULT'
 
     // 1. Hard block: species absolute max
