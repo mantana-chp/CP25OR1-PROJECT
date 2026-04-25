@@ -18,6 +18,15 @@ export const chatbotService = {
       ...options
     }
 
-    return apiClient.post<{ data: ChatResponse }>('/v1/ai-chat', requestBody)
+    const response = await apiClient.post<{ data: ChatResponse }>(
+      '/v1/ai-chat',
+      requestBody
+    )
+
+    if (__DEV__) {
+      console.log('[AI_CHAT_FE] POST /v1/ai-chat response:', response.data)
+    }
+
+    return response
   }
 }
