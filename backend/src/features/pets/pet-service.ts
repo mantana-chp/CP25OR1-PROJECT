@@ -362,7 +362,9 @@ export const updatePet = async (
   let suspiciousChange = false
   let weightWarningMessage: string | undefined
 
-  if (petData.weight != null && Number(petData.weight) !== Number(existingPet.weight)) {
+  const weightChanged = petData.weight != null && Number(petData.weight) !== Number(existingPet.weight)
+
+  if (petData.weight != null && weightChanged) {
     const speciesName = existingPet.species?.name ?? 'DEFAULT'
 
     // 1. Hard block: species absolute max
@@ -440,13 +442,13 @@ export const updatePet = async (
   }
 
   // ─── Auto weight log side-effects ───────────────────────────────────────────
-  if (petData.weight != null && !weightConflict) {
+  if (weightChanged && !weightConflict) {
     if (todayWeightLog) {
       // Overwrite confirmed: use the same upsert function as health-log-service,
       // updating logged_at to now so this becomes the latest entry for the day
       await healthLogRepository.updateWeightLogWithWeight(
         todayWeightLog.id,
-        petData.weight,
+        petData.weight!,
         'อัปเดตน้ำหนักจากโปรไฟล์',
         undefined,
         new Date()
@@ -458,7 +460,7 @@ export const updatePet = async (
         created_by_user_id: userId,
         category: 'WEIGHT' as HealthLogCategory,
         description: 'อัปเดตน้ำหนักจากโปรไฟล์',
-        weight: petData.weight,
+        weight: petData.weight!,
       })
     }
   }
