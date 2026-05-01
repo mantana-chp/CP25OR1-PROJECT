@@ -23,11 +23,20 @@ warnThreshold = max(10%, speciesLimit × min(daysSince / windowDays, 1.0))
 - Response includes `suspiciousChange: true` and `warningMessage` in `data`
 
 ### Tier 2 — Hard Rejection (impossible weight)
-Change exceeds 5× the species threshold — **not time-scaled** (absolute physiological limit).
+Weight exceeds the **absolute biological maximum** for the species — not relative to prior weight, not time-scaled.
 
 ```
-rejectThreshold = speciesLimit × 5
+newWeight > SPECIES_MAX_WEIGHT_KG[species] → 400 Bad Request
 ```
+
+| Species | Max weight (kg) |
+|---------|----------------|
+| DOG | 120 |
+| CAT | 30 |
+| RABBIT | 15 |
+| HAMSTER | 1 |
+| BIRD | 5 |
+| DEFAULT | 100 |
 
 - Returns **400 Bad Request**
 - Log is NOT written to DB
@@ -46,7 +55,7 @@ rejectThreshold = speciesLimit × 5
 **Example — Dog (5 kg baseline):**
 - → 5.5 kg (10%) — exactly at floor, no warning
 - → 7 kg (40%) — > 10% floor → ⚠️ `suspiciousChange: true`
-- → 10 kg (100%) — > 75% reject limit (15×5) → ❌ 400 rejected
+- → 125 kg — > 120 kg DOG species max → ❌ 400 rejected
 
 ---
 
@@ -215,6 +224,7 @@ POST /pets/{petId}/health-logs
 ```ts
 // warn floor = 10%   // minimum warn threshold regardless of time window
 // hard block         // weight > SPECIES_MAX_WEIGHT_KG[species] → 400 Bad Request
+//   (defined in src/shared/weight-validation.ts)
 ```
 
 ## Frontend Handling

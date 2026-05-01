@@ -259,17 +259,13 @@ Critical symptoms are still sent **immediately** when logged:
 Located in: `health-insight-orchestrator.ts`
 
 ```typescript
-// Batch size (users per AI request)
+// Batch size — named constant, easy to adjust
 const BATCH_SIZE = 20  // Recommended: 15-25
 
-// User-level cooldown
-const DAILY_COOLDOWN = 1  // Days
-
-// Weekly cap
-const WEEKLY_CAP = 4  // Max insights per week
-
-// Pet-level cooldown
-const PET_COOLDOWN = 2  // Days
+// The following are inline values (not named constants):
+// User-level cooldown      — subDays(new Date(), 1)  → 1 day
+// Weekly cap               — weeklyCount >= 4        → 4 insights/week
+// Pet-level cooldown       — subDays(new Date(), 2)  → 2 days
 ```
 
 ---
@@ -424,7 +420,7 @@ ORDER BY hi.detected_at DESC;
 
 For issues or questions:
 - **GitHub Issues:** [project-repo]/issues
-- **Documentation:** This file + `HEALTH_INSIGHTS_NOTIFICATION.md` (V1 reference)
+- **Documentation:** This file (V1 has been removed)
 - **Technical Lead:** [contact]
 
 **Last Updated:** March 30, 2026

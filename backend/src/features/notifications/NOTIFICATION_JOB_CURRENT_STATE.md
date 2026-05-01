@@ -51,7 +51,7 @@ File: src/jobs/notification-scheduler.ts
 - Effective local time in Bangkok: 19:00 daily (7:00 PM)
 - Purpose: Analyze health logs and send personalized health insights.
 - Service called: analyzeAllPetsAndSendInsights()
-- Details: See HEALTH_INSIGHTS_NOTIFICATION.md for full documentation
+- Details: See `src/features/health-insights/HEALTH_INSIGHTS_NOTIFICATION_V2.md` for full documentation
 
 ## Current Reminder Notification Behavior
 
@@ -134,13 +134,15 @@ AI Generation:
 - Uses Gemini 2.5 Flash for personalized Thai insights
 - Temperature: 0.7 (balanced for medical content)
 - Fallback messages if AI fails
-- Cost: ~900 API calls/month (~135 THB/month)
+- Cost: ~60 batched AI requests/month (~$0.03 USD/month) — V2 user-batching at 20 users/request
 
-Deduplication:
-- Same insight type won't send again within 3 days
-- Prevents notification spam
+Deduplication (V2 rules):
+- Per-pet: won't send again within 2 days (CRITICAL overrides)
+- Per-user: max 1 insight per day; yesterday's insight blocks today's (with severity escalation exception)
+- Weekly cap: max 4 insights per week (HIGH/CRITICAL bypass cap)
+- Prevents notification fatigue
 
-See HEALTH_INSIGHTS_NOTIFICATION.md for complete documentation.
+See `src/features/health-insights/HEALTH_INSIGHTS_NOTIFICATION_V2.md` for complete documentation.
 
 ## Notes About Deployment
 
@@ -167,9 +169,8 @@ If scaling later, move schedulers to a dedicated worker service or use external 
 
 ## Historical Docs
 
-Older references still exist and may contain previous assumptions:
-- CRON_TIMEZONE_SETUP.md
-- DEVELOPMENT_SUMMARY.md
-- HEALTH_INSIGHTS_NOTIFICATION.md (current health insights documentation)
+Older documentation has been removed. The following files no longer exist:
+- `CRON_TIMEZONE_SETUP.md` (deleted — superseded by this file)
+- `HEALTH_INSIGHTS_NOTIFICATION.md` (deleted — superseded by V2 doc above)
 
 Use this file as the current operational snapshot.

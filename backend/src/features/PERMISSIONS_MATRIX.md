@@ -95,12 +95,13 @@ Applied in: Reminders, Health Logs, Medical Documents, Reminder Attachments
 
 **Permission Logic:**
 ```typescript
-// reminder-service.ts line 879-897
-if (reminder.user_id !== userId) {  // Not pet owner
-  if (reminder.created_by_user_id !== userId) {  // Didn't create reminder
-    throw new ForbiddenError(
-      'Caregivers can only update reminders they created themselves'
-    )
+// reminder-service.ts ~line 871 (updateReminder), check at ~894-905
+if (!isPetOwner) {
+  const creatorId = reminderToUpdate.created_by_user_id ?? reminderToUpdate.user_id
+  if (creatorId !== userId) {
+    throw new ApiError('Forbidden', 403, [{
+      message: 'Caregivers can only update reminders they created themselves'
+    }])
   }
 }
 ```
@@ -168,7 +169,7 @@ async function assertCanMutateAttachments(reminderId, userId) {
 
 **Permission Logic:**
 ```typescript
-// health-log-service.ts line 344-355 (update)
+// health-log-service.ts ~line 462-473 (updateHealthLog)
 const isPetOwner = pet.user_id === userId
 if (!isPetOwner) {
   if (log.created_by_user_id !== userId) {
