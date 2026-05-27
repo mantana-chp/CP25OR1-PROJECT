@@ -51,7 +51,6 @@ export const generateInvite = async (
   userId: string,
   alias: string,
 ) => {
-  // Verify the requesting user owns ALL supplied pets and they are all ACTIVE
   const ownedCount = await prisma.pets.count({
     where: {
       id: { in: petIds },
@@ -86,7 +85,6 @@ export const previewInvite = async (token: string, userId: string) => {
     throw new NotFoundError('Invalid code')
   }
 
-  // Check if invite is valid
   if (
     invite.status !== invite_status.PENDING ||
     invite.expires_at < new Date()
@@ -94,7 +92,6 @@ export const previewInvite = async (token: string, userId: string) => {
     throw new BadRequestError('Code expired or already used')
   }
 
-  // Check if the user is the owner of any pet in the invite
   const ownerIds = [...new Set(invite.invite_pets.map((ip) => ip.pet.user_id))]
   if (ownerIds.includes(userId)) {
     throw new BadRequestError('You are already the owner of one of these pets')
@@ -105,7 +102,6 @@ export const previewInvite = async (token: string, userId: string) => {
   const alreadySharedPetIds: string[] = []
 
   for (const { pet } of invite.invite_pets) {
-    // Check if pet is still active
     const petRecord = await prisma.pets.findUnique({
       where: { id: pet.id },
       select: { status: true, deleted_at: true },
@@ -120,7 +116,6 @@ export const previewInvite = async (token: string, userId: string) => {
       continue
     }
 
-    // Check if user already has access
     const existing = await repo.findActiveAccess(pet.id, userId)
     if (existing) {
       alreadySharedPetIds.push(pet.id)
@@ -129,7 +124,6 @@ export const previewInvite = async (token: string, userId: string) => {
     }
   }
 
-  // Fetch full profiles for both categories
   const [toBeAddedPets, alreadySharedPets] = await Promise.all([
     Promise.all(
       toBeAddedPetIds.map((petId) =>
@@ -155,7 +149,6 @@ export const previewInvite = async (token: string, userId: string) => {
     ),
   ])
 
-  // Format pet profiles
   const toBeAddedProfiles = await Promise.all(
     toBeAddedPets.filter(Boolean).map(formatPetProfile),
   )
@@ -227,7 +220,6 @@ export const claimInvite = async (
     throw new BadRequestError('Code expired or already used')
   }
 
-  // Reject if the claimer is the owner of any pet in the invite
   const ownerIds = [...new Set(invite.invite_pets.map((ip) => ip.pet.user_id))]
   if (ownerIds.includes(userId)) {
     throw new BadRequestError('You are already the owner of one of these pets')
@@ -244,7 +236,6 @@ export const claimInvite = async (
     )
   }
 
-  // Track which pets were newly added vs. already shared
   const addedPetIds: string[] = []
   const alreadySharedPetIds: string[] = []
 
@@ -295,14 +286,12 @@ export const claimInvite = async (
         installationId,
       })
 
-      // Track newly added pet
       addedPetIds.push(pet.id)
     }
 
     await repo.markInviteAccepted(tx, invite.id, userId)
   })
 
-  // Fetch full profiles for added and already shared pets
   const [addedPets, alreadySharedPets] = await Promise.all([
     Promise.all(
       addedPetIds.map((petId) =>
@@ -328,7 +317,6 @@ export const claimInvite = async (
     ),
   ])
 
-  // Format pet profiles
   const addedProfiles = await Promise.all(
     addedPets.filter(Boolean).map(formatPetProfile),
   )
@@ -386,7 +374,6 @@ export const updateAlias = async (
   userId: string,
   alias: string,
 ) => {
-  // findUnique with owner check — throws if not found
   const contact = await prisma.owner_caregiver_contacts.findFirst({
     where: { id: contactId, owner_user_id: userId },
   })

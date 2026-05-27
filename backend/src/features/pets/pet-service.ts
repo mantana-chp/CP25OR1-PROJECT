@@ -96,13 +96,11 @@ const formatPetProfile = async (pet: any) => {
   if (!pet) return null
   const petRole = pet.petRole === 'CAREGIVER' ? 'CAREGIVER' : 'OWNER'
 
-  // Generate presigned URL for profile image if it exists
   let profileImageUrl = null
   if (pet.profile_image_key) {
     try {
       profileImageUrl = await generateDownloadUrl(pet.profile_image_key, 3600)
     } catch (error) {
-      // If image is missing, set to null
       profileImageUrl = null
     }
   }
@@ -136,7 +134,6 @@ export const createPet = async (userId: string, petData: PetCreationData) => {
 
   await assertUniqueActivePetName(userId, petData.pet_name)
 
-  // Validate weight against the absolute biological max for this species
   if (petData.weight != null) {
     const species = await prisma.species.findUnique({
       where: { id: petData.species_id },
@@ -275,7 +272,6 @@ export const createMultiplePets = async (
     }
   }
 
-  // Create all pets in a transaction
   const createdPets = await prisma.$transaction(async (tx) => {
     const pets = []
     for (const petData of petsData) {
@@ -331,12 +327,10 @@ export const updatePet = async (
     throw new NotFoundError('Pet not found or does not belong to this user.')
   }
 
-  // Block updates for deleted pets
   if (existingPet.status === pet_status.DELETED) {
     throw new BadRequestError('Cannot update a deleted pet.')
   }
 
-  // Block updates for deceased pets
   if (existingPet.status === pet_status.DECEASED) {
     throw new BadRequestError('Cannot update a deceased pet.')
   }
@@ -436,7 +430,6 @@ export const updatePet = async (
     )
   }
 
-  // Write non-weight fields (and weight if no conflict)
   if (Object.keys(updateData).length > 0) {
     await petRepository.update(petId, userId, updateData)
   }
@@ -557,12 +550,6 @@ export const getPetProfileById = async (petId: string, userId: string) => {
   return formatPetProfile({ ...pet, petRole: 'CAREGIVER' })
 }
 
-/**
- * Update pet profile picture
- * @param petId - Pet ID
- * @param userId - User ID (for authorization)
- * @param objectKey - MinIO object key for the new profile image
- */
 export const updatePetProfileImage = async (
   petId: string,
   userId: string,
@@ -576,17 +563,14 @@ export const updatePetProfileImage = async (
   // Enforce objectKey to match the expected pet profile image namespace.
   assertPetProfileObjectKey(objectKey, userId, petId)
 
-  // Delete old profile image if it exists
   if (existingPet.profile_image_key) {
     try {
       await deleteFile(existingPet.profile_image_key)
     } catch (error) {
-      // Log but don't fail if old image deletion fails
       console.error('Failed to delete old profile image:', error)
     }
   }
 
-  // Update with new profile image key
   const updateData: Prisma.petsUpdateInput = {
     profile_image_key: objectKey,
   }
@@ -596,11 +580,6 @@ export const updatePetProfileImage = async (
   return getPetProfileById(petId, userId)
 }
 
-/**
- * Delete pet profile picture
- * @param petId - Pet ID
- * @param userId - User ID (for authorization)
- */
 export const deletePetProfileImage = async (petId: string, userId: string) => {
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
   if (!existingPet) {
@@ -611,10 +590,8 @@ export const deletePetProfileImage = async (petId: string, userId: string) => {
     throw new BadRequestError('Pet does not have a profile image.')
   }
 
-  // Delete from MinIO
   await deleteFile(existingPet.profile_image_key)
 
-  // Remove from database
   const updateData: Prisma.petsUpdateInput = {
     profile_image_key: null,
   }
@@ -754,10 +731,6 @@ export const softDeletePet = async (
   }
 }
 
-/**
- * Get past (deceased) pets for a user.
- * Includes shared deceased pets the user has/had caregiver access to.
- */
 export const getPastPets = async (userId: string) => {
   const ownedDeceased = (
     await petRepository.findAllPetProfilesByUserId(userId, pet_status.DECEASED)
@@ -771,19 +744,12 @@ export const getPastPets = async (userId: string) => {
   return Promise.all(allDeceased.map(formatPetProfile))
 }
 
-/**
- * Get recently deleted pets (within 30 days) for a user.
- */
 export const getRecentlyDeletedPets = async (userId: string) => {
   const pets = await petRepository.findRecentlyDeletedPets(userId)
   if (!pets || pets.length === 0) return []
   return Promise.all(pets.map(formatPetProfile))
 }
 
-/**
- * Restore a soft-deleted pet back to ACTIVE status.
- * Only works on pets with status = DELETED.
- */
 export const restorePet = async (petId: string, userId: string) => {
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
   if (!existingPet) {
@@ -813,10 +779,6 @@ export const restorePet = async (petId: string, userId: string) => {
   return { message: 'Pet has been restored successfully.', status: 'ACTIVE' }
 }
 
-/**
- * Permanently delete a soft-deleted pet immediately (skip 30-day wait).
- * Only works on pets with status = DELETED.
- */
 export const permanentDeletePet = async (petId: string, userId: string) => {
   const existingPet = await petRepository.findPetProfileByPetId(petId, userId)
   if (!existingPet) {
@@ -829,7 +791,6 @@ export const permanentDeletePet = async (petId: string, userId: string) => {
     )
   }
 
-  // Delete profile image from MinIO if it exists
   if (existingPet.profile_image_key) {
     try {
       await deleteFile(existingPet.profile_image_key)

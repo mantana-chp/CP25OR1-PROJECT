@@ -107,7 +107,6 @@ export async function saveAttachment(
 ): Promise<AttachmentDto> {
     await assertCanMutateAttachments(reminderId, userId);
 
-    // Enforce objectKey to match the expected reminder attachment namespace.
     assertReminderAttachmentObjectKey(payload.objectKey, userId, reminderId);
 
     // Ensure the file was actually uploaded before saving metadata.

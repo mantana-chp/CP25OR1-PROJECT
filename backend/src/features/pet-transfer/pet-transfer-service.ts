@@ -28,7 +28,6 @@ export const initiateTransfer = async (
   petIds: string[],
   userId: string,
 ): Promise<TransferTokenDto> => {
-  // 1. Verify all pets are owned by this user and are ACTIVE
   const ownedActiveCount = await prisma.pets.count({
     where: {
       id: { in: petIds },
@@ -44,7 +43,7 @@ export const initiateTransfer = async (
     )
   }
 
-  // 2. Last-pet guard: after transfer, user must still have ≥ 1 accessible pet
+  // Last-pet guard: user must still have ≥ 1 accessible pet after transfer
   const totalOwnedActive = await petRepo.countActivePetsByUserId(userId)
   const totalSharedActive =
     await sharingRepo.countSharedActivePetsByUserId(userId)
@@ -57,7 +56,6 @@ export const initiateTransfer = async (
     )
   }
 
-  // 3. Check no overlapping PENDING transfers for any of these pets
   const overlapping = await repo.findPendingTokensForPets(petIds)
   if (overlapping.length > 0) {
     const conflictingPetIds = overlapping.flatMap((t) =>
@@ -70,10 +68,7 @@ export const initiateTransfer = async (
     )
   }
 
-  // 4. Expire stale tokens
   await repo.expireStaleTokens()
-
-  // 5. Create transfer token
   const token = await repo.createTransferToken(petIds, userId)
 
   return {
@@ -96,7 +91,6 @@ export const previewTransfer = async (
     throw new NotFoundError('Invalid transfer token.')
   }
 
-  // Check status and expiry
   if (token.status !== transfer_token_status.PENDING) {
     if (token.status === transfer_token_status.EXPIRED) {
       throw new BadRequestError('Transfer token has expired.')
@@ -115,12 +109,10 @@ export const previewTransfer = async (
     throw new BadRequestError('Transfer token has expired.')
   }
 
-  // Can't preview your own transfer
   if (token.created_by === userId) {
     throw new BadRequestError('You cannot accept your own transfer.')
   }
 
-  // Map pet profiles
   const petProfiles = await Promise.all(
     token.transfer_pets
       .filter((tp) => tp.pet.status === pet_status.ACTIVE)
@@ -226,7 +218,6 @@ export const acceptTransfer = async (
       )
     }
 
-    // Process each pet
     let transferredCount = 0
     for (const { pet } of lockedToken.transfer_pets) {
       // Skip pets that are no longer active
@@ -299,7 +290,6 @@ export const acceptTransfer = async (
 
   // ─── Build Response ──────────────────────────────────────────────────────
 
-  // Re-fetch pets with full profile data for the response
   const updatedToken = await repo.findTokenById(tokenId)
   const transferredPets = updatedToken
     ? await Promise.all(
@@ -341,7 +331,6 @@ export const cancelTransfer = async (
 export const getPendingTransfers = async (
   userId: string,
 ): Promise<PendingTransferDto[]> => {
-  // Expire stale tokens first
   await repo.expireStaleTokens()
 
   const tokens = await repo.findPendingTokensByCreator(userId)

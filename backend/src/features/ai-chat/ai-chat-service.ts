@@ -122,7 +122,6 @@ export const chatWithAI = async (
     ? `[SEVERITY: ${submittedSeverityLevel}/5] ${normalizedQuery}`.trim()
     : normalizedQuery;
 
-  // Resolve or create the Gemini chat session for this user
   const session = getOrCreateSession(
     installationId,
     clientChatSessionId,
@@ -197,7 +196,6 @@ export const chatWithAI = async (
       }),
     ]);
 
-    // Combine into PetMatch array with role info
     const userPets: PetMatch[] = [
       ...ownedPets.map((p) => ({
         id: p.id,
@@ -319,7 +317,6 @@ export const chatWithAI = async (
       }
     }
 
-    // Determine final resolved pet
     let finalResolvedPetId: string | undefined;
     let finalResolvedPetRole: 'OWNER' | 'CAREGIVER' | undefined;
     let finalOwnerAlias: string | undefined;
@@ -336,7 +333,6 @@ export const chatWithAI = async (
     } else if (incomingResolvedPetId) {
       // Frontend sent a resolvedPetId (L1/L2 override or first-turn hint)
       finalResolvedPetId = incomingResolvedPetId;
-      // Find role from userPets
       const petMatch = userPets.find((p) => p.id === incomingResolvedPetId);
       finalResolvedPetRole = petMatch?.role;
       finalOwnerAlias = petMatch?.ownerAlias;
@@ -517,7 +513,6 @@ ${prompt} `);
       throw new ApiError('Gemini returned an empty response.', 500);
     }
 
-    // Parse severity marker
     const llmSeverityFlag = rawAnswer.includes('[NEEDS_SEVERITY]');
     const severityFlag = shouldRequestSeverity;
 

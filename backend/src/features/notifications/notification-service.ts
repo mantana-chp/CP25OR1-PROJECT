@@ -42,7 +42,6 @@ export const markAsRead = async (
     read_at: read ? new Date() : null
   })
 
-  // Fetch the updated notification with relations for mapping
   const updatedNotificationWithRelations =
     await notificationRepository.findByIdWithRelations(notificationId)
 
@@ -60,16 +59,11 @@ export const markAllAsRead = async (
   return { updatedCount: result.count }
 }
 
-/**
- * This is the core function called by the cron job.
- * It finds reminders that are nearly due and processes them just-in-time.
- * Notifications are fanned out to both the pet owner and any active caregivers.
- */
+// Called by the cron job; finds near-due reminders and fans out to owner + active caregivers
 export const processAndSendNotifications = async () => {
   logger.info('--- RUNNING NOTIFICATION JOB ---')
-  const now = new Date() // Current time in UTC
+  const now = new Date()
 
-  // Use UTC for all date comparisons to avoid timezone issues
   const todayUTC = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   )
@@ -129,6 +123,7 @@ export const processAndSendNotifications = async () => {
   // Per-user retry/skip logic is handled inside the recipient loop below.
   const dueReminders = candidateReminders.filter((reminder) => {
     // Skip parent reminders (reminders that have children)
+    // Skip parent reminders — notify children individually
     if (reminder.children && reminder.children.length > 0) {
       logger.info(
         `[NotificationJob] Skipping parent reminder ${reminder.id} (has ${reminder.children.length} children).`
@@ -152,7 +147,6 @@ export const processAndSendNotifications = async () => {
       const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000
       const utcTimeMillis = bangkokTimeMillis - BANGKOK_OFFSET_MS
 
-      // Create the actual reminder time in UTC
       reminderActualTimeUTC = new Date(
         reminder.reminder_date.getTime() + utcTimeMillis
       )
@@ -188,7 +182,6 @@ export const processAndSendNotifications = async () => {
       )
     }
 
-    // All comparisons now in UTC
     const notificationTimeReached = notificationSendTimeUTC <= now
 
     // Grace period: allow sending up to 60 minutes after the reminder time
@@ -215,7 +208,6 @@ export const processAndSendNotifications = async () => {
     const petName = reminder.pets?.pet_name
     const reminderName = reminder.reminder_name
 
-    // Fetch active caregivers for this pet
     const caregiverAccess = await prisma.pet_user_access.findMany({
       where: { pet_id: reminder.pet_id, revoked_at: null, role: 'CAREGIVER' },
       include: { user: { include: { push_tokens: true } } }
@@ -236,7 +228,6 @@ export const processAndSendNotifications = async () => {
         (n) => n.user_id === recipient.userId
       )
 
-      // Skip if already successfully sent to this user
       if (userNotifications.some((n) => n.status === 'sent')) {
         logger.info(
           `[NotificationJob] Skipping user ${recipient.userId} for reminder ${reminder.id} (already sent).`
@@ -244,7 +235,6 @@ export const processAndSendNotifications = async () => {
         continue
       }
 
-      // Per-user retry check
       const failedNotification = userNotifications.find(
         (n) => n.status === 'failed' || n.status === 'pending'
       )
@@ -273,7 +263,6 @@ export const processAndSendNotifications = async () => {
         `[NotificationJob] Processing reminder ${reminder.id} for user ${recipient.userId}${isRetry ? ` (retry #${retryCount + 1})` : ''}...`
       )
 
-      // Check required data
       if (!petName || !reminderName) {
         logger.error(
           `[NotificationJob] Skipping reminder ${reminder.id}: Missing required data. Marking as failed.`
@@ -378,14 +367,6 @@ export const processAndSendNotifications = async () => {
   logger.info('--- FINISHED NOTIFICATION JOB ---')
 }
 
-/**
- * Creates and sends a personalized AI-generated tip notification.
- * This function is called by the AI tip cron job.
- * @param userId The ID of the user to send the notification to.
- * @param petId The ID of the pet the tip is about.
- * @param title The title of the AI-generated tip.
- * @param description The description/body of the AI-generated tip.
- */
 export const sendTipNotification = async (
   userId: string,
   petId: string,
@@ -397,21 +378,19 @@ export const sendTipNotification = async (
   )
   let finalStatus: notification_status = notification_status.sent
   let sentAt: Date | null = new Date()
-  let newNotificationId: string = uuidv4() // Generate UUID for the new notification
+  let newNotificationId: string = uuidv4()
 
   try {
-    // 1. Create the notification record in the database
     const newNotification = await notificationRepository.create({
       id: newNotificationId,
-      status: notification_status.pending, // Start as pending
+      status: notification_status.pending,
       user: { connect: { id: userId } },
-      pet: { connect: { id: petId } }, // Connect to the pet
+      pet: { connect: { id: petId } },
       tips_title: title,
       tips_desc: description
     })
     newNotificationId = newNotification.id // Ensure we use the ID returned by create
 
-    // 2. Fetch user's push tokens
     const userWithTokens = await prisma.users.findUnique({
       where: { id: userId },
       include: { push_tokens: true }
@@ -439,7 +418,6 @@ export const sendTipNotification = async (
       )
     }
 
-    // 3. Send push notifications if any were prepared
     if (messagesToSend.length > 0) {
       try {
         logger.info(
@@ -473,7 +451,6 @@ export const sendTipNotification = async (
     finalStatus = notification_status.failed
     sentAt = null
   } finally {
-    // 4. Update the notification to its final state
     await notificationRepository.update(newNotificationId, {
       status: finalStatus,
       sent_at: sentAt
@@ -484,15 +461,7 @@ export const sendTipNotification = async (
   }
 }
 
-/**
- * Sends a status-change notification to everyone involved with a reminder EXCEPT the actor.
- * Called when toggleReminderStatus() is used (fire-and-forget).
- *
- * Actor label rules:
- *   owner → caregiver:   "โดย เจ้าของ"
- *   caregiver → owner:   "โดย [alias from owner_caregiver_contacts]"
- *   caregiver → caregiver: "โดย ผู้ดูแลอีกคน"
- */
+// Actor label: owner→caregiver = "โดย เจ้าของ", caregiver→owner = "โดย [alias]", caregiver→caregiver = "โดย ผู้ดูแลอีกคน"
 export const sendStatusChangeNotification = async (
   actorUserId: string,
   reminderId: string,
@@ -508,7 +477,6 @@ export const sendStatusChangeNotification = async (
           ? 'เลยกำหนด'
           : 'รอดำเนินการ'
 
-    // Get pet owner id
     const pet = await prisma.pets.findUnique({
       where: { id: petId },
       select: { user_id: true }
@@ -535,7 +503,6 @@ export const sendStatusChangeNotification = async (
 
     const recipients: Recipient[] = []
 
-    // Add owner as recipient (only if owner is not the actor)
     if (!actorIsOwner) {
       const actorAccess = caregiverAccess.find((a) => a.user_id === actorUserId)
       const actorAlias = actorAccess?.contact?.alias ?? 'ผู้ดูแล'
@@ -552,7 +519,6 @@ export const sendStatusChangeNotification = async (
       }
     }
 
-    // Add caregivers as recipients (excluding the actor)
     for (const access of caregiverAccess) {
       if (access.user_id === actorUserId) continue
       recipients.push({
@@ -625,15 +591,6 @@ export const sendStatusChangeNotification = async (
   }
 }
 
-/**
- * Sends a health insight notification to pet owner and all active caregivers.
- * Called by the health insight detection cron job.
- *
- * @param petId The ID of the pet the insight is about
- * @param insightId The ID of the health_insights record
- * @param title The insight notification title (includes emoji based on severity)
- * @param description The insight description/explanation
- */
 export const sendHealthInsightNotification = async (
   petId: string,
   insightId: string,
@@ -645,7 +602,6 @@ export const sendHealthInsightNotification = async (
       `[HealthInsightNotification] Preparing notification for insight ${insightId}, pet ${petId}`
     )
 
-    // Get pet owner
     const pet = await prisma.pets.findUnique({
       where: { id: petId },
       include: {
@@ -658,13 +614,11 @@ export const sendHealthInsightNotification = async (
       return
     }
 
-    // Get all active caregivers
     const caregiverAccess = await prisma.pet_user_access.findMany({
       where: { pet_id: petId, revoked_at: null, role: 'CAREGIVER' },
       include: { user: { include: { push_tokens: true } } }
     })
 
-    // Build recipient list: owner + caregivers
     const recipients = [
       { userId: pet.user_id, pushTokens: pet.user.push_tokens },
       ...caregiverAccess.map((a) => ({
@@ -681,7 +635,6 @@ export const sendHealthInsightNotification = async (
       let finalStatus: notification_status = notification_status.sent
       let sentAt: Date | null = new Date()
 
-      // Create notification record
       const notification = await notificationRepository.create({
         id: uuidv4(),
         status: notification_status.pending,
@@ -714,7 +667,6 @@ export const sendHealthInsightNotification = async (
         )
       }
 
-      // Send push notifications if any were prepared
       if (messagesToSend.length > 0) {
         try {
           logger.info(
@@ -734,7 +686,6 @@ export const sendHealthInsightNotification = async (
         }
       }
 
-      // Update notification to final state
       await notificationRepository.update(notification.id, {
         status: finalStatus,
         sent_at: sentAt

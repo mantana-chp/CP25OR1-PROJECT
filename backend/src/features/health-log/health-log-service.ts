@@ -35,25 +35,19 @@ const validateLoggedAt = (loggedAt?: Date) => {
   }
 }
 
-/**
- * Helper to determine the createdBy display value
- */
 const resolveCreatedBy = async (
   creatorId: string,
   ownerId: string,
   viewerId: string
 ): Promise<string> => {
-  // If viewer is the creator
   if (creatorId === viewerId) {
-    return 'คุณ'; // You
+    return 'คุณ'
   }
 
-  // If creator is the owner
   if (creatorId === ownerId) {
-    return 'เจ้าของสัตว์เลี้ยง'; // Pet Owner
+    return 'เจ้าของสัตว์เลี้ยง'
   }
 
-  // Creator is a caregiver, look up their alias
   const contact = await prisma.owner_caregiver_contacts.findUnique({
     where: {
       owner_user_id_caregiver_user_id: {
@@ -68,9 +62,6 @@ const resolveCreatedBy = async (
 }
 
 
-/**
- * Format rejection message for an impossible weight change (Thai).
- */
 const formatWeightImpossibleMessage = (
   previousWeight: number,
   newWeight: number,
@@ -80,11 +71,6 @@ const formatWeightImpossibleMessage = (
   return `น้ำหนักที่บันทึก (${newWeight.toFixed(2)} kg) ${dir}จากครั้งก่อน (${previousWeight.toFixed(2)} kg) มากผิดปกติ (${changePercent.toFixed(1)}%) กรุณาตรวจสอบค่าน้ำหนักที่บันทึกอีกครั้ง`
 }
 
-/**
- * Create a new health log for a pet.
- * If category is WEIGHT and weight is provided, also update the pet's current weight.
- * For WEIGHT category: throws ConflictError with conflict details if same-day log exists (unless upsert=true).
- */
 export const createHealthLog = async (
   petId: string,
   userId: string,
@@ -92,13 +78,11 @@ export const createHealthLog = async (
 ): Promise<CreateHealthLogResult> => {
   validateLoggedAt(input.loggedAt)
 
-  // 1. Validate access
   const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new BadRequestError('Access denied to this pet')
   }
 
-  // 2. Get pet owner ID
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
     select: { user_id: true, species: { select: { name: true } } },
@@ -200,9 +184,7 @@ export const createHealthLog = async (
     // (suspicious info already captured above)
   }
 
-  // 3. Create health log and optionally update pet weight in a transaction
   const result = await prisma.$transaction(async (tx) => {
-    // Create the health log
     const healthLog = await tx.health_logs.create({
       data: {
         pet_id: petId,
@@ -223,7 +205,6 @@ export const createHealthLog = async (
       },
     });
 
-    // Only update pet's weight if category is WEIGHT and weight is provided
     if (input.category === 'WEIGHT' && input.weight !== undefined && input.weight !== null) {
       await tx.pets.update({
         where: { id: petId },
@@ -236,16 +217,14 @@ export const createHealthLog = async (
     return healthLog;
   });
 
-  // 4. Resolve createdBy display value
   const createdBy = await resolveCreatedBy(userId, pet.user_id, userId);
 
-  // 5. Check for immediate critical symptom alerts (fire-and-forget, non-blocking)
+  // Fire-and-forget: detect critical symptoms and send immediate alert
   if (input.category === 'SYMPTOMS') {
     setImmediate(async () => {
       try {
         logger.info(`[ImmediateAlert] Checking for critical symptoms in health log ${result.id}`);
 
-        // Detect abnormal symptom
         const abnormalPattern = await healthInsightDetection.detectAbnormalSymptom(
           petId,
           result.id,
@@ -256,7 +235,6 @@ export const createHealthLog = async (
         if (abnormalPattern) {
           logger.info(`[ImmediateAlert] Critical symptom detected for pet ${petId}: "${abnormalPattern.symptom}"`);
 
-          // Get pet details for AI generation
           const petDetails = await prisma.pets.findUnique({
             where: { id: petId },
             include: {
@@ -266,7 +244,6 @@ export const createHealthLog = async (
           });
 
           if (petDetails) {
-            // Generate AI insight
             const aiInsight = await healthInsightGeneration.generateInsightWithAI({
               petName: petDetails.pet_name,
               species: petDetails.species.name,
@@ -274,10 +251,8 @@ export const createHealthLog = async (
               pattern: abnormalPattern,
             });
 
-            // Add severity emoji
             const titleWithEmoji = `${getSeverityEmoji(abnormalPattern.severity)} ${aiInsight.title.replace(/^[🚨⚠️💡ℹ️📌📝📋]\s*/, '')}`;
 
-            // Save insight
             const savedInsight = await healthInsightRepository.create({
               pet_id: petId,
               insight_type: abnormalPattern.type,
@@ -289,7 +264,6 @@ export const createHealthLog = async (
 
             logger.info(`[ImmediateAlert] Created immediate insight ${savedInsight.id}`);
 
-            // Send notifications immediately
             await notificationService.sendHealthInsightNotification(
               petId,
               savedInsight.id,
@@ -297,7 +271,6 @@ export const createHealthLog = async (
               aiInsight.description
             );
 
-            // Mark as notified
             await healthInsightRepository.markAsNotified(savedInsight.id);
 
             logger.info(`[ImmediateAlert] Immediate notification sent for insight ${savedInsight.id}`);
@@ -319,22 +292,17 @@ export const createHealthLog = async (
   }
 };
 
-/**
- * Get all health logs for a pet.
- */
 export const getHealthLogs = async (
   petId: string,
   userId: string,
   limit: number = 50,
   offset: number = 0
 ): Promise<{ logs: HealthLogDto[]; total: number }> => {
-  // 1. Validate access
   const hasAccess = await canAccessPet(petId, userId);
   if (!hasAccess) {
     throw new BadRequestError('Access denied to this pet');
   }
 
-  // 2. Get pet owner ID
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
     select: { user_id: true },
@@ -344,13 +312,11 @@ export const getHealthLogs = async (
     throw new NotFoundError('Pet not found')
   }
 
-  // 3. Fetch logs
   const [logs, total] = await Promise.all([
     healthLogRepository.findByPetId(petId, limit, offset),
     healthLogRepository.countByPetId(petId)
   ])
 
-  // 4. Resolve createdBy for each log
   const logsWithCreatedBy = await Promise.all(
     logs.map(async (log) => {
       const createdBy = await resolveCreatedBy(
@@ -368,9 +334,6 @@ export const getHealthLogs = async (
   }
 }
 
-/**
- * Get a single health log by ID.
- */
 export const getHealthLogById = async (
   logId: string,
   petId: string,
@@ -382,18 +345,15 @@ export const getHealthLogById = async (
     throw new NotFoundError('Health log not found')
   }
 
-  // Verify the log belongs to the specified pet
   if (log.pet_id !== petId) {
     throw new NotFoundError('Health log not found')
   }
 
-  // Verify access to the pet
   const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new NotFoundError('Health log not found')
   }
 
-  // Get pet owner ID for createdBy resolution
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
     select: { user_id: true }
@@ -403,7 +363,6 @@ export const getHealthLogById = async (
     throw new NotFoundError('Pet not found')
   }
 
-  // Resolve createdBy display value
   const createdBy = await resolveCreatedBy(
     log.created_by_user_id,
     pet.user_id,
@@ -413,10 +372,6 @@ export const getHealthLogById = async (
   return toDto(log, createdBy)
 }
 
-/**
- * Update a health log.
- * Owners can edit any log, caregivers can only edit logs they created.
- */
 export const updateHealthLog = async (
   logId: string,
   petId: string,
@@ -431,12 +386,10 @@ export const updateHealthLog = async (
     throw new NotFoundError('Health log not found')
   }
 
-  // Verify the log belongs to the specified pet
   if (log.pet_id !== petId) {
     throw new NotFoundError('Health log not found')
   }
 
-  // Verify access to the pet
   const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new ApiError('Forbidden', 403, [
@@ -444,8 +397,7 @@ export const updateHealthLog = async (
     ])
   }
 
-  // Check if user is owner or creator
-  // Owners can edit any log; caregivers can only edit logs they created
+  // Caregivers can only edit logs they created
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
     select: {
@@ -472,7 +424,6 @@ export const updateHealthLog = async (
     }
   }
 
-  // Determine the category (use updated value or fallback to existing)
   const finalCategory = updateData.category || log.category
 
   // ─── Weight validation for WEIGHT edits ─────────────────────────────────────
@@ -519,11 +470,9 @@ export const updateHealthLog = async (
   }
 
   // ─── Persist ────────────────────────────────────────────────────────────────
-  // logged_at is NOT included in any update — it is immutable after creation
   let updatedLog
 
   if (updateData.weight !== undefined) {
-    // Weight is provided, update both log and pet’s weight (if category is WEIGHT)
     updatedLog = await prisma.$transaction(async (tx) => {
       const updated = await tx.health_logs.update({
         where: { id: logId },
@@ -543,8 +492,7 @@ export const updateHealthLog = async (
         }
       })
 
-      // Only update the pet’s weight if the final category is WEIGHT
-      if (finalCategory === 'WEIGHT') {
+      if (finalCategory === ‘WEIGHT’) {
         await tx.pets.update({
           where: { id: petId },
           data: {
@@ -556,7 +504,6 @@ export const updateHealthLog = async (
       return updated
     })
   } else {
-    // Weight not provided, just update category/description/note
     updatedLog = await prisma.health_logs.update({
       where: { id: logId },
       data: {
@@ -587,10 +534,6 @@ export const updateHealthLog = async (
   }
 }
 
-/**
- * Delete a health log.
- * Owners can delete any log, caregivers can only delete logs they created.
- */
 export const deleteHealthLog = async (
   logId: string,
   petId: string,
@@ -602,12 +545,10 @@ export const deleteHealthLog = async (
     throw new NotFoundError('Health log not found')
   }
 
-  // Verify the log belongs to the specified pet
   if (log.pet_id !== petId) {
     throw new NotFoundError('Health log not found')
   }
 
-  // Verify access to the pet
   const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new ApiError('Forbidden', 403, [
@@ -615,8 +556,7 @@ export const deleteHealthLog = async (
     ])
   }
 
-  // Check if user is owner or creator
-  // Owners can delete any log; caregivers can only delete logs they created
+  // Caregivers can only delete logs they created
   const pet = await prisma.pets.findUnique({
     where: { id: petId },
     select: { user_id: true }
@@ -644,14 +584,7 @@ export const deleteHealthLog = async (
 
 // ─── Weight Chart ─────────────────────────────────────────────────────────────
 
-/**
- * Calculate the inclusive date range (startDate 00:00:00 → endDate 23:59:59)
- * for a given chart view anchored to a specific date.
- *
- * - week:  last 7 days including anchor
- * - month: last 30 days including anchor
- * - year:  last 12 full calendar months including anchor's month
- */
+// week=last 7 days, month=last 30 days, year=last 12 full calendar months (anchored to given date)
 const getChartDateRange = (
   view: import('./health-log-types').WeightChartView,
   anchor: Date
@@ -683,12 +616,6 @@ const getChartDateRange = (
 
 type RawWeightLog = { id: string; logged_at: Date; weight: import('../../generated/prisma/client').Prisma.Decimal | null }
 
-/**
- * Convert raw weight logs into chart-ready points.
- *
- * week/month → one point per day (we enforce one weight log per day)
- * year       → one averaged point per calendar month
- */
 const aggregateWeightLogs = (
   logs: RawWeightLog[],
   view: import('./health-log-types').WeightChartView
@@ -747,20 +674,12 @@ const aggregateWeightLogs = (
     })
 }
 
-/**
- * Get pre-aggregated weight chart data for a pet.
- *
- * view=week  → last 7 days, one point per day logged
- * view=month → last 30 days, one point per day logged
- * view=year  → last 12 calendar months, one averaged point per month
- */
 export const getWeightChartData = async (
   petId: string,
   userId: string,
   view: import('./health-log-types').WeightChartView,
   anchorDate?: Date
 ): Promise<import('./health-log-types').WeightChartData> => {
-  // 1. Validate access
   const hasAccess = await canAccessPet(petId, userId)
   if (!hasAccess) {
     throw new BadRequestError('Access denied to this pet')
@@ -774,14 +693,9 @@ export const getWeightChartData = async (
     throw new NotFoundError('Pet not found')
   }
 
-  // 2. Compute date range
   const anchor = anchorDate ?? new Date()
   const { startDate, endDate } = getChartDateRange(view, anchor)
-
-  // 3. Fetch weight logs in range
   const logs = await healthLogRepository.findWeightLogsInRange(petId, startDate, endDate)
-
-  // 4. Aggregate into chart points
   const points = aggregateWeightLogs(logs, view)
 
   return {
