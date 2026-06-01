@@ -37,9 +37,6 @@ import SubMenuSection from '../components/sub_menu_section'
 import { colors } from '@/constants/design-system'
 
 export default function PetProfilePage() {
-  // ------------------
-  // CONST
-  // ------------------
   const router = useRouter()
 
   const {
@@ -83,9 +80,6 @@ export default function PetProfilePage() {
   const selectedPetIndex = tabPets.findIndex((p) => p.id === selectedPetId)
   const currentPetIndex = selectedPetIndex >= 0 ? selectedPetIndex : 0
 
-  // ------------------
-  // FETCH
-  // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
   })
@@ -107,15 +101,12 @@ export default function PetProfilePage() {
   }, [])
 
   const loadPets = useCallback(async () => {
-    console.log('📡 Loading pets from API...')
-    // await refreshPets()
     await getPetsApi.execute()
     await refreshPets()
   }, [])
 
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 Pet Profile Page Focused - Reloading data')
       loadReminders()
       loadPets()
     }, [loadReminders, loadPets])
@@ -191,9 +182,6 @@ export default function PetProfilePage() {
     })
     .slice(0, 5)
 
-  // ------------------
-  // HANDLERS
-  // ------------------
   const handleReminderPress = (id: string) => {
     router.push({ pathname: '/(tabs)', params: { reminderId: id } })
   }
@@ -227,7 +215,6 @@ export default function PetProfilePage() {
 
     setIsDeleting(true)
     try {
-      // Always use soft delete API - backend handles everything
       await softDeletePet(petToDelete.id)
       Alert.alert(
         'สำเร็จ',
@@ -236,8 +223,6 @@ export default function PetProfilePage() {
       setShowDeleteModal(false)
       setPetToDelete(null)
     } catch (error: any) {
-      console.error('Error deleting pet:', error)
-      // Check if it's the last active pet error
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
@@ -315,7 +300,6 @@ export default function PetProfilePage() {
           'สัตว์เลี้ยงกลับมาอยู่ในรายการที่ใช้งานแล้ว'
         )
       } catch (error: any) {
-        console.error('Error restoring pet:', error)
 
         const message = error?.message || ''
         const lowerMessage = String(message).toLowerCase()
@@ -354,7 +338,6 @@ export default function PetProfilePage() {
       try {
         await hardDeletePet(petId)
       } catch (error) {
-        console.error('Error permanently deleting pet:', error)
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบสัตว์เลี้ยงถาวรได้')
       }
     },
@@ -389,23 +372,17 @@ export default function PetProfilePage() {
       )
       setShowDeceasedModal(false)
       setPetToMarkDeceased(null)
-      // Switch to past tab to show deceased pets
       setActiveTab('past')
       setPetToDelete(null)
     } catch (error) {
-      console.error('Error marking pet as deceased:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายได้')
     } finally {
       setIsMarkingDeceased(false)
     }
   }, [petToMarkDeceased, markPetDeceased])
 
-  // Can delete only if more than 1 active pet
   const canDeletePet = activePets.length > 1
 
-  // ------------------
-  // REDER
-  // ------------------
   return (
     <View style={styles.container}>
       <Header title="โปรไฟล์สัตว์เลี้ยง" />

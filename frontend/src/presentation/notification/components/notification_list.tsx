@@ -46,13 +46,11 @@ export default function NotificationList({
   const markAsReadApi = useApi(notificationService.updateNotificationStatus, {
     showErrorAlert: true,
     onError: (error) => {
-      console.error('Failed to mark as read:', error)
     },
     onSuccess: (updatedNotification) => {
       if (onRefresh) {
         onRefresh()
       }
-      // Refresh unread count after marking as read
       refreshUnreadCount()
     }
   })
@@ -65,14 +63,12 @@ export default function NotificationList({
         markAsReadApi.execute(notification.id, { read: true })
       }
 
-      // Only navigate to reminders if it's a reminder notification
       if (notification.reminderId) {
         router.push({
           pathname: '/(tabs)',
           params: { reminderId: notification.reminderId }
         })
       }
-      // Tips notifications don't navigate anywhere, just mark as read
     },
     [router, readIds, markAsReadApi]
   )

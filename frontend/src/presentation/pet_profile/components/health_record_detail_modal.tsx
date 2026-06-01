@@ -98,7 +98,6 @@ export default function HealthRecordDetailModal({
   }
 
   if (!visible) return null
-  console.log(reminder)
 
   return (
     <Modal

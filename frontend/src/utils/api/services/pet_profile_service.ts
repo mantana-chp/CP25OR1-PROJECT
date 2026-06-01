@@ -92,11 +92,9 @@ export const petProfileService = {
    * @returns Response with message and status
    */
   softDeletePet: async (petId: string) => {
-    console.log('🗑️ Calling softDeletePet API for:', petId)
     const requestBody = {
       reason: 'JUST_DELETE' as const,
     }
-    console.log('📤 Request body:', requestBody)
 
     const response = await apiClient.delete<{ data: DeletePetResponse }>(
       `/v1/pets/me/${petId}`,
@@ -104,7 +102,6 @@ export const petProfileService = {
         data: requestBody,
       },
     )
-    console.log('📥 Soft delete response:', response)
     return response
   },
 
@@ -139,7 +136,6 @@ export const petProfileService = {
    * Get recently deleted pets (within 30 days)
    */
   getRecentlyDeletedPets: async () => {
-    console.log('📡 Fetching recently deleted pets from API...')
     const response = await apiClient.get<{
       data: IPetProfile[]
     }>('/v1/pets/me/recently-deleted')
@@ -152,11 +148,9 @@ export const petProfileService = {
    * @returns Response with message and status
    */
   restorePet: async (petId: string) => {
-    console.log('♻️ Restoring pet:', petId)
     const response = await apiClient.patch<{
       data: { message: string; status: string }
     }>(`/v1/pets/me/${petId}/restore`)
-    console.log('📥 Restore response:', response)
     return response
   },
 
@@ -166,11 +160,9 @@ export const petProfileService = {
    * @returns Response with message
    */
   permanentDeletePet: async (petId: string) => {
-    console.log('🗑️ Permanently deleting pet:', petId)
     const response = await apiClient.delete<{ data: { message: string } }>(
       `/v1/pets/me/${petId}/permanent`,
     )
-    console.log('📥 Permanent delete response:', response)
     return response
   },
 }

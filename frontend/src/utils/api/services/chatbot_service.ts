@@ -24,7 +24,6 @@ export const chatbotService = {
     )
 
     if (__DEV__) {
-      console.log('[AI_CHAT_FE] POST /v1/ai-chat response:', response.data)
     }
 
     return response

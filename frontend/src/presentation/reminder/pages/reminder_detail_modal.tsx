@@ -158,9 +158,6 @@ export default function ReminderDetailModal({
   isVirtual = false,
   virtualReminderData
 }: ReminderDetailModalProps) {
-  // ------------------
-  // STATE & CONST
-  // ------------------
   const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
   const [previewAttachment, setPreviewAttachment] =
@@ -171,7 +168,6 @@ export default function ReminderDetailModal({
     showErrorAlert: true
   })
 
-  // Use virtual reminder data if available, otherwise use API data
   const reminder =
     isVirtual && virtualReminderData
       ? virtualReminderData
@@ -183,7 +179,6 @@ export default function ReminderDetailModal({
     : null
   const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
 
-  // Status configuration
   const getStatusConfig = () => {
     if (isDone) {
       return {
@@ -239,19 +234,12 @@ export default function ReminderDetailModal({
     onClose()
   }
 
-  // ------------------
-  // USE-EFFECTS
-  // ------------------
-  // USE-EFFECTS
-  // ------------------
   useEffect(() => {
-    // Only fetch from API if not a virtual reminder
     if (id && !isVirtual) {
       getReminderApi.execute(id)
     }
   }, [id, isVirtual])
 
-  // Show not found message
   if (!id || (!getReminderApi.loading && !reminder && !isVirtual)) {
     return (
       <View style={styles.modalOverlay}>
@@ -291,9 +279,6 @@ export default function ReminderDetailModal({
     )
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.modalOverlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />

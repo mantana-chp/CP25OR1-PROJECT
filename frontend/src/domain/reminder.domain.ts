@@ -1,6 +1,5 @@
 import * as yup from 'yup'
 
-// Recurrence Types
 export type RecurrenceType =
   | 'none'
   | 'daily'
@@ -109,7 +108,6 @@ export interface IReminder {
   children: IReminder[]
   attachments: IAttachment[] // File attachments
   pendingAttachments?: IPendingAttachment[] // Attachments pending upload (frontend only)
-  // Recurrence fields
   recurrenceId?: string // ID of the recurring rule (if this reminder is part of a series)
   recurrence?: {
     id: string
@@ -125,7 +123,6 @@ export interface IReminder {
     updatedAt: string
   }
   occurrenceNumber?: number // Which occurrence this is (1, 2, 3, etc.)
-  // Virtual reminder fields (for display-only instances generated from recurring rules)
   isVirtual?: boolean
   originalRuleId?: string
   virtualOccurrenceNumber?: number

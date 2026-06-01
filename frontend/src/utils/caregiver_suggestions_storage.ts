@@ -19,12 +19,10 @@ export async function getCaregiverSuggestions(): Promise<
     if (!stored) return []
 
     const suggestions: CaregiverSuggestion[] = JSON.parse(stored)
-    // Sort by most recently used
     return suggestions.sort(
       (a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
     )
   } catch (error) {
-    console.error('Failed to load caregiver suggestions:', error)
     return []
   }
 }
@@ -39,10 +37,8 @@ export async function saveCaregiverSuggestion(alias: string): Promise<void> {
 
     const suggestions = await getCaregiverSuggestions()
 
-    // Remove existing entry if present
     const filtered = suggestions.filter((s) => s.alias !== trimmedAlias)
 
-    // Add new entry at the front
     const updated: CaregiverSuggestion[] = [
       { alias: trimmedAlias, lastUsed: new Date().toISOString() },
       ...filtered
@@ -53,7 +49,6 @@ export async function saveCaregiverSuggestion(alias: string): Promise<void> {
       JSON.stringify(updated)
     )
   } catch (error) {
-    console.error('Failed to save caregiver suggestion:', error)
   }
 }
 
@@ -69,7 +64,6 @@ export async function removeCaregiverSuggestion(alias: string): Promise<void> {
       JSON.stringify(filtered)
     )
   } catch (error) {
-    console.error('Failed to remove caregiver suggestion:', error)
   }
 }
 

@@ -281,7 +281,6 @@ const styles = StyleSheet.create({
   },
   petInfo: {
     flex: 1
-    // gap: spacing[1]
   },
   infoRow: {
     flexDirection: 'row',

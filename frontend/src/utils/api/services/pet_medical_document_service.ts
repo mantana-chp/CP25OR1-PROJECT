@@ -1,6 +1,5 @@
 import { apiClient } from '../api_client'
 
-// Types for medical document feature
 export interface IMedicalDocument {
   id: string
   petId: string
@@ -81,18 +80,13 @@ export const petMedicalDocumentService = {
     fileUri: string,
     contentType: string
   ): Promise<void> => {
-    console.log('🚀 Starting MinIO upload for medical document...')
-    console.log('📍 Upload URL:', presignedUrl.split('?')[0])
 
-    // Fetch the file from URI
     const fileResponse = await fetch(fileUri)
     if (!fileResponse.ok) {
       throw new Error(`Failed to read file: ${fileResponse.status}`)
     }
     const blob = await fileResponse.blob()
-    console.log(`📦 File blob created: ${(blob.size / 1024).toFixed(2)} KB`)
 
-    // Upload to MinIO
     const uploadResponse = await fetch(presignedUrl, {
       method: 'PUT',
       headers: {
@@ -101,18 +95,13 @@ export const petMedicalDocumentService = {
       body: blob
     })
 
-    console.log(
-      `📤 MinIO response status: ${uploadResponse.status} ${uploadResponse.statusText}`
-    )
 
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text()
-      console.error('❌ MinIO error response:', errorText)
       throw new Error(
         `MinIO upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. ${errorText}`
       )
     }
 
-    console.log('✅ File successfully uploaded to MinIO')
   }
 }

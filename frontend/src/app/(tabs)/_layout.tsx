@@ -48,7 +48,6 @@ export default function TabLayout() {
           alignItems: 'center'
         },
         tabBarLabelStyle: {
-          // Hide labels
         },
         tabBarShowLabel: false
       }}

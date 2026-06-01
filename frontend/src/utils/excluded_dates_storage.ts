@@ -20,7 +20,6 @@ export async function getExcludedDates(): Promise<ExcludedDatesMap> {
     const stored = await AsyncStorage.getItem(STORAGE_KEY)
     return stored ? JSON.parse(stored) : {}
   } catch (error) {
-    console.error('Failed to get excluded dates from storage:', error)
     return {}
   }
 }
@@ -39,18 +38,12 @@ export async function addExcludedDate(
       excludedDates[ruleId] = []
     }
 
-    // Add date if not already excluded
     const dateOnly = date.split('T')[0] // Normalize to YYYY-MM-DD
     if (!excludedDates[ruleId].includes(dateOnly)) {
       excludedDates[ruleId].push(dateOnly)
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(excludedDates))
-      console.log('[AsyncStorage] Added excluded date:', {
-        ruleId,
-        date: dateOnly
-      })
     }
   } catch (error) {
-    console.error('Failed to add excluded date to storage:', error)
   }
 }
 
@@ -62,9 +55,7 @@ export async function removeRuleExcludedDates(ruleId: string): Promise<void> {
     const excludedDates = await getExcludedDates()
     delete excludedDates[ruleId]
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(excludedDates))
-    console.log('[AsyncStorage] Removed all excluded dates for rule:', ruleId)
   } catch (error) {
-    console.error('Failed to remove rule excluded dates from storage:', error)
   }
 }
 
@@ -82,8 +73,6 @@ export async function getRuleExcludedDates(ruleId: string): Promise<string[]> {
 export async function clearAllExcludedDates(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY)
-    console.log('[AsyncStorage] Cleared all excluded dates')
   } catch (error) {
-    console.error('Failed to clear excluded dates from storage:', error)
   }
 }

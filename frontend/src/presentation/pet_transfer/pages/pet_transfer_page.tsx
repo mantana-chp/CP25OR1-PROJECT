@@ -263,7 +263,6 @@ export default function PetTransferPage() {
       setOwnerCompletedTransfer(completedTransfer)
       setShowOwnerCompletionModal(true)
     } catch {
-      // Keep silent while polling in background.
     }
   }, [
     cleanStaleResolvedTransferIds,
@@ -441,7 +440,6 @@ export default function PetTransferPage() {
           `ผู้รับโอนสามารถใช้รหัสนี้ในแอปเพื่อดูรายละเอียดและยืนยันรับโอนสิทธิ์`,
       })
     } catch {
-      // User can close native share sheet.
     }
   }
 

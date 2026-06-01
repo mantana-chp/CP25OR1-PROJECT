@@ -64,8 +64,6 @@ export default function AttachmentPreviewModal({
       return ''
     }
 
-    // Android WebView often cannot render raw PDF URLs directly.
-    // Use PDF.js viewer (not Google Docs) to avoid Google sign-in prompts.
     if (Platform.OS === 'android') {
       return `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(
         attachment.downloadUrl

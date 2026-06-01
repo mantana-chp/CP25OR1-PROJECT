@@ -203,7 +203,6 @@ export default function HealthRecordPage() {
         })
       }
     } catch (error) {
-      console.error('Failed to load pet profile timestamp:', error)
     }
   }, [petId])
 

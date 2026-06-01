@@ -126,7 +126,6 @@ export default function PetSharingPage() {
         ])
       }
     } catch (error) {
-      // Handle error silently
     } finally {
       isRealtimeSyncingRef.current = false
     }
@@ -230,10 +229,8 @@ export default function PetSharingPage() {
       return
     }
 
-    // Save alias to suggestions for future use
     await saveCaregiverSuggestion(alias)
 
-    // Reload pending invites
     await loadData()
   }
 
@@ -243,7 +240,6 @@ export default function PetSharingPage() {
         message: `🐾 คุณได้รับคำเชิญเป็นผู้ดูแลสัตว์เลี้ยง\n\n📋 รหัสคำเชิญ:\n${invite.inviteId}\n\nคัดลอกรหัสด้านบนและนำไปกรอกในแอพเพื่อเข้าร่วมเป็นผู้ดูแล`,
       })
     } catch {
-      // User can close native share sheet; no action needed.
     }
   }
 

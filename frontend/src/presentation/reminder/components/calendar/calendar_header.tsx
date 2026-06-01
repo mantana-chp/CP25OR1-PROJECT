@@ -34,9 +34,7 @@ export default function CalendarHeader({
     showReset || isPetFilterActive || isCategoryFilterActive
 
   const handleResetPress = () => {
-    // Reset calendar filter
     onReset()
-    // Reset reminder filters if callback provided
     if (onResetFilters) {
       onResetFilters()
     }

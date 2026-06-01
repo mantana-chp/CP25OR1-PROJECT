@@ -31,7 +31,6 @@ export function usePetMedicalDocuments({
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
-  // Fetch documents when petId changes
   const fetchDocuments = useCallback(async () => {
     if (!petId) return
 
@@ -40,8 +39,6 @@ export function usePetMedicalDocuments({
       const response = await petMedicalDocumentService.getDocuments(petId)
       setDocuments(response.data.documents || [])
     } catch (error: any) {
-      console.error('Error fetching medical documents:', error)
-      // Don't show alert for 404 - feature might not exist yet
       if (error?.response?.status !== 404) {
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดเอกสารได้')
       }
@@ -54,7 +51,6 @@ export function usePetMedicalDocuments({
     fetchDocuments()
   }, [fetchDocuments])
 
-  // Add files to pending list
   const addPendingFiles = (
     files: Array<{
       uri: string
@@ -77,12 +73,10 @@ export function usePetMedicalDocuments({
     return newPending
   }
 
-  // Remove a pending file before upload
   const removePendingFile = (pendingId: string) => {
     setPendingDocuments((prev) => prev.filter((p) => p.id !== pendingId))
   }
 
-  // Upload all pending files
   const uploadPendingFiles = async (): Promise<{
     success: IMedicalDocument[]
     failed: Array<{ fileName: string; error: string }>
@@ -96,10 +90,6 @@ export function usePetMedicalDocuments({
     const failedDocs: Array<{ fileName: string; error: string }> = []
 
     try {
-      // Step 1: Request presigned URLs for all files
-      console.log(
-        `🚀 Requesting upload URLs for ${pendingDocuments.length} file(s)...`,
-      )
 
       const urlResponse = await petMedicalDocumentService.requestUploadUrls(
         petId,
@@ -111,13 +101,10 @@ export function usePetMedicalDocuments({
       )
 
       const uploadUrls = urlResponse.data.files
-      console.log(`✅ Received ${uploadUrls.length} upload URL(s)`)
 
-      // Step 2: Upload files in parallel using Promise.allSettled
       const uploadPromises = pendingDocuments.map(async (pending, index) => {
         const urlInfo = uploadUrls[index]
 
-        // Update progress
         setPendingDocuments((prev) =>
           prev.map((p) =>
             p.id === pending.id
@@ -133,7 +120,6 @@ export function usePetMedicalDocuments({
             pending.fileType,
           )
 
-          // Update progress to success
           setPendingDocuments((prev) =>
             prev.map((p) =>
               p.id === pending.id
@@ -148,7 +134,6 @@ export function usePetMedicalDocuments({
             urlInfo,
           }
         } catch (error: any) {
-          // Update progress to failed
           setPendingDocuments((prev) =>
             prev.map((p) =>
               p.id === pending.id
@@ -167,7 +152,6 @@ export function usePetMedicalDocuments({
 
       const uploadResults = await Promise.allSettled(uploadPromises)
 
-      // Process results
       const successfulUploads: Array<{
         pending: IPendingDocument
         urlInfo: { objectKey: string; fileName: string }
@@ -192,11 +176,7 @@ export function usePetMedicalDocuments({
         }
       })
 
-      // Step 3: Save metadata for successful uploads
       if (successfulUploads.length > 0) {
-        console.log(
-          `💾 Saving metadata for ${successfulUploads.length} file(s)...`,
-        )
 
         const saveResponse = await petMedicalDocumentService.saveDocuments(
           petId,
@@ -209,22 +189,17 @@ export function usePetMedicalDocuments({
         )
 
         successDocs.push(...(saveResponse.data.documents || []))
-        console.log(`✅ Saved ${successDocs.length} document(s)`)
       }
 
-      // Update local state
       setDocuments((prev) => [...prev, ...successDocs])
 
-      // Clear successful pending documents
       const successIds = successfulUploads.map((s) => s.pending.id)
       setPendingDocuments((prev) =>
         prev.filter((p) => !successIds.includes(p.id)),
       )
 
-      // Notify parent
       onDocumentsChange?.()
 
-      // Show result message
       if (successDocs.length > 0 && failedDocs.length === 0) {
         Alert.alert('สำเร็จ', `อัปโหลด ${successDocs.length} ไฟล์เรียบร้อยแล้ว`)
       } else if (successDocs.length > 0 && failedDocs.length > 0) {
@@ -238,7 +213,6 @@ export function usePetMedicalDocuments({
 
       return { success: successDocs, failed: failedDocs }
     } catch (error: any) {
-      console.error('Error in upload flow:', error)
 
       const errorMessage =
         error?.response?.data?.message ||
@@ -247,7 +221,6 @@ export function usePetMedicalDocuments({
 
       Alert.alert('เกิดข้อผิดพลาด', errorMessage)
 
-      // Mark all as failed
       setPendingDocuments((prev) =>
         prev.map((p) => ({ ...p, uploadProgress: 'failed' as const })),
       )
@@ -264,30 +237,24 @@ export function usePetMedicalDocuments({
     }
   }
 
-  // Delete a document
   const deleteDocument = async (
     documentId: string,
   ): Promise<{ success: boolean; statusCode?: number }> => {
     if (!petId) return { success: false }
 
     try {
-      console.log('🗑️ Deleting document:', documentId)
       await petMedicalDocumentService.deleteDocument(petId, documentId)
 
-      // Update local state
       setDocuments((prev) => prev.filter((d) => d.id !== documentId))
 
-      // Notify parent
       onDocumentsChange?.()
 
       Alert.alert('สำเร็จ', 'ลบเอกสารเรียบร้อยแล้ว')
       return { success: true }
     } catch (error: any) {
-      console.error('Error deleting document:', error)
 
       const statusCode = error?.response?.status
 
-      // Don't show alert for 403 - let the component handle it
       if (statusCode === 403) {
         return { success: false, statusCode: 403 }
       }
@@ -303,7 +270,6 @@ export function usePetMedicalDocuments({
     }
   }
 
-  // Clear all pending files
   const clearPending = () => {
     setPendingDocuments([])
   }

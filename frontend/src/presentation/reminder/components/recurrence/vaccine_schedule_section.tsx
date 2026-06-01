@@ -161,7 +161,6 @@ export default function VaccineScheduleSection({
   }, [isVaccinationCategory, petId, canUseVaccineSchedule])
 
   useEffect(() => {
-    // Initialize when data is loaded (edit mode or suggestion selection) and not already initialized
     if (
       doses.length > 0 &&
       !selectedVaccineId &&
@@ -169,7 +168,6 @@ export default function VaccineScheduleSection({
       !isInitialized &&
       initialVaccineName
     ) {
-      // Try to match initialVaccineName with vaccines in the list
       const matchedVaccine = vaccineList.find(
         (vaccine) =>
           vaccine.vaccine_name_th === initialVaccineName ||
@@ -177,23 +175,19 @@ export default function VaccineScheduleSection({
       )
 
       if (matchedVaccine) {
-        // It's a standard vaccine from the list
         setSelectedVaccineId(matchedVaccine.id)
         setIsCustomVaccine(false)
         setCustomVaccineName(initialVaccineName)
         onCustomVaccineNameChange?.(initialVaccineName)
       } else {
-        // It's a custom vaccine
         setIsCustomVaccine(true)
         setCustomVaccineName(initialVaccineName)
         onCustomVaccineNameChange?.(initialVaccineName)
       }
 
-      // Initialize custom dose count from initial data
       const doseCount = initialCustomDoseCount || doses.length
       if (doseCount) {
         setCustomDoseCount(doseCount)
-        // If dose count > 6, activate custom input mode
         if (doseCount > 6) {
           setIsCustomDoseInputMode(true)
           setCustomDoseInputValue(String(doseCount))
@@ -215,8 +209,6 @@ export default function VaccineScheduleSection({
     doses.length,
   ])
 
-  // Reset initialization flag when edit mode changes
-  // But don't clear doses if they came from suggestion selection (initialVaccineName is set)
   useEffect(() => {
     if (!isEditMode && !initialVaccineName) {
       setIsInitialized(false)
@@ -236,7 +228,6 @@ export default function VaccineScheduleSection({
   }, [isEditMode, initialVaccineName])
 
   useEffect(() => {
-    // Don't recalculate if doses are already loaded from edit mode or suggestion selection
     const hasLoadedDoses =
       doses.length > 0 &&
       (doses.some((d) => d.childReminderId) || // Edit mode doses
@@ -423,7 +414,6 @@ export default function VaccineScheduleSection({
       return new Date(year, month - 1, day)
     }
 
-    // Validation
     if (doseNumber > 1) {
       const previousDose = doses.find((d) => d.doseNumber === doseNumber - 1)
       if (previousDose?.date) {
@@ -532,7 +522,6 @@ export default function VaccineScheduleSection({
 
     setDoses((prev) => {
       const filtered = prev.filter((d) => d.doseNumber !== doseNumber)
-      // Renumber the remaining doses sequentially
       return filtered.map((dose, index) => ({
         ...dose,
         doseNumber: index + 1,

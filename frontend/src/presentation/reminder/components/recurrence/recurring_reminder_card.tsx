@@ -83,9 +83,6 @@ export default function RecurringReminderCard({
   canDeleteAccess = true,
   onDeleteBlocked,
 }: RecurringReminderCardProps) {
-  // ------------------
-  // CONST
-  // ------------------
   const [isExpanded, setIsExpanded] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
@@ -104,14 +101,12 @@ export default function RecurringReminderCard({
     showErrorAlert: true,
   })
 
-  // Sort instances by date
   const sortedInstances = [...instances].sort((a, b) => {
     return (
       new Date(a.reminderDate).getTime() - new Date(b.reminderDate).getTime()
     )
   })
 
-  // Get next due date (first incomplete instance)
   const nextInstance = sortedInstances.find(
     (inst) => inst.reminderStatus !== 'done',
   )
@@ -160,9 +155,6 @@ export default function RecurringReminderCard({
     }),
   ).current
 
-  // ------------------
-  // HANDLERS
-  // ------------------
   const handleDeletePress = () => {
     if (!canDeleteAccess) {
       closeDeleteButton()
@@ -202,19 +194,15 @@ export default function RecurringReminderCard({
     currentStatus: string,
     index: number,
   ) => {
-    // If in temp done state, skip
     if (tempDoneIds.includes(instanceId)) {
       return
     }
 
     setSelectedInstance({ id: instanceId, status: currentStatus, index })
 
-    // Show appropriate modal based on current status
     if (currentStatus === 'done') {
-      // Show undo modal for marking back to todo
       setShowUndoModal(true)
     } else {
-      // Show complete modal for marking as done
       setShowCompleteModal(true)
     }
   }
@@ -240,7 +228,6 @@ export default function RecurringReminderCard({
         }
       }, 200)
     } catch (error) {
-      console.error('Failed to update instance status', error)
       if (currentStatus === 'to_do' || currentStatus === 'overdue') {
         setTempDoneIds((prev) => prev.filter((id) => id !== instanceId))
       }
@@ -269,7 +256,6 @@ export default function RecurringReminderCard({
         }
       }, 200)
     } catch (error) {
-      console.error('Failed to update instance status', error)
     }
   }
 
@@ -290,9 +276,6 @@ export default function RecurringReminderCard({
     }
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       {/* Delete Button (Behind) */}

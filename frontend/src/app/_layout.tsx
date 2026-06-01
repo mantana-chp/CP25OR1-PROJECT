@@ -83,7 +83,6 @@ function AppStackNavigator() {
 }
 
 export default function RootLayout() {
-  console.log('📱 [RootLayout] Component rendering...')
 
   const [fontsLoaded, fontError] = useFonts({
     Prompt_400Regular,

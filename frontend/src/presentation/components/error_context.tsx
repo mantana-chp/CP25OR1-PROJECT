@@ -1,7 +1,6 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
-// Define the shape of the context
 interface ErrorContextType {
   showError: (message: string) => void
   showSuccess: (message: string) => void
@@ -9,7 +8,6 @@ interface ErrorContextType {
 
 const ErrorContext = createContext<ErrorContextType | undefined>(undefined)
 
-// Define the provider component
 interface ErrorProviderProps {
   children: ReactNode
 }
@@ -48,7 +46,6 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
   )
 }
 
-// Custom hook to easily use the context
 export const useError = () => {
   const context = useContext(ErrorContext)
   if (!context) {
@@ -57,7 +54,6 @@ export const useError = () => {
   return context
 }
 
-// --- The Toast Component ---
 interface GlobalErrorToastProps {
   message: string
   onClose: () => void

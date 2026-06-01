@@ -44,7 +44,6 @@ export const imageUploadService = {
         },
       )
 
-      // apiClient.post returns response.data, which is the full backend response
       if (response && response.data) {
         return {
           uploadUrl: response.data.uploadUrl,
@@ -55,7 +54,6 @@ export const imageUploadService = {
 
       throw new Error('Invalid response structure from server')
     } catch (error: any) {
-      console.error('❌ Error requesting upload URL:', error)
       throw new Error(error?.message || 'Failed to get upload URL from server')
     }
   },
@@ -73,7 +71,6 @@ export const imageUploadService = {
     contentType: string,
   ): Promise<void> => {
     try {
-      // Fetch the file as blob
       const response = await fetch(fileUri)
       if (!response.ok) {
         throw new Error(`Failed to read file: ${response.statusText}`)
@@ -81,7 +78,6 @@ export const imageUploadService = {
 
       const blob = await response.blob()
 
-      // Upload directly to MinIO with presigned URL
       const uploadResponse = await fetch(presignedUrl, {
         method: 'PUT',
         headers: {
@@ -92,15 +88,12 @@ export const imageUploadService = {
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text()
-        console.error('MinIO error response:', errorText)
         throw new Error(
           `Upload failed with status ${uploadResponse.status}: ${uploadResponse.statusText}`,
         )
       }
 
-      console.log('✅ File uploaded to MinIO successfully')
     } catch (error: any) {
-      console.error('❌ Error uploading file to MinIO:', error)
       throw new Error(error?.message || 'Failed to upload image to storage')
     }
   },

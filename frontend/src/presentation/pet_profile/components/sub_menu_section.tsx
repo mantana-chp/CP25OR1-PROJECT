@@ -15,9 +15,6 @@ export default function SubMenuSection({
 }: SubMenuSectionProps) {
   const router = useRouter()
 
-  // -------------
-  // Render
-  // -------------
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>เมนู</Text>

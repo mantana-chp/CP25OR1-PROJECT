@@ -51,7 +51,6 @@ export default function TodayRemindersModal({
       const allReminders = response?.data?.data?.reminders || []
 
       if (!Array.isArray(allReminders)) {
-        console.warn('Reminders data is not an array:', allReminders)
         return
       }
 
@@ -78,7 +77,6 @@ export default function TodayRemindersModal({
         setVisible(true)
       }
     } catch (error) {
-      console.error('Error checking today reminders:', error)
     }
   }
 

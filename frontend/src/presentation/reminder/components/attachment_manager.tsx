@@ -30,7 +30,6 @@ import {
 } from 'lucide-react-native'
 import { IAttachment } from '@/src/domain/reminder.domain'
 
-// Type for pending attachments in create mode
 export interface IPendingAttachment extends Omit<
   IAttachment,
   'id' | 'reminderId' | 'createdAt'
@@ -40,7 +39,6 @@ export interface IPendingAttachment extends Omit<
   isPending: true
 }
 
-// Combined type for display
 type DisplayAttachment = IAttachment | IPendingAttachment
 
 interface AttachmentManagerProps {
@@ -81,7 +79,6 @@ export default function AttachmentManager({
     null
   )
 
-  // Merge attachments and pending attachments for display
   const allAttachments: DisplayAttachment[] = [
     ...attachments,
     ...pendingAttachments
@@ -102,7 +99,6 @@ export default function AttachmentManager({
 
   const startPickerRecoveryTimeout = () => {
     clearPickerRecoveryTimeout()
-    // Guard against native picker promises that never resolve on iOS.
     pickerRecoveryTimeoutRef.current = setTimeout(() => {
       resetPickerState()
     }, 45000)
@@ -123,7 +119,6 @@ export default function AttachmentManager({
     setShowAttachmentOptions(false)
     startPickerRecoveryTimeout()
 
-    // iOS needs a moment to dismiss this modal before presenting a native picker.
     if (Platform.OS === 'ios') {
       await new Promise<void>((resolve) => {
         InteractionManager.runAfterInteractions(() => {
@@ -144,7 +139,6 @@ export default function AttachmentManager({
       return
     }
 
-    // Recover from stale lock when returning from prior picker/navigation flow.
     if (isPickerActiveRef.current || isPickerOpening) {
       resetPickerState()
     }
@@ -222,7 +216,6 @@ export default function AttachmentManager({
     }
 
     try {
-      // Request camera permissions
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync()
 
       if (!permissionResult.granted) {
@@ -240,7 +233,6 @@ export default function AttachmentManager({
 
       const image = result.assets[0]
 
-      // Validate file size
       if (!image.fileSize) {
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถได้รับขนาดไฟล์ได้')
         return
@@ -259,7 +251,6 @@ export default function AttachmentManager({
         mimeType: 'image/jpeg'
       })
     } catch (error) {
-      console.error('Error taking photo:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถถ่ายรูปได้')
     } finally {
       endPickerFlow()
@@ -273,7 +264,6 @@ export default function AttachmentManager({
     }
 
     try {
-      // Request media library permissions
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync()
 
@@ -292,7 +282,6 @@ export default function AttachmentManager({
 
       const image = result.assets[0]
 
-      // Validate file size
       if (!image.fileSize) {
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถได้รับขนาดไฟล์ได้')
         return
@@ -304,7 +293,6 @@ export default function AttachmentManager({
         return
       }
 
-      // Get filename from uri or create one
       const fileName = image.uri.split('/').pop() || `image_${Date.now()}.jpg`
 
       await onAddAttachment({
@@ -314,7 +302,6 @@ export default function AttachmentManager({
         mimeType: image.mimeType || 'image/jpeg'
       })
     } catch (error) {
-      console.error('Error picking image:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกรูปภาพได้')
     } finally {
       endPickerFlow()
@@ -337,7 +324,6 @@ export default function AttachmentManager({
 
       const file = result.assets[0]
 
-      // Validate file size
       if (!file.size) {
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถได้รับขนาดไฟล์ได้')
         return
@@ -349,7 +335,6 @@ export default function AttachmentManager({
         return
       }
 
-      // Validate file type
       if (!allowedTypes.includes(file.mimeType || '')) {
         Alert.alert(
           'ประเภทไฟล์ไม่รองรับ',
@@ -365,7 +350,6 @@ export default function AttachmentManager({
         mimeType: file.mimeType || 'application/octet-stream'
       })
     } catch (error) {
-      console.error('Error picking document:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกไฟล์ได้')
     } finally {
       endPickerFlow()
@@ -383,7 +367,6 @@ export default function AttachmentManager({
             setDeletingId(attachment.id)
             await onDeleteAttachment(attachment.id)
           } catch (error) {
-            console.error('Error deleting attachment:', error)
             Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบไฟล์ได้')
           } finally {
             setDeletingId(null)
@@ -398,11 +381,9 @@ export default function AttachmentManager({
       try {
         await onDownloadAttachment(attachment)
       } catch (error) {
-        console.error('Error downloading attachment:', error)
         Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ได้')
       }
     } else if (attachment.downloadUrl) {
-      // Fallback: open in browser
       await Linking.openURL(attachment.downloadUrl)
     }
   }

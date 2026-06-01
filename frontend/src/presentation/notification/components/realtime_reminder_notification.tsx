@@ -48,7 +48,6 @@ export default function RealtimeReminderNotification({
     showErrorAlert: false
   })
 
-  // Load previously shown reminders from storage
   useEffect(() => {
     loadShownReminders()
     startChecking()
@@ -70,11 +69,9 @@ export default function RealtimeReminderNotification({
         const ids = JSON.parse(stored)
         setShownReminderIds(new Set(ids))
       } else {
-        // Clear old data from previous days
         await clearOldShownReminders()
       }
     } catch (error) {
-      console.error('Error loading shown reminders:', error)
     }
   }
 
@@ -90,7 +87,6 @@ export default function RealtimeReminderNotification({
         await AsyncStorage.multiRemove(oldKeys)
       }
     } catch (error) {
-      console.error('Error clearing old shown reminders:', error)
     }
   }
 
@@ -104,15 +100,12 @@ export default function RealtimeReminderNotification({
         JSON.stringify([...newSet])
       )
     } catch (error) {
-      console.error('Error saving shown reminder:', error)
     }
   }
 
   const startChecking = () => {
-    // Check immediately
     checkForDueReminders()
 
-    // Then check every 30 seconds
     intervalRef.current = setInterval(() => {
       checkForDueReminders()
     }, CHECK_INTERVAL)
@@ -120,7 +113,6 @@ export default function RealtimeReminderNotification({
 
   const checkForDueReminders = async () => {
     try {
-      // Don't check if modal is already visible
       if (visible) return
 
       const response = await getRemindersApi.execute()
@@ -134,7 +126,6 @@ export default function RealtimeReminderNotification({
       const currentDate = now.format('YYYY-MM-DD')
       const currentTime = now.format('HH:mm')
 
-      // Find reminders that are due right now (within the last 5 minutes)
       const dueReminders: IReminder[] = []
 
       allReminders.forEach((reminder: any) => {
@@ -142,7 +133,6 @@ export default function RealtimeReminderNotification({
           dueReminders.push(reminder)
         }
 
-        // Check child reminders (vaccine doses)
         if (reminder.children && reminder.children.length > 0) {
           reminder.children.forEach((child: any) => {
             if (shouldShowReminder(child, currentDate, currentTime)) {
@@ -152,7 +142,6 @@ export default function RealtimeReminderNotification({
         }
       })
 
-      // Show the first due reminder that hasn't been shown yet
       if (dueReminders.length > 0) {
         const remindersToShow = dueReminders.filter(
           (r) => !shownReminderIds.has(r.id)
@@ -162,7 +151,6 @@ export default function RealtimeReminderNotification({
         }
       }
     } catch (error) {
-      console.error('Error checking for due reminders:', error)
     }
   }
 
@@ -171,7 +159,6 @@ export default function RealtimeReminderNotification({
     currentDate: string,
     currentTime: string
   ): boolean => {
-    // Skip if already done or shown
     if (
       reminder.reminderStatus === 'done' ||
       shownReminderIds.has(reminder.id)
@@ -184,23 +171,18 @@ export default function RealtimeReminderNotification({
       ? reminder.reminderTime.substring(0, 5)
       : null
 
-    // Must be today
     if (reminderDate !== currentDate) {
       return false
     }
 
-    // If no time specified, don't show real-time notification
     if (!reminderTime) {
       return false
     }
 
-    // Check if reminder time matches current time (within 1-minute window)
     const reminderDateTime = dayjs(`${reminderDate} ${reminderTime}`)
     const now = dayjs()
     const minutesDiff = now.diff(reminderDateTime, 'minute')
 
-    // Show notification right at reminder time (0 to 1 minute after scheduled time)
-    // This gives a small window to catch the notification even if check runs between intervals
     return minutesDiff >= 0 && minutesDiff <= 1
   }
 
@@ -209,13 +191,11 @@ export default function RealtimeReminderNotification({
     setCompletedIds(new Set())
     setVisible(true)
 
-    // Save all shown reminders
     reminders.forEach((reminder) => {
       saveShownReminder(reminder.id)
       onReminderShown?.(reminder)
     })
 
-    // Animate slide in
     Animated.spring(slideAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -264,20 +244,16 @@ export default function RealtimeReminderNotification({
     try {
       setIsMarkingDone(true)
 
-      // Mark all selected reminders as done
       await Promise.all(idsToComplete.map((id) => updateStatusApi.execute(id)))
 
-      // Notify parent for each completed reminder
       idsToComplete.forEach((id) => {
         onReminderCompleted?.(id)
       })
 
-      // Refetch data
       await getRemindersApi.execute()
 
       handleAcknowledge()
     } catch (error) {
-      console.error('Error marking reminders as done:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายเสร็จได้')
     } finally {
       setIsMarkingDone(false)
@@ -292,20 +268,16 @@ export default function RealtimeReminderNotification({
 
       const allIds = currentReminders.map((r) => r.id)
 
-      // Mark all reminders as done
       await Promise.all(allIds.map((id) => updateStatusApi.execute(id)))
 
-      // Notify parent for each completed reminder
       allIds.forEach((id) => {
         onReminderCompleted?.(id)
       })
 
-      // Refetch data
       await getRemindersApi.execute()
 
       handleAcknowledge()
     } catch (error) {
-      console.error('Error marking all reminders as done:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายเสร็จได้')
     } finally {
       setIsMarkingDone(false)

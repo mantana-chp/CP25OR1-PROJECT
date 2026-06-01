@@ -90,7 +90,6 @@ export default function HealthLogFormModal({
   onClose,
   onSubmit,
 }: HealthLogFormModalProps) {
-  // Parse editing log to extract category from backend
   const parseEditingLog = (
     log: IHealthLog | null,
     fallbackLoggedAt: string,

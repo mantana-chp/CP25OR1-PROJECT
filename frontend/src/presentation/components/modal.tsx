@@ -83,7 +83,6 @@ function ModalIconView({ icon }: { icon: ModalIcon | ReactNode }) {
       </View>
     )
   }
-  // Custom ReactNode — wrap in a neutral circle
   return (
     <View style={[styles.iconCircle, { backgroundColor: colors.gray[100] }]}>
       {icon as ReactNode}

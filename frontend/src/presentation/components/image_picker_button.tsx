@@ -42,7 +42,6 @@ export default function ImagePickerButton({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Request image picker permissions
   useEffect(() => {
     const requestPermissions = async () => {
       const { status: cameraStatus } =
@@ -91,31 +90,13 @@ export default function ImagePickerButton({
         onImageSelected(result.assets[0].uri)
       }
     } catch (error) {
-      console.error('❌ Error picking image:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกรูปภาพได้')
     } finally {
       setIsLoading(false)
     }
   }
 
-  // const handleButtonPress = () => {
-  //   if (disabled) return
 
-  //   Alert.alert('เลือกรูปภาพ', 'เลือกที่มาของรูปภาพ', [
-  //     {
-  //       text: 'ถ่ายรูป',
-  //       onPress: () => handlePickImage('camera'),
-  //     },
-  //     {
-  //       text: 'เลือกจากคลังรูป',
-  //       onPress: () => handlePickImage('library'),
-  //     },
-  //     {
-  //       text: 'ยกเลิก',
-  //       style: 'cancel',
-  //     },
-  //   ])
-  // }
 
   const handleButtonPress = () => {
     if (disabled) return

@@ -111,9 +111,6 @@ const showSpeciesWeightLimitAlert = (message?: string) => {
 export default function PetProfileForm({
   isOnboarding = false,
 }: PetProfileFormProps) {
-  // ------------------
-  // CONST
-  // ------------------
   const router = useRouter()
   const params = useLocalSearchParams()
   const petId = (params?.petId || '') as string
@@ -123,7 +120,6 @@ export default function PetProfileForm({
 
   useEffect(() => {
     return () => {
-      // Cleanup
     }
   }, [])
 
@@ -134,13 +130,11 @@ export default function PetProfileForm({
   const [speciesData, setSpeciesData] = useState<ISpecies[]>([])
   const [showBackModal, setShowBackModal] = useState(false)
 
-  // Multi-pet form state - array of pet forms
   const [petForms, setPetForms] = useState<IPetFormState[]>([])
   const [nameConflictErrors, setNameConflictErrors] = useState<
     Record<string, string>
   >({})
 
-  // For edit mode - keep single form state
   const [initialPetData, setInitialPetData] = useState<IPetProfileForm | null>(
     null,
   )
@@ -160,9 +154,6 @@ export default function PetProfileForm({
   )
   const [isDeletingImage, setIsDeletingImage] = useState(false)
 
-  // ------------------
-  // FETCH
-  // ------------------
   useEffect(() => {
     const fetchSpeciesAndBreeds = async () => {
       try {
@@ -171,16 +162,13 @@ export default function PetProfileForm({
           setSpeciesData(response.data)
         }
       } catch (error) {
-        console.error('❌ Error fetching species and breeds:', error)
       }
     }
     fetchSpeciesAndBreeds()
   }, [])
 
-  // Initialize form when not in edit mode
   useEffect(() => {
     if (!isEditMode && speciesData.length > 0) {
-      // Always initialize with empty form when in create mode
       const emptyForm: IPetFormState = {
         id: 'pet_form_0',
         values: petProfileInitValue({} as IPetProfileForm),
@@ -194,7 +182,6 @@ export default function PetProfileForm({
     }
   }, [speciesData, isEditMode])
 
-  // Reset form when focusing on create page (user returning after successful creation)
   useFocusEffect(
     useCallback(() => {
       if (!isEditMode) {
@@ -212,7 +199,6 @@ export default function PetProfileForm({
     }, [isEditMode]),
   )
 
-  // Load pet data for edit mode
   const loadPetData = useCallback(async () => {
     if (!petId) {
       return
@@ -222,7 +208,6 @@ export default function PetProfileForm({
 
     try {
       setIsLoading(true)
-      // Clear previous image state immediately to prevent flashing old image
       setSelectedImageUri(undefined)
       setOriginalImageKey(undefined)
 
@@ -230,11 +215,9 @@ export default function PetProfileForm({
 
       if (response) {
         setInitialPetData(response.data)
-        // Set the species ID to populate breed dropdown
         if (response.data.species_id) {
           setSelectedSpeciesId(response.data.species_id)
         }
-        // Load existing profile image in edit mode
         if (response.data.profile_image_url) {
           setSelectedImageUri(response.data.profile_image_url)
           setOriginalImageKey(response.data.profile_image_key || undefined)
@@ -246,7 +229,6 @@ export default function PetProfileForm({
         )
       }
     } catch (error) {
-      console.error('❌ Error loading pet data:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลสัตว์เลี้ยงได้')
     } finally {
       setIsLoading(false)
@@ -261,9 +243,6 @@ export default function PetProfileForm({
     }, [loadPetData, petId, speciesData, isEditMode]),
   )
 
-  // ------------------
-  // HANDLERS - Multi-Pet Form Management
-  // ------------------
 
   const updatePetFormField = (
     formId: string,
@@ -442,7 +421,6 @@ export default function PetProfileForm({
     validateOnBlur: false,
     validateOnMount: false,
     onSubmit: async (values) => {
-      // This is only used in EDIT MODE
       try {
         setIsSubmitting(true)
         setEditNameConflictError(undefined)
@@ -464,7 +442,6 @@ export default function PetProfileForm({
 
         if (weight) petDataToSend.weight = Number(weight)
 
-        // Create/update pet profile first
         let newPetId = petId
         if (isEditMode) {
           let updateResponse = await petProfileService.updatePetProfile(
@@ -492,7 +469,6 @@ export default function PetProfileForm({
             })
           }
 
-          // Check for suspicious weight change warnings
           if (
             updateResponse.data &&
             typeof updateResponse.data === 'object' &&
@@ -510,19 +486,14 @@ export default function PetProfileForm({
           const createResponse =
             await petProfileService.createPetProfile(petDataToSend)
           newPetId = createResponse.data?.id || petId
-          console.log('🆔 Pet Created with ID:', newPetId)
         }
 
-        // Update pet profile
-        // await petProfileService.updatePetProfile(petId, petDataToSend)
 
-        // Handle image upload/change
         const isImageChanged =
           selectedImageUri &&
           selectedImageUri !== initialPetData?.profile_image_url
 
         if (isImageChanged) {
-          console.log('🎬 Starting image upload process...')
           try {
             setIsUploadingImage(true)
 
@@ -532,14 +503,7 @@ export default function PetProfileForm({
             const fileType = 'image/jpeg'
             const fileSize = blob.size
 
-            console.log('📸 Image Upload Debug:', {
-              petId: petId,
-              fileName,
-              fileType,
-              fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
-            })
 
-            // Request presigned upload URL from backend
             const uploadUrlResponse = await uploadService.requestUploadUrl({
               fileName,
               fileType,
@@ -548,11 +512,9 @@ export default function PetProfileForm({
               entityId: petId,
             })
 
-            console.log('⬆️ Upload URL Response:', uploadUrlResponse)
 
             const { uploadUrl, objectKey } = uploadUrlResponse.data
 
-            console.log('🔑 Object Key received:', objectKey)
 
             await uploadService.uploadFileToMinIO(
               uploadUrl,
@@ -560,39 +522,21 @@ export default function PetProfileForm({
               fileType,
             )
 
-            console.log('✅ File uploaded to MinIO successfully')
-            console.log('📦 MinIO Upload Details:', {
-              bucket: 'dev-pet-attachments',
-              objectKey,
-              fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
-              uploadUrl: uploadUrl.split('?')[0],
-            })
 
-            // Save object key to pet profile in backend
             const updateResponse = await petProfileService.updateProfileImage(
               petId,
               objectKey,
             )
-            console.log('💾 Pet profile image saved:', updateResponse)
 
-            // Delete old image from storage if image changed
             if (isImageChanged && originalImageKey) {
-              console.log(
-                '🗑️ Deleting old image from storage:',
-                originalImageKey,
-              )
               try {
                 await uploadService.deleteFileFromMinIO(originalImageKey)
-                console.log('📦 Old image deleted from storage successfully')
               } catch (deleteError) {
-                console.warn('⚠️ Failed to delete old image:', deleteError)
               }
             }
 
-            // Update originalImageKey to prevent re-deletion
             setOriginalImageKey(objectKey)
           } catch (error) {
-            console.error('❌ Image upload failed:', error)
             Alert.alert(
               'บันทึกรูปไม่สำเร็จ',
               'แก้ไขข้อมูลสัตว์เลี้ยง แต่รูปภาพไม่ได้อัปโหลด กรุณาลองอีกครั้ง',
@@ -605,7 +549,6 @@ export default function PetProfileForm({
         await checkPetProfile()
         await refreshPets()
 
-        console.log('✅ Pet update completed, navigating to pet_profile page')
 
         if (isOnboarding) {
           await completeOnboarding()
@@ -632,7 +575,6 @@ export default function PetProfileForm({
         setSelectedSpeciesId('')
         setSelectedImageUri(undefined)
       } catch (error: any) {
-        console.error('❌ Error updating pet profile:', error)
 
         if (error?.statusCode === 409) {
           const conflictMessage =
@@ -660,13 +602,11 @@ export default function PetProfileForm({
     },
   })
 
-  // Submit handler for multi-pet create mode
   const handleCreateMultiplePets = async () => {
     try {
       setIsSubmitting(true)
       setNameConflictErrors({})
 
-      // Validate all forms first
       const validationErrors: { [key: string]: string[] } = {}
 
       for (const form of petForms) {
@@ -693,7 +633,6 @@ export default function PetProfileForm({
         return
       }
 
-      // Prepare pet data for batch create
       const petsToCreate = petForms.map((form) => {
         const { id, breed_id, weight, profileImage, ...petData } = form.values
         const petDataToSend: any = {
@@ -705,30 +644,24 @@ export default function PetProfileForm({
         return petDataToSend
       })
 
-      // Create pets in batch or single
       let createdPets: any[] = []
       if (petForms.length === 1) {
-        // Single pet - use original create endpoint
         const response = await petProfileService.createPetProfile(
           petsToCreate[0],
         )
         createdPets = [response.data]
       } else {
-        // Multiple pets - use batch create
         const response =
           await petProfileService.createMultiplePets(petsToCreate)
         createdPets = response.data || []
       }
 
-      console.log(`🆔 Created ${createdPets.length} pets`)
 
-      // Upload images for each created pet
       for (let i = 0; i < petForms.length; i++) {
         const form = petForms[i]
         const createdPet = createdPets[i]
 
         if (form.selectedImageUri && createdPet?.id) {
-          console.log(`🎬 Starting image upload for pet ${i + 1}...`)
           try {
             setIsUploadingImage(true)
 
@@ -738,7 +671,6 @@ export default function PetProfileForm({
             const fileType = 'image/jpeg'
             const fileSize = blob.size
 
-            // Request presigned upload URL
             const uploadUrlResponse = await uploadService.requestUploadUrl({
               fileName,
               fileType,
@@ -749,19 +681,15 @@ export default function PetProfileForm({
 
             const { uploadUrl, objectKey } = uploadUrlResponse.data
 
-            // Upload to MinIO
             await uploadService.uploadFileToMinIO(
               uploadUrl,
               form.selectedImageUri,
               fileType,
             )
 
-            // Save object key to pet profile
             await petProfileService.updateProfileImage(createdPet.id, objectKey)
 
-            console.log(`✅ Image uploaded for pet ${i + 1}`)
           } catch (error) {
-            console.error(`❌ Image upload failed for pet ${i + 1}:`, error)
             Alert.alert(
               'บันทึกรูปไม่สำเร็จ',
               `สัตว์เลี้ยงตัวที่ ${i + 1} ถูกสร้าง แต่รูปภาพไม่ได้อัปโหลด`,
@@ -775,7 +703,6 @@ export default function PetProfileForm({
       await checkPetProfile()
       await refreshPets()
 
-      console.log('✅ All pets created successfully')
 
       if (isOnboarding) {
         await completeOnboarding()
@@ -796,7 +723,6 @@ export default function PetProfileForm({
 
       router.push('/(tabs)/pet_profile')
     } catch (error: any) {
-      console.error('❌ Error creating pets:', error)
 
       if (error?.statusCode === 409) {
         const conflictMessage =
@@ -835,9 +761,6 @@ export default function PetProfileForm({
     return () => backHandler.remove()
   }, [petForms])
 
-  // ------------------
-  // DROPDOWN OPTIONS
-  // ------------------
   const petTypeOptions = speciesData.map((species) => ({
     id: species.id,
     name: species.name,
@@ -864,9 +787,6 @@ export default function PetProfileForm({
     { name: 'เพศเมีย', id: 'female' },
   ]
 
-  // ------------------
-  // HANDLERS - Helper Functions
-  // ------------------
   const handleSpeciesChange = (speciesId: string) => {
     if (isEditMode) {
       setSelectedSpeciesId(speciesId)
@@ -879,7 +799,6 @@ export default function PetProfileForm({
     if (formik.dirty) {
       setShowBackModal(true)
     } else {
-      // If coming from pet options, go back to pet options page
       if (isFromPetOptions) {
         if (isPostOnboarding) {
           router.push('/onboarding/pet-options?isPostOnboarding=true')
@@ -898,7 +817,6 @@ export default function PetProfileForm({
     setSelectedImageUri(undefined)
     setOriginalImageKey(undefined)
     setIsDeletingImage(false)
-    // If coming from pet options, go back to pet options page
     if (isFromPetOptions) {
       if (isPostOnboarding) {
         router.push('/onboarding/pet-options?isPostOnboarding=true')
@@ -912,7 +830,6 @@ export default function PetProfileForm({
 
   const handleImageSelected = (imageUri: string) => {
     if (isEditMode) {
-      console.log('🖼️ Image Selected:', imageUri)
       setSelectedImageUri(imageUri)
       formik.setFieldValue('profileImage', imageUri)
     }
@@ -920,7 +837,6 @@ export default function PetProfileForm({
 
   const handleImageDeleted = () => {
     if (isEditMode) {
-      // In edit mode, delete from storage immediately with confirmation
       Alert.alert(
         'ลบรูปภาพ',
         'คุณแน่ใจว่าต้องการลบรูปภาพประจำตัวสัตว์เลี้ยงหรือไม่?',
@@ -935,7 +851,6 @@ export default function PetProfileForm({
               try {
                 setIsDeletingImage(true)
                 await petProfileService.deleteProfileImage(petId)
-                console.log('✅ Profile image deleted successfully')
 
                 setSelectedImageUri(undefined)
                 setOriginalImageKey(undefined)
@@ -943,7 +858,6 @@ export default function PetProfileForm({
 
                 Alert.alert('สำเร็จ', 'ลบรูปภาพเรียบร้อยแล้ว')
               } catch (error) {
-                console.error('❌ Error deleting profile image:', error)
                 Alert.alert(
                   'เกิดข้อผิดพลาด',
                   'ไม่สามารถลบรูปภาพได้ กรุณาลองใหม่อีกครั้ง',
@@ -996,11 +910,7 @@ export default function PetProfileForm({
     return speciesData.find((species) => species.id === speciesId)?.name
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
 
-  // Helper function to render a single pet form
   const renderPetForm = (form: IPetFormState, index: number) => {
     const breedOptions = getBreedOptions(form.selectedSpeciesId)
     const showDeleteButton = petForms.length > 1
@@ -1118,7 +1028,6 @@ export default function PetProfileForm({
   }
 
   if (isEditMode) {
-    // EDIT MODE - Single form
     const breedOptions =
       speciesData
         .find((species) => species.id === selectedSpeciesId)
@@ -1262,7 +1171,6 @@ export default function PetProfileForm({
     )
   }
 
-  // CREATE MODE - Multiple forms
   return (
     <>
       <Header

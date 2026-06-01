@@ -148,43 +148,28 @@ export default function ReminderList({
       deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
     ) => {
       try {
-        // Find the reminder to check if it's virtual
         const reminder = reminders.find((r) => r.id === id)
         const petRole = pets.find((pet) => pet.id === reminder?.petId)?.petRole
 
         let deleteId = id
         let excludeDate: string | undefined
 
-        // For recurring reminders (both real and virtual), we need to handle deletion properly
         if (reminder?.recurrence && deleteScope === 'THIS_INSTANCE_ONLY') {
-          // Pass the date to add to excluded_dates array
           excludeDate = reminder.reminderDate
 
-          // For virtual reminders, use the rule ID instead of the reminder ID
           if (reminder.isVirtual) {
             deleteId = reminder.recurrence.id
           }
 
-          // Store excluded date in AsyncStorage as a workaround for backend not persisting excluded_dates
           if (excludeDate) {
             await addExcludedDate(reminder.recurrence.id, excludeDate)
-            console.log('[AsyncStorage] Added excluded date:', {
-              ruleId: reminder.recurrence.id,
-              excludeDate
-            })
           }
         } else if (reminder?.isVirtual && deleteScope === 'ALL_INSTANCES') {
-          // For deleting all instances of virtual reminder, use the rule ID
           deleteId = reminder.recurrence?.id || id
         }
 
-        // Remove all AsyncStorage exclusions when deleting all instances
         if (deleteScope === 'ALL_INSTANCES' && reminder?.recurrence?.id) {
           await removeRuleExcludedDates(reminder.recurrence.id)
-          console.log(
-            '[AsyncStorage] Removed all excluded dates for rule:',
-            reminder.recurrence.id
-          )
         }
 
         const { error } = await deleteReminderApi.execute(
@@ -206,18 +191,15 @@ export default function ReminderList({
             setShowAlreadyDeletedModal(true)
             return
           }
-          console.error('Failed to delete reminder', error)
           return
         }
 
-        // Refresh the reminder list and calendar after successful deletion
         setTimeout(() => {
           if (onRefresh) {
             onRefresh()
           }
         }, 200)
       } catch (error) {
-        console.error('Failed to delete reminder', error)
       }
     },
     [deleteReminderApi, onRefresh, reminders, pets]
@@ -240,7 +222,6 @@ export default function ReminderList({
           }
         }, 200)
       } catch (error) {
-        console.error('Failed to update status', error)
         if (currentStatus === 'to_do' || currentStatus === 'overdue') {
           setTempDoneIds((prev) => prev.filter((doneId) => doneId !== id))
         }

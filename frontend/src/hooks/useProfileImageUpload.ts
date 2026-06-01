@@ -14,7 +14,6 @@ export function useProfileImageUpload(options?: UseProfileImageUploadOptions) {
 
   const pickAndUpload = async (petId: string, source: 'gallery' | 'camera') => {
     try {
-      // 1. Pick or take photo
       const result =
         source === 'camera'
           ? await ImagePicker.launchCameraAsync({
@@ -40,7 +39,6 @@ export function useProfileImageUpload(options?: UseProfileImageUploadOptions) {
 
       setIsUploading(true)
 
-      // 2. Request presigned upload URL from backend
       const uploadUrlResponse = await uploadService.requestUploadUrl({
         fileName,
         fileType,
@@ -51,15 +49,12 @@ export function useProfileImageUpload(options?: UseProfileImageUploadOptions) {
 
       const { uploadUrl, objectKey } = uploadUrlResponse.data
 
-      // 3. Upload file directly to MinIO
       await uploadService.uploadFileToMinIO(uploadUrl, fileUri, fileType)
 
-      // 4. Save object key to pet profile in backend
       await petProfileService.updateProfileImage(petId, objectKey)
 
       options?.onSuccess?.()
     } catch (error) {
-      console.error('Profile image upload failed:', error)
       Alert.alert('อัพโหลดไม่สำเร็จ', 'กรุณาลองใหม่อีกครั้ง')
       options?.onError?.(error as Error)
     } finally {
@@ -73,7 +68,6 @@ export function useProfileImageUpload(options?: UseProfileImageUploadOptions) {
       await petProfileService.deleteProfileImage(petId)
       options?.onSuccess?.()
     } catch (error) {
-      console.error('Profile image delete failed:', error)
       Alert.alert('ลบรูปไม่สำเร็จ', 'กรุณาลองใหม่อีกครั้ง')
       options?.onError?.(error as Error)
     } finally {

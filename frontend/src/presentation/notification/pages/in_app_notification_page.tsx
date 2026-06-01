@@ -29,7 +29,6 @@ export default function InAppNotificationPage() {
     }, [loadNotifications])
   )
 
-  // Refresh unread count when page comes into focus
   useFocusEffect(
     useCallback(() => {
       refreshUnreadCount()

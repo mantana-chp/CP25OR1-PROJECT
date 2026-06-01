@@ -52,7 +52,6 @@ export default function QrModal({
     ? 'QR โอนสิทธิ์นี้หมดอายุแล้ว กรุณาสร้างรหัสโอนสิทธิ์ใหม่'
     : 'QR Code นี้หมดอายุแล้ว กรุณาสร้างรหัสเชิญใหม่'
 
-  // Check if the invite is expired
   useEffect(() => {
     if (!expiresAt) {
       setIsExpired(false)
@@ -75,10 +74,8 @@ export default function QrModal({
       }
     }
 
-    // Check immediately
     checkExpiry()
 
-    // Check every 5 seconds while modal is visible
     const interval = setInterval(checkExpiry, 5000)
 
     return () => clearInterval(interval)

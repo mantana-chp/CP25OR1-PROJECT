@@ -28,7 +28,6 @@ const storage = {
         return await SecureStore.getItemAsync(key)
       }
     } catch (error) {
-      console.error(`Error getting item ${key}:`, error)
       return null
     }
   },
@@ -41,7 +40,6 @@ const storage = {
         await SecureStore.setItemAsync(key, value)
       }
     } catch (error) {
-      console.error(`Error setting item ${key}:`, error)
     }
   },
 
@@ -53,7 +51,6 @@ const storage = {
         await SecureStore.deleteItemAsync(key)
       }
     } catch (error) {
-      console.error(`Error removing item ${key}:`, error)
     }
   },
 }
@@ -75,7 +72,6 @@ class ApiClient {
       },
     })
 
-    console.log('✅ API Client initialized:', API_BASE_URL)
     this.setupInterceptors()
   }
 
@@ -122,32 +118,26 @@ class ApiClient {
             config.headers['X-Installation-Id'] = installationId
           }
 
-          console.log('📤 Request:', config.method?.toUpperCase(), config.url)
           return config
         } catch (error) {
-          console.error('❌ Error getting token:', error)
         }
 
         return config
       },
       (error) => {
-        console.error('❌ Request error:', error)
         return Promise.reject(error)
       },
     )
 
     this.client.interceptors.response.use(
       (response) => {
-        console.log('✅ Response:', response.status, response.config.url)
         return response
       },
       async (error: AxiosError) => {
         const originalRequest: any = error.config
 
-        console.error('❌ Response error 111:', error.message)
 
         if (error.response) {
-          console.log('ERRORRRR')
 
           const { status, data } = error.response
           const errorMessage = this.extractApiErrorMessage(
@@ -155,12 +145,9 @@ class ApiClient {
             'เกิดข้อผิดพลาดที่ไม่คาดคิด',
           )
           const errorDetails = (data as any)?.errors
-          console.error('Status:', status, 'Data:', data)
 
-          // Handle 401 - Token refresh logic
           if (status === 401 && !originalRequest._retry) {
             if (this.isRefreshing) {
-              // If already refreshing, queue this request
               return new Promise((resolve, reject) => {
                 this.failedQueue.push({ resolve, reject })
               })
@@ -176,18 +163,15 @@ class ApiClient {
             originalRequest._retry = true
             this.isRefreshing = true
 
-            // Emit event to show loading overlay
             tokenRefreshEmitter.emit(true)
 
             try {
-              console.log('🔄 Attempting token refresh...')
               const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY)
 
               if (!refreshToken) {
                 throw new Error('No refresh token available')
               }
 
-              // Call refresh token endpoint
               const response = await this.client.post<{
                 data: { accessToken: string; refreshToken: string }
               }>('/v1/auth/refresh', {
@@ -197,45 +181,32 @@ class ApiClient {
               const { accessToken, refreshToken: newRefreshToken } =
                 response.data.data
 
-              // Save new tokens
               await storage.setItem(ACCESS_TOKEN_KEY, accessToken)
               await storage.setItem(REFRESH_TOKEN_KEY, newRefreshToken)
 
-              console.log('✅ Token refreshed successfully')
 
-              // Update authorization header
               originalRequest.headers.Authorization = `Bearer ${accessToken}`
 
-              // Process queued requests
               this.processQueue(null, accessToken)
 
-              // Retry original request
               return this.client(originalRequest)
             } catch (refreshError) {
-              console.error('❌ Token refresh failed:', refreshError)
 
-              // Clear tokens on refresh failure
               await storage.removeItem(ACCESS_TOKEN_KEY)
               await storage.removeItem(REFRESH_TOKEN_KEY)
 
-              // Process queued requests with error
               this.processQueue(refreshError, null)
 
-              // Emit session expired event to trigger device re-login
               tokenRefreshEmitter.emitSessionExpired()
 
-              // Throw error to trigger re-login
               throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
             } finally {
               this.isRefreshing = false
-              // Hide loading overlay
               tokenRefreshEmitter.emit(false)
             }
           }
 
-          // For any other 401 errors (non-retryable), also clear tokens
           if (status === 401) {
-            console.log('🗑️ Clearing tokens due to 401 error')
             await storage.removeItem(ACCESS_TOKEN_KEY)
             await storage.removeItem(REFRESH_TOKEN_KEY)
             throw new ApiError(401, 'เซสชันหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง')
@@ -275,7 +246,6 @@ class ApiClient {
               throw new ApiError(status, errorMessage, errorDetails)
           }
         } else if (error.request) {
-          console.error('❌ Network error - no response received')
           throw new ApiError(
             0,
             'ข้อผิดพลาดของเครือข่าย โปรดตรวจสอบการเชื่อมต่อของคุณ',
@@ -324,11 +294,9 @@ class ApiClient {
     return this.request<T>({ ...config, method: 'DELETE', url })
   }
 
-  // Auth helpers
   async setToken(accessToken: string, refreshToken: string): Promise<void> {
     await storage.setItem(ACCESS_TOKEN_KEY, accessToken)
     await storage.setItem(REFRESH_TOKEN_KEY, refreshToken)
-    console.log('✅ Tokens saved')
   }
 
   async getAccessToken(): Promise<string | null> {
@@ -342,10 +310,8 @@ class ApiClient {
   async clearTokens(): Promise<void> {
     await storage.removeItem(ACCESS_TOKEN_KEY)
     await storage.removeItem(REFRESH_TOKEN_KEY)
-    console.log('✅ Tokens cleared')
   }
 
-  // ⬇️ เพิ่ม Helper สำหรับ InstallationId
   async setInstallationId(id: string): Promise<void> {
     await storage.setItem(INSTALLATION_ID_KEY, id)
   }

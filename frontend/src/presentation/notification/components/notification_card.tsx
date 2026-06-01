@@ -77,7 +77,6 @@ export default function NotificationCard({
     const diffDays = reminderDate.diff(now, 'day')
     const diffHours = reminderDate.diff(now, 'hour')
 
-    // If it's today
     if (diffDays === 0) {
       if (time) {
         return `วันนี้ ${time.substring(0, 5)} น.`
@@ -85,7 +84,6 @@ export default function NotificationCard({
       return 'วันนี้'
     }
 
-    // If it's tomorrow
     if (diffDays === 1) {
       if (time) {
         return `พรุ่งนี้ ${time.substring(0, 5)} น.`
@@ -93,7 +91,6 @@ export default function NotificationCard({
       return 'พรุ่งนี้'
     }
 
-    // If it's within a week
     if (diffDays > 0 && diffDays < 7) {
       const dayName = reminderDate.locale('th').format('dddd')
       if (time) {
@@ -102,19 +99,16 @@ export default function NotificationCard({
       return dayName
     }
 
-    // If it's in the past
     if (diffHours < 0 && diffHours > -24) {
       return `${Math.abs(diffHours)} ชั่วโมงที่แล้ว`
     }
 
-    // Default format
     const formatted = reminderDate.locale('th').format('D MMM')
     if (time) {
       return `${formatted} ${time.substring(0, 5)} น.`
     }
     return formatted
   }
-  // Tips Notification
   if (petTips && !reminder) {
     return (
       <TouchableOpacity
@@ -172,7 +166,6 @@ export default function NotificationCard({
     )
   }
 
-  // Reminder Notification
   if (!reminder) {
     return null
   }

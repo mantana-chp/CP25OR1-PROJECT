@@ -24,7 +24,6 @@ export default function Header(props: HeaderProps) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  // Reduce padding and height for a shorter header
   const getTopPadding = () => {
     if (Platform.OS === 'android') {
       const statusBarHeight = StatusBar.currentHeight || 24

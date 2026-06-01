@@ -57,7 +57,6 @@ export default function SeverityScaleWidget({
     if (disabled) return
     setSelectedLevel(level)
 
-    // Small delay for visual feedback
     setTimeout(() => {
       onSelect(level, label)
     }, 300)

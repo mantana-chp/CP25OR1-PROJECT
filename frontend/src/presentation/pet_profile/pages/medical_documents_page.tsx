@@ -145,7 +145,6 @@ export default function MedicalDocumentsPage({
     null,
   )
 
-  // Preview modal state
   const [previewDocument, setPreviewDocument] =
     useState<IMedicalDocument | null>(null)
   const [showPreview, setShowPreview] = useState(false)
@@ -185,12 +184,10 @@ export default function MedicalDocumentsPage({
     setReminderAttachmentDocuments(mapped)
   }, [getRemindersApi.execute, petId])
 
-  // Delete permission modal state
   const [showDeletePermissionModal, setShowDeletePermissionModal] =
     useState(false)
   const [blockedDocumentName, setBlockedDocumentName] = useState('')
 
-  // Load documents on mount
   useFocusEffect(
     useCallback(() => {
       if (petId) {
@@ -210,7 +207,6 @@ export default function MedicalDocumentsPage({
     },
   )
 
-  // Picker state management
   const clearPickerRecoveryTimeout = () => {
     if (pickerRecoveryTimeoutRef.current) {
       clearTimeout(pickerRecoveryTimeoutRef.current)
@@ -262,7 +258,6 @@ export default function MedicalDocumentsPage({
     resetPickerState()
   }
 
-  // Format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -271,7 +266,6 @@ export default function MedicalDocumentsPage({
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
   }
 
-  // Format date
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleDateString('th-TH', {
@@ -281,7 +275,6 @@ export default function MedicalDocumentsPage({
     })
   }
 
-  // Get thumbnail URI for image files
   const getThumbnailUri = (doc: IDisplayMedicalDocument): string | null => {
     if (doc.fileType.startsWith('image/')) {
       if (isPendingDocument(doc)) return doc.uri
@@ -291,7 +284,6 @@ export default function MedicalDocumentsPage({
     return null
   }
 
-  // Get file icon based on type
   const getFileIcon = (fileType: string, size: number = 24) => {
     if (fileType.startsWith('image/')) {
       return <ImageIcon size={size} color={colors.primary.DEFAULT} />
@@ -299,7 +291,6 @@ export default function MedicalDocumentsPage({
     return <FileText size={size} color={colors.primary.DEFAULT} />
   }
 
-  // Validate file
   const validateFile = (file: {
     name: string
     size?: number
@@ -329,7 +320,6 @@ export default function MedicalDocumentsPage({
     return true
   }
 
-  // Handle upload options button
   const handleOpenUploadOptions = () => {
     const totalFiles = documents.length + pendingDocuments.length
     if (isUploading || totalFiles >= MAX_FILES || isDeceasedPet) {
@@ -363,7 +353,6 @@ export default function MedicalDocumentsPage({
     setShowUploadOptions(true)
   }
 
-  // Handle camera picker
   const handlePickFromCamera = async () => {
     const canContinue = await beginPickerFlow()
     if (!canContinue) return
@@ -403,14 +392,12 @@ export default function MedicalDocumentsPage({
         },
       ])
     } catch (error) {
-      console.error('Error taking photo:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถถ่ายรูปได้')
     } finally {
       endPickerFlow()
     }
   }
 
-  // Handle gallery picker
   const handlePickFromGallery = async () => {
     const canContinue = await beginPickerFlow()
     if (!canContinue) return
@@ -485,14 +472,12 @@ export default function MedicalDocumentsPage({
         }
       }
     } catch (error) {
-      console.error('Error picking images:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกรูปภาพได้')
     } finally {
       endPickerFlow()
     }
   }
 
-  // Handle document picker
   const handlePickMultipleDocuments = async () => {
     const canContinue = await beginPickerFlow()
     if (!canContinue) return
@@ -559,35 +544,29 @@ export default function MedicalDocumentsPage({
         }
       }
     } catch (error) {
-      console.error('Error picking documents:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกเอกสารได้')
     } finally {
       endPickerFlow()
     }
   }
 
-  // Handle upload pending files
   const handleUploadPending = async () => {
     if (pendingDocuments.length === 0) return
     await uploadPendingFiles()
   }
 
-  // Handle delete document
   const handleDeleteDocument = (document: IDisplayMedicalDocument) => {
     const isPending = isPendingDocument(document)
 
-    // For caregivers trying to delete uploaded documents, show permission modal immediately
     if (!isOwner && !isPending && !isReminderAttachmentDocument(document)) {
       setBlockedDocumentName(document.fileName)
       setShowDeletePermissionModal(true)
       return
     }
 
-    // For owners or pending documents, show normal confirmation
     showDeleteConfirmation(document)
   }
 
-  // Show delete confirmation dialog
   const showDeleteConfirmation = (document: IDisplayMedicalDocument) => {
     const isPending = isPendingDocument(document)
 
@@ -635,7 +614,6 @@ export default function MedicalDocumentsPage({
     ])
   }
 
-  // Handle preview document
   const handlePreviewDocument = (document: IMedicalDocument) => {
     setPreviewDocument(document)
     setShowPreview(true)
@@ -676,7 +654,6 @@ export default function MedicalDocumentsPage({
 
       return resolvedUrl
     } catch (error) {
-      console.error('Error resolving reminder attachment URL:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไฟล์ได้')
       return null
     } finally {
@@ -713,7 +690,6 @@ export default function MedicalDocumentsPage({
     await Linking.openURL(resolvedUrl)
   }
 
-  // Handle direct download
   const handleDirectDownload = async (document: IDisplayMedicalDocument) => {
     try {
       if (isPendingDocument(document)) return
@@ -727,12 +703,10 @@ export default function MedicalDocumentsPage({
         await Linking.openURL(document.downloadUrl)
       }
     } catch (error) {
-      console.error('Error downloading document:', error)
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดไฟล์ได้')
     }
   }
 
-  // Get progress badge for pending documents
   const getProgressBadge = (progress?: IPendingDocument['uploadProgress']) => {
     if (!progress || progress === 'waiting') {
       return null
@@ -758,7 +732,6 @@ export default function MedicalDocumentsPage({
     )
   }
 
-  // Filter documents
   const allDocuments: IDisplayMedicalDocument[] = useMemo(() => {
     const pending = pendingDocuments.map((doc) => ({
       ...doc,
@@ -796,7 +769,6 @@ export default function MedicalDocumentsPage({
   const canAddDocuments =
     !isDeceasedPet && !isUploading && totalFiles < MAX_FILES
 
-  // Render document card
   const renderDocumentCard = ({
     item: doc,
   }: {
@@ -910,7 +882,6 @@ export default function MedicalDocumentsPage({
     )
   }
 
-  // List Header
   const ListFooter =
     !isLoading && filteredDocuments.length > 0 ? (
       <View style={styles.listFooter}>
@@ -1005,7 +976,6 @@ export default function MedicalDocumentsPage({
     </>
   )
 
-  // Empty State
   const EmptyState = isLoading ? (
     <View style={styles.centerState}>
       <ActivityIndicator size='large' color={colors.primary.DEFAULT} />
@@ -1205,7 +1175,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     flexGrow: 1,
   },
-  // Filter Tabs
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: spacing[4],
@@ -1256,7 +1225,6 @@ const styles = StyleSheet.create({
   filterBadgeTextActive: {
     color: '#fff',
   },
-  // Pending Banner
   pendingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1291,7 +1259,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_500Medium',
     color: '#fff',
   },
-  // Document Card
   documentCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1409,7 +1376,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Prompt_400Regular',
   },
-  // Empty State
   centerState: {
     flex: 1,
     alignItems: 'center',
@@ -1460,7 +1426,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_500Medium',
     color: '#fff',
   },
-  // Add Button
   addButtonContainer: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -1493,7 +1458,6 @@ const styles = StyleSheet.create({
   listFooterSpacer: {
     height: 16,
   },
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

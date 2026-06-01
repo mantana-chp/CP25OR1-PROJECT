@@ -178,7 +178,6 @@ export const useCalendar = (
     }
   }, [reminders, recurringRules])
 
-  // Generate virtual reminders asynchronously (AsyncStorage requires async)
   useEffect(() => {
     const loadVirtualReminders = async () => {
       const virtuals = await generateAllVirtualReminders(
@@ -201,14 +200,10 @@ export const useCalendar = (
     }
   }, [reminders, recurringRules, pets, virtualGenerationConfig])
 
-  // Merge virtual reminders with real ones
   const allReminders = useMemo(() => {
     return mergeRealAndVirtualReminders(reminders, virtualReminders)
   }, [reminders, virtualReminders])
 
-  // --- Navigation range ---
-  // Default: 1 year backward and forward from today.
-  // If any reminder falls outside that window, extend the boundary to include it.
   const navigationRange = useMemo((): NavigationRange => {
     const now = new Date()
     const defaultMin = new Date(now.getFullYear() - 1, now.getMonth(), 1)
@@ -327,7 +322,6 @@ export const useCalendar = (
     const firstDay = getFirstDayOfMonth(currentDate)
     const days: DayInfo[] = []
 
-    // Previous month's days
     const prevMonthDays = getDaysInMonth(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
     )
@@ -344,7 +338,6 @@ export const useCalendar = (
       })
     }
 
-    // Current month's days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(
         currentDate.getFullYear(),

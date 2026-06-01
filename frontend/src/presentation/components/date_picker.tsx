@@ -51,7 +51,6 @@ export default function DatePicker(props: DatePickerProps) {
         setTempDate(props.value)
       }
     } else {
-      // iOS handling
       if (event.type === 'set' && selectedDate) {
         setTempDate(selectedDate)
       } else if (event.type === 'dismissed') {

@@ -44,7 +44,6 @@ export default function PetSelector({
   const selectedPets = pets.filter((p) => selectedPetIds.includes(p.id))
 
   const handleSelectPet = (petId: string) => {
-    // Toggle selection
     const isSelected = tempSelectedIds.includes(petId)
     if (isSelected) {
       setTempSelectedIds(tempSelectedIds.filter((id) => id !== petId))

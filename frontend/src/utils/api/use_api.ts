@@ -97,9 +97,6 @@ export function useApiQuery<T, Args extends any[] = any[]>(
   args: Args,
   options: ApiOptions & { enabled?: boolean } = {}
 ) {
-  console.warn(
-    '⚠️ useApiQuery is deprecated and may cause Suspense errors. Use useApi with manual execute() instead.'
-  )
 
   const { enabled = true, ...apiOptions } = options
   const api = useApi(apiFunction, apiOptions)

@@ -316,17 +316,11 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 4
-    // borderRadius: 6
-    // backgroundColor: '#E8F4F8'
   },
   deceasedButton: {
     padding: 4
-    // borderRadius: 6
-    // backgroundColor: '#f3f4f6'
   },
   deleteButton: {
     padding: 4
-    // borderRadius: 6
-    // backgroundColor: '#FEF2F2'
   }
 })

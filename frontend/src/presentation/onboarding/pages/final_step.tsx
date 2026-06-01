@@ -29,7 +29,6 @@ export default function FinalStep() {
         router.replace('/(tabs)')
       }
     } catch (error) {
-      console.error('Error completing onboarding:', error)
       setIsProcessing(false)
     }
   }

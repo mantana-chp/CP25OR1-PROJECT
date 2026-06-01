@@ -203,7 +203,6 @@ const styles = StyleSheet.create({
   ghostButtonText: {
     color: colors.gray[600]
   },
-  // Sizes
   smallButton: {
     paddingVertical: spacing[2],
     paddingHorizontal: spacing[4]

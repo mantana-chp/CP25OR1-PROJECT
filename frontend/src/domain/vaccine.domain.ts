@@ -32,7 +32,6 @@ export interface ICalculatedDose {
   ageInDays: number
 }
 
-// Validation schema for vaccine schedule
 export const vaccineScheduleValidationSchema = yup.object().shape({
   vaccineId: yup.string().required('กรุณาเลือกประเภทวัคซีน'),
   doses: yup.array().of(

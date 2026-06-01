@@ -112,7 +112,6 @@ export default function ChatbotPage() {
   const [lastFailedMessage, setLastFailedMessage] = useState<string>('')
   const scrollViewRef = useRef<ScrollView>(null)
 
-  // Show welcome message after disclaimer is accepted
   useEffect(() => {
     if (disclaimerAccepted && messages.length === 0) {
       const welcomeMessage: Message = {
@@ -130,7 +129,6 @@ export default function ChatbotPage() {
   }
 
   const handleSendMessage = async (text: string) => {
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       text,
@@ -141,13 +139,11 @@ export default function ChatbotPage() {
     setIsTyping(true)
     setIsError(false)
 
-    // Scroll to bottom after user message
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true })
     }, 100)
 
     try {
-      // Send message with persistent client chat session and current context.
       const response = await chatbotService.sendMessage(
         text,
         clientChatSessionId,
@@ -163,12 +159,10 @@ export default function ChatbotPage() {
       const aiMessage = mapAiMessageFromResponse(response.data, text)
       setMessages((prev) => [...prev, aiMessage])
 
-      // Scroll to bottom
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true })
       }, 100)
     } catch (error: any) {
-      console.error('Chat error:', error)
       setLastFailedMessage(text)
       setIsError(true)
       showError(
@@ -208,7 +202,6 @@ export default function ChatbotPage() {
 
     setIsTyping(true)
 
-    // Scroll to bottom
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true })
     }, 100)
@@ -233,12 +226,10 @@ export default function ChatbotPage() {
       const aiMessage = mapAiMessageFromResponse(response.data, originalQuery)
       setMessages((prev) => [...prev, aiMessage])
 
-      // Scroll to bottom
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true })
       }, 100)
     } catch (error: any) {
-      console.error('Error sending severity context:', error)
       showError('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง')
     } finally {
       setIsTyping(false)
@@ -312,7 +303,6 @@ export default function ChatbotPage() {
         scrollViewRef.current?.scrollToEnd({ animated: true })
       }, 100)
     } catch (error: any) {
-      console.error('Error sending pet clarification:', error)
       showError('เกิดข้อผิดพลาดในการยืนยันสัตว์เลี้ยง กรุณาลองใหม่อีกครั้ง')
     } finally {
       setIsTyping(false)

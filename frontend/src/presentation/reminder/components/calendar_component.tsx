@@ -62,9 +62,6 @@ export default function Calendar({
   isPetFilterActive,
   isCategoryFilterActive
 }: CalendarProps) {
-  // ------------------
-  // CONST
-  // ------------------
   const {
     currentDate,
     isCurrentMonth,
@@ -79,9 +76,6 @@ export default function Calendar({
 
   const chevronRotation = useChevronAnimation(isExpanded)
 
-  // ------------------
-  // TOAST
-  // ------------------
   const [toastMessage, setToastMessage] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
   const toastOpacity = useRef(new Animated.Value(0)).current
@@ -119,9 +113,6 @@ export default function Calendar({
     )
   }
 
-  // ------------------
-  // HANDLER
-  // ------------------
   const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     onToggle()
@@ -139,9 +130,6 @@ export default function Calendar({
   const days = isExpanded ? renderCalendar() : getCurrentWeekDays()
   const showReset = hasUserSelectedDate || !isCurrentMonth
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       <CalendarHeader

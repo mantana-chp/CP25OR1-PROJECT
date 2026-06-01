@@ -86,9 +86,6 @@ const estimateRuleHorizonDate = (rule: IRecurringRule): Date | null => {
 }
 
 export default function ReminderPage() {
-  // ------------------
-  // CONST
-  // ------------------
   const router = useRouter()
   const params = useLocalSearchParams<{ reminderId?: string }>()
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false)
@@ -100,9 +97,6 @@ export default function ReminderPage() {
     []
   )
 
-  // ------------------
-  // FETCH
-  // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
   })
@@ -191,7 +185,6 @@ export default function ReminderPage() {
     }
   }, [safeReminders, recurringRules])
 
-  // Generate virtual reminders asynchronously (AsyncStorage requires async)
   useEffect(() => {
     const loadVirtualReminders = async () => {
       const virtuals = await generateAllVirtualReminders(
@@ -233,7 +226,6 @@ export default function ReminderPage() {
     [safeReminders, recurringRules]
   )
 
-  // Default list behavior: keep previous behavior to avoid clutter in general view.
   const allReminders = useMemo(() => {
     return mergeRealAndVirtualReminders(
       remindersWithRecurrence,
@@ -242,7 +234,6 @@ export default function ReminderPage() {
     )
   }, [remindersWithRecurrence, virtualReminders])
 
-  // Selected-date behavior: show planned virtual instances even if previous ones are not done.
   const allRemindersForSelectedDate = useMemo(() => {
     return mergeRealAndVirtualReminders(
       remindersWithRecurrence,
@@ -250,9 +241,6 @@ export default function ReminderPage() {
     )
   }, [remindersWithRecurrence, virtualReminders])
 
-  // ------------------
-  // HANDLER
-  // ------------------
   const handleToggleCalendar = () => {
     setIsCalendarExpanded(!isCalendarExpanded)
   }
@@ -295,9 +283,6 @@ export default function ReminderPage() {
 
   const isToday = dayjs(selectedDate).isSame(dayjs(), 'day')
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       <TodayRemindersModal />

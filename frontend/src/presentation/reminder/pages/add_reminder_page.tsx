@@ -649,7 +649,6 @@ export default function AddReminderPage() {
     setSelectedPetIds([])
   }, [])
 
-  // Pet selection state (supports single or multiple pets)
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>([])
 
   const doneChildReminderIds = new Set(
@@ -658,7 +657,6 @@ export default function AddReminderPage() {
       .map((child) => child.id)
   )
 
-  // Attachment management hook
   const {
     attachments,
     isUploading: isUploadingAttachment,
@@ -669,19 +667,15 @@ export default function AddReminderPage() {
     reminderId: reminderId || '',
     initialAttachments: initialReminderData?.attachments || [],
     onAttachmentsChange: () => {
-      // Optionally refresh data if needed
-      console.log('✅ Attachments updated')
     }
   })
 
-  // Attachment handlers that defer changes until form submission
   const handleAddAttachment = async (file: {
     uri: string
     name: string
     size: number
     mimeType: string
   }): Promise<void> => {
-    // Always add to Formik's pendingAttachments (both create and edit mode)
     const pendingFile: import('@/src/domain/reminder.domain').IPendingAttachment =
       {
         id: `temp-${Date.now()}-${Math.random()}`,
@@ -701,13 +695,11 @@ export default function AddReminderPage() {
   const handleDeleteAttachment = async (
     attachmentId: string
   ): Promise<void> => {
-    // Check if it's a pending attachment (not yet uploaded)
     const isPending = (formik.values.pendingAttachments || []).some(
       (a) => a.id === attachmentId
     )
 
     if (isPending) {
-      // Remove from pendingAttachments
       formik.setFieldValue(
         'pendingAttachments',
         (formik.values.pendingAttachments || []).filter(
@@ -715,7 +707,6 @@ export default function AddReminderPage() {
         )
       )
     } else {
-      // It's an existing attachment - mark for deletion on submit
       setAttachmentsToDelete((prev) => [...prev, attachmentId])
     }
   }
@@ -881,27 +872,20 @@ export default function AddReminderPage() {
       apiSuccessRef.current = true
       setDuplicateError(null)
 
-      // Process attachment deletions
       if (attachmentsToDelete.length > 0 && reminderId) {
-        console.log(
-          `🗑️ Deleting ${attachmentsToDelete.length} attachment(s)...`
-        )
         for (const attachmentId of attachmentsToDelete) {
           try {
             await hookDeleteAttachment(attachmentId)
           } catch (error) {
-            console.error(`Failed to delete attachment ${attachmentId}:`, error)
           }
         }
       }
 
-      // Upload pending attachments if any
       if (
         formik.values.pendingAttachments &&
         formik.values.pendingAttachments.length > 0 &&
         reminderId
       ) {
-        console.log('📤 Uploading pending attachments...')
         await uploadPendingAttachments(
           reminderId,
           formik.values.pendingAttachments
@@ -967,7 +951,6 @@ export default function AddReminderPage() {
         }
       }
 
-      // Build submit data — petId is an array for create (backend supports multi-pet natively)
       let submitData: any = {
         reminderName: values.reminderName,
         description: values.description,
@@ -1050,7 +1033,6 @@ export default function AddReminderPage() {
         await createReminderApi.execute(submitData)
       }
 
-      // Only reset form state on success
       if (apiSuccessRef.current) {
         setDoses([])
         setCustomVaccineName('')
@@ -1266,7 +1248,6 @@ export default function AddReminderPage() {
     ])
   )
 
-  // Fetch existing reminders for suggestions - refresh on screen focus
   useFocusEffect(
     useCallback(() => {
       const fetchReminders = async () => {
@@ -1275,7 +1256,6 @@ export default function AddReminderPage() {
           const reminders = response?.data?.data?.reminders || []
           setExistingReminders(Array.isArray(reminders) ? reminders : [])
         } catch (error) {
-          console.error('Error fetching reminders:', error)
         }
       }
       fetchReminders()
@@ -1298,7 +1278,6 @@ export default function AddReminderPage() {
     }
   }, [petIdFromParams, selectedPetId, activePets])
 
-  // Initialize selectedPetIds for create mode
   useEffect(() => {
     if (!isEditMode && selectedPetIds.length === 0 && formik.values.petId) {
       setSelectedPetIds([formik.values.petId])
@@ -1313,7 +1292,6 @@ export default function AddReminderPage() {
   const isVaccinationCategory = formik.values.categoryName === 'Vaccination'
   const allDosesHaveDates = doses.length > 0 && doses.every((d) => !!d.date)
 
-  // Validation: Check pet selection (use selectedPetIds for create, petId for edit)
   const hasPetSelected = isEditMode
     ? !!formik.values.petId
     : selectedPetIds.length > 0
@@ -1389,7 +1367,6 @@ export default function AddReminderPage() {
   const handleReminderNameChange = (value: string) => {
     formik.setFieldValue('reminderName', value)
 
-    // Clear duplicate error when user changes the name
     if (duplicateError) {
       setDuplicateError(null)
     }
@@ -1410,20 +1387,17 @@ export default function AddReminderPage() {
   }
 
   const handleSuggestionSelect = (reminder: IReminder) => {
-    // Auto-fill all form fields from selected reminder
     formik.setFieldValue('reminderName', reminder.reminderName)
     formik.setFieldValue('description', reminder.description)
     formik.setFieldValue('categoryName', reminder.categoryName || 'General')
     formik.setFieldValue('reminderTime', reminder.reminderTime || '')
     formik.setFieldValue('reminderDate', reminder.reminderDate || '')
 
-    // Set pet if exists and is valid
     if (reminder.petId && pets.some((p) => p.id === reminder.petId)) {
       formik.setFieldValue('petId', reminder.petId)
       setSelectedPetId(reminder.petId)
     }
 
-    // Set recurrence if exists
     if (reminder.recurrence) {
       const convertedRecurrence = convertFromBackendRecurrence(
         reminder.recurrence
@@ -1433,13 +1407,11 @@ export default function AddReminderPage() {
       setRecurrenceRule(null)
     }
 
-    // Handle vaccination category with doses
     if (
       reminder.categoryName === 'Vaccination' &&
       reminder.children &&
       reminder.children.length > 0
     ) {
-      // Reset vaccine section to force reinitialize with new data
       setVaccineResetKey((prev) => prev + 1)
 
       const childrenWithDoseNumbers = reminder.children.map((child: any) => {
@@ -1471,7 +1443,6 @@ export default function AddReminderPage() {
       setHasUserStartedCreateMode(true)
     }
 
-    // Close suggestions
     setShowSuggestions(false)
     setSuggestions([])
   }

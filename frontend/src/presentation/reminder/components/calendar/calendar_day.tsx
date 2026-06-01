@@ -29,7 +29,6 @@ export default function CalendarDay({
   onPress,
   selectedDate
 }: CalendarDayProps) {
-  // Show up to 3 reminder dots
   const displayReminders = reminders.slice(0, 3)
 
   const isSelected = selectedDate && dayjs(date).isSame(selectedDate, 'day')
@@ -106,7 +105,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden'
   },
   todayCell: {
-    // No background color, only for text style
   },
   selectedCell: {
     backgroundColor: '#5FA7D1'

@@ -62,14 +62,12 @@ export default function AliasModal({
     CaregiverSuggestion[]
   >([])
 
-  // Load suggestions when modal opens
   useEffect(() => {
     if (visible) {
       loadSuggestions()
     }
   }, [visible])
 
-  // Filter suggestions based on input
   useEffect(() => {
     setFilteredSuggestions(filterSuggestions(suggestions, aliasInput))
   }, [aliasInput, suggestions])

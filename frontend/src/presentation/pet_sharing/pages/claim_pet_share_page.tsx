@@ -262,7 +262,6 @@ export default function ClaimPetSharePage() {
     acceptTransferApi.loading ||
     authLoading
 
-  // Determine if user has no pets (used to hide back button)
   const hasNoPets =
     (!activePets || activePets.length === 0) &&
     (!deceasedPets || deceasedPets.length === 0)
@@ -340,13 +339,10 @@ export default function ClaimPetSharePage() {
       setSelectedPetId(claimedPetId)
     }
 
-    // If coming from onboarding, complete it after claiming pet
     if (fromOnboarding && !isPostOnboarding) {
-      console.log('✅ Claiming pet from onboarding, completing onboarding')
       await completeOnboarding()
     }
 
-    // Show claimed pets modal
     if (
       normalizedResult.added.length > 0 ||
       normalizedResult.alreadyShared.length > 0
@@ -354,7 +350,6 @@ export default function ClaimPetSharePage() {
       setClaimResult(normalizedResult)
       setShowClaimedPetsModal(true)
     } else {
-      // Fallback to navigate directly if no pets data
       router.replace('/(tabs)/pet_profile')
     }
 
@@ -533,7 +528,6 @@ export default function ClaimPetSharePage() {
     }
 
     try {
-      // Only show error once per invalid payload
       if (lastErrorToken === payload) {
         await handleReceiveToken(payload)
       } else {

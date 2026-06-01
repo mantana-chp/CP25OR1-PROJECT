@@ -48,15 +48,8 @@ export const UnreadNotificationProvider: React.FC<
       const response = await notificationService.getNotifications()
       const notifications = response?.data || []
       const unread = notifications.filter((n: any) => !n.readAt).length
-      console.log(
-        '📊 Unread count refreshed:',
-        unread,
-        'total:',
-        notifications.length
-      )
       setUnreadCount(unread)
     } catch (error) {
-      console.error('Failed to fetch unread count:', error)
     }
   }, [])
 

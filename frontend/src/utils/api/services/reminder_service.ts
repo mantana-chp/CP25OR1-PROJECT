@@ -1,7 +1,6 @@
 import { IReminder } from '@/src/domain/reminder.domain'
 import { apiClient } from '../api_client'
 
-// Interface for recurring rules from backend
 export interface IRecurringRule {
   id: string
   reminder_id?: string
@@ -19,14 +18,11 @@ export interface IRecurringRule {
   template_start_date: string
   endDate: string | null
   endAfterOccurrences: number | null
-  // Array of dates (YYYY-MM-DD) that have been deleted with 'THIS_INSTANCE_ONLY'
-  // These dates should be excluded from virtual reminder generation
   excluded_dates?: string[]
   created_at: string
   updated_at: string
 }
 
-// Response type for getReminders with new structure
 export interface GetRemindersResponse {
   data: {
     reminders: IReminder[]
@@ -78,10 +74,6 @@ export const reminderService = {
     if (excludeDate) {
       params.excludeDate = excludeDate
     }
-    console.log('[API DELETE Request]', {
-      url: `/v1/reminders/${id}`,
-      params,
-    })
     return apiClient.delete(`/v1/reminders/${id}`, { params })
   },
 

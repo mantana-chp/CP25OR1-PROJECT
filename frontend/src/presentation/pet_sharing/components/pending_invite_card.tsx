@@ -52,7 +52,6 @@ export default function PendingInviteCard({
     Clipboard.setString(pendingInvite.inviteId)
     setIsCopied(true)
 
-    // Reset the copied state after 2 seconds
     setTimeout(() => {
       setIsCopied(false)
     }, 2000)

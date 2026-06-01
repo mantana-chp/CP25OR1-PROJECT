@@ -52,7 +52,6 @@ export default function TimePicker(props: TimePickerProps) {
     }
 
     if (event.type === 'set' && selectedTime) {
-      // Round minutes to nearest 15-minute interval
       const roundedTime = roundToNearest15Minutes(selectedTime)
       const limitedTime =
         props.maximumTime && roundedTime.getTime() > props.maximumTime.getTime()

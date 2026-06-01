@@ -61,15 +61,9 @@ const ICON_MAP: Record<string, any> = {
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
-  // ------------------
-  // STATE
-  // ------------------
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
   const [showSeriesModal, setShowSeriesModal] = React.useState(false)
 
-  // ------------------
-  // CONST
-  // ------------------
   const {
     reminder,
     onDelete,
@@ -83,7 +77,6 @@ export default function ReminderCard(props: ReminderCardProps) {
     hideToggle = false,
   } = props
 
-  // Check if this is a virtual reminder
   const isVirtual = reminder.isVirtual === true
 
   const date = dayjs(reminder.reminderDate).locale('th')
@@ -96,9 +89,6 @@ export default function ReminderCard(props: ReminderCardProps) {
   const categoryInfo = getCategoryInfo(reminder?.categoryName || 'General')
   const CategoryIcon = ICON_MAP[categoryInfo.icon] || Tag
 
-  // ------------------
-  // ANIMATION
-  // ------------------
   const translateX = useRef(new Animated.Value(0)).current
   const swipePosition = useRef(0)
 
@@ -133,9 +123,6 @@ export default function ReminderCard(props: ReminderCardProps) {
     }),
   ).current
 
-  // ------------------
-  // HANDLERS
-  // ------------------
 
   const closeDeleteButton = () => {
     Animated.spring(translateX, {
@@ -153,7 +140,6 @@ export default function ReminderCard(props: ReminderCardProps) {
       return
     }
 
-    // For virtual reminders, show series modal to delete the recurring rule
     if (isVirtual) {
       if (reminder.recurrence) {
         setShowSeriesModal(true)
@@ -161,7 +147,6 @@ export default function ReminderCard(props: ReminderCardProps) {
       return
     }
 
-    // Check if reminder is recurring
     if (reminder.recurrence) {
       setShowSeriesModal(true)
     } else {
@@ -225,9 +210,6 @@ export default function ReminderCard(props: ReminderCardProps) {
     onToggleStatus(reminder.id, reminder.reminderStatus)
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       {/* Delete Button Background - Only for non-virtual deletable reminders */}

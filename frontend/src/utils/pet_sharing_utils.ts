@@ -8,19 +8,16 @@ export const extractClaimToken = (rawValue: string): string | null => {
   const value = rawValue.trim()
   if (!value) return null
 
-  // Support raw token QR values.
   if (UUID_PATTERN.test(value)) {
     return value
   }
 
-  // Support app deep links: cp25or1-frontend://claim/<token>
   const deepLinkPrefix = `${CLAIM_SCHEME}/`
   if (value.startsWith(deepLinkPrefix)) {
     const token = value.slice(deepLinkPrefix.length).trim()
     return UUID_PATTERN.test(token) ? token : null
   }
 
-  // Support generic URLs/text that contain /claim/<token>
   const match = value.match(/\/claim\/([0-9a-f-]{36})/i)
   if (!match?.[1]) {
     return null
