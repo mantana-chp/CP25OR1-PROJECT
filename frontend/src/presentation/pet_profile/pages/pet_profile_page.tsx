@@ -8,52 +8,78 @@ import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Dimensions,
-  FlatList,
+  Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View
 } from 'react-native'
 
+import {
+  ArrowRightLeft,
+  ScanQrCode,
+  Trash2,
+  UserPlus,
+  Users
+} from 'lucide-react-native'
 import Header from '../../components/header_component'
 import LoadingComponent from '../../components/loading_component'
-import ReminderCard from '../../reminder/components/reminder_card'
-import HealthRecordCard from '../components/health_record_card'
+import DeceasedPetModal from '../components/deceased_pet_modal'
+import UpcomingRemindersSection from '../components/upcoming_reminders_section'
+import DeletePetModal from '../components/delete_pet_modal'
 import PetInfoCard from '../components/pet_info_card'
 import PetSelector from '../components/pet_selector'
-
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const CARD_WIDTH = SCREEN_WIDTH - 64 // 32px padding on each side
-const CARD_SPACING = 4
-
-const HEALTH_CATEGORIES = ['Vaccination', 'Checkup', 'Medication', 'Deworming']
+import RecentlyDeletedModal from '../components/recently_deleted_modal'
+import SubMenuSection from '../components/sub_menu_section'
+import { colors } from '@/constants/design-system'
 
 export default function PetProfilePage() {
-  // ------------------
-  // CONST
-  // ------------------
   const router = useRouter()
-  const flatListRef = useRef<FlatList>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
 
   const {
     pets: contextPets,
+    activePets,
+    deceasedPets: contextDeceasedPets,
+    deletedPets,
     selectedPetId,
     setSelectedPetId,
-    refreshPets
+    refreshPets,
+    softDeletePet,
+    hardDeletePet,
+    restorePet,
+    markPetDeceased
   } = usePets()
 
-  // Find the selected pet index
-  const selectedPetIndex = contextPets.findIndex((p) => p.id === selectedPetId)
+  const [activeTab, setActiveTab] = useState<'active' | 'past'>('active')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showRecentlyDeletedModal, setShowRecentlyDeletedModal] =
+    useState(false)
+  const [showDeceasedModal, setShowDeceasedModal] = useState(false)
+  const [petToDelete, setPetToDelete] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [petToMarkDeceased, setPetToMarkDeceased] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isMarkingDeceased, setIsMarkingDeceased] = useState(false)
+
+  const normalizePetNameForComparison = useCallback(
+    (name?: string | null) =>
+      (name || '').trim().replace(/\s+/g, ' ').toLowerCase(),
+    []
+  )
+
+  const tabPets = activeTab === 'active' ? activePets : contextDeceasedPets
+
+  const selectedPetIndex = tabPets.findIndex((p) => p.id === selectedPetId)
   const currentPetIndex = selectedPetIndex >= 0 ? selectedPetIndex : 0
 
-  // ------------------
-  // FETCH
-  // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
   })
@@ -74,10 +100,6 @@ export default function PetProfilePage() {
     getRemindersApi.execute({})
   }, [])
 
-  const loadHealthRecords = useCallback(() => {
-    getHealthRecordsApi.execute({})
-  }, [])
-
   const loadPets = useCallback(async () => {
     await getPetsApi.execute()
     await refreshPets()
@@ -86,14 +108,18 @@ export default function PetProfilePage() {
   useFocusEffect(
     useCallback(() => {
       loadReminders()
-      loadHealthRecords()
       loadPets()
-    }, [loadReminders, loadHealthRecords, loadPets])
+    }, [loadReminders, loadPets])
   )
+
+  useEffect(() => {
+    if (activeTab === 'past') {
+      loadPets()
+    }
+  }, [activeTab, loadPets])
 
   const reminders = getRemindersApi.data?.data?.reminders || []
   const recurringRules = getRemindersApi.data?.data?.recurringRules || []
-  const pets = getPetsApi.data?.data || []
 
   const safeReminders = Array.isArray(reminders) ? reminders : []
 
@@ -112,10 +138,32 @@ export default function PetProfilePage() {
     return reminder
   })
 
-  const displayPets = contextPets.length > 0 ? contextPets : pets
+  const pets = getPetsApi.data?.data || []
+
+  const displayPets =
+    tabPets.length > 0
+      ? tabPets
+      : activeTab === 'active'
+        ? pets.filter((p) => p.status !== 'DECEASED')
+        : pets.filter((p) => p.status === 'DECEASED')
+  const hasAnyPets = contextPets.length > 0 || pets.length > 0
   const currentPet =
     displayPets.length > 0 ? displayPets[currentPetIndex] : null
-  const healthRecords = getHealthRecordsApi.data?.data || []
+  const isCaregiverPet = currentPet?.petRole === 'CAREGIVER'
+  const isViewingDeceased = activeTab === 'past'
+
+  const avatarColorsByPetId = useMemo(() => {
+    const colorMap: Record<string, string> = {}
+
+    for (const pet of displayPets) {
+      const color = pet.avatar_background_color
+      if (color) {
+        colorMap[pet.id] = color
+      }
+    }
+
+    return colorMap
+  }, [displayPets])
 
   const petReminders = currentPet
     ? _.filter(
@@ -134,43 +182,9 @@ export default function PetProfilePage() {
     })
     .slice(0, 5)
 
-  const healthHistoryList = _.filter(healthRecords, (record) => {
-    const isCategoryMatch = HEALTH_CATEGORIES.includes(record.categoryName)
-    const isDone = record.reminderStatus === 'done'
-    const isPetMatch = currentPet ? record.petId === currentPet.id : true
-    return isCategoryMatch && isDone && isPetMatch
-  }).sort((a, b) => {
-    const getTimestamp = (dateStr: string, timeStr: string) => {
-      const d = new Date(dateStr)
-      if (timeStr) {
-        const [hours, minutes, seconds] = timeStr.split(':').map(Number)
-        d.setHours(hours || 0, minutes || 0, seconds || 0, 0)
-      }
-      return d.getTime()
-    }
-
-    return (
-      getTimestamp(b.reminderDate, b.reminderTime) -
-      getTimestamp(a.reminderDate, a.reminderTime)
-    )
-  })
-
-  // ------------------
-  // HANDLERS
-  // ------------------
   const handleReminderPress = (id: string) => {
     router.push({ pathname: '/(tabs)', params: { reminderId: id } })
   }
-
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index || 0)
-    }
-  }).current
-
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50
-  }).current
 
   const handlePetSelect = (index: number) => {
     const pet = displayPets[index]
@@ -179,126 +193,429 @@ export default function PetProfilePage() {
     }
   }
 
-  const renderReminderCard = ({ item }: { item: any }) => {
-    return (
-      <View style={styles.cardWrapper}>
-        <ReminderCard
-          reminder={item}
-          onPress={handleReminderPress}
-          canDelete={false}
-          hideToggle={true}
-        />
-      </View>
-    )
-  }
+  const handleDeletePress = useCallback(() => {
+    if (!currentPet) return
+    if (currentPet.petRole === 'CAREGIVER') {
+      Alert.alert(
+        'ไม่มีสิทธิ์',
+        'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถลบได้'
+      )
+      return
+    }
 
-  const renderDotIndicators = () => {
-    if (upcomingReminders.length <= 1) return null
+    setPetToDelete({
+      id: currentPet.id,
+      name: currentPet.pet_name
+    })
+    setShowDeleteModal(true)
+  }, [currentPet])
 
-    return (
-      <View style={styles.dotContainer}>
-        {_.map(upcomingReminders, (_, index) => (
-          <View
-            key={index}
-            style={[styles.dot, index === currentIndex && styles.activeDot]}
-          />
-        ))}
-      </View>
-    )
-  }
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!petToDelete) return
 
-  // ------------------
-  // REDER
-  // ------------------
+    setIsDeleting(true)
+    try {
+      await softDeletePet(petToDelete.id)
+      Alert.alert(
+        'สำเร็จ',
+        `"${petToDelete.name}" ถูกย้ายไปยังเพิ่งลบล่าสุด\n\nสามารถกู้คืนได้ภายใน 30 วัน`
+      )
+      setShowDeleteModal(false)
+      setPetToDelete(null)
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'ไม่สามารถลบสัตว์เลี้ยงได้'
+      Alert.alert('เกิดข้อผิดพลาด', errorMessage)
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [petToDelete, softDeletePet])
+
+  const handleEditPetFromSelector = useCallback(
+    (petId: string) => {
+      const targetPet = displayPets.find((pet) => pet.id === petId)
+      if (targetPet?.petRole === 'CAREGIVER') {
+        Alert.alert(
+          'ไม่มีสิทธิ์',
+          'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถแก้ไขข้อมูลได้'
+        )
+        return
+      }
+
+      router.push(`/(tabs)/add_pet_form?petId=${petId}`)
+    },
+    [router, displayPets]
+  )
+
+  const handleDeletePetFromSelector = useCallback(
+    (petId: string) => {
+      const pet = tabPets.find((p) => p.id === petId)
+      if (!pet) return
+      if (pet.petRole === 'CAREGIVER') {
+        Alert.alert(
+          'ไม่มีสิทธิ์',
+          'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถลบได้'
+        )
+        return
+      }
+
+      setPetToDelete({
+        id: pet.id,
+        name: pet.pet_name
+      })
+      setShowDeleteModal(true)
+    },
+    [tabPets]
+  )
+
+  const handleRestorePet = useCallback(
+    async (petId: string) => {
+      const targetDeletedPet = deletedPets.find((pet) => pet.id === petId)
+
+      if (targetDeletedPet) {
+        const targetName = normalizePetNameForComparison(
+          targetDeletedPet.pet_name
+        )
+        const hasDuplicateActiveOwnerPetName = activePets
+          .filter((pet) => pet.petRole !== 'CAREGIVER')
+          .some(
+            (pet) => normalizePetNameForComparison(pet.pet_name) === targetName
+          )
+
+        if (hasDuplicateActiveOwnerPetName) {
+          Alert.alert(
+            'กู้คืนไม่สำเร็จ',
+            'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อสัตว์เลี้ยงตัวที่ใช้งานอยู่ก่อน แล้วลองกู้คืนอีกครั้ง'
+          )
+          return
+        }
+      }
+
+      try {
+        await restorePet(petId)
+        Alert.alert(
+          'กู้คืนสำเร็จ',
+          'สัตว์เลี้ยงกลับมาอยู่ในรายการที่ใช้งานแล้ว'
+        )
+      } catch (error: any) {
+
+        const message = error?.message || ''
+        const lowerMessage = String(message).toLowerCase()
+
+        if (
+          error?.statusCode === 409 &&
+          (lowerMessage.includes('active pet named') ||
+            lowerMessage.includes('choose a different name'))
+        ) {
+          Alert.alert(
+            'กู้คืนไม่สำเร็จ',
+            'ชื่อนี้ซ้ำกับสัตว์เลี้ยงที่กำลังใช้งานอยู่ กรุณาเปลี่ยนชื่อสัตว์เลี้ยงตัวที่ใช้งานอยู่ก่อน แล้วลองกู้คืนอีกครั้ง'
+          )
+          return
+        }
+
+        if (error?.statusCode === 409) {
+          Alert.alert(
+            'กู้คืนไม่สำเร็จ',
+            'ไม่สามารถกู้คืนได้ เพราะจำนวนสัตว์เลี้ยงที่ใช้งานอยู่ครบตามจำนวนสูงสุดแล้ว'
+          )
+          return
+        }
+
+        Alert.alert(
+          'กู้คืนไม่สำเร็จ',
+          'ไม่สามารถกู้คืนสัตว์เลี้ยงได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+        )
+      }
+    },
+    [restorePet, deletedPets, activePets, normalizePetNameForComparison]
+  )
+
+  const handlePermanentDeletePet = useCallback(
+    async (petId: string) => {
+      try {
+        await hardDeletePet(petId)
+      } catch (error) {
+        Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบสัตว์เลี้ยงถาวรได้')
+      }
+    },
+    [hardDeletePet]
+  )
+
+  const openDeceasedModalFromCard = useCallback(() => {
+    if (!currentPet) return
+    if (currentPet.petRole === 'CAREGIVER') {
+      Alert.alert(
+        'ไม่มีสิทธิ์',
+        'เฉพาะเจ้าของสัตว์เลี้ยงเท่านั้นที่สามารถทำเครื่องหมายการเสียชีวิตได้'
+      )
+      return
+    }
+
+    setPetToMarkDeceased({
+      id: currentPet.id,
+      name: currentPet.pet_name
+    })
+    setShowDeceasedModal(true)
+  }, [currentPet])
+
+  const handleConfirmMarkDeceased = useCallback(async () => {
+    if (!petToMarkDeceased) return
+    setIsMarkingDeceased(true)
+    try {
+      await markPetDeceased(petToMarkDeceased.id)
+      Alert.alert(
+        'สำเร็จ',
+        `"${petToMarkDeceased.name}" ถูกย้ายไปยังสัตว์เลี้ยงในความทรงจำ`
+      )
+      setShowDeceasedModal(false)
+      setPetToMarkDeceased(null)
+      setActiveTab('past')
+      setPetToDelete(null)
+    } catch (error) {
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถทำเครื่องหมายได้')
+    } finally {
+      setIsMarkingDeceased(false)
+    }
+  }, [petToMarkDeceased, markPetDeceased])
+
+  const canDeletePet = activePets.length > 1
+
   return (
     <View style={styles.container}>
       <Header title="โปรไฟล์สัตว์เลี้ยง" />
 
       <ScrollView>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>สัตว์เลี้ยงของฉัน</Text>
+          {/* Pet List */}
           {getPetsApi.loading ? (
             <LoadingComponent />
-          ) : displayPets.length === 0 ? (
+          ) : !hasAnyPets ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>ไม่มีข้อมูลสัตว์เลี้ยง</Text>
             </View>
           ) : (
-            <>
+            <View
+              style={{
+                backgroundColor: '#fff',
+                paddingHorizontal: 16,
+                paddingBottom: 8
+              }}
+            >
+              <View style={styles.sectionHeader}>
+                <View style={styles.tabContainer}>
+                  <Pressable
+                    style={[
+                      styles.tab,
+                      activeTab === 'active' && styles.activeTab
+                    ]}
+                    onPress={() => setActiveTab('active')}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === 'active' && styles.activeTabText
+                      ]}
+                    >
+                      สัตว์เลี้ยง
+                    </Text>
+                    {activePets.length > 0 && (
+                      <View
+                        style={[
+                          styles.tabBadge,
+                          activeTab === 'active' && styles.activeTabBadge
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tabBadgeText,
+                            activeTab === 'active' && styles.activeTabBadgeText
+                          ]}
+                        >
+                          {activePets.length}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.tab, activeTab === 'past' && styles.pastTab]}
+                    onPress={() => setActiveTab('past')}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === 'past' && styles.pastTabText
+                      ]}
+                    >
+                      กลับดาว
+                    </Text>
+                    {contextDeceasedPets.length > 0 && (
+                      <View
+                        style={[
+                          styles.tabBadge,
+                          activeTab === 'past' && styles.pastTabBadge
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tabBadgeText,
+                            activeTab === 'past' && styles.pastTabBadgeText
+                          ]}
+                        >
+                          {contextDeceasedPets.length}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+
+                  {deletedPets.length > 0 && (
+                    <Pressable
+                      style={styles.recentlyDeletedButton}
+                      onPress={() => setShowRecentlyDeletedModal(true)}
+                    >
+                      <Trash2 size={14} color="#BF1737" />
+                      <View style={styles.deletedBadge}>
+                        <Text style={styles.deletedBadgeText}>
+                          {deletedPets.length}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  )}
+                </View>
+
+                <Pressable
+                  onPress={() => {
+                    router.push('/(tabs)/pet_sharing')
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <UserPlus size={20} color={colors.primary.light} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    router.push('/(tabs)/pet_transfer')
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <ArrowRightLeft size={20} color={colors.primary.light} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    router.push('./scan_pet_share')
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <ScanQrCode size={20} color={colors.primary.light} />
+                </Pressable>
+              </View>
+
               <PetSelector
                 pets={displayPets}
                 selectedIndex={currentPetIndex}
                 onSelect={handlePetSelect}
-                maxPets={10}
+                maxPets={30}
+                avatarColorsByPetId={avatarColorsByPetId}
+                onEditPet={
+                  !isViewingDeceased ? handleEditPetFromSelector : undefined
+                }
+                onDeletePet={
+                  !isViewingDeceased ? handleDeletePetFromSelector : undefined
+                }
+                isViewingDeceased={isViewingDeceased}
               />
-
-              {/* Selected Pet Info */}
-              {currentPet && <PetInfoCard data={currentPet} />}
-            </>
-          )}
-        </View>
-
-        {/* Appointments Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>กิจกรรมที่ใกล้เข้ามา</Text>
-
-          {/* Reminder Content */}
-          {getRemindersApi.loading ? (
-            <LoadingComponent />
-          ) : upcomingReminders.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>ไม่มีกิจกรรมที่ใกล้เข้ามา</Text>
+              {isViewingDeceased && displayPets.length === 0 && (
+                <View style={styles.memoryTabEmptySelectorContainer}>
+                  <Text style={styles.memoryTabEmptySelectorText}>
+                    ไม่มีข้อมูลสัตว์เลี้ยงในความทรงจำ
+                  </Text>
+                </View>
+              )}
             </View>
-          ) : (
-            <>
-              <FlatList
-                ref={flatListRef}
-                data={upcomingReminders}
-                renderItem={renderReminderCard}
-                keyExtractor={(item) => item.id}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={CARD_WIDTH + CARD_SPACING}
-                snapToAlignment="center"
-                decelerationRate="fast"
-                contentContainerStyle={styles.flatListContent}
-                onViewableItemsChanged={onViewableItemsChanged}
-                viewabilityConfig={viewabilityConfig}
-              />
-              {renderDotIndicators()}
-            </>
           )}
         </View>
 
-        {/* Health History Section*/}
-        <View style={styles.section}>
-          <View style={styles.healthSectionContainer}>
-            <Text style={styles.sectionTitle}>ประวัติสุขภาพ</Text>
+        {/* Selected Pet Info */}
+        {currentPet && (
+          <View
+            style={{
+              backgroundColor: colors.background.secondary,
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+              gap: 2
+            }}
+          >
+            <PetInfoCard
+              data={currentPet}
+              canDelete={!isViewingDeceased && canDeletePet && !isCaregiverPet}
+              onDelete={
+                !isViewingDeceased && !isCaregiverPet
+                  ? handleDeletePress
+                  : undefined
+              }
+              onMarkDeceased={
+                !isViewingDeceased && !isCaregiverPet
+                  ? openDeceasedModalFromCard
+                  : undefined
+              }
+              isDeceased={isViewingDeceased}
+              readOnly={isCaregiverPet}
+            />
 
-            {getHealthRecordsApi.loading ? (
-              <LoadingComponent />
-            ) : healthHistoryList.length > 0 ? (
-              <View style={styles.healthListContainer}>
-                <ScrollView
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={true}
-                >
-                  {_.map(healthHistoryList, (item) => (
-                    <HealthRecordCard key={item.id} reminder={item} />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>ไม่มีประวัติสุขภาพ</Text>
-              </View>
+            {displayPets.length > 0 && (
+              <SubMenuSection
+                petId={currentPet?.id}
+                isViewingDeceased={isViewingDeceased}
+              />
             )}
           </View>
-        </View>
+        )}
+
+        {/* Appointments Section & Health History - Only for active pets */}
+        {!isViewingDeceased && (
+          <UpcomingRemindersSection
+            reminders={upcomingReminders}
+            loading={getRemindersApi.loading}
+            onReminderPress={handleReminderPress}
+          />
+        )}
 
         <Text style={styles.versionText}>v.{version}</Text>
       </ScrollView>
+
+      {/* Delete Pet Modal */}
+      <DeletePetModal
+        visible={showDeleteModal}
+        petName={petToDelete?.name || ''}
+        onClose={() => {
+          setShowDeleteModal(false)
+          setPetToDelete(null)
+        }}
+        onDelete={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
+
+      {/* Deceased Pet Modal */}
+      <DeceasedPetModal
+        visible={showDeceasedModal}
+        petName={petToMarkDeceased?.name || ''}
+        onClose={() => {
+          setShowDeceasedModal(false)
+          setPetToMarkDeceased(null)
+        }}
+        onConfirm={handleConfirmMarkDeceased}
+        isLoading={isMarkingDeceased}
+      />
+
+      {/* Recently Deleted Modal */}
+      <RecentlyDeletedModal
+        visible={showRecentlyDeletedModal}
+        deletedPets={deletedPets}
+        onClose={() => setShowRecentlyDeletedModal(false)}
+        onRestore={handleRestorePet}
+        onPermanentDelete={handlePermanentDeletePet}
+      />
     </View>
   )
 }
@@ -306,18 +623,104 @@ export default function PetProfilePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F1'
+    backgroundColor: colors.background.primary
   },
   section: {
-    paddingVertical: 12,
-    paddingHorizontal: 16
+    paddingBottom: 8
   },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 12,
+    gap: 8
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    flex: 1,
+    marginRight: 8
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    gap: 4
+  },
+  activeTab: {
+    backgroundColor: '#E8F4F8',
+    borderWidth: 1,
+    borderColor: '#5FA7D1'
+  },
+  pastTab: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#9ca3af'
+  },
+  tabText: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af'
+  },
+  activeTabText: {
     color: '#225877',
-    marginBottom: 8,
     fontFamily: 'Prompt_500Medium'
+  },
+  pastTabText: {
+    color: '#4b5563',
+    fontFamily: 'Prompt_500Medium'
+  },
+  tabBadge: {
+    backgroundColor: '#d1d5db',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+  activeTabBadge: {
+    backgroundColor: '#5FA7D1'
+  },
+  pastTabBadge: {
+    backgroundColor: '#9ca3af'
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#fff'
+  },
+  activeTabBadgeText: {
+    color: '#fff'
+  },
+  pastTabBadgeText: {
+    color: '#fff'
+  },
+  recentlyDeletedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4
+  },
+  deletedBadge: {
+    backgroundColor: '#BF1737',
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+  deletedBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Prompt_600SemiBold',
+    color: '#fff'
   },
   healthSectionContainer: {
     backgroundColor: '#FDF0DD',
@@ -327,14 +730,6 @@ const styles = StyleSheet.create({
   },
   healthListContainer: {
     maxHeight: 300 // Approx 3 items
-  },
-  cardWrapper: {
-    width: CARD_WIDTH,
-    marginHorizontal: CARD_SPACING / 2,
-    paddingHorizontal: 16
-  },
-  flatListContent: {
-    paddingHorizontal: 16
   },
   emptyContainer: {
     alignItems: 'center',
@@ -348,28 +743,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center'
   },
-  dotContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-    gap: 8
+  memoryTabEmptySelectorContainer: {
+    paddingVertical: 12,
+    alignItems: 'center'
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D9D9D9'
-  },
-  activeDot: {
-    backgroundColor: '#5FA7D1',
-    width: 24
+  memoryTabEmptySelectorText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontFamily: 'Prompt_400Regular',
+    textAlign: 'center',
+    paddingVertical: 72
   },
   versionText: {
     color: '#C4C4C4',
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     textAlign: 'center',
-    marginBottom: 4
+    marginVertical: 4
   }
 })

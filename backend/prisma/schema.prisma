@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // just leave it like this (it is just a recommendaion)
 }
 
 model breeds {
@@ -20,38 +19,54 @@ model breeds {
 }
 
 model notifications {
-  id          String              @id @db.Uuid
-  user_id     String              @db.Uuid
-  reminder_id String?             @db.Uuid
-  pet_id      String?             @db.Uuid
-  sent_at     DateTime?           @db.Timestamptz(6)
-  status      notification_status
-  read_at     DateTime?           @db.Timestamptz(6)
-  created_at  DateTime?           @default(now()) @db.Timestamptz(6)
-  tips_title  String?
-  tips_desc   String?
-  retry_count Int                 @default(0)
-  reminders   reminders?          @relation(fields: [reminder_id], references: [id], onUpdate: NoAction)
-  user        users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  pet         pets?               @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  id                String              @id @db.Uuid
+  user_id           String              @db.Uuid
+  reminder_id       String?             @db.Uuid
+  pet_id            String?             @db.Uuid
+  health_insight_id String?             @db.Uuid
+  sent_at           DateTime?           @db.Timestamptz(6)
+  status            notification_status
+  read_at           DateTime?           @db.Timestamptz(6)
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  tips_title        String?
+  tips_desc         String?
+  retry_count       Int                 @default(0)
+  reminders         reminders?          @relation(fields: [reminder_id], references: [id], onUpdate: NoAction)
+  user              users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pet               pets?               @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  health_insight    health_insights?    @relation(fields: [health_insight_id], references: [id], onDelete: Cascade)
 }
 
 model pets {
-  id         String      @id @default(uuid()) @db.Uuid
-  user_id    String      @db.Uuid
-  species_id String      @db.Uuid
-  breed_id   String?     @db.Uuid
-  pet_name   String      @db.VarChar
-  gender     pet_gender  @default(unknown)
-  birth_date DateTime?   @db.Date
-  weight     Decimal?    @db.Decimal
-  created_at DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at DateTime    @updatedAt @db.Timestamptz(6)
-  breeds     breeds?     @relation(fields: [breed_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  species    species     @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user       users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  reminders  reminders[]
-  notifications notifications[]
+  id                  String           @id @default(uuid()) @db.Uuid
+  user_id             String           @db.Uuid
+  species_id          String           @db.Uuid
+  breed_id            String?          @db.Uuid
+  pet_name            String           @db.VarChar
+  avatar_background_color String?      @default("#5FA7D1") @db.VarChar
+  gender              pet_gender       @default(unknown)
+  birth_date          DateTime?        @db.Date
+  weight              Decimal?         @db.Decimal
+  profile_image_key   String?          @db.VarChar  // MinIO object key
+  status              pet_status       @default(ACTIVE)
+  deceased_date       DateTime?        @db.Date
+  deleted_at          DateTime?        @db.Timestamptz(6)
+  deletion_reason     deletion_reason?
+  created_at          DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime         @updatedAt @db.Timestamptz(6)
+  breeds              breeds?          @relation(fields: [breed_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  species             species          @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reminders           reminders[]
+  notifications       notifications[]
+  // Pet sharing relations
+  invite_pets         pet_share_invite_pets[]
+  user_access         pet_user_access[]
+  medical_documents   pet_medical_documents[]
+  health_logs         health_logs[]
+  health_insights     health_insights[]
+  // Pet transfer relations
+  transfer_token_pets pet_transfer_token_pets[]
 }
 
 model push_tokens {
@@ -92,6 +107,81 @@ model reminders {
   parent_id          String?          @db.Uuid
   parent             reminders?       @relation("ReminderHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
   children           reminders[]      @relation("ReminderHierarchy")
+
+  // --- Attachments ---
+  reminder_attachments reminder_attachments[]
+
+  // --- Creator tracking (actual user who called the API, may differ from user_id when caregiver creates) ---
+  created_by_user_id  String?   @db.Uuid
+}
+
+model reminder_attachments {
+  id          String    @id @default(uuid()) @db.Uuid
+  reminder_id String    @db.Uuid
+  object_key  String    @db.VarChar
+  file_name   String    @db.VarChar
+  file_type   String    @db.VarChar
+  file_size   Int
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  reminders   reminders @relation(fields: [reminder_id], references: [id], onDelete: Cascade)
+}
+
+model pet_medical_documents {
+  id                 String   @id @default(uuid()) @db.Uuid
+  pet_id             String   @db.Uuid
+  created_by_user_id String   @db.Uuid
+  object_key         String   @unique @db.VarChar
+  file_name          String   @db.VarChar
+  file_type          String   @db.VarChar
+  file_size          Int
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @updatedAt @db.Timestamptz(6)
+  pet                pets     @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+
+  @@index([pet_id])
+}
+
+model health_logs {
+  id                 String            @id @default(uuid()) @db.Uuid
+  pet_id             String            @db.Uuid
+  created_by_user_id String            @db.Uuid
+  category           HealthLogCategory
+  description        String            @db.Text
+  weight             Decimal?          @db.Decimal
+  note               String?           @db.Text
+  logged_at          DateTime          @default(now()) @db.Timestamptz(6)
+  created_at         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime          @updatedAt @db.Timestamptz(6)
+
+  pet         pets  @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  created_by  users @relation(fields: [created_by_user_id], references: [id], onDelete: Cascade)
+
+  @@index([pet_id])
+  @@index([created_by_user_id])
+  @@map("health_logs")
+}
+
+model health_insights {
+  id                String              @id @default(uuid()) @db.Uuid
+  pet_id            String              @db.Uuid
+  insight_type      HealthInsightType
+  severity          HealthInsightSeverity @default(MEDIUM)
+  title             String              @db.Text
+  description       String              @db.Text
+  context_data      Json                // Stores relevant health log IDs, measurements, etc.
+  detected_at       DateTime            @default(now()) @db.Timestamptz(6)
+  notified_at       DateTime?           @db.Timestamptz(6)
+  resolved_at       DateTime?           @db.Timestamptz(6)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @updatedAt @db.Timestamptz(6)
+
+  pet               pets                @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  notifications     notifications[]
+
+  @@index([pet_id])
+  @@index([detected_at])
+  @@index([insight_type])
+  @@map("health_insights")
 }
 
 model recurrence {
@@ -186,6 +276,17 @@ model users {
   push_tokens                push_tokens[]
   reminders                  reminders[]
   sessions                   sessions[]
+  health_logs                health_logs[]
+  // Pet sharing relations
+  owned_contacts             owner_caregiver_contacts[] @relation("OwnedContacts")
+  caregiver_contacts         owner_caregiver_contacts[] @relation("CaregiverContacts")
+  created_invites            pet_share_invites[]        @relation("CreatedInvites")
+  claimed_invites            pet_share_invites[]        @relation("ClaimedInvites")
+  pet_access                 pet_user_access[]          @relation("AccessiblePets")
+  granted_access             pet_user_access[]          @relation("GrantedAccess")
+  // Pet transfer relations
+  created_transfers          pet_transfer_tokens[]      @relation("TransferCreator")
+  claimed_transfers          pet_transfer_tokens[]      @relation("TransferClaimer")
 }
 
 enum device_type {
@@ -222,6 +323,7 @@ enum reminder_status {
   to_do
   done
   overdue
+  cancelled
 }
 
 enum user_status {
@@ -252,6 +354,17 @@ enum RecurrenceStatusEnum {
   CANCELLED
 }
 
+enum pet_status {
+  ACTIVE
+  DECEASED
+  DELETED
+}
+
+enum deletion_reason {
+  JUST_DELETE
+  DECEASED
+}
+
 enum VaccineLogicType {
   UNTIL_AGE
   FIXED_COUNT
@@ -260,4 +373,148 @@ enum VaccineLogicType {
 enum VaccineCategory {
   core
   non_core
+}
+
+enum invite_status {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+enum HealthLogCategory {
+  WEIGHT
+  SYMPTOMS
+  BEHAVIOR
+}
+
+enum HealthInsightType {
+  RECURRING_SYMPTOM
+  ABNORMAL_SYMPTOM
+  RAPID_WEIGHT_LOSS
+  RAPID_WEIGHT_GAIN
+  RECURRING_BEHAVIOR
+  NO_RECENT_LOGS
+  FOLLOW_UP_REMINDER
+}
+
+enum HealthInsightSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ─── Pet Sharing Models ───────────────────────────────────────────────────────
+
+model owner_caregiver_contacts {
+  id                String   @id @default(uuid()) @db.Uuid
+  owner_user_id     String   @db.Uuid
+  caregiver_user_id String   @db.Uuid
+  alias             String   @db.VarChar(100)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @updatedAt @db.Timestamptz(6)
+
+  owner           users             @relation("OwnedContacts", fields: [owner_user_id], references: [id], onDelete: Cascade)
+  caregiver       users             @relation("CaregiverContacts", fields: [caregiver_user_id], references: [id], onDelete: Cascade)
+  pet_user_access pet_user_access[]
+
+  @@unique([owner_user_id, caregiver_user_id])
+}
+
+model pet_share_invites {
+  id              String        @id @default(uuid()) @db.Uuid
+  created_by      String        @db.Uuid
+  caregiver_alias String        @db.VarChar(100)
+  expires_at      DateTime      @db.Timestamptz(6)
+  status          invite_status @default(PENDING)
+  claimed_by      String?       @db.Uuid
+  claimed_at      DateTime?     @db.Timestamptz(6)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+
+  creator         users                  @relation("CreatedInvites", fields: [created_by], references: [id])
+  claimer         users?                 @relation("ClaimedInvites", fields: [claimed_by], references: [id])
+  invite_pets     pet_share_invite_pets[]
+  pet_user_access pet_user_access[]
+}
+
+model pet_share_invite_pets {
+  invite_id String @db.Uuid
+  pet_id    String @db.Uuid
+
+  invite pet_share_invites @relation(fields: [invite_id], references: [id], onDelete: Cascade)
+  pet    pets              @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+
+  @@id([invite_id, pet_id])
+}
+
+model pet_user_access {
+  id              String    @id @default(uuid()) @db.Uuid
+  pet_id          String    @db.Uuid
+  user_id         String    @db.Uuid
+  role            String    @default("CAREGIVER") @db.VarChar(50)
+  contact_id      String    @db.Uuid
+  granted_by      String    @db.Uuid
+  granted_at      DateTime  @default(now()) @db.Timestamptz(6)
+  revoked_at      DateTime? @db.Timestamptz(6)
+  invite_id       String?   @db.Uuid
+  installation_id String?   @db.VarChar
+
+  pet     pets                     @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  user    users                    @relation("AccessiblePets", fields: [user_id], references: [id], onDelete: Cascade)
+  grantor users                    @relation("GrantedAccess", fields: [granted_by], references: [id])
+  contact owner_caregiver_contacts @relation(fields: [contact_id], references: [id])
+  invite  pet_share_invites?       @relation(fields: [invite_id], references: [id])
+
+  @@unique([pet_id, user_id])
+}
+
+enum transfer_token_status {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+model pet_transfer_tokens {
+  id              String                @id @default(uuid()) @db.Uuid
+  created_by      String                @db.Uuid
+  status          transfer_token_status @default(PENDING)
+  expires_at      DateTime              @db.Timestamptz(6)
+  claimed_by      String?               @db.Uuid
+  claimed_at      DateTime?             @db.Timestamptz(6)
+  created_at      DateTime              @default(now()) @db.Timestamptz(6)
+
+  creator         users                      @relation("TransferCreator", fields: [created_by], references: [id])
+  claimer         users?                     @relation("TransferClaimer", fields: [claimed_by], references: [id])
+  transfer_pets   pet_transfer_token_pets[]
+  audit_logs      pet_transfer_audit_logs[]
+
+  @@index([created_by])
+  @@index([status])
+}
+
+model pet_transfer_token_pets {
+  transfer_id String @db.Uuid
+  pet_id      String @db.Uuid
+
+  transfer    pet_transfer_tokens @relation(fields: [transfer_id], references: [id], onDelete: Cascade)
+  pet         pets                @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+
+  @@id([transfer_id, pet_id])
+}
+
+model pet_transfer_audit_logs {
+  id                  String   @id @default(uuid()) @db.Uuid
+  transfer_token_id   String   @db.Uuid
+  pet_id              String   @db.Uuid
+  from_user_id        String   @db.Uuid
+  to_user_id          String   @db.Uuid
+  action              String   @db.VarChar(50)
+  metadata            Json?
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  transfer_token      pet_transfer_tokens @relation(fields: [transfer_token_id], references: [id])
+
+  @@index([pet_id])
+  @@index([transfer_token_id])
 }

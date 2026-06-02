@@ -23,31 +23,6 @@ class AuthController {
     sendSuccess(res, { user, accessToken, refreshToken: newRefreshToken }, 200);
   });
 
-  // logout = asyncHandler(async (req: Request, res: Response) => {
-  //   const { refreshToken } = req.body;
-  //   await AuthService.logout(refreshToken);
-  //   sendSuccess(res, { message: 'User logged out successfully' }, 200);
-  // });
-
 }
 
 export default new AuthController();
-
-
-// For device transfer in other release
-// rebind = asyncHandler(async (req: Request, res: Response) => {
-//   const { newInstallationId, newPlatform, newPlatformDeviceId, newPlatformIdSource } = req.body;
-//   const userId = req.user?.id as string; // Assuming userId is available from authGuard
-//   const { user, accessToken, refreshToken } = await AuthService.rebind(
-//     userId,
-//     newInstallationId,
-//     newPlatform,
-//     newPlatformDeviceId,
-//     newPlatformIdSource
-//   );
-//   const response = new AppResponse({
-//     data: { user, accessToken, refreshToken },
-//     message: 'Device rebind successful',
-//   });
-//   res.status(200).json(response);
-// });

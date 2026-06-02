@@ -1,6 +1,5 @@
 import * as yup from 'yup'
 
-// Recurrence Types
 export type RecurrenceType =
   | 'none'
   | 'daily'
@@ -43,7 +42,7 @@ export const CATEGORY_MAP: Record<string, ICategoryInfo> = {
   Medication: { label: 'ยา/อาหารเสริม', color: '#10B981', icon: 'Pill' },
   Deworming: { label: 'พยาธิ/เห็บหมัด', color: '#F59E0B', icon: 'Pipette' },
   Grooming: { label: 'กรูมมิ่ง', color: '#8B5CF6', icon: 'Scissors' },
-  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' }
+  Feeding: { label: 'ให้อาหาร', color: '#F97316', icon: 'Bone' },
 }
 
 export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
@@ -51,9 +50,28 @@ export const getCategoryInfo = (categoryId: string): ICategoryInfo => {
     CATEGORY_MAP[categoryId] || {
       label: 'ทั่วไป',
       color: '#6B7280',
-      icon: 'Tag'
+      icon: 'Tag',
     }
   )
+}
+
+export interface IAttachment {
+  id: string
+  fileName: string
+  fileSize: number
+  fileType: string
+  objectKey: string
+  downloadUrl?: string
+  createdAt: string
+}
+
+export interface IPendingAttachment extends Omit<
+  IAttachment,
+  'id' | 'createdAt'
+> {
+  id: string // Temporary local ID
+  uri: string // Local file URI
+  isPending: true
 }
 
 export interface IChildReminder {
@@ -75,6 +93,8 @@ export interface IReminder {
   id: string
   userId: string
   petId: string
+  canDelete?: boolean
+  created_by?: string
   pet_name: string
   categoryName: string
   reminderName: string
@@ -86,7 +106,8 @@ export interface IReminder {
   createdAt: string
   updatedAt: string
   children: IReminder[]
-  // Recurrence fields
+  attachments: IAttachment[] // File attachments
+  pendingAttachments?: IPendingAttachment[] // Attachments pending upload (frontend only)
   recurrenceId?: string // ID of the recurring rule (if this reminder is part of a series)
   recurrence?: {
     id: string
@@ -102,7 +123,6 @@ export interface IReminder {
     updatedAt: string
   }
   occurrenceNumber?: number // Which occurrence this is (1, 2, 3, etc.)
-  // Virtual reminder fields (for display-only instances generated from recurring rules)
   isVirtual?: boolean
   originalRuleId?: string
   virtualOccurrenceNumber?: number
@@ -113,6 +133,8 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     id: v.id || '',
     userId: v.userId || '',
     petId: v.petId || '',
+    canDelete: v.canDelete,
+    created_by: v.created_by,
     pet_name: v.pet_name || '',
     categoryName: v.categoryName || '',
     reminderName: v.reminderName || '',
@@ -124,18 +146,20 @@ export const reminderInitValue = (v: IReminder): IReminder => {
     createdAt: v.createdAt || '',
     updatedAt: v.updatedAt || '',
     children: v.children || [],
+    attachments: v.attachments || [],
+    pendingAttachments: v.pendingAttachments || [],
     recurrence: v.recurrence,
     occurrenceNumber: v.occurrenceNumber,
     isVirtual: v.isVirtual,
     originalRuleId: v.originalRuleId,
-    virtualOccurrenceNumber: v.virtualOccurrenceNumber
+    virtualOccurrenceNumber: v.virtualOccurrenceNumber,
   }
 }
 
 export const defaultRecurrenceRule: IRecurrenceRule = {
   type: 'none',
   interval: 1,
-  endType: 'never'
+  endType: 'never',
 }
 
 export const reminderValidationSchema = yup.object().shape({
@@ -145,5 +169,5 @@ export const reminderValidationSchema = yup.object().shape({
     .max(100, 'หัวข้อต้องไม่เกิน 100 ตัวอักษร'),
   description: yup.string().max(500, 'รายละเอียดต้องไม่เกิน 500 ตัวอักษร'),
   reminderDate: yup.string().required('กรุณาเลือกวันที่'),
-  reminderTime: yup.string()
+  reminderTime: yup.string(),
 })

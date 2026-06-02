@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: 'Prompt_400Regular',
-    minHeight: 48,
+    minHeight: 32,
     backgroundColor: '#ffffff',
     color: '#225877'
   },

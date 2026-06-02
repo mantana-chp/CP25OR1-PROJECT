@@ -1,20 +1,27 @@
-import { getCategoryInfo, IReminder } from '@/src/domain/reminder.domain'
+import React, { useEffect, useState } from 'react'
+import { Pressable, StyleSheet, Text, View, Alert, Image } from 'react-native'
+import { useRouter } from 'expo-router'
+
+import {
+  getCategoryInfo,
+  IReminder,
+  IAttachment
+} from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
   convertFromBackendRecurrence,
   formatRecurrenceText
 } from '@/src/utils/recurrence.utils'
-import { useRouter } from 'expo-router'
 import {
   AlertCircle,
   Bone,
   CalendarDays,
-  Check,
-  ChevronDown,
-  ChevronUp,
+  CheckCircle2,
   Clock,
+  Download,
   Edit2,
+  File,
   Hourglass,
   PawPrint,
   Pill,
@@ -25,12 +32,14 @@ import {
   Stethoscope,
   Syringe,
   Tag,
-  X
+  X,
+  XCircle
 } from 'lucide-react-native'
-import React, { useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
-import OverdueAlert from '../components/overdue_alert'
+import VaccineListSection from '../components/vaccine_list_section'
+import AttachmentPreviewModal from '../components/attachment_preview_modal'
+import { AntDesign, FontAwesome6, Ionicons } from '@expo/vector-icons'
+import { colors } from '@/constants/design-system'
 
 const ICON_MAP: Record<string, any> = {
   Tag,
@@ -49,6 +58,54 @@ const formatTime = (time: Date) => {
   })
 }
 
+const THAI_WEEKDAYS = [
+  'อาทิตย์',
+  'จันทร์',
+  'อังคาร',
+  'พุธ',
+  'พฤหัสบดี',
+  'ศุกร์',
+  'เสาร์'
+]
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.',
+  'ก.พ.',
+  'มี.ค.',
+  'เม.ย.',
+  'พ.ค.',
+  'มิ.ย.',
+  'ก.ค.',
+  'ส.ค.',
+  'ก.ย.',
+  'ต.ค.',
+  'พ.ย.',
+  'ธ.ค.'
+]
+
+const formatThaiDate = (dateValue: string): string => {
+  const date = new Date(dateValue)
+
+  if (Number.isNaN(date.getTime())) {
+    return '-'
+  }
+
+  const weekday = THAI_WEEKDAYS[date.getDay()]
+  const day = date.getDate()
+  const month = THAI_MONTHS_SHORT[date.getMonth()]
+  const buddhistYear = date.getFullYear() + 543
+
+  return `${weekday} ${day} ${month} ${buddhistYear}`
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+}
+
 const parseApiTime = (timeString: string): Date => {
   if (!timeString) return new Date()
 
@@ -58,9 +115,38 @@ const parseApiTime = (timeString: string): Date => {
   return date
 }
 
+const getAttachmentThumbnailUri = (attachment: IAttachment): string | null => {
+  if (!attachment.fileType.startsWith('image/')) {
+    return null
+  }
+
+  return attachment.downloadUrl || null
+}
+
+const isSupportedAttachmentType = (attachment: IAttachment): boolean => {
+  const mimeType = attachment.fileType.toLowerCase()
+  const fileName = attachment.fileName.toLowerCase()
+
+  if (
+    mimeType === 'application/pdf' ||
+    mimeType === 'image/jpeg' ||
+    mimeType === 'image/png'
+  ) {
+    return true
+  }
+
+  return (
+    fileName.endsWith('.pdf') ||
+    fileName.endsWith('.jpg') ||
+    fileName.endsWith('.jpeg') ||
+    fileName.endsWith('.png')
+  )
+}
+
 interface ReminderDetailModalProps {
   id: string
   onClose: () => void
+  onRefresh?: () => void
   isVirtual?: boolean
   virtualReminderData?: IReminder
 }
@@ -68,54 +154,96 @@ interface ReminderDetailModalProps {
 export default function ReminderDetailModal({
   id,
   onClose,
+  onRefresh,
   isVirtual = false,
   virtualReminderData
 }: ReminderDetailModalProps) {
-  // ------------------
-  // STATE & CONST
-  // ------------------
   const router = useRouter()
   const [modalLayout, setModalLayout] = useState({ y: 0, height: 0 })
-  const [isChildrenExpanded, setIsChildrenExpanded] = useState(true)
+  const [previewAttachment, setPreviewAttachment] =
+    useState<IAttachment | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
 
   const getReminderApi = useApi(reminderService.getReminderById, {
     showErrorAlert: true
   })
 
-  // Use virtual reminder data if available, otherwise use API data
   const reminder =
     isVirtual && virtualReminderData
       ? virtualReminderData
       : getReminderApi?.data?.data
   const isOverdue = reminder?.reminderStatus === 'overdue'
+  const isDone = reminder?.reminderStatus === 'done'
   const categoryInfo = reminder?.categoryName
     ? getCategoryInfo(reminder.categoryName)
     : null
   const CategoryIcon = categoryInfo ? ICON_MAP[categoryInfo.icon] : null
 
+  const getStatusConfig = () => {
+    if (isDone) {
+      return {
+        label: 'เสร็จสิ้น',
+        color: '#15AD90',
+        bgColor: '#E6FFFA',
+        icon: CheckCircle2
+      }
+    }
+    if (isOverdue) {
+      return {
+        label: 'เลยกำหนด',
+        color: '#DC2626',
+        bgColor: '#FEE2E2',
+        icon: XCircle
+      }
+    }
+    return {
+      label: 'รอดำเนินการ',
+      color: '#FF9531',
+      bgColor: '#FFF4E6',
+      icon: Hourglass
+    }
+  }
+
+  const statusConfig = getStatusConfig()
+
   const handleEdit = () => {
     onClose()
     router.push({
-      pathname: '/(tabs)/add-reminder',
+      pathname: '/(tabs)/add_reminder',
       params: { reminderId: id }
     })
   }
 
-  // ------------------
-  // USE-EFFECTS
-  // ------------------
+  const handleAttachmentPress = (attachment: IAttachment) => {
+    if (!isSupportedAttachmentType(attachment)) {
+      Alert.alert(
+        'ประเภทไฟล์ไม่รองรับ',
+        'รองรับเฉพาะไฟล์ PDF, JPG และ PNG เท่านั้น'
+      )
+      return
+    }
+
+    setPreviewAttachment(attachment)
+    setShowPreview(true)
+  }
+
+  const handleNotFoundClose = () => {
+    if (onRefresh) {
+      onRefresh()
+    }
+    onClose()
+  }
+
   useEffect(() => {
-    // Only fetch from API if not a virtual reminder
     if (id && !isVirtual) {
       getReminderApi.execute(id)
     }
   }, [id, isVirtual])
 
-  // Show not found message
   if (!id || (!getReminderApi.loading && !reminder && !isVirtual)) {
     return (
       <View style={styles.modalOverlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={handleNotFoundClose} />
 
         <View
           style={styles.notFoundContent}
@@ -142,7 +270,7 @@ export default function ReminderDetailModal({
               styles.closeButtonOutside,
               { top: modalLayout.y + modalLayout.height + 20 }
             ]}
-            onPress={onClose}
+            onPress={handleNotFoundClose}
           >
             <X color="#FFFFFF" size={28} />
           </Pressable>
@@ -151,9 +279,6 @@ export default function ReminderDetailModal({
     )
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.modalOverlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -180,8 +305,6 @@ export default function ReminderDetailModal({
           <LoadingComponent />
         ) : (
           <View style={styles.formCard}>
-            {isOverdue && !reminder?.children && <OverdueAlert />}
-
             {/* Virtual Reminder Alert */}
             {isVirtual && (
               <View style={styles.virtualAlert}>
@@ -192,70 +315,114 @@ export default function ReminderDetailModal({
                   </Text>
                   <Text style={styles.virtualAlertMessage}>
                     นี่คือการแสดงผลล่วงหน้าจากรูปแบบการทำซ้ำ
-                    คุณสามารถดูรายละเอียดได้เท่านั้น
                   </Text>
                 </View>
               </View>
             )}
 
-            <Text style={styles.reminderTitle}>
-              {reminder?.reminderName || ''}
-            </Text>
+            {/* Status Badge */}
+            {!isVirtual && (
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusConfig.bgColor }
+                ]}
+              >
+                {React.createElement(statusConfig.icon, {
+                  size: 18,
+                  color: statusConfig.color
+                })}
+                <Text
+                  style={[styles.statusText, { color: statusConfig.color }]}
+                >
+                  {statusConfig.label}
+                </Text>
+              </View>
+            )}
 
-            <View style={styles.infoRow}>
-              <PawPrint size={16} color={'#225877'} />
-              <Text style={styles.infoText}>{reminder?.pet_name || '-'}</Text>
+            {/* Title with Category */}
+            <View style={styles.titleRow}>
+              <View style={styles.titleContainer}>
+                <Text style={styles.reminderTitle}>
+                  {reminder?.reminderName || ''}
+                </Text>
+                <View style={styles.metaRow}>
+                  <Ionicons name={'paw-outline'} size={14} color={'#6b7280'} />
+                  <Text style={styles.petNameText}>
+                    {reminder?.pet_name || '-'}
+                  </Text>
+                  {categoryInfo && (
+                    <>
+                      <View style={styles.dot} />
+                      {CategoryIcon && (
+                        <CategoryIcon size={14} color={categoryInfo.color} />
+                      )}
+                      <Text
+                        style={[
+                          styles.categoryInlineText,
+                          { color: categoryInfo.color }
+                        ]}
+                      >
+                        {categoryInfo.label}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </View>
             </View>
 
+            {/* Date & Time - Compact */}
             {!reminder?.children && (
-              <View style={styles.infoRow}>
-                <CalendarDays
-                  size={16}
-                  color={isOverdue ? '#DC2626' : '#225877'}
-                />
-                <Text
-                  style={[styles.infoText, isOverdue && styles.overdueText]}
-                >
-                  {reminder?.reminderDate
-                    ? new Date(reminder.reminderDate).toLocaleDateString(
-                        'th-TH',
-                        {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        }
-                      )
-                    : '-'}
-                </Text>
-                <Clock size={16} color={isOverdue ? '#DC2626' : '#225877'} />
-                <Text
-                  style={[styles.infoText, isOverdue && styles.overdueText]}
-                >
-                  {reminder?.reminderTime
-                    ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
-                    : '-'}
-                </Text>
-              </View>
-            )}
-
-            {/* Recurring Information */}
-            {reminder?.recurrence && (
-              <View style={styles.recurringSection}>
-                <View style={styles.recurringInfo}>
-                  <Repeat size={16} color="#225877" />
-                  <Text style={styles.recurringText}>
-                    {formatRecurrenceText(
-                      convertFromBackendRecurrence(reminder.recurrence)
-                    )}
-                    {reminder.occurrenceNumber
-                      ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
-                      : ''}
+              <View style={styles.dateTimeCard}>
+                <View style={styles.dateTimeRow}>
+                  <CalendarDays
+                    size={14}
+                    color={isOverdue ? '#DC2626' : '#5FA7D1'}
+                  />
+                  <Text
+                    style={[
+                      styles.dateTimeText,
+                      isOverdue && styles.overdueText
+                    ]}
+                  >
+                    {reminder?.reminderDate
+                      ? formatThaiDate(reminder.reminderDate)
+                      : '-'}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.dateTimeRow}>
+                  <Clock size={14} color={isOverdue ? '#DC2626' : '#5FA7D1'} />
+                  <Text
+                    style={[
+                      styles.dateTimeText,
+                      isOverdue && styles.overdueText
+                    ]}
+                  >
+                    {reminder?.reminderTime
+                      ? `${formatTime(parseApiTime(reminder.reminderTime))} น.`
+                      : '-'}
                   </Text>
                 </View>
               </View>
             )}
 
+            {/* Recurring Information - Compact */}
+            {reminder?.recurrence && (
+              <View style={styles.recurringCard}>
+                <Repeat size={14} color="#5FA7D1" />
+                <Text style={styles.recurringText}>
+                  {formatRecurrenceText(
+                    convertFromBackendRecurrence(reminder.recurrence)
+                  )}
+                  {reminder.occurrenceNumber
+                    ? ` (ครั้งที่ ${reminder.occurrenceNumber})`
+                    : ''}
+                </Text>
+              </View>
+            )}
+
+            {/* Description */}
             {reminder?.description && (
               <View style={styles.descriptionSection}>
                 <Text style={styles.descriptionLabel}>รายละเอียด</Text>
@@ -265,123 +432,65 @@ export default function ReminderDetailModal({
               </View>
             )}
 
-            {/* Child Reminders Section */}
-            {reminder?.children && reminder.children.length > 0 && (
-              <ScrollView style={styles.childReminderSection}>
-                <Pressable
-                  style={styles.childReminderHeader}
-                  onPress={() => setIsChildrenExpanded(!isChildrenExpanded)}
-                >
-                  <Text style={styles.childReminderTitle}>
-                    วัคซีนทั้งหมด ({reminder.children.length} เข็ม)
-                  </Text>
-                  {isChildrenExpanded ? (
-                    <ChevronUp size={16} color="#225877" />
-                  ) : (
-                    <ChevronDown size={16} color="#225877" />
-                  )}
-                </Pressable>
+            {/* Attachments Section */}
+            {reminder?.attachments && reminder.attachments.length > 0 && (
+              <View style={styles.attachmentsSection}>
+                <Text style={styles.attachmentsSectionLabel}>
+                  ไฟล์แนบ ({reminder.attachments.length})
+                </Text>
+                {reminder.attachments.map((attachment) => {
+                  const thumbnailUri = getAttachmentThumbnailUri(attachment)
 
-                {isChildrenExpanded && (
-                  <View style={styles.childReminderList}>
-                    {[...reminder.children]
-                      .sort(
-                        (a, b) =>
-                          new Date(a.reminderDate).getTime() -
-                          new Date(b.reminderDate).getTime()
-                      )
-                      .map((child, index) => {
-                        const isCompleted = child.reminderStatus === 'done'
-                        const isOverdueChild =
-                          child.reminderStatus === 'overdue'
-                        return (
-                          <View key={child.id} style={styles.childReminderItem}>
-                            <View style={styles.childReminderLeft}>
-                              <Text style={styles.childReminderNumber}>
-                                {child.reminderName}
-                              </Text>
-                              <View style={styles.childReminderInfo}>
-                                <CalendarDays
-                                  size={14}
-                                  color={isOverdueChild ? '#DC2626' : '#225877'}
-                                />
-                                <Text
-                                  style={[
-                                    styles.childReminderText,
-                                    isOverdueChild && styles.overdueText
-                                  ]}
-                                >
-                                  {child.reminderDate
-                                    ? new Date(
-                                        child.reminderDate
-                                      ).toLocaleDateString('th-TH', {
-                                        day: 'numeric',
-                                        month: 'short',
-                                        year: 'numeric'
-                                      })
-                                    : '-'}
-                                </Text>
-                                <Clock
-                                  size={14}
-                                  color={isOverdueChild ? '#DC2626' : '#225877'}
-                                />
-                                <Text
-                                  style={[
-                                    styles.childReminderText,
-                                    isOverdueChild && styles.overdueText
-                                  ]}
-                                >
-                                  {child.reminderTime
-                                    ? `${formatTime(
-                                        parseApiTime(child.reminderTime)
-                                      )} น.`
-                                    : '-'}
-                                </Text>
-                              </View>
-                            </View>
-                            <View
-                              style={[
-                                styles.childStatusIcon,
-                                {
-                                  backgroundColor: isCompleted
-                                    ? '#E6FFFA'
-                                    : '#FFF4E6'
-                                }
-                              ]}
-                            >
-                              {isCompleted ? (
-                                <Check size={18} color="#15AD90" />
-                              ) : (
-                                <Hourglass size={18} color="#FF9531" />
-                              )}
-                            </View>
-                          </View>
-                        )
-                      })}
-                  </View>
-                )}
-              </ScrollView>
+                  return (
+                    <Pressable
+                      key={attachment.id}
+                      style={styles.attachmentItem}
+                      onPress={() => handleAttachmentPress(attachment)}
+                    >
+                      {thumbnailUri ? (
+                        <Image
+                          source={{ uri: thumbnailUri }}
+                          style={styles.attachmentThumbnail}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            {
+                              width: 40,
+                              height: 40,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }
+                          ]}
+                        >
+                          <AntDesign
+                            name="file-pdf"
+                            size={26}
+                            color={colors.danger.DEFAULT}
+                          />
+                        </View>
+                      )}
+                      <View style={styles.attachmentInfo}>
+                        <Text
+                          style={styles.attachmentFileName}
+                          numberOfLines={1}
+                        >
+                          {attachment.fileName}
+                        </Text>
+                        <Text style={styles.attachmentFileSize}>
+                          {formatFileSize(attachment.fileSize)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  )
+                })}
+              </View>
             )}
 
-            {categoryInfo && (
-              <View
-                style={[
-                  styles.categoryTag,
-                  {
-                    backgroundColor: categoryInfo.color + '20',
-                    borderColor: categoryInfo.color
-                  }
-                ]}
-              >
-                {CategoryIcon && (
-                  <CategoryIcon size={14} color={categoryInfo.color} />
-                )}
-                <Text
-                  style={[styles.categoryText, { color: categoryInfo.color }]}
-                >
-                  {categoryInfo.label}
-                </Text>
-              </View>
+            {/* Child Reminders Section */}
+            {reminder?.children && reminder.children.length > 0 && (
+              <VaccineListSection children={reminder.children} />
             )}
           </View>
         )}
@@ -399,6 +508,16 @@ export default function ReminderDetailModal({
           <X color="#FFFFFF" size={28} />
         </Pressable>
       )}
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        visible={showPreview}
+        attachment={previewAttachment}
+        onClose={() => {
+          setShowPreview(false)
+          setPreviewAttachment(null)
+        }}
+      />
     </View>
   )
 }
@@ -419,7 +538,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     width: '90%',
     maxWidth: 500,
     maxHeight: '80%',
@@ -431,7 +550,7 @@ const styles = StyleSheet.create({
   },
   notFoundContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     width: '90%',
     maxWidth: 400,
     paddingVertical: 40,
@@ -484,51 +603,97 @@ const styles = StyleSheet.create({
     flexShrink: 0
   },
   formCard: {
-    padding: 20,
+    padding: 16,
     gap: 12
   },
-  reminderTitle: {
-    fontSize: 17,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877'
-  },
-  categoryTag: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start'
   },
-  categoryText: {
-    fontSize: 12,
+  statusText: {
+    fontSize: 13,
     fontFamily: 'Prompt_500Medium'
   },
-  descriptionSection: {
-    gap: 2
+  titleRow: {
+    gap: 4
   },
-  descriptionLabel: {
-    fontSize: 12,
-    fontFamily: 'Prompt_400Regular',
-    color: '#A6A6A6'
+  titleContainer: {
+    gap: 6
   },
-  descriptionText: {
-    fontSize: 14,
-    fontFamily: 'Prompt_400Regular',
+  reminderTitle: {
+    fontSize: 18,
+    fontFamily: 'Prompt_700Bold',
     color: '#225877',
     lineHeight: 24
   },
-  infoRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 6,
+    flexWrap: 'wrap'
   },
-  infoText: {
-    fontSize: 14,
+  petNameText: {
+    fontSize: 13,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#6b7280'
+  },
+  categoryInlineText: {
+    fontSize: 12,
+    fontFamily: 'Prompt_500Medium'
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#d1d5db'
+  },
+  dateTimeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 12
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1
+  },
+  dateTimeText: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#225877',
+    flex: 1
+  },
+  divider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#e5e7eb'
+  },
+  descriptionSection: {
+    gap: 4,
+    paddingTop: 4
+  },
+  descriptionLabel: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  descriptionText: {
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular',
+    color: '#4b5563',
+    lineHeight: 20
   },
   overdueText: {
     color: '#DC2626',
@@ -548,93 +713,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24
   },
-  readOnlyInput: {
-    backgroundColor: '#f3f4f6',
-    color: '#374151'
-  },
-  childReminderSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 16,
-    maxHeight: 200
-  },
-  childReminderHeader: {
+  recurringCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
     paddingVertical: 8
   },
-  childReminderTitle: {
-    fontSize: 16,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877'
-  },
-  childReminderList: {
-    marginTop: 8,
-    gap: 12
-  },
-  childReminderItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#5FA7D1'
-  },
-  childReminderLeft: {
-    flex: 1,
-    gap: 4
-  },
-  childReminderNumber: {
-    fontSize: 14,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877'
-  },
-  childReminderInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap'
-  },
-  childReminderText: {
-    fontSize: 13,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877'
-  },
-  childStatusIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  recurringSection: {
-    gap: 8
-  },
-  recurringBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start'
-  },
-  recurringBadgeText: {
-    fontSize: 12,
-    fontFamily: 'Prompt_500Medium',
-    color: '#225877'
-  },
-  recurringInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
-  },
   recurringText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     color: '#225877',
     flex: 1
@@ -663,5 +752,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Prompt_400Regular',
     lineHeight: 16
+  },
+  attachmentsSection: {
+    gap: 8,
+    paddingTop: 4
+  },
+  attachmentsSectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#9ca3af',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
+  },
+  attachmentThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 4
+  },
+  attachmentInfo: {
+    flex: 1,
+    gap: 2
+  },
+  attachmentFileName: {
+    fontSize: 13,
+    fontFamily: 'Prompt_500Medium',
+    color: '#225877'
+  },
+  attachmentFileSize: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#6b7280'
   }
 })

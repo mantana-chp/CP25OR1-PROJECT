@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const CustomTabBarIcon = ({ icon: Icon, color, focused, badge }: any) => {
   return (
-    <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+    <View style={styles.iconContainer}>
       <Icon
         size={28}
         color={focused ? '#fff' : color}
@@ -48,7 +48,6 @@ export default function TabLayout() {
           alignItems: 'center'
         },
         tabBarLabelStyle: {
-          // Hide labels
         },
         tabBarShowLabel: false
       }}
@@ -58,12 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Reminder',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerActive
-              ]}
-            >
+            <View style={styles.iconContainer}>
               <Ionicons
                 name={focused ? 'calendar' : 'calendar-outline'}
                 size={28}
@@ -105,12 +99,7 @@ export default function TabLayout() {
         options={{
           title: 'Pet Profile',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.iconContainerActive
-              ]}
-            >
+            <View style={styles.iconContainer}>
               <Ionicons
                 name={focused ? 'paw' : 'paw-outline'}
                 size={28}
@@ -130,7 +119,7 @@ export default function TabLayout() {
 
       {/* === หน้าที่ซ่อนจาก Tab Bar === */}
       <Tabs.Screen
-        name="add-reminder"
+        name="add_reminder"
         options={{
           title: 'เพิ่มแจ้งเตือน',
           href: null,
@@ -141,6 +130,54 @@ export default function TabLayout() {
         name="add_pet_form"
         options={{
           title: 'สร้างโปรไฟล์สัตว์เลี้ยง',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="health_record"
+        options={{
+          title: 'ประวัติสุขภาพ',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="access_list"
+        options={{
+          title: 'จัดการผู้ดูแล',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="pet_sharing"
+        options={{
+          title: 'เชิญดูแลร่วม',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="pet_transfer"
+        options={{
+          title: 'โอนสิทธิ์เจ้าของ',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="scan_pet_share"
+        options={{
+          title: 'รับสิทธิ์ดูแลร่วม',
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="scan_pet_transfer"
+        options={{
+          title: 'รับโอนสิทธิ์เจ้าของ',
           href: null,
           tabBarStyle: { display: 'none' }
         }}
@@ -159,9 +196,6 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     backgroundColor: 'transparent',
     position: 'relative'
-  },
-  iconContainerActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)'
   },
   badge: {
     position: 'absolute',

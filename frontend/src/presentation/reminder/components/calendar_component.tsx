@@ -1,5 +1,5 @@
 import _ from 'lodash'
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 import { IReminder } from '@/src/domain/reminder.domain'
 import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
@@ -11,6 +11,7 @@ import {
   LayoutAnimation,
   Platform,
   StyleSheet,
+  Text,
   TouchableOpacity,
   UIManager,
   View
@@ -61,9 +62,6 @@ export default function Calendar({
   isPetFilterActive,
   isCategoryFilterActive
 }: CalendarProps) {
-  // ------------------
-  // CONST
-  // ------------------
   const {
     currentDate,
     isCurrentMonth,
@@ -72,14 +70,49 @@ export default function Calendar({
     previousMonth,
     nextMonth,
     goToToday,
-    allReminders
+    canGoPrev,
+    canGoNext
   } = useCalendar(reminders, recurringRules, pets)
 
   const chevronRotation = useChevronAnimation(isExpanded)
 
-  // ------------------
-  // HANDLER
-  // ------------------
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastVisible, setToastVisible] = useState(false)
+  const toastOpacity = useRef(new Animated.Value(0)).current
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    }
+  }, [])
+
+  const showToast = (message: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastMessage(message)
+    setToastVisible(true)
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true
+    }).start()
+    toastTimer.current = setTimeout(() => {
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true
+      }).start(() => setToastVisible(false))
+    }, 2200)
+  }
+
+  const handleLimitReached = (direction: 'prev' | 'next') => {
+    showToast(
+      direction === 'prev'
+        ? 'ถึงขอบเขตการดูย้อนหลังแล้ว'
+        : 'ถึงขอบเขตการดูล่วงหน้าแล้ว'
+    )
+  }
+
   const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     onToggle()
@@ -97,9 +130,6 @@ export default function Calendar({
   const days = isExpanded ? renderCalendar() : getCurrentWeekDays()
   const showReset = hasUserSelectedDate || !isCurrentMonth
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       <CalendarHeader
@@ -111,6 +141,9 @@ export default function Calendar({
         onResetFilters={onResetFilters}
         isPetFilterActive={isPetFilterActive}
         isCategoryFilterActive={isCategoryFilterActive}
+        canGoPrev={canGoPrev}
+        canGoNext={canGoNext}
+        onLimitReached={handleLimitReached}
       />
 
       <WeekDaysRow />
@@ -143,6 +176,12 @@ export default function Calendar({
           <ChevronDown size={24} color="#225877" />
         </Animated.View>
       </TouchableOpacity>
+
+      {toastVisible && (
+        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      )}
     </View>
   )
 }
@@ -172,5 +211,27 @@ const styles = StyleSheet.create({
   },
   toggleButtonExpanded: {
     marginTop: -32
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 44,
+    alignSelf: 'center',
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 100,
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  toastText: {
+    color: '#92400e',
+    fontSize: 13,
+    fontFamily: 'Prompt_400Regular'
   }
 })

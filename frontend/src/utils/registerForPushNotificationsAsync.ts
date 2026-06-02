@@ -32,7 +32,6 @@ export async function registerForPushNotificationsAsync() {
           Constants.easConfig?.projectId
       })
     ).data
-    console.log('📱 Expo Push Token:', token)
   } else {
     throw new Error('Must use physical device for Push Notifications')
   }

@@ -9,12 +9,23 @@ import { chatSchema } from './ai-chat-schema';
  * POST /v1/ai-chat
  */
 export const chat = asyncHandler(async (req: Request, res: Response) => {
-  // Validate request body
-  const { query, petId } = chatSchema.parse(req).body;
+  const { query, clientChatSessionId, resolvedPetId, contextId, severitySubmission, petClarificationSubmission } =
+    chatSchema.parse(req).body;
 
-  // Call the service with optional petId
-  const answer = await aiChatService.chatWithAI(query, petId);
+  const { id: userId } = req.user!;
+  // installationId is validated by authGuard (JWT must match X-Installation-Id header)
+  const installationId = req.headers['x-installation-id'] as string;
 
-  // Send success response
-  sendSuccess(res, { answer });
+  const result = await aiChatService.chatWithAI({
+    query,
+    userId,
+    installationId,
+    clientChatSessionId,
+    resolvedPetId,
+    contextId,
+    severitySubmission,
+    petClarificationSubmission,
+  });
+
+  sendSuccess(res, result);
 });

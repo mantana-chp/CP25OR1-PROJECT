@@ -1,0 +1,594 @@
+{
+  "critical": [
+    {
+      "keyword": "เลือด",
+      "category": "blood",
+      "enabled": true,
+      "description": "Blood in general"
+    },
+    {
+      "keyword": "อาเจียนเป็นเลือด",
+      "category": "blood",
+      "enabled": true,
+      "description": "Vomiting blood"
+    },
+    {
+      "keyword": "ถ่ายเลือด",
+      "category": "blood",
+      "enabled": true,
+      "description": "Bloody stool"
+    },
+    {
+      "keyword": "เลือดในปัสสาวะ",
+      "category": "blood",
+      "enabled": true,
+      "description": "Blood in urine"
+    },
+    {
+      "keyword": "เลือดกำเดา",
+      "category": "blood",
+      "enabled": true,
+      "description": "Dark blood"
+    },
+    {
+      "keyword": "เลือดออกจากจมูก",
+      "category": "blood",
+      "enabled": true,
+      "description": "Nosebleed"
+    },
+    {
+      "keyword": "เลือดออกจากหู",
+      "category": "blood",
+      "enabled": true,
+      "description": "Bleeding from ear"
+    },
+    {
+      "keyword": "เลือดตา",
+      "category": "blood",
+      "enabled": true,
+      "description": "Eye bleeding"
+    },
+    {
+      "keyword": "ชัก",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Seizure"
+    },
+    {
+      "keyword": "กระตุก",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Convulsion"
+    },
+    {
+      "keyword": "สั่น",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Trembling/shaking"
+    },
+    {
+      "keyword": "หมดสติ",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Loss of consciousness"
+    },
+    {
+      "keyword": "ไม่ตื่น",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Won't wake up"
+    },
+    {
+      "keyword": "เดินเซ",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Walking unsteadily"
+    },
+    {
+      "keyword": "เดินไม่ได้",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Cannot walk"
+    },
+    {
+      "keyword": "ล้มลง",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Falling down"
+    },
+    {
+      "keyword": "ลืมตา",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Eyes open (unresponsive)"
+    },
+    {
+      "keyword": "ตาพลิก",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Rolling eyes"
+    },
+    {
+      "keyword": "ขาอ่อนแรง",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Weak legs"
+    },
+    {
+      "keyword": "อัมพาต",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Paralysis"
+    },
+    {
+      "keyword": "ปากเบี้ยว",
+      "category": "neurological",
+      "enabled": true,
+      "description": "Crooked mouth"
+    },
+    {
+      "keyword": "หายใจลำบาก",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Difficulty breathing"
+    },
+    {
+      "keyword": "หอบ",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Panting heavily"
+    },
+    {
+      "keyword": "หายใจไม่ออก",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Cannot breathe"
+    },
+    {
+      "keyword": "หายใจเร็ว",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Rapid breathing"
+    },
+    {
+      "keyword": "หายใจช้า",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Slow breathing"
+    },
+    {
+      "keyword": "ลิ้นเขียว",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Blue tongue"
+    },
+    {
+      "keyword": "ลิ้นม่วง",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Purple tongue"
+    },
+    {
+      "keyword": "จมดำ",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Dark nose"
+    },
+    {
+      "keyword": "ขาดอากาศ",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Lack of oxygen"
+    },
+    {
+      "keyword": "กินยา",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate medicine"
+    },
+    {
+      "keyword": "กินสารพิษ",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate poison"
+    },
+    {
+      "keyword": "กินวัตถุอันตราย",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate dangerous substance"
+    },
+    {
+      "keyword": "กินช็อกโกแลต",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate chocolate"
+    },
+    {
+      "keyword": "กินองุ่น",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate grapes"
+    },
+    {
+      "keyword": "กินหอม",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate onions"
+    },
+    {
+      "keyword": "กินกระเทียม",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate garlic"
+    },
+    {
+      "keyword": "กินสารเคมี",
+      "category": "poisoning",
+      "enabled": true,
+      "description": "Ate chemicals"
+    },
+    {
+      "keyword": "ถูกรถชน",
+      "category": "trauma",
+      "enabled": true,
+      "description": "Hit by car"
+    },
+    {
+      "keyword": "ตกจากที่สูง",
+      "category": "trauma",
+      "enabled": true,
+      "description": "Fell from height"
+    },
+    {
+      "keyword": "กระดูกหัก",
+      "category": "trauma",
+      "enabled": true,
+      "description": "Broken bone"
+    },
+    {
+      "keyword": "บาดแผลลึก",
+      "category": "trauma",
+      "enabled": true,
+      "description": "Deep wound"
+    },
+    {
+      "keyword": "กระดูกแตก",
+      "category": "trauma",
+      "enabled": true,
+      "description": "Fractured bone"
+    },
+    {
+      "keyword": "หัวแตก",
+      "category": "trauma",
+      "enabled": true,
+      "description": "Head injury"
+    },
+    {
+      "keyword": "ไม่รู้สึกตัว",
+      "category": "consciousness",
+      "enabled": true,
+      "description": "Unconscious"
+    },
+    {
+      "keyword": "โคม่า",
+      "category": "consciousness",
+      "enabled": true,
+      "description": "Coma"
+    },
+    {
+      "keyword": "เพ้อ",
+      "category": "consciousness",
+      "enabled": true,
+      "description": "Delirious"
+    },
+    {
+      "keyword": "สับสน",
+      "category": "consciousness",
+      "enabled": true,
+      "description": "Confused"
+    },
+    {
+      "keyword": "วิปลาสสติ",
+      "category": "consciousness",
+      "enabled": true,
+      "description": "Disoriented"
+    },
+    {
+      "keyword": "ร้องครวญคราง",
+      "category": "pain",
+      "enabled": true,
+      "description": "Crying in pain"
+    },
+    {
+      "keyword": "ร้องเสียงแปลก",
+      "category": "pain",
+      "enabled": true,
+      "description": "Making strange sounds"
+    },
+    {
+      "keyword": "เจ็บมาก",
+      "category": "pain",
+      "enabled": true,
+      "description": "Severe pain"
+    },
+    {
+      "keyword": "ปวดท้องรุนแรง",
+      "category": "pain",
+      "enabled": true,
+      "description": "Severe abdominal pain"
+    },
+    {
+      "keyword": "ร้อนมาก",
+      "category": "temperature",
+      "enabled": true,
+      "description": "Very hot"
+    },
+    {
+      "keyword": "เย็นเฉียบ",
+      "category": "temperature",
+      "enabled": true,
+      "description": "Very cold"
+    },
+    {
+      "keyword": "ตัวเย็น",
+      "category": "temperature",
+      "enabled": true,
+      "description": "Cold body"
+    },
+    {
+      "keyword": "ไข้สูง",
+      "category": "temperature",
+      "enabled": true,
+      "description": "High fever"
+    },
+    {
+      "keyword": "อุณหภูมิต่ำ",
+      "category": "temperature",
+      "enabled": true,
+      "description": "Low temperature"
+    },
+    {
+      "keyword": "ท้องป่อง",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Bloated abdomen"
+    },
+    {
+      "keyword": "ท้องพอง",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Distended abdomen"
+    },
+    {
+      "keyword": "ท้องอืด",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Bloating"
+    },
+    {
+      "keyword": "ท้องบวม",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Swollen abdomen"
+    },
+    {
+      "keyword": "อาเจียนไม่หยุด",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Continuous vomiting"
+    },
+    {
+      "keyword": "เบื่ออาหารหลายวัน",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Not eating for days"
+    },
+    {
+      "keyword": "ไม่กินน้ำ",
+      "category": "gastrointestinal",
+      "enabled": true,
+      "description": "Not drinking water"
+    },
+    {
+      "keyword": "ตาบวม",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Swollen eyes"
+    },
+    {
+      "keyword": "ตาแดงมาก",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Very red eyes"
+    },
+    {
+      "keyword": "ตาฟาง",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Cloudy eyes"
+    },
+    {
+      "keyword": "ตาขุ่น",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Murky eyes"
+    },
+    {
+      "keyword": "ม่านตาขาด",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Retinal detachment"
+    },
+    {
+      "keyword": "คลอดยาก",
+      "category": "reproductive",
+      "enabled": true,
+      "description": "Difficult labor"
+    },
+    {
+      "keyword": "คลอดไม่ออก",
+      "category": "reproductive",
+      "enabled": true,
+      "description": "Cannot give birth"
+    },
+    {
+      "keyword": "มีน้ำเหลืองเหม็น",
+      "category": "reproductive",
+      "enabled": true,
+      "description": "Foul-smelling discharge"
+    },
+    {
+      "keyword": "ปัสสาวะไม่ออก",
+      "category": "urinary",
+      "enabled": true,
+      "description": "Cannot urinate"
+    },
+    {
+      "keyword": "ฉี่ไม่ออก",
+      "category": "urinary",
+      "enabled": true,
+      "description": "Cannot pee"
+    },
+    {
+      "keyword": "ไม่ยอมฉี่",
+      "category": "urinary",
+      "enabled": true,
+      "description": "Refusing to urinate"
+    },
+    {
+      "keyword": "กระวนกระวาย",
+      "category": "behavior",
+      "enabled": true,
+      "description": "Extreme restlessness"
+    },
+    {
+      "keyword": "หอบจนเหนื่อย",
+      "category": "breathing",
+      "enabled": true,
+      "description": "Panting to exhaustion"
+    }
+  ],
+  "warning": [
+    {
+      "keyword": "ท้องเสีย",
+      "category": "digestive",
+      "enabled": true,
+      "description": "Diarrhea"
+    },
+    {
+      "keyword": "อาเจียน",
+      "category": "digestive",
+      "enabled": true,
+      "description": "Vomiting"
+    },
+    {
+      "keyword": "ท้องผูก",
+      "category": "digestive",
+      "enabled": true,
+      "description": "Constipation"
+    },
+    {
+      "keyword": "ถ่ายเหลว",
+      "category": "digestive",
+      "enabled": true,
+      "description": "Loose stool"
+    },
+    {
+      "keyword": "ซึมเซา",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Lethargic"
+    },
+    {
+      "keyword": "ไม่กระฉับกระเฉง",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Not energetic"
+    },
+    {
+      "keyword": "นอนมาก",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Sleeping a lot"
+    },
+    {
+      "keyword": "เบื่อ อาหาร",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Loss of appetite"
+    },
+    {
+      "keyword": "ไม่ยอมกิน",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Refusing to eat"
+    },
+    {
+      "keyword": "กินน้อย",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Eating less"
+    },
+    {
+      "keyword": "กระสับกระส่าย",
+      "category": "behavioral",
+      "enabled": true,
+      "description": "Restless"
+    },
+    {
+      "keyword": "จาม",
+      "category": "respiratory",
+      "enabled": true,
+      "description": "Sneezing"
+    },
+    {
+      "keyword": "ไอ",
+      "category": "respiratory",
+      "enabled": true,
+      "description": "Coughing"
+    },
+    {
+      "keyword": "น้ำมูกไหล",
+      "category": "respiratory",
+      "enabled": true,
+      "description": "Runny nose"
+    },
+    {
+      "keyword": "ตาแดง",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Red eyes"
+    },
+    {
+      "keyword": "หูเหม็น",
+      "category": "ears",
+      "enabled": true,
+      "description": "Smelly ears"
+    },
+    {
+      "keyword": "ขี้ตาเยอะ",
+      "category": "eyes",
+      "enabled": true,
+      "description": "Excessive eye discharge"
+    },
+    {
+      "keyword": "คัน",
+      "category": "skin",
+      "enabled": true,
+      "description": "Itchy"
+    },
+    {
+      "keyword": "เกาตัว",
+      "category": "skin",
+      "enabled": true,
+      "description": "Scratching"
+    },
+    {
+      "keyword": "ขนร่วง",
+      "category": "skin",
+      "enabled": true,
+      "description": "Hair loss"
+    }
+  ]
+}

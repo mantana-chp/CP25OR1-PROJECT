@@ -53,7 +53,6 @@ export default function RecurrencePicker({
   const [showCustomModal, setShowCustomModal] = useState(false)
   const [tempRule, setTempRule] = useState<IRecurrenceRule>(value)
 
-  // Get default weekday from reminder date
   const getDefaultWeekday = (): Weekday => {
     const dayOfWeek = reminderDate?.getDay() || new Date().getDay()
     const weekdayMap: Weekday[] = [
@@ -68,12 +67,10 @@ export default function RecurrencePicker({
     return weekdayMap[dayOfWeek]
   }
 
-  // Get default day of month
   const getDefaultDayOfMonth = (): number => {
     return reminderDate?.getDate() || new Date().getDate()
   }
 
-  // Preset options like iPhone
   const presetOptions: PresetOption[] = [
     {
       type: 'none',
@@ -145,7 +142,6 @@ export default function RecurrencePicker({
     }
   ]
 
-  // Check if current value matches a preset
   const getCurrentPreset = (): PresetType => {
     for (const preset of presetOptions) {
       const { rule } = preset
@@ -187,7 +183,6 @@ export default function RecurrencePicker({
       interval: tempRule.interval || 1
     }
 
-    // Set default values based on type
     if (type === 'weekly' && !newRule.weekdays) {
       newRule.weekdays = [getDefaultWeekday()]
     }
@@ -509,7 +504,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
 
-  // Main Modal (Preset Selection) - iPhone style
   mainModalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 16,
@@ -550,7 +544,6 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
 
-  // Custom Modal
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,

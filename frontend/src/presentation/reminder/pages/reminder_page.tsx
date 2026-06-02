@@ -1,15 +1,19 @@
 import { petProfileService } from '@/src/utils/api/services/pet_profile_service'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
+import { IReminder } from '@/src/domain/reminder.domain'
 import {
   generateAllVirtualReminders,
+  IVirtualReminder,
   mergeRealAndVirtualReminders
-} from '@/src/utils/recurring_reminder_generator'
+} from '../../../utils/recurring_reminder_generator'
+import { IRecurringRule } from '@/src/utils/api/services/reminder_service'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PanResponder, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import Header from '../../components/header_component'
 import TodayRemindersModal from '../../components/today_reminders_modal'
 import Calendar from '../components/calendar_component'
@@ -17,22 +21,82 @@ import ReminderList from '../components/reminder_list'
 
 dayjs.extend(isSameOrBefore)
 
+const DEFAULT_FORWARD_MONTHS = 12
+const DEFAULT_BACKWARD_MONTHS = 1
+const DEFAULT_MAX_OCCURRENCES = 100
+const MAX_FORWARD_MONTHS = 240
+const MAX_OCCURRENCES_CAP = 2000
+
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime())
+
+const getMonthDiff = (from: Date, to: Date) => {
+  return (
+    (to.getFullYear() - from.getFullYear()) * 12 +
+    (to.getMonth() - from.getMonth())
+  )
+}
+
+const addYears = (date: Date, years: number) => {
+  const next = new Date(date)
+  next.setFullYear(next.getFullYear() + years)
+  return next
+}
+
+const estimateRuleHorizonDate = (rule: IRecurringRule): Date | null => {
+  if (rule.endDate) {
+    const endDate = new Date(rule.endDate)
+    if (isValidDate(endDate)) {
+      return endDate
+    }
+  }
+
+  if (!rule.endAfterOccurrences || rule.endAfterOccurrences <= 0) {
+    return null
+  }
+
+  const startDate = new Date(rule.template_start_date)
+  if (!isValidDate(startDate)) {
+    return null
+  }
+
+  const interval = Math.max(1, rule.interval || 1)
+  const totalGaps = Math.max(0, rule.endAfterOccurrences - 1)
+
+  switch (rule.frequency) {
+    case 'DAILY': {
+      const next = new Date(startDate)
+      next.setDate(next.getDate() + totalGaps * interval)
+      return next
+    }
+    case 'WEEKLY': {
+      const next = new Date(startDate)
+      next.setDate(next.getDate() + totalGaps * interval * 7)
+      return next
+    }
+    case 'MONTHLY': {
+      const next = new Date(startDate)
+      next.setMonth(next.getMonth() + totalGaps * interval)
+      return next
+    }
+    case 'YEARLY':
+      return addYears(startDate, totalGaps * interval)
+    default:
+      return null
+  }
+}
+
 export default function ReminderPage() {
-  // ------------------
-  // CONST
-  // ------------------
+  const router = useRouter()
   const params = useLocalSearchParams<{ reminderId?: string }>()
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [hasUserSelectedDate, setHasUserSelectedDate] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
-  const [virtualReminders, setVirtualReminders] = useState<any[]>([])
-  const swipeStartY = useRef(0)
+  const [virtualReminders, setVirtualReminders] = useState<IVirtualReminder[]>(
+    []
+  )
 
-  // ------------------
-  // FETCH
-  // ------------------
   const getRemindersApi = useApi(reminderService.getReminders, {
     showErrorAlert: false
   })
@@ -42,12 +106,16 @@ export default function ReminderPage() {
   })
 
   const loadReminders = useCallback(() => {
-    getRemindersApi.execute({})
-  }, [])
+    return getRemindersApi.execute({})
+  }, [getRemindersApi.execute])
 
   const loadPets = useCallback(() => {
-    getPetsApi.execute()
-  }, [])
+    return getPetsApi.execute()
+  }, [getPetsApi.execute])
+
+  const { isRefreshing, onRefresh } = usePullToRefresh(async () => {
+    await Promise.all([loadReminders(), loadPets()])
+  })
 
   useFocusEffect(
     useCallback(() => {
@@ -56,36 +124,75 @@ export default function ReminderPage() {
     }, [loadReminders, loadPets])
   )
 
-  const reminders = getRemindersApi.data?.data?.reminders || []
-  const recurringRules = getRemindersApi.data?.data?.recurringRules || []
-  const pets = getPetsApi.data?.data || []
-  const safeReminders = Array.isArray(reminders) ? reminders : []
+  const reminders = useMemo(
+    () => getRemindersApi.data?.data?.reminders || [],
+    [getRemindersApi.data]
+  )
+  const recurringRules = useMemo(
+    () => getRemindersApi.data?.data?.recurringRules || [],
+    [getRemindersApi.data]
+  )
+  const pets = useMemo(() => getPetsApi.data?.data || [], [getPetsApi.data])
+  const safeReminders = useMemo(
+    () => (Array.isArray(reminders) ? reminders : []),
+    [reminders]
+  )
 
-  // Debug: Log recurring rules to check excluded_dates
-  React.useEffect(() => {
-    if (recurringRules.length > 0) {
-      console.log('[Recurring Rules] Full Data:', recurringRules)
-      console.log(
-        '[Recurring Rules] Summary:',
-        recurringRules.map((rule: any) => ({
-          id: rule.id,
-          reminder_name: rule.reminder_name,
-          frequency: rule.frequency,
-          excluded_dates: rule.excluded_dates
-        }))
-      )
+  const virtualGenerationConfig = useMemo(() => {
+    const now = new Date()
+    const defaultMaxDate = new Date(now.getFullYear() + 1, now.getMonth(), 1)
+
+    let generationMaxDate = new Date(defaultMaxDate)
+    let maxEndAfterOccurrences = DEFAULT_MAX_OCCURRENCES
+
+    for (const reminder of safeReminders) {
+      const reminderDate = new Date(reminder.reminderDate)
+      if (isValidDate(reminderDate) && reminderDate > generationMaxDate) {
+        generationMaxDate = reminderDate
+      }
     }
-  }, [recurringRules])
 
-  // Generate virtual reminders asynchronously (AsyncStorage requires async)
+    for (const rule of recurringRules) {
+      if (rule.recurrence_status !== 'ACTIVE') continue
+
+      if (
+        typeof rule.endAfterOccurrences === 'number' &&
+        rule.endAfterOccurrences > maxEndAfterOccurrences
+      ) {
+        maxEndAfterOccurrences = rule.endAfterOccurrences
+      }
+
+      const estimatedHorizon = estimateRuleHorizonDate(rule)
+      if (estimatedHorizon && estimatedHorizon > generationMaxDate) {
+        generationMaxDate = estimatedHorizon
+      }
+    }
+
+    const monthsForward = Math.max(
+      DEFAULT_FORWARD_MONTHS,
+      Math.min(MAX_FORWARD_MONTHS, getMonthDiff(now, generationMaxDate) + 1)
+    )
+
+    const maxOccurrences = Math.min(
+      MAX_OCCURRENCES_CAP,
+      Math.max(DEFAULT_MAX_OCCURRENCES, maxEndAfterOccurrences + 10)
+    )
+
+    return {
+      monthsForward,
+      monthsBackward: DEFAULT_BACKWARD_MONTHS,
+      maxOccurrences
+    }
+  }, [safeReminders, recurringRules])
+
   useEffect(() => {
     const loadVirtualReminders = async () => {
       const virtuals = await generateAllVirtualReminders(
         recurringRules,
         {
-          monthsForward: 6,
-          monthsBackward: 1,
-          maxOccurrences: 100
+          monthsForward: virtualGenerationConfig.monthsForward,
+          monthsBackward: virtualGenerationConfig.monthsBackward,
+          maxOccurrences: virtualGenerationConfig.maxOccurrences
         },
         safeReminders, // Pass real reminders to copy pet_name
         pets // Pass pets array for direct pet_name lookup
@@ -98,63 +205,42 @@ export default function ReminderPage() {
     } else {
       setVirtualReminders([])
     }
-  }, [recurringRules, safeReminders, pets])
+  }, [recurringRules, safeReminders, pets, virtualGenerationConfig])
 
-  const remindersWithRecurrence = safeReminders.map((reminder) => {
-    const recurringRule = Array.isArray(recurringRules)
-      ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
-      : null
+  const remindersWithRecurrence = useMemo(
+    () =>
+      safeReminders.map((reminder) => {
+        const recurringRule = Array.isArray(recurringRules)
+          ? recurringRules.find((rule: any) => rule.reminder_id === reminder.id)
+          : null
 
-    if (recurringRule) {
-      return {
-        ...reminder,
-        recurrence: recurringRule as any
-      }
-    }
+        if (recurringRule) {
+          return {
+            ...reminder,
+            recurrence: recurringRule as any
+          }
+        }
 
-    return reminder
-  })
+        return reminder
+      }),
+    [safeReminders, recurringRules]
+  )
 
-  // Generate virtual reminders and merge with real ones
   const allReminders = useMemo(() => {
+    return mergeRealAndVirtualReminders(
+      remindersWithRecurrence,
+      virtualReminders,
+      { requirePreviousDone: true }
+    )
+  }, [remindersWithRecurrence, virtualReminders])
+
+  const allRemindersForSelectedDate = useMemo(() => {
     return mergeRealAndVirtualReminders(
       remindersWithRecurrence,
       virtualReminders
     )
   }, [remindersWithRecurrence, virtualReminders])
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dy) > 10 &&
-          Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
-        )
-      },
-      onPanResponderGrant: (_, gestureState) => {
-        swipeStartY.current = gestureState.y0
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const swipeDistance = gestureState.dy
-        const swipeVelocity = gestureState.vy
-
-        if (swipeDistance < -50 || swipeVelocity < -0.5) {
-          if (isCalendarExpanded) {
-            setIsCalendarExpanded(false)
-          }
-        } else if (swipeDistance > 50 || swipeVelocity > 0.5) {
-          if (!isCalendarExpanded) {
-            setIsCalendarExpanded(true)
-          }
-        }
-      }
-    })
-  ).current
-
-  // ------------------
-  // HANDLER
-  // ------------------
   const handleToggleCalendar = () => {
     setIsCalendarExpanded(!isCalendarExpanded)
   }
@@ -170,16 +256,25 @@ export default function ReminderPage() {
     setSelectedDate(new Date())
   }
 
-  const filteredReminders =
-    hasUserSelectedDate && selectedDate
-      ? allReminders.filter((reminder) =>
-          dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
-        )
-      : allReminders.filter((reminder) => {
-          if (!reminder.isVirtual) return true
+  const filteredReminders = useMemo(
+    () =>
+      hasUserSelectedDate && selectedDate
+        ? allRemindersForSelectedDate.filter(
+            (reminder: IReminder | IVirtualReminder) =>
+            dayjs(reminder.reminderDate).isSame(selectedDate, 'day')
+          )
+        : allReminders.filter((reminder: IReminder | IVirtualReminder) => {
+            if (!reminder.isVirtual) return true
 
-          return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
-        })
+            return dayjs(reminder.reminderDate).isSameOrBefore(dayjs(), 'day')
+          }),
+    [
+      hasUserSelectedDate,
+      selectedDate,
+      allReminders,
+      allRemindersForSelectedDate
+    ]
+  )
 
   const handleResetRemindersFilters = () => {
     setSelectedCategory(null)
@@ -188,9 +283,6 @@ export default function ReminderPage() {
 
   const isToday = dayjs(selectedDate).isSame(dayjs(), 'day')
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       <TodayRemindersModal />
@@ -211,19 +303,25 @@ export default function ReminderPage() {
         isCategoryFilterActive={selectedCategory !== null}
       />
 
-      <View style={styles.reminderContainer} {...panResponder.panHandlers}>
+      <View style={styles.reminderContainer}>
         <ReminderList
           reminders={filteredReminders}
           pets={pets}
           isLoading={getRemindersApi.loading}
-          onRefresh={loadReminders}
+          isRefreshing={isRefreshing}
+          onRefresh={onRefresh}
           initialReminderId={params.reminderId}
+          onInitialReminderHandled={() => {
+            if (params.reminderId) {
+              router.setParams({ reminderId: undefined })
+            }
+          }}
           selectedCategory={selectedCategory}
           onSelectedCategoryChange={setSelectedCategory}
           selectedPetId={selectedPetId}
           onSelectedPetIdChange={setSelectedPetId}
           isToday={isToday}
-          allReminders={remindersWithRecurrence}
+          allReminders={allReminders}
         />
       </View>
     </View>

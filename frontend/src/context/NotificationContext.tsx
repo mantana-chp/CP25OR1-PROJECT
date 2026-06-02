@@ -56,7 +56,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
-        console.log('🔔 Notification Received: ', notification)
         setNotification(notification)
       })
 
@@ -67,7 +66,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           JSON.stringify(response, null, 2),
           JSON.stringify(response.notification.request.content.data, null, 2)
         )
-        // Handle the notification response here
       })
 
     return () => {

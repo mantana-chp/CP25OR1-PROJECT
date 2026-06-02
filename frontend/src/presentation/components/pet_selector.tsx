@@ -1,6 +1,13 @@
 import { IPetProfile } from '@/src/domain/pet.domain'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Check, X, Users } from 'lucide-react-native'
 import React, { useState } from 'react'
 import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
+import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -9,11 +16,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import Button from './button'
 
 interface PetSelectorProps {
   pets: IPetProfile[]
-  selectedPetId: string
-  onSelectPet: (petId: string) => void
+  selectedPetIds?: string[]
+  onSelectPets?: (petIds: string[]) => void
   label?: string
   required?: boolean
   error?: string
@@ -22,20 +30,59 @@ interface PetSelectorProps {
 
 export default function PetSelector({
   pets,
-  selectedPetId,
-  onSelectPet,
+  selectedPetIds = [],
+  onSelectPets,
   label = 'เลือกสัตว์เลี้ยง',
   required = false,
   error,
   disabled = false
 }: PetSelectorProps) {
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [tempSelectedIds, setTempSelectedIds] =
+    useState<string[]>(selectedPetIds)
 
-  const selectedPet = pets.find((p) => p.id === selectedPetId)
+  const selectedPets = pets.filter((p) => selectedPetIds.includes(p.id))
 
   const handleSelectPet = (petId: string) => {
-    onSelectPet(petId)
+    const isSelected = tempSelectedIds.includes(petId)
+    if (isSelected) {
+      setTempSelectedIds(tempSelectedIds.filter((id) => id !== petId))
+    } else {
+      setTempSelectedIds([...tempSelectedIds, petId])
+    }
+  }
+
+  const handleConfirmSelection = () => {
+    if (onSelectPets) {
+      onSelectPets(tempSelectedIds)
+    }
     setIsModalVisible(false)
+  }
+
+  const handleOpenModal = () => {
+    if (!disabled) {
+      setTempSelectedIds(selectedPetIds)
+      setIsModalVisible(true)
+    }
+  }
+
+  const handleRemovePet = (petId: string) => {
+    if (!disabled && onSelectPets) {
+      onSelectPets(selectedPetIds.filter((id) => id !== petId))
+    }
+  }
+
+  const allPetIds = pets.map((pet) => pet.id)
+  const isAllSelected =
+    allPetIds.length > 0 &&
+    allPetIds.every((petId) => tempSelectedIds.includes(petId))
+
+  const handleSelectAll = () => {
+    setTempSelectedIds(allPetIds)
+  }
+
+  const handleDeselectAll = () => {
+    setTempSelectedIds([])
   }
 
   return (
@@ -47,76 +94,214 @@ export default function PetSelector({
         </Text>
       )}
 
-      <TouchableOpacity
-        style={[
-          styles.selector,
-          error && styles.selectorError,
-          disabled && styles.selectorDisabled
-        ]}
-        onPress={() => !disabled && setIsModalVisible(true)}
-        disabled={disabled}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.petListContainer}
       >
-        <Text
-          style={[
-            styles.selectorText,
-            !selectedPet && styles.placeholderText,
-            disabled && styles.disabledText
-          ]}
-        >
-          {selectedPet ? selectedPet.pet_name : 'เลือกสัตว์เลี้ยง'}
-        </Text>
-      </TouchableOpacity>
+        {/* Selected Pets */}
+        {selectedPets.map((pet) => (
+          <View key={pet.id} style={styles.selectedPetItem}>
+            <View style={styles.petAvatarWrapper}>
+              {pet.profile_image_url ? (
+                <Image
+                  source={{ uri: pet.profile_image_url }}
+                  style={styles.petAvatar}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.petAvatar,
+                    styles.placeholderAvatar,
+                    {
+                      backgroundColor:
+                        pet.avatar_background_color ||
+                        getDefaultAvatarBackgroundColorBySpecies(pet.species)
+                    }
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={getPetPlaceholderIcon(pet.species)}
+                    size={32}
+                    color="white"
+                  />
+                </View>
+              )}
+              {!disabled && (
+                <TouchableOpacity
+                  style={styles.removePetButton}
+                  onPress={() => handleRemovePet(pet.id)}
+                >
+                  <MaterialCommunityIcons
+                    name="close"
+                    size={14}
+                    color="white"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.selectedPetNameRow}>
+              <Text style={styles.selectedPetName} numberOfLines={1}>
+                {pet.pet_name}
+              </Text>
+              {pet.petRole === 'CAREGIVER' && (
+                <Users size={12} color="#5FA7D1" style={{ marginLeft: 4 }} />
+              )}
+            </View>
+          </View>
+        ))}
+
+        {/* Add Pet Button */}
+        {!disabled && (
+          <TouchableOpacity
+            style={styles.selectedPetItem}
+            onPress={handleOpenModal}
+          >
+            <View style={styles.addPetWrapper}>
+              <Text style={styles.addPetIcon}>+</Text>
+            </View>
+            <Text style={styles.addPetText}>เพิ่มสัตว์เลี้ยง</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       {/* Pet Selection Modal */}
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
+      <Modal visible={isModalVisible} transparent={true} animationType="fade">
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setIsModalVisible(false)}
         >
-          <View style={styles.modalContent}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>เลือกสัตว์เลี้ยง</Text>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                <Text style={styles.closeButton}>✕</Text>
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{label}</Text>
+              <View style={styles.modalHeaderActions}>
+                <TouchableOpacity
+                  onPress={() => setIsModalVisible(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <X size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
             </View>
 
+            <Pressable
+              onPress={isAllSelected ? handleDeselectAll : handleSelectAll}
+              disabled={pets.length === 0}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ padding: 8, alignSelf: 'flex-end' }}
+            >
+              <Text
+                style={[
+                  styles.bulkActionText,
+                  pets.length === 0 && styles.bulkActionTextDisabled
+                ]}
+              >
+                {isAllSelected ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}
+              </Text>
+            </Pressable>
+
             <ScrollView style={styles.petList}>
-              {pets.map((pet) => (
-                <TouchableOpacity
-                  key={pet.id}
-                  style={[
-                    styles.petItem,
-                    selectedPetId === pet.id && styles.petItemSelected
-                  ]}
-                  onPress={() => handleSelectPet(pet.id)}
-                >
-                  <View>
-                    <Text
+              {pets.map((pet) => {
+                const isSelected = tempSelectedIds.includes(pet.id)
+
+                return (
+                  <TouchableOpacity
+                    key={pet.id}
+                    style={[
+                      styles.petItem,
+                      isSelected && styles.petItemSelected
+                    ]}
+                    onPress={() => handleSelectPet(pet.id)}
+                  >
+                    <View style={styles.petItemContent}>
+                      <View style={styles.modalPetAvatarWrapper}>
+                        {pet.profile_image_url ? (
+                          <Image
+                            source={{ uri: pet.profile_image_url }}
+                            style={styles.modalPetAvatar}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.modalPetAvatar,
+                              styles.placeholderAvatar,
+                              {
+                                backgroundColor:
+                                  pet.avatar_background_color ||
+                                  getDefaultAvatarBackgroundColorBySpecies(
+                                    pet.species
+                                  )
+                              }
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={getPetPlaceholderIcon(pet.species)}
+                              size={18}
+                              color="white"
+                            />
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={styles.petDetailsContainer}>
+                        <View style={styles.petNameContainer}>
+                          <Text
+                            style={[
+                              styles.petName,
+                              isSelected && styles.petNameSelected
+                            ]}
+                          >
+                            {pet.pet_name}
+                          </Text>
+                          {pet.petRole === 'CAREGIVER' && (
+                            <Users size={14} color="#5FA7D1" />
+                          )}
+                        </View>
+                        <Text style={styles.petInfo}>
+                          {pet.species} • {pet.breed}
+                        </Text>
+                      </View>
+                    </View>
+                    <View
                       style={[
-                        styles.petName,
-                        selectedPetId === pet.id && styles.petNameSelected
+                        styles.checkbox,
+                        isSelected && styles.checkboxSelected
                       ]}
                     >
-                      {pet.pet_name}
-                    </Text>
-                    <Text style={styles.petInfo}>
-                      {pet.species} • {pet.breed}
-                    </Text>
-                  </View>
-                  {selectedPetId === pet.id && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+                      {isSelected && (
+                        <Check size={16} color="white" strokeWidth={2} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
             </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <View style={styles.footerButton}>
+                <Button
+                  title="ยกเลิก"
+                  onPress={() => setIsModalVisible(false)}
+                  variant="ghost"
+                  size="medium"
+                  fullWidth
+                />
+              </View>
+              <View style={styles.footerButton}>
+                <Button
+                  title={`ยืนยัน (${tempSelectedIds.length})`}
+                  onPress={handleConfirmSelection}
+                  variant="base"
+                  size="medium"
+                  fullWidth
+                />
+              </View>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -137,31 +322,80 @@ const styles = StyleSheet.create({
   required: {
     color: '#dc2626'
   },
-  selector: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#fff'
+  petListContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8
   },
-  selectorError: {
-    borderColor: '#BF1737'
+  selectedPetItem: {
+    alignItems: 'center',
+    width: 72
   },
-  selectorDisabled: {
-    backgroundColor: '#f3f4f6',
-    opacity: 0.6
+  petAvatarWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 6,
+    position: 'relative'
   },
-  selectorText: {
-    fontSize: 16,
+  petAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    backgroundColor: '#5FA7D1'
+  },
+  placeholderAvatar: {
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  removePetButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff'
+  },
+  selectedPetName: {
+    fontSize: 12,
     fontFamily: 'Prompt_400Regular',
-    color: '#225877'
+    color: '#225877',
+    textAlign: 'center'
   },
-  placeholderText: {
-    color: '#9ca3af'
+  selectedPetNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%'
   },
-  disabledText: {
-    color: '#6b7280'
+  addPetWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: '#5FA7D1',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    marginBottom: 6
+  },
+  addPetIcon: {
+    fontSize: 28,
+    color: '#5FA7D1',
+    fontWeight: '300'
+  },
+  addPetText: {
+    fontSize: 11,
+    fontFamily: 'Prompt_400Regular',
+    color: '#5FA7D1',
+    textAlign: 'center'
   },
   errorText: {
     color: '#BF1737',
@@ -189,7 +423,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb'
   },
@@ -198,10 +432,51 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_500Medium',
     color: '#225877'
   },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  bulkActionText: {
+    fontSize: 14,
+    fontFamily: 'Prompt_500Medium',
+    color: '#2E759E'
+  },
+  bulkActionTextDisabled: {
+    color: '#9ca3af'
+  },
+  modalCloseButton: {
+    padding: 2
+  },
   closeButton: {
     fontSize: 24,
     color: '#6b7280',
     fontFamily: 'Prompt_400Regular'
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12
+  },
+  checkboxSelected: {
+    backgroundColor: '#5FA7D1',
+    borderColor: '#5FA7D1'
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb'
+  },
+  footerButton: {
+    flex: 1
   },
   petList: {
     maxHeight: 400
@@ -213,6 +488,27 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6'
+  },
+  petItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  modalPetAvatarWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    overflow: 'hidden'
+  },
+  modalPetAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#5FA7D1'
+  },
+  petDetailsContainer: {
+    flex: 1
   },
   petItemSelected: {
     backgroundColor: '#E8F4F8'
@@ -226,6 +522,11 @@ const styles = StyleSheet.create({
   petNameSelected: {
     color: '#5FA7D1',
     fontFamily: 'Prompt_500Medium'
+  },
+  petNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
   },
   petInfo: {
     fontSize: 14,

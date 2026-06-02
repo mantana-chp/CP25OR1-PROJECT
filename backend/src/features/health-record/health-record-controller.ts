@@ -8,3 +8,10 @@ export const getHealthRecordsController = asyncHandler(async (req: Request, res:
   const healthRecords = await healthRecordService.getHealthRecords(userId);
   sendSuccess(res, healthRecords);
 });
+
+export const getHealthRecordByIdController = asyncHandler(async (req: Request, res: Response) => {
+  const { id: userId } = req.user!;
+  const { id } = req.params;
+  const healthRecord = await healthRecordService.getHealthRecordById(id, userId);
+  sendSuccess(res, healthRecord);
+});

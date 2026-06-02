@@ -6,8 +6,12 @@ export const healthRecordService = {
     return apiClient.get<{ data: IReminder[]; total: number }>(
       '/v1/health-records',
       {
-        params,
+        params
       }
     )
   },
+
+  getHealthRecordById: async (id: string) => {
+    return apiClient.get<{ data: IReminder }>(`/v1/health-records/${id}`)
+  }
 }

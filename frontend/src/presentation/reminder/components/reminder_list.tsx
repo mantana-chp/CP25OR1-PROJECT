@@ -4,28 +4,19 @@ import _ from 'lodash'
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { IPetProfile } from '@/src/domain/pet.domain'
-import { CATEGORY_MAP, IReminder } from '@/src/domain/reminder.domain'
+import { IReminder } from '@/src/domain/reminder.domain'
 import { reminderService } from '@/src/utils/api/services/reminder_service'
 import { useApi } from '@/src/utils/api/use_api'
 import {
   addExcludedDate,
   removeRuleExcludedDates
 } from '@/src/utils/excluded_dates_storage'
+import AppModal from '../../components/modal'
 
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Plus } from 'lucide-react-native'
 import {
-  Bone,
-  LayoutGrid,
-  Pill,
-  Pipette,
-  Plus,
-  Scissors,
-  Stethoscope,
-  Syringe,
-  Tag
-} from 'lucide-react-native'
-import {
-  Modal,
+  Modal as RNModal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,27 +25,22 @@ import {
 } from 'react-native'
 import LoadingComponent from '../../components/loading_component'
 import ReminderDetailModal from '../pages/reminder_detail_modal'
+import PetSelectionModal from './pet_selection_modal'
 import RecurringReminderCard from './recurrence/recurring_reminder_card'
+import ReminderFilterBar from './reminder_filter_bar'
 import ReminderCard from './reminder_card'
+import ReminderTabHeader from './reminder_tab_header'
 
 type TabType = 'to_do' | 'today' | 'done'
-
-const ICON_MAP: Record<string, any> = {
-  Tag,
-  Syringe,
-  Stethoscope,
-  Pill,
-  Pipette,
-  Scissors,
-  Bone
-}
 
 interface ReminderListProps {
   reminders: any[]
   pets?: IPetProfile[]
   isLoading?: boolean
+  isRefreshing?: boolean
   onRefresh?: () => void
   initialReminderId?: string | null
+  onInitialReminderHandled?: () => void
   selectedCategory?: string | null
   onSelectedCategoryChange?: (category: string | null) => void
   selectedPetId?: string | null
@@ -67,8 +53,10 @@ export default function ReminderList({
   reminders,
   pets = [],
   isLoading,
+  isRefreshing = false,
   onRefresh,
   initialReminderId,
+  onInitialReminderHandled,
   selectedCategory = null,
   onSelectedCategoryChange,
   selectedPetId = null,
@@ -86,8 +74,20 @@ export default function ReminderList({
   const [selectedReminder, setSelectedReminder] = useState<IReminder | null>(
     null
   )
+  const [showDeletePermissionModal, setShowDeletePermissionModal] =
+    useState(false)
+  const [blockedReminderName, setBlockedReminderName] = useState('')
+  const [blockedCreatorName, setBlockedCreatorName] = useState('')
+  const [showAlreadyDeletedModal, setShowAlreadyDeletedModal] = useState(false)
+  const [alreadyDeletedReminderName, setAlreadyDeletedReminderName] =
+    useState('')
+  const [alreadyDeletedByName, setAlreadyDeletedByName] = useState('')
+  const [handledInitialReminderId, setHandledInitialReminderId] = useState<
+    string | null
+  >(null)
 
   const deleteReminderApi = useApi(reminderService.deleteReminder, {
+    showErrorAlert: false,
     onSuccess: () => {
       if (onRefresh) {
         onRefresh()
@@ -104,12 +104,23 @@ export default function ReminderList({
   }, [reminders])
 
   useEffect(() => {
-    if (initialReminderId) {
+    if (
+      initialReminderId &&
+      reminders.length > 0 &&
+      initialReminderId !== handledInitialReminderId
+    ) {
       setSelectedReminderId(initialReminderId)
       const reminder = reminders.find((r) => r.id === initialReminderId)
       setSelectedReminder(reminder || null)
+      setHandledInitialReminderId(initialReminderId)
+      onInitialReminderHandled?.()
     }
-  }, [initialReminderId, reminders])
+  }, [
+    initialReminderId,
+    reminders,
+    handledInitialReminderId,
+    onInitialReminderHandled
+  ])
 
   useEffect(() => {
     if (!isToday && activeTab === 'today') {
@@ -123,78 +134,75 @@ export default function ReminderList({
     setSelectedReminder(reminder || null)
   }
 
+  const getOtherActorName = (reminder?: IReminder) => {
+    if (!reminder?.created_by) return 'เจ้าของสัตว์เลี้ยง'
+    if (reminder.created_by === 'เจ้าของสัตว์เลี้ยง')
+      return 'เจ้าของสัตว์เลี้ยง'
+    if (reminder.created_by === 'คุณ') return 'เจ้าของสัตว์เลี้ยง'
+    return reminder.created_by
+  }
+
   const handleDeleteReminder = useCallback(
     async (
       id: string,
       deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
     ) => {
       try {
-        // Find the reminder to check if it's virtual
         const reminder = reminders.find((r) => r.id === id)
+        const petRole = pets.find((pet) => pet.id === reminder?.petId)?.petRole
 
         let deleteId = id
         let excludeDate: string | undefined
 
-        // For recurring reminders (both real and virtual), we need to handle deletion properly
         if (reminder?.recurrence && deleteScope === 'THIS_INSTANCE_ONLY') {
-          // Pass the date to add to excluded_dates array
           excludeDate = reminder.reminderDate
 
-          console.log('[Recurring Deletion]', {
-            isVirtual: reminder.isVirtual,
-            reminderDate: reminder.reminderDate,
-            recurrenceId: reminder.recurrence.id,
-            reminderId: id,
-            excludeDateToSend: excludeDate
-          })
-
-          // For virtual reminders, use the rule ID instead of the reminder ID
           if (reminder.isVirtual) {
             deleteId = reminder.recurrence.id
           }
 
-          // Store excluded date in AsyncStorage as a workaround for backend not persisting excluded_dates
           if (excludeDate) {
             await addExcludedDate(reminder.recurrence.id, excludeDate)
-            console.log('[AsyncStorage] Added excluded date:', {
-              ruleId: reminder.recurrence.id,
-              excludeDate
-            })
           }
         } else if (reminder?.isVirtual && deleteScope === 'ALL_INSTANCES') {
-          // For deleting all instances of virtual reminder, use the rule ID
           deleteId = reminder.recurrence?.id || id
         }
 
-        // Remove all AsyncStorage exclusions when deleting all instances
         if (deleteScope === 'ALL_INSTANCES' && reminder?.recurrence?.id) {
           await removeRuleExcludedDates(reminder.recurrence.id)
-          console.log(
-            '[AsyncStorage] Removed all excluded dates for rule:',
-            reminder.recurrence.id
-          )
         }
 
-        console.log('[About to DELETE]', {
+        const { error } = await deleteReminderApi.execute(
           deleteId,
           deleteScope,
-          excludeDate,
-          originalReminderId: id
-        })
+          excludeDate
+        )
 
-        await deleteReminderApi.execute(deleteId, deleteScope, excludeDate)
+        if (error) {
+          if (error.statusCode === 403 && petRole === 'CAREGIVER') {
+            setBlockedReminderName(reminder?.reminderName || 'รายการนี้')
+            setBlockedCreatorName(reminder?.created_by || 'เจ้าของสัตว์เลี้ยง')
+            setShowDeletePermissionModal(true)
+            return
+          }
+          if (error.statusCode === 404) {
+            setAlreadyDeletedReminderName(reminder?.reminderName || 'รายการนี้')
+            setAlreadyDeletedByName(getOtherActorName(reminder))
+            setShowAlreadyDeletedModal(true)
+            return
+          }
+          return
+        }
 
-        // Refresh the reminder list and calendar after successful deletion
         setTimeout(() => {
           if (onRefresh) {
             onRefresh()
           }
         }, 200)
       } catch (error) {
-        console.error('Failed to delete reminder', error)
       }
     },
-    [deleteReminderApi, onRefresh, reminders]
+    [deleteReminderApi, onRefresh, reminders, pets]
   )
 
   const handleToggleStatus = useCallback(
@@ -214,7 +222,6 @@ export default function ReminderList({
           }
         }, 200)
       } catch (error) {
-        console.error('Failed to update status', error)
         if (currentStatus === 'to_do' || currentStatus === 'overdue') {
           setTempDoneIds((prev) => prev.filter((doneId) => doneId !== id))
         }
@@ -262,145 +269,21 @@ export default function ReminderList({
 
   return (
     <View style={styles.container}>
-      {/* Tab Header */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveTab('to_do')}
-          style={[styles.tabButton, { alignItems: 'center' }]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'to_do' && styles.activeTabText
-            ]}
-          >
-            ทั้งหมด
-          </Text>
-          {activeTab === 'to_do' && <View style={styles.activeUnderline} />}
-        </TouchableOpacity>
+      <ReminderTabHeader
+        isToday={isToday}
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        toDoCount={reminders.filter((r) => r.reminderStatus === 'to_do').length}
+        doneCount={reminders.filter((r) => r.reminderStatus === 'done').length}
+      />
 
-        {isToday && (
-          <TouchableOpacity
-            onPress={() => setActiveTab('today')}
-            style={styles.tabButton}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'today' && styles.activeTabText
-              ]}
-            >
-              วันนี้
-            </Text>
-            {activeTab === 'today' && <View style={styles.activeUnderline} />}
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          onPress={() => setActiveTab('done')}
-          style={styles.tabButton}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'done' && styles.activeTabText
-            ]}
-          >
-            เสร็จสิ้น
-          </Text>
-          {activeTab === 'done' && <View style={styles.activeUnderline} />}
-        </TouchableOpacity>
-      </View>
-
-      {/* Filter Section */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryFilterContainer}
-        contentContainerStyle={styles.categoryFilterContent}
-      >
-        {/* Pet Filter Button */}
-        <TouchableOpacity
-          onPress={() => setPetModalVisible(true)}
-          style={[
-            styles.categoryTab,
-            selectedPetId && styles.activeCategoryTab
-          ]}
-        >
-          <MaterialCommunityIcons
-            name="dog"
-            size={18}
-            color={selectedPetId ? '#fff' : '#6B7280'}
-          />
-          <Text
-            style={[
-              styles.categoryTabText,
-              selectedPetId && styles.activeCategoryTabText
-            ]}
-          >
-            {selectedPetId
-              ? pets.find((p) => p.id === selectedPetId)?.pet_name ||
-                'สัตว์เลี้ยง'
-              : 'สัตว์เลี้ยง'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Category Filter Tabs */}
-        <TouchableOpacity
-          onPress={() => onSelectedCategoryChange?.(null)}
-          style={[
-            styles.categoryTab,
-            selectedCategory === null && styles.activeCategoryTab
-          ]}
-        >
-          <LayoutGrid
-            size={18}
-            color={selectedCategory === null ? '#fff' : '#6B7280'}
-          />
-          <Text
-            style={[
-              styles.categoryTabText,
-              selectedCategory === null && styles.activeCategoryTabText
-            ]}
-          >
-            ทั้งหมด
-          </Text>
-        </TouchableOpacity>
-
-        {Object.entries(CATEGORY_MAP).map(([categoryKey, categoryInfo]) => {
-          const Icon = ICON_MAP[categoryInfo.icon]
-          return (
-            <TouchableOpacity
-              key={categoryKey}
-              onPress={() => onSelectedCategoryChange?.(categoryKey)}
-              style={[
-                styles.categoryTab,
-                selectedCategory === categoryKey && styles.activeCategoryTab
-              ]}
-            >
-              {Icon && (
-                <Icon
-                  size={18}
-                  color={
-                    selectedCategory === categoryKey
-                      ? '#fff'
-                      : categoryInfo.color
-                  }
-                />
-              )}
-              <Text
-                style={[
-                  styles.categoryTabText,
-                  selectedCategory === categoryKey &&
-                    styles.activeCategoryTabText
-                ]}
-              >
-                {categoryInfo.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
+      <ReminderFilterBar
+        pets={pets}
+        selectedPetId={selectedPetId}
+        selectedCategory={selectedCategory}
+        onOpenPetModal={() => setPetModalVisible(true)}
+        onSelectedCategoryChange={onSelectedCategoryChange}
+      />
 
       {/* Reminder Content */}
       {isLoading ? (
@@ -410,11 +293,19 @@ export default function ReminderList({
           style={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => onRefresh?.()}
+              colors={['#FF8A65']}
+              tintColor="#FF8A65"
+            />
+          }
         >
           {_.size(filteredReminders) === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {activeTab === 'to_do'
+                {activeTab === 'to_do' || activeTab === 'today'
                   ? 'ไม่มีเตือนความจำ'
                   : 'ไม่มีรายการที่เสร็จสิ้น'}
               </Text>
@@ -429,6 +320,16 @@ export default function ReminderList({
                     instances={reminder.children || []}
                     onPress={() => handleReminderDetail(reminder.id)}
                     onDelete={handleDeleteReminder}
+                    canDeleteAccess={reminder.canDelete !== false}
+                    onDeleteBlocked={() => {
+                      setBlockedReminderName(
+                        reminder.reminderName || 'รายการนี้'
+                      )
+                      setBlockedCreatorName(
+                        reminder.created_by || 'เจ้าของสัตว์เลี้ยง'
+                      )
+                      setShowDeletePermissionModal(true)
+                    }}
                     onRefresh={onRefresh}
                     canDelete={reminder.reminderStatus !== 'done'}
                   />
@@ -437,6 +338,16 @@ export default function ReminderList({
                     key={reminder.id}
                     reminder={reminder}
                     onDelete={handleDeleteReminder}
+                    canDeleteAccess={reminder.canDelete !== false}
+                    onDeleteBlocked={() => {
+                      setBlockedReminderName(
+                        reminder.reminderName || 'รายการนี้'
+                      )
+                      setBlockedCreatorName(
+                        reminder.created_by || 'เจ้าของสัตว์เลี้ยง'
+                      )
+                      setShowDeletePermissionModal(true)
+                    }}
                     onPress={handleReminderDetail}
                     isDeleting={deleteReminderApi.loading}
                     canDelete={reminder.reminderStatus !== 'done'}
@@ -451,98 +362,22 @@ export default function ReminderList({
       )}
 
       {/* Floating Add Button */}
-      <Link href="/(tabs)/add-reminder" push asChild>
+      <Link href="/(tabs)/add_reminder" push asChild>
         <TouchableOpacity style={styles.addReminderButton}>
           <Plus size={32} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       </Link>
 
-      {/* Pet Selection Modal */}
-      <Modal
+      <PetSelectionModal
         visible={petModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPetModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setPetModalVisible(false)}
-        >
-          <View style={styles.petModalContent}>
-            <View style={styles.petModalHeader}>
-              <Text style={styles.petModalTitle}>เลือกสัตว์เลี้ยง</Text>
-              <TouchableOpacity onPress={() => setPetModalVisible(false)}>
-                <Text style={styles.petModalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.petModalList}>
-              {/* All Pets Option */}
-              <TouchableOpacity
-                onPress={() => {
-                  onSelectedPetIdChange?.(null)
-                  setPetModalVisible(false)
-                }}
-                style={[
-                  styles.petModalItem,
-                  !selectedPetId && styles.petModalItemActive
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name="dog"
-                  size={20}
-                  color={!selectedPetId ? '#fff' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.petModalItemText,
-                    !selectedPetId && styles.petModalItemTextActive
-                  ]}
-                >
-                  สัตว์เลี้ยงทั้งหมด
-                </Text>
-                {!selectedPetId && <View style={styles.petModalCheckmark} />}
-              </TouchableOpacity>
-
-              {/* Individual Pets */}
-              {pets.map((pet) => (
-                <TouchableOpacity
-                  key={pet.id}
-                  onPress={() => {
-                    onSelectedPetIdChange?.(pet.id)
-                    setPetModalVisible(false)
-                  }}
-                  style={[
-                    styles.petModalItem,
-                    selectedPetId === pet.id && styles.petModalItemActive
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="dog"
-                    size={20}
-                    color={selectedPetId === pet.id ? '#fff' : '#6B7280'}
-                  />
-                  <Text
-                    style={[
-                      styles.petModalItemText,
-                      selectedPetId === pet.id && styles.petModalItemTextActive
-                    ]}
-                  >
-                    {pet.pet_name}
-                  </Text>
-                  {selectedPetId === pet.id && (
-                    <View style={styles.petModalCheckmark} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        pets={pets}
+        selectedPetId={selectedPetId}
+        onClose={() => setPetModalVisible(false)}
+        onSelectPet={onSelectedPetIdChange}
+      />
 
       {/* Reminder Detail Modal */}
-      <Modal
+      <RNModal
         visible={!!selectedReminderId}
         transparent
         animationType="fade"
@@ -557,12 +392,44 @@ export default function ReminderList({
             setSelectedReminderId(null)
             setSelectedReminder(null)
           }}
+          onRefresh={onRefresh}
           isVirtual={selectedReminder?.isVirtual || false}
           virtualReminderData={
             selectedReminder?.isVirtual ? selectedReminder : undefined
           }
         />
-      </Modal>
+      </RNModal>
+
+      <AppModal
+        variant="confirmation"
+        visible={showDeletePermissionModal}
+        onClose={() => setShowDeletePermissionModal(false)}
+        icon="warning"
+        title="ไม่สามารถลบเตือนความจำได้"
+        message={`คุณเป็นผู้ดูแลร่วม จึงลบได้เฉพาะเตือนความจำที่คุณสร้างเอง\n\nรายการ "${blockedReminderName}" ถูกสร้างโดย "${blockedCreatorName}"`}
+        confirmText="รับทราบ"
+        cancelText="ปิด"
+        onConfirm={() => setShowDeletePermissionModal(false)}
+        confirmVariant="base"
+      />
+
+      <AppModal
+        variant="confirmation"
+        visible={showAlreadyDeletedModal}
+        onClose={() => setShowAlreadyDeletedModal(false)}
+        icon="info"
+        title="ไม่พบเตือนความจำ"
+        message={`รายการ "${alreadyDeletedReminderName}" ถูกลบโดย "${alreadyDeletedByName}" ไปแล้ว`}
+        confirmText="รับทราบ"
+        cancelText="ปิด"
+        onConfirm={() => {
+          setShowAlreadyDeletedModal(false)
+          if (onRefresh) {
+            onRefresh()
+          }
+        }}
+        confirmVariant="base"
+      />
     </View>
   )
 }

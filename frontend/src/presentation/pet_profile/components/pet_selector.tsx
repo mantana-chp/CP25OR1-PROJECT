@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { ChevronUp, Users } from 'lucide-react-native'
 import _ from 'lodash'
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Image,
   ScrollView,
@@ -10,100 +11,275 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import ActionSheet from '../../components/action-sheet'
+import {
+  getDefaultAvatarBackgroundColorBySpecies,
+  getPetPlaceholderIcon
+} from '@/src/utils/pet_avatar'
+
+const PET_ITEM_WIDTH = 72
+const PET_ITEM_GAP = 6
+const PET_ITEM_SPAN = PET_ITEM_WIDTH + PET_ITEM_GAP
+const EXPAND_THRESHOLD = 5
+const DECEASED_AVATAR_BACKGROUND_COLOR = '#9E9E9E'
 
 interface Pet {
   id: string
   pet_name: string
+  avatar_background_color?: string | null
+  species?: string
+  status?: 'ACTIVE' | 'DECEASED' | 'DELETED' | string
+  petRole?: 'OWNER' | 'CAREGIVER'
   imageUrl?: string
+  profile_image_url?: string | null
 }
 
 interface PetSelectorProps {
   pets: Pet[]
   selectedIndex: number
   onSelect: (index: number) => void
-  maxPets?: number
+  maxPets: number
+  onEditPet?: (petId: string) => void
+  onDeletePet?: (petId: string) => void
+  isViewingDeceased?: boolean
+  avatarColorsByPetId?: Record<string, string>
 }
 
 export default function PetSelector({
   pets,
   selectedIndex,
   onSelect,
-  maxPets = 10
+  maxPets,
+  onEditPet,
+  onDeletePet,
+  isViewingDeceased,
+  avatarColorsByPetId = {}
 }: PetSelectorProps) {
   const router = useRouter()
+  const horizontalScrollRef = useRef<ScrollView>(null)
+  const [actionMenuVisible, setActionMenuVisible] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [selectedPetForAction, setSelectedPetForAction] = useState<Pet | null>(
+    null
+  )
+  const showAddButton = pets.length < maxPets && !isViewingDeceased
+  const shouldShowExpandToggle = pets.length > EXPAND_THRESHOLD
 
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
+  useEffect(() => {
+    if (!shouldShowExpandToggle && isExpanded) {
+      setIsExpanded(false)
+    }
+  }, [shouldShowExpandToggle, isExpanded])
+
+  useEffect(() => {
+    if (isExpanded || selectedIndex < 0) return
+
+    const offset = Math.max(0, selectedIndex * PET_ITEM_SPAN - PET_ITEM_SPAN)
+    horizontalScrollRef.current?.scrollTo({ x: offset, animated: false })
+  }, [selectedIndex, isExpanded])
+
+  const handleLongPress = (pet: Pet) => {
+    if (pet.petRole === 'CAREGIVER') {
+      return
+    }
+
+    setSelectedPetForAction(pet)
+    setActionMenuVisible(true)
+  }
+
+  const handleCloseMenu = () => {
+    setActionMenuVisible(false)
+    setSelectedPetForAction(null)
+  }
+
+  const handleToggleExpand = () => {
+    setIsExpanded((prev) => !prev)
+  }
+
+  const getPetAvatarBackgroundColor = (pet: Pet) => {
+    if (pet.status === 'DECEASED' || isViewingDeceased) {
+      return DECEASED_AVATAR_BACKGROUND_COLOR
+    }
+
+    return (
+      avatarColorsByPetId[pet.id] ||
+      pet.avatar_background_color ||
+      getDefaultAvatarBackgroundColorBySpecies(pet.species)
+    )
+  }
+
+  const actions = [
+    {
+      icon: 'pencil' as const,
+      label: 'แก้ไขข้อมูล',
+      onPress: () => {
+        if (selectedPetForAction && onEditPet) {
+          onEditPet(selectedPetForAction.id)
+        }
+      },
+      disabled: !onEditPet || selectedPetForAction?.petRole === 'CAREGIVER'
+    },
+    {
+      icon: 'delete-outline' as const,
+      label: 'ลบสัตว์เลี้ยง',
+      onPress: () => {
+        if (selectedPetForAction && onDeletePet) {
+          onDeletePet(selectedPetForAction.id)
+        }
+      },
+      variant: 'error' as const,
+      disabled: !onDeletePet || selectedPetForAction?.petRole === 'CAREGIVER'
+    }
+  ]
+
+  const renderPetItem = (pet: Pet, index: number) => (
+    <TouchableOpacity
+      key={pet.id}
+      onPress={() => {
+        onSelect(index)
+        if (isExpanded) {
+          setIsExpanded(false)
+        }
+      }}
+      onLongPress={() => handleLongPress(pet)}
+      delayLongPress={300}
+      style={[styles.petItem, isExpanded && styles.expandedPetItem]}
     >
-      {_.map(pets, (pet, index) => (
-        <TouchableOpacity
-          key={pet.id}
-          onPress={() => onSelect(index)}
-          style={styles.petItem}
-        >
+      <View
+        style={[
+          styles.imageWrapper,
+          selectedIndex === index && styles.selectedImageWrapper
+        ]}
+      >
+        {pet.profile_image_url ? (
+          <Image source={{ uri: pet.profile_image_url }} style={styles.image} />
+        ) : (
           <View
             style={[
-              styles.imageWrapper,
-              selectedIndex === index && styles.selectedImageWrapper
+              styles.image,
+              styles.placeholderImage,
+              { backgroundColor: getPetAvatarBackgroundColor(pet) }
             ]}
           >
-            {pet.imageUrl ? (
-              <Image source={{ uri: pet.imageUrl }} style={styles.image} />
-            ) : (
-              <View style={[styles.image, styles.placeholderImage]}>
-                <MaterialCommunityIcons name="dog" size={36} color="white" />
-              </View>
-            )}
+            <MaterialCommunityIcons
+              name={getPetPlaceholderIcon(pet.species)}
+              size={36}
+              color="white"
+            />
           </View>
-          <Text
-            style={[
-              styles.petName,
-              selectedIndex === index && styles.selectedPetName
-            ]}
-          >
-            {pet.pet_name}
-          </Text>
-        </TouchableOpacity>
-      ))}
-
-      {/* Add Pet Button */}
-      {pets.length < maxPets && (
-        <TouchableOpacity
-          style={styles.petItem}
-          onPress={() => router.push('/(tabs)/add_pet_form')}
+        )}
+      </View>
+      <View style={styles.petNameWrapper}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.petName,
+            selectedIndex === index && styles.selectedPetName
+          ]}
         >
-          <View style={styles.addPetWrapper}>
-            <Text style={styles.addPetIcon}>+</Text>
+          {pet.pet_name}
+        </Text>
+        {pet.petRole === 'CAREGIVER' && <Users size={11} color="#5FA7D1" />}
+      </View>
+    </TouchableOpacity>
+  )
+
+  return (
+    <>
+      <ScrollView
+        ref={horizontalScrollRef}
+        horizontal={!isExpanded}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={isExpanded}
+        nestedScrollEnabled={isExpanded}
+        style={isExpanded ? styles.expandedScrollView : undefined}
+        contentContainerStyle={[
+          styles.container,
+          isExpanded ? styles.expandedContainer : styles.collapsedContainer
+        ]}
+      >
+        {_.map(pets, renderPetItem)}
+
+        {/* Add Pet Button */}
+        {showAddButton && (
+          <TouchableOpacity
+            style={[styles.petItem, isExpanded && styles.expandedPetItem]}
+            onPress={() => router.push('/(tabs)/add_pet_form')}
+          >
+            <View style={styles.addPetWrapper}>
+              <Text style={styles.addPetIcon}>+</Text>
+            </View>
+            <Text style={styles.petName}>เพิ่มสัตว์เลี้ยง</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {shouldShowExpandToggle && (
+        <TouchableOpacity
+          style={[
+            styles.expandButton,
+            isExpanded && styles.expandButtonExpanded
+          ]}
+          onPress={handleToggleExpand}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.expandButtonText}>
+            {isExpanded
+              ? 'ย่อรายการสัตว์เลี้ยง'
+              : `แสดงทั้งหมด ${pets.length} ตัว`}
+          </Text>
+          <View
+            style={{ transform: [{ rotate: isExpanded ? '0deg' : '180deg' }] }}
+          >
+            <ChevronUp size={20} color="#225877" />
           </View>
-          <Text style={styles.petName}>เพิ่มสัตว์เลี้ยง</Text>
         </TouchableOpacity>
       )}
-    </ScrollView>
+
+      {/* Action Menu */}
+      <ActionSheet
+        visible={actionMenuVisible}
+        onClose={handleCloseMenu}
+        title={selectedPetForAction?.pet_name}
+        actions={actions}
+      />
+    </>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     paddingHorizontal: 8,
-    paddingBottom: 16,
-    gap: 12
+    rowGap: 8
+  },
+  collapsedContainer: {
+    flexDirection: 'row'
+  },
+  expandedContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingBottom: 4,
+    justifyContent: 'flex-start'
+  },
+  expandedScrollView: {
+    maxHeight: 240
   },
   petItem: {
     alignItems: 'center',
-    width: 80
+    width: PET_ITEM_WIDTH
+  },
+  expandedPetItem: {
+    width: '20%',
+    paddingHorizontal: 2
   },
   imageWrapper: {
-    width: 72,
-    height: 72,
+    width: 60,
+    height: 60,
     borderRadius: 36,
     borderWidth: 3,
     borderColor: 'transparent',
     padding: 2,
-    marginBottom: 8
+    marginBottom: 2
   },
   selectedImageWrapper: {
     borderColor: '#5FA7D1'
@@ -111,8 +287,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 33,
-    backgroundColor: '#5FA7D1'
+    borderRadius: 33
   },
   placeholderImage: {
     justifyContent: 'center',
@@ -124,13 +299,19 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center'
   },
+  petNameWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3
+  },
   selectedPetName: {
     color: '#225877',
     fontFamily: 'Prompt_500Medium'
   },
   addPetWrapper: {
-    width: 72,
-    height: 72,
+    width: 60,
+    height: 60,
     borderRadius: 36,
     borderWidth: 2,
     borderColor: '#5FA7D1',
@@ -138,11 +319,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F0F8FF',
-    marginBottom: 8
+    marginBottom: 2
   },
   addPetIcon: {
     fontSize: 32,
     color: '#5FA7D1',
     fontWeight: '300'
+  },
+  expandButton: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+    marginTop: 2
+  },
+  expandButtonExpanded: {
+    marginTop: 6
+  },
+  expandButtonText: {
+    fontSize: 12,
+    color: '#225877',
+    fontFamily: 'Prompt_500Medium'
   }
 })

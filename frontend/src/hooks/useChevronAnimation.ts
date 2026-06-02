@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Animated } from 'react-native'
 
 export const useChevronAnimation = (isExpanded: boolean) => {
-  const rotateAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current
+  const rotateAnim = useRef(new Animated.Value(isExpanded ? 0 : 1)).current
 
   useEffect(() => {
     Animated.timing(rotateAnim, {
@@ -14,7 +14,7 @@ export const useChevronAnimation = (isExpanded: boolean) => {
 
   const chevronRotation = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['180deg', '0deg']
+    outputRange: ['0deg', '180deg']
   })
 
   return chevronRotation

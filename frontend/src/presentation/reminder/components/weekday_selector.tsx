@@ -33,7 +33,6 @@ export default function WeekdaySelector({
 
   const toggleWeekday = (day: Weekday) => {
     if (selectedDays.includes(day)) {
-      // Don't allow deselecting the last day
       if (selectedDays.length === 1) return
       onChange(selectedDays.filter((d) => d !== day))
     } else {

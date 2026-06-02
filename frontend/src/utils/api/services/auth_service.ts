@@ -18,7 +18,6 @@ export const authService = {
       platformIdSource: deviceIdentifiers.platformIdSource
     }
 
-    console.log('🚀 [Auth] Device login request payload:', requestPayload)
 
     try {
       const response = await apiClient.post<{ data: DeviceLoginResponse }>(
@@ -31,11 +30,6 @@ export const authService = {
         installationId: deviceIdentifiers.installationId
       }
     } catch (error: any) {
-      console.error('❌ [Auth] Device login failed:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        requestPayload
-      })
       throw error
     }
   },

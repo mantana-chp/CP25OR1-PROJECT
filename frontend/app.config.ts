@@ -6,11 +6,11 @@ const PROJECT_SLUG = 'cp25or1frontend'
 const OWNER = 'delusional-dev'
 
 // App production config
-const APP_NAME = 'CP25OR1 Prod'
+const APP_NAME = 'PAWMI'
 const BUNDLE_IDENTIFIER = 'dev.expo.mantana.cp25or1frontend'
 const PACKAGE_NAME = 'dev.expo.mantana.cp25or1frontend'
-const ICON = './assets/images/icons/iOS-Prod.png'
-const ADAPTIVE_ICON = './assets/images/icons/Android-Prod.png'
+const ICON = './assets/images/icons/Pawmi-icon.png'
+const ADAPTIVE_ICON = './assets/images/icons/Pawmi-icon.png'
 const SCHEME = 'cp25or1-frontend'
 
 export default ({ config }: ConfigContext): ExpoConfig => {
@@ -27,7 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     version: version,
     slug: PROJECT_SLUG, // Must be consistent across all environments.
     orientation: 'portrait',
-    userInterfaceStyle: 'automatic',
+    userInterfaceStyle: 'light',
     newArchEnabled: true,
     icon: icon,
     scheme: scheme,
@@ -59,14 +59,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     web: {
       bundler: 'metro',
       output: 'static',
-      favicon: './assets/images/favicon.png'
+      favicon: './assets/images/icons/Pawmi-icon.png'
     },
     plugins: [
       'expo-router',
       [
         'expo-splash-screen',
         {
-          image: './assets/images/splash-icon.png',
+          image: './assets/images/icons/Pawmi-icon.png',
           imageWidth: 200,
           resizeMode: 'contain',
           backgroundColor: '#ffffff'
@@ -75,14 +75,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         'expo-notifications',
         {
-          icon: './assets/images/icon.png',
+          icon: './assets/images/icons/Pawmi-icon.png',
           color: '#ffffff',
           sounds: [],
           defaultChannel: 'default'
         }
       ],
       'expo-secure-store',
-      'expo-web-browser'
+      'expo-web-browser',
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'Allow PAWMI to access your photos.',
+          cameraPermission: 'Allow PAWMI to access your camera.'
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true
@@ -109,11 +116,11 @@ export const getDynamicAppConfig = (
 
   if (environment === 'preview') {
     return {
-      name: `${APP_NAME} Preview`,
+      name: `${APP_NAME}`,
       bundleIdentifier: `${BUNDLE_IDENTIFIER}.preview`,
       packageName: `${PACKAGE_NAME}.preview`,
-      icon: './assets/images/icons/iOS-Prev.png',
-      adaptiveIcon: './assets/images/icons/Android-Prev.png',
+      icon: './assets/images/icons/Pawmi-icon.png',
+      adaptiveIcon: './assets/images/icons/Pawmi-icon.png',
       scheme: `${SCHEME}-prev`
     }
   }
@@ -122,8 +129,8 @@ export const getDynamicAppConfig = (
     name: `${APP_NAME} Development`,
     bundleIdentifier: `${BUNDLE_IDENTIFIER}.dev`,
     packageName: `${PACKAGE_NAME}.dev`,
-    icon: './assets/images/icons/iOS-Dev.png',
-    adaptiveIcon: './assets/images/icons/Android-Dev.png',
+    icon: './assets/images/icons/Pawmi-icon.png',
+    adaptiveIcon: './assets/images/icons/Pawmi-icon.png',
     scheme: `${SCHEME}-dev`
   }
 }

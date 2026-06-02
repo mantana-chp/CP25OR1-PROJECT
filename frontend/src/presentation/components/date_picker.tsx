@@ -51,7 +51,6 @@ export default function DatePicker(props: DatePickerProps) {
         setTempDate(props.value)
       }
     } else {
-      // iOS handling
       if (event.type === 'set' && selectedDate) {
         setTempDate(selectedDate)
       } else if (event.type === 'dismissed') {
@@ -130,7 +129,11 @@ export default function DatePicker(props: DatePickerProps) {
               props.small && styles.pickerButtonIconSmall
             ]}
           >
-            <CalendarDays color={'#A6A6A6'} />
+            <CalendarDays
+              color={'#9ca3af'}
+              size={props.small ? 16 : 20}
+              strokeWidth={1.5}
+            />
           </Text>
         </Pressable>
 
@@ -170,7 +173,6 @@ export default function DatePicker(props: DatePickerProps) {
                 onChange={handleChange}
                 textColor="#5FA7D1"
                 style={styles.picker}
-                locale="th-TH"
                 maximumDate={props.maximumDate}
                 minimumDate={props.minimumDate}
               />
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    minHeight: 48,
+    minHeight: 32,
     backgroundColor: '#fff'
   },
   pickerButtonDisabled: {

@@ -7,22 +7,22 @@ import 'dayjs/locale/th'
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native'
+import Modal from '../../components/modal'
 
 import {
   convertFromBackendRecurrence,
-  formatRecurrenceText
+  formatRecurrenceText,
 } from '@/src/utils/recurrence.utils'
 import {
   Bone,
-  Clock,
-  PawPrint,
+  ChevronRight,
+  Paperclip,
   Pill,
   Pipette,
   Repeat,
@@ -30,7 +30,7 @@ import {
   Stethoscope,
   Syringe,
   Tag,
-  Trash2
+  Trash2,
 } from 'lucide-react-native'
 import DeleteSeriesModal from './modal/delete_series_modal'
 
@@ -38,8 +38,10 @@ interface ReminderCardProps {
   reminder: IReminder
   onDelete?: (
     id: string,
-    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES'
+    deleteScope?: 'THIS_INSTANCE_ONLY' | 'ALL_INSTANCES',
   ) => void
+  canDeleteAccess?: boolean
+  onDeleteBlocked?: () => void
   isDeleting?: boolean
   canDelete?: boolean
   onPress?: (id: string) => void
@@ -55,31 +57,26 @@ const ICON_MAP: Record<string, any> = {
   Pill,
   Pipette,
   Scissors,
-  Bone
+  Bone,
 }
 
 export default function ReminderCard(props: ReminderCardProps) {
-  // ------------------
-  // STATE
-  // ------------------
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
   const [showSeriesModal, setShowSeriesModal] = React.useState(false)
 
-  // ------------------
-  // CONST
-  // ------------------
   const {
     reminder,
     onDelete,
+    canDeleteAccess = true,
+    onDeleteBlocked,
     isDeleting = false,
     canDelete,
     onPress,
     onToggleStatus,
     isTempDone = false,
-    hideToggle = false
+    hideToggle = false,
   } = props
 
-  // Check if this is a virtual reminder
   const isVirtual = reminder.isVirtual === true
 
   const date = dayjs(reminder.reminderDate).locale('th')
@@ -92,9 +89,6 @@ export default function ReminderCard(props: ReminderCardProps) {
   const categoryInfo = getCategoryInfo(reminder?.categoryName || 'General')
   const CategoryIcon = ICON_MAP[categoryInfo.icon] || Tag
 
-  // ------------------
-  // ANIMATION
-  // ------------------
   const translateX = useRef(new Animated.Value(0)).current
   const swipePosition = useRef(0)
 
@@ -117,33 +111,35 @@ export default function ReminderCard(props: ReminderCardProps) {
         if (gestureState.dx < -40) {
           Animated.spring(translateX, {
             toValue: -80,
-            useNativeDriver: true
+            useNativeDriver: true,
           }).start()
         } else {
           Animated.spring(translateX, {
             toValue: 0,
-            useNativeDriver: true
+            useNativeDriver: true,
           }).start()
         }
-      }
-    })
+      },
+    }),
   ).current
 
-  // ------------------
-  // HANDLERS
-  // ------------------
 
   const closeDeleteButton = () => {
     Animated.spring(translateX, {
       toValue: 0,
       useNativeDriver: true,
       tension: 50,
-      friction: 7
+      friction: 7,
     }).start()
   }
 
   const handleDeletePress = () => {
-    // For virtual reminders, show series modal to delete the recurring rule
+    if (!canDeleteAccess) {
+      closeDeleteButton()
+      onDeleteBlocked?.()
+      return
+    }
+
     if (isVirtual) {
       if (reminder.recurrence) {
         setShowSeriesModal(true)
@@ -151,7 +147,6 @@ export default function ReminderCard(props: ReminderCardProps) {
       return
     }
 
-    // Check if reminder is recurring
     if (reminder.recurrence) {
       setShowSeriesModal(true)
     } else {
@@ -215,9 +210,6 @@ export default function ReminderCard(props: ReminderCardProps) {
     onToggleStatus(reminder.id, reminder.reminderStatus)
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View style={styles.container}>
       {/* Delete Button Background - Only for non-virtual deletable reminders */}
@@ -230,11 +222,10 @@ export default function ReminderCard(props: ReminderCardProps) {
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color='#fff' size='small' />
             ) : (
               <>
-                <Trash2 size={24} color="#fff" />
-                <Text style={styles.deleteText}>ลบ</Text>
+                <Trash2 size={24} color='#fff' strokeWidth={1.5} />
               </>
             )}
           </TouchableOpacity>
@@ -253,8 +244,8 @@ export default function ReminderCard(props: ReminderCardProps) {
               ? '#F9FAFB' // Light gray for virtual reminders
               : reminder?.reminderStatus === 'overdue'
                 ? '#FEF2F2'
-                : '#fff'
-          }
+                : '#fff',
+          },
         ]}
         {...(canDelete && !isVirtual ? panResponder.panHandlers : {})}
       >
@@ -275,7 +266,7 @@ export default function ReminderCard(props: ReminderCardProps) {
                 style={[
                   styles.checkbox,
                   isDone && styles.checkboxCompleted,
-                  isVirtual && styles.checkboxDisabled
+                  isVirtual && styles.checkboxDisabled,
                 ]}
               >
                 {isDone && <View style={styles.checkboxInner} />}
@@ -285,159 +276,162 @@ export default function ReminderCard(props: ReminderCardProps) {
 
           {/* Middle section - Content */}
           <View style={styles.middleSection}>
-            <View style={styles.titleRow}>
+            <View style={styles.headerRow}>
               <Text
                 style={[
                   styles.reminderTitle,
                   reminder?.reminderStatus === 'overdue' &&
                     styles.overdueTitleText,
-                  isVirtual && styles.virtualText
+                  isVirtual && styles.virtualText,
+                  isDone && styles.lineThroughText,
                 ]}
+                numberOfLines={1}
               >
                 {reminder?.reminderName}
               </Text>
-              {/* Show recurring badge for non-virtual reminders */}
               {!isVirtual && reminder?.recurrence && (
                 <View style={styles.recurringBadge}>
-                  <Repeat size={12} color="#5FA7D1" />
+                  <Repeat size={10} color='#5FA7D1' />
                 </View>
               )}
             </View>
 
-            <View style={styles.infoRow}>
-              <PawPrint
-                size={14}
-                color={
-                  isVirtual
-                    ? '#9CA3AF'
-                    : reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#2E759E'
-                }
-              />
+            <View style={styles.detailsRow}>
+              <View
+                style={[
+                  styles.categoryBadge,
+                  { backgroundColor: categoryInfo.color + '20' },
+                ]}
+              >
+                <CategoryIcon size={10} color={categoryInfo.color} />
+                <Text
+                  style={[styles.categoryText, { color: categoryInfo.color }]}
+                >
+                  {categoryInfo.label}
+                </Text>
+              </View>
+              <View style={styles.separator} />
               <Text
                 style={[
                   styles.petNameText,
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
-                  isVirtual && styles.virtualText
+                  isVirtual && styles.virtualText,
+                  isDone && styles.doneText,
                 ]}
+                numberOfLines={1}
               >
                 {reminder?.pet_name || '-'}
               </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Clock
-                size={14}
-                color={
-                  isVirtual
-                    ? '#9CA3AF'
-                    : reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#2E759E'
-                }
-              />
+              <View style={styles.separator} />
               <Text
                 style={[
                   styles.dateTimeText,
                   reminder?.reminderStatus === 'overdue' && styles.overdueText,
-                  isVirtual && styles.virtualText
+                  isVirtual && styles.virtualText,
+                  isDone && styles.doneText,
                 ]}
               >
                 {formattedTime
                   ? `${formattedDate}, ${formattedTime} น.`
                   : formattedDate}
               </Text>
+
+              {reminder?.attachments?.length > 0 && (
+                <>
+                  <View style={styles.separator} />
+                  <Paperclip
+                    size={10}
+                    color={
+                      isDone
+                        ? '#9CA3AF'
+                        : reminder?.reminderStatus === 'overdue'
+                          ? '#BF1737'
+                          : isVirtual
+                            ? '#D1D5DB'
+                            : '#9CA3AF'
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.dateTimeText,
+                      reminder?.reminderStatus === 'overdue' &&
+                        styles.overdueText,
+                      isVirtual && styles.virtualText,
+                      isDone && styles.doneText,
+                    ]}
+                  >
+                    {reminder?.attachments?.length} ไฟล์แนบ
+                  </Text>
+                </>
+              )}
             </View>
+
             {/* Recurrence info if recurring */}
             {reminder?.recurrence && (
-              <View style={styles.infoRow}>
+              <View style={styles.recurrenceRow}>
                 <Repeat
-                  size={14}
+                  size={11}
                   color={
-                    reminder?.reminderStatus === 'overdue'
-                      ? '#BF1737'
-                      : '#5FA7D1'
+                    isDone
+                      ? '#9CA3AF'
+                      : reminder?.reminderStatus === 'overdue'
+                        ? '#BF1737'
+                        : '#5FA7D1'
                   }
                 />
                 <Text
                   style={[
                     styles.recurrenceText,
-                    reminder?.reminderStatus === 'overdue' && styles.overdueText
+                    reminder?.reminderStatus === 'overdue' &&
+                      styles.overdueText,
+                    ,
+                    isDone && styles.doneText,
                   ]}
+                  numberOfLines={1}
                 >
                   {formatRecurrenceText(
                     convertFromBackendRecurrence(reminder.recurrence),
-                    'th'
+                    'th',
                   )}
                   {reminder.occurrenceNumber &&
-                    reminder.occurrenceNumber > 1 && (
-                      <Text style={styles.occurrenceNumber}>
-                        {' '}
-                        (ครั้งที่ {reminder.occurrenceNumber})
-                      </Text>
-                    )}
+                    reminder.occurrenceNumber > 1 &&
+                    ` (ครั้งที่ ${reminder.occurrenceNumber})`}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Right side - Category tag */}
-          <View
-            style={[
-              styles.categoryTag,
-              {
-                backgroundColor: categoryInfo.color + '20',
-                borderColor: categoryInfo.color
-              }
-            ]}
-          >
-            <CategoryIcon size={12} color={categoryInfo.color} />
-            <Text style={[styles.categoryText, { color: categoryInfo.color }]}>
-              {categoryInfo.label}
-            </Text>
-          </View>
+          {/* Right side - Chevron */}
+          <ChevronRight
+            size={16}
+            color={
+              isVirtual
+                ? '#D1D5DB'
+                : isDone
+                  ? '#9CA3AF'
+                  : reminder?.reminderStatus === 'overdue'
+                    ? '#BF1737'
+                    : '#2E759E'
+            }
+            style={styles.chevron}
+          />
         </TouchableOpacity>
       </Animated.View>
 
       {/* Delete Confirmation Modal */}
       <Modal
+        variant='confirmation'
         visible={showDeleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelDelete}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>ยืนยันการลบ</Text>
-            <Text style={styles.modalMessage}>
-              คุณต้องการลบเตือนความจำ{' '}
-              <Text style={styles.modalBold}>{reminder.reminderName}</Text>{' '}
-              หรือไม่?
-            </Text>
-            <Text style={styles.modalSubMessage}>
-              การดำเนินการนี้ไม่สามารถย้อนกลับได้
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.deleteButtonModal]}
-                onPress={handleConfirmDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteButtonText}>ลบ</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={handleCancelDelete}
+        icon='trash'
+        title='ยืนยันการลบ'
+        message={`ต้องการลบเตือนความจำ "${reminder.reminderName}" ใช่หรือไม่?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+        confirmText='ลบ'
+        cancelText='ยกเลิก'
+        onConfirm={handleConfirmDelete}
+        confirmVariant='error'
+        isLoading={isDeleting}
+      />
 
       {/* Delete Series Modal for Recurring Reminders */}
       <DeleteSeriesModal
@@ -453,8 +447,8 @@ export default function ReminderCard(props: ReminderCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
-    position: 'relative'
+    marginBottom: 8,
+    position: 'relative',
   },
   deleteButtonContainer: {
     position: 'absolute',
@@ -463,7 +457,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 100,
     justifyContent: 'center',
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
   },
   deleteButton: {
     backgroundColor: '#BF1737',
@@ -471,14 +465,13 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    gap: 4
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
   },
   deleteText: {
     color: '#fff',
     fontSize: 14,
-    fontFamily: 'Prompt_500Medium'
+    fontFamily: 'Prompt_500Medium',
   },
   reminderCard: {
     backgroundColor: '#fff',
@@ -486,178 +479,128 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderLeftWidth: 6
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    borderLeftWidth: 3,
   },
   cardTouchable: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12
+    padding: 10,
+    gap: 10,
   },
   leftSection: {
-    marginRight: 14
+    paddingRight: 0,
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 18,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#A6A6A6',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   checkboxCompleted: {
-    borderColor: '#5FA7D1'
+    borderColor: '#5FA7D1',
   },
   checkboxDisabled: {
     borderColor: '#D1D5DB',
-    opacity: 0.5
+    opacity: 0.5,
   },
   checkboxInner: {
     width: 12,
     height: 12,
-    borderRadius: 12,
-    backgroundColor: '#5FA7D1'
+    borderRadius: 6,
+    backgroundColor: '#5FA7D1',
   },
   middleSection: {
     flex: 1,
-    gap: 2
+    gap: 3,
   },
-  titleRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 6,
   },
   recurringBadge: {
-    backgroundColor: '#E8F4F8',
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: '#E0F2FE',
+    borderRadius: 10,
+    padding: 3,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   virtualText: {
-    color: '#6B7280'
+    color: '#9CA3AF',
   },
-  recurrenceText: {
-    fontSize: 12,
-    color: '#5FA7D1',
-    fontFamily: 'Prompt_400Regular'
+  lineThroughText: {
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
   },
-  occurrenceNumber: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontFamily: 'Prompt_400Regular'
+  doneText: {
+    color: '#9CA3AF',
   },
-  categoryTag: {
+  detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 0.5
+    borderRadius: 8,
   },
   categoryText: {
     fontSize: 10,
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
+  },
+  separator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#D1D5DB',
+  },
+  recurrenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recurrenceText: {
+    fontSize: 11,
+    color: '#5FA7D1',
+    fontFamily: 'Prompt_400Regular',
+    flex: 1,
   },
   reminderTitle: {
-    fontSize: 16,
-    color: '#225877',
-    fontFamily: 'Prompt_700Bold'
+    fontSize: 14,
+    color: '#1F2937',
+    fontFamily: 'Prompt_500Medium',
+    flex: 1,
   },
   overdueTitleText: {
     color: '#BF1737',
-    fontFamily: 'Prompt_700Bold'
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
   },
   petNameText: {
-    fontSize: 13,
-    color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Prompt_400Regular',
   },
   dateTimeText: {
-    fontSize: 13,
-    color: '#225877',
-    fontFamily: 'Prompt_400Regular'
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'Prompt_400Regular',
   },
   overdueText: {
     color: '#BF1737',
-    fontFamily: 'Prompt_700Bold'
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
+  chevron: {
+    marginLeft: 4,
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    gap: 16
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: 'Prompt_700Bold',
-    color: '#225877',
-    textAlign: 'center'
-  },
-  modalMessage: {
-    fontSize: 16,
-    fontFamily: 'Prompt_400Regular',
-    color: '#225877',
-    textAlign: 'center',
-    lineHeight: 24
-  },
-  modalBold: {
-    fontFamily: 'Prompt_700Bold',
-    color: '#BF1737'
-  },
-  modalSubMessage: {
-    fontSize: 14,
-    fontFamily: 'Prompt_500Medium',
-    color: '#6b7280',
-    textAlign: 'center'
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignItems: 'center'
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db'
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_500Medium',
-    color: '#4b5563'
-  },
-  deleteButtonModal: {
-    backgroundColor: '#BF1737'
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontFamily: 'Prompt_700Bold',
-    color: '#fff'
-  }
 })

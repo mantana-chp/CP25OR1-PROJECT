@@ -8,7 +8,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -21,19 +21,15 @@ interface HeaderProps {
 }
 
 export default function Header(props: HeaderProps) {
-  // ------------------
-  // CONST
-  // ------------------
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  // Android needs extra padding for status bar
   const getTopPadding = () => {
     if (Platform.OS === 'android') {
       const statusBarHeight = StatusBar.currentHeight || 24
-      return Math.max(insets.top, statusBarHeight) + 8
+      return Math.max(insets.top, statusBarHeight) + 4 // reduced from 8
     }
-    return insets.top > 0 ? insets.top : 24
+    return insets.top > 0 ? insets.top : 16 // reduced from 24
   }
 
   const topPadding = getTopPadding()
@@ -46,38 +42,30 @@ export default function Header(props: HeaderProps) {
     }
   }
 
-  // ------------------
-  // RENDER
-  // ------------------
   return (
     <View
       style={[
         styles.header,
         {
           paddingTop: topPadding,
-          height: topPadding + 50
-        }
+          height: topPadding + 40, // reduced from 50
+        },
       ]}
     >
-      {/* Left Section */}
       <View style={styles.leftSection}>
         {props.goBack ? (
           <Pressable onPress={handleBackPress}>
             <Text style={styles.headerBackIcon}>
-              <ChevronLeft color="white" />
+              <ChevronLeft color='white' />
             </Text>
           </Pressable>
         ) : props.leftChildren ? (
           props.leftChildren
         ) : null}
       </View>
-
-      {/* Center Title - Absolutely positioned */}
       <View style={styles.centerSection}>
         <Text style={styles.headerTitle}>{props.title}</Text>
       </View>
-
-      {/* Right Section */}
       <View style={styles.rightSection}>
         {props.rightChildren ? props.rightChildren : null}
       </View>
@@ -90,34 +78,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#5FA7D1',
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 12, // reduced from 24
     alignItems: 'center',
-    position: 'relative'
+    position: 'relative',
   },
   leftSection: {
-    zIndex: 2
+    zIndex: 2,
   },
   centerSection: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 22,
+    bottom: 12, // reduced from 22
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1
+    zIndex: 1,
   },
   rightSection: {
     marginLeft: 'auto',
-    zIndex: 2
+    zIndex: 2,
   },
   headerBackIcon: {
     color: 'white',
     fontSize: 24,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   headerTitle: {
     color: '#ffffff',
     fontSize: 20,
-    fontFamily: 'Prompt_700Bold'
-  }
+    fontFamily: 'Prompt_700Bold',
+  },
 })

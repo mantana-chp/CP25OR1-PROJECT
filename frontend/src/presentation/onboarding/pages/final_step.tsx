@@ -4,25 +4,39 @@ import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import PrimaryButton from '../../components/primary_button'
+import { useState, useEffect } from 'react'
 
 export default function FinalStep() {
   const { completeOnboarding } = useAuth()
-  const { pets } = usePets()
+  const { activePets, deceasedPets, loading: petsLoading } = usePets()
   const router = useRouter()
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const handleFinish = async () => {
-    if (!pets || pets.length === 0) {
-      router.replace('/onboarding/pet-profile')
-    } else {
-      await completeOnboarding()
-      router.replace('/(tabs)')
+    if (isProcessing) return
+
+    setIsProcessing(true)
+
+    try {
+      const hasNoPets =
+        (!activePets || activePets.length === 0) &&
+        (!deceasedPets || deceasedPets.length === 0)
+
+      if (hasNoPets) {
+        router.replace('/onboarding/pet-options')
+      } else {
+        await completeOnboarding()
+        router.replace('/(tabs)')
+      }
+    } catch (error) {
+      setIsProcessing(false)
     }
   }
 
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <ChevronLeft size={24} color="#5FA7D1" />
+        <ChevronLeft size={24} color='#5FA7D1' />
         <Text style={styles.backButtonText}>ย้อนกลับ</Text>
       </TouchableOpacity>
 
@@ -30,7 +44,7 @@ export default function FinalStep() {
         <Image
           source={require('@/assets/images/onboard-3.png')}
           style={styles.image}
-          resizeMode="contain"
+          resizeMode='contain'
         />
         <Text style={styles.title}>รู้จักกับผู้ช่วย AI ของคุณ!</Text>
         <Text style={styles.subTitle}>
@@ -46,8 +60,10 @@ export default function FinalStep() {
         </View>
 
         <PrimaryButton
-          title="เริ่มต้นใช้งาน"
+          title='เริ่มต้นใช้งาน'
           onPress={handleFinish}
+          disabled={isProcessing || petsLoading}
+          isLoading={isProcessing || petsLoading}
           style={{ width: '100%' }}
         />
       </View>
@@ -59,7 +75,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF9F1',
-    padding: 20
+    padding: 20,
   },
   backButton: {
     position: 'absolute',
@@ -68,22 +84,22 @@ const styles = StyleSheet.create({
     zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 4,
   },
   backButtonText: {
     fontSize: 16,
     color: '#5FA7D1',
-    fontFamily: 'Prompt_400Regular'
+    fontFamily: 'Prompt_400Regular',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   image: {
     width: 300,
     height: 300,
-    marginBottom: 40
+    marginBottom: 40,
   },
   title: {
     fontSize: 24,
@@ -91,7 +107,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt_700Bold',
     marginBottom: 16,
     color: '#225877',
-    textAlign: 'center'
+    textAlign: 'center',
   },
   subTitle: {
     fontSize: 16,
@@ -100,23 +116,23 @@ const styles = StyleSheet.create({
     color: '#225877',
     textAlign: 'center',
     lineHeight: 24,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
   },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 24
+    marginBottom: 24,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#D1D5DB'
+    backgroundColor: '#D1D5DB',
   },
   activeDot: {
     backgroundColor: '#5FA7D1',
-    width: 24
-  }
+    width: 24,
+  },
 })

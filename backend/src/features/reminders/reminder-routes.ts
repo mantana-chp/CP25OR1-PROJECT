@@ -1,15 +1,21 @@
-import { Router } from 'express';
+import { Router } from 'express'
 import {
   getReminders,
   createReminder,
+  createMultipleReminders,
   getReminderById,
   updateReminder,
   deleteReminder,
   toggleReminderStatus,
-} from './reminder-controller';
-import { authGuard } from '../../middlewares/authGuard';
+} from './reminder-controller'
+import {
+  requestAttachmentUrl,
+  saveAttachment,
+  deleteAttachment,
+} from './reminder-attachment-controller'
+import { authGuard } from '../../middlewares/authGuard'
 
-const router = Router();
+const router = Router()
 
 /**
  * @openapi
@@ -33,7 +39,7 @@ const router = Router();
  *       401:
  *         description: Unauthorized.
  */
-router.get('/', authGuard, getReminders);
+router.get('/', authGuard, getReminders)
 
 /**
  * @openapi
@@ -63,7 +69,7 @@ router.get('/', authGuard, getReminders);
  *       404:
  *         description: Reminder not found.
  */
-router.get('/:id', authGuard, getReminderById);
+router.get('/:id', authGuard, getReminderById)
 
 /**
  * @openapi
@@ -94,11 +100,61 @@ router.get('/:id', authGuard, getReminderById);
  *       401:
  *         description: Unauthorized.
  */
-router.post('/', authGuard, createReminder);
+router.post('/', authGuard, createReminder)
 
 /**
  * @openapi
- * /reminders/{id}:
+ * /reminders/batch:
+ *   post:
+ *     tags: [Reminders]
+ *     summary: Create multiple reminders at once
+ *     description: Creates multiple reminders in a single request. Returns created reminders and any errors encountered.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/InstallationIdHeader'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: array
+ *             items:
+ *               $ref: '#/components/schemas/CreateReminderBody'
+ *     responses:
+ *       201:
+ *         description: Batch reminders created. May contain partial success.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     created:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Reminder'
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           index:
+ *                             type: integer
+ *                           reminderName:
+ *                             type: string
+ *                           error:
+ *                             type: string
+ *       400:
+ *         description: Bad Request - Invalid payload or empty array.
+ *       401:
+ *         description: Unauthorized.
+ */
+router.post('/batch', authGuard, createMultipleReminders)
+
+/**
  *   patch:
  *     tags: [Reminders]
  *     summary: Update a reminder
@@ -133,7 +189,7 @@ router.post('/', authGuard, createReminder);
  *       404:
  *         description: Reminder not found.
  */
-router.patch('/:id', authGuard, updateReminder);
+router.patch('/:id', authGuard, updateReminder)
 
 /**
  * @openapi
@@ -159,7 +215,7 @@ router.patch('/:id', authGuard, updateReminder);
  *       404:
  *         description: Reminder not found.
  */
-router.delete('/:id', authGuard, deleteReminder);
+router.delete('/:id', authGuard, deleteReminder)
 
 /**
  * @openapi
@@ -190,6 +246,38 @@ router.delete('/:id', authGuard, deleteReminder);
  *       404:
  *         description: Reminder not found.
  */
-router.patch('/:id/status', authGuard, toggleReminderStatus);
+router.patch('/:id/status', authGuard, toggleReminderStatus)
 
-export default router;
+// ── Reminder Attachments ────────────────────────────────────────────────────
+
+/**
+ * @openapi
+ * /reminders/{id}/attachments/request-url:
+ *   post:
+ *     tags: [Reminders]
+ *     summary: Request a presigned PUT URL to upload an attachment
+ *     description: Returns a presigned URL for direct upload to storage. Max 2 attachments per reminder.
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/attachments/request-url', authGuard, requestAttachmentUrl)
+
+/**
+ * @openapi
+ * /reminders/{id}/attachments:
+ *   post:
+ *     tags: [Reminders]
+ *     summary: Save attachment metadata after successful upload
+ */
+router.post('/:id/attachments', authGuard, saveAttachment)
+
+/**
+ * @openapi
+ * /reminders/{id}/attachments/{attachmentId}:
+ *   delete:
+ *     tags: [Reminders]
+ *     summary: Delete a specific attachment
+ */
+router.delete('/:id/attachments/:attachmentId', authGuard, deleteAttachment)
+
+export default router

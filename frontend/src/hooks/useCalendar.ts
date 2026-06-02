@@ -8,6 +8,11 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { LayoutAnimation } from 'react-native'
 
+interface NavigationRange {
+  minDate: Date
+  maxDate: Date
+}
+
 interface DayInfo {
   day: number
   isCurrentMonth: boolean
@@ -25,6 +30,93 @@ interface SimplePet {
   pet_name: string
 }
 
+const DEFAULT_FORWARD_MONTHS = 12
+const DEFAULT_BACKWARD_MONTHS = 1
+const DEFAULT_MAX_OCCURRENCES = 100
+const MAX_FORWARD_MONTHS = 240
+const MAX_OCCURRENCES_CAP = 2000
+
+const WEEKDAY_BITMAP_MASKS = [1, 2, 4, 8, 16, 32, 64]
+
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime())
+
+const getMonthDiff = (from: Date, to: Date) => {
+  return (
+    (to.getFullYear() - from.getFullYear()) * 12 +
+    (to.getMonth() - from.getMonth())
+  )
+}
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+const addWeeks = (date: Date, weeks: number) => addDays(date, weeks * 7)
+
+const addMonths = (date: Date, months: number) => {
+  const next = new Date(date)
+  next.setMonth(next.getMonth() + months)
+  return next
+}
+
+const addYears = (date: Date, years: number) => {
+  const next = new Date(date)
+  next.setFullYear(next.getFullYear() + years)
+  return next
+}
+
+const countWeeklyOccurrencesPerInterval = (daysOfWeek: number | null) => {
+  if (!daysOfWeek || daysOfWeek <= 0) {
+    return 1
+  }
+
+  return WEEKDAY_BITMAP_MASKS.reduce((count, mask) => {
+    return (daysOfWeek & mask) !== 0 ? count + 1 : count
+  }, 0)
+}
+
+const estimateRuleHorizonDate = (rule: IRecurringRule): Date | null => {
+  if (rule.endDate) {
+    const endDate = new Date(rule.endDate)
+    if (isValidDate(endDate)) {
+      return endDate
+    }
+  }
+
+  if (!rule.endAfterOccurrences || rule.endAfterOccurrences <= 0) {
+    return null
+  }
+
+  const startDate = new Date(rule.template_start_date)
+  if (!isValidDate(startDate)) {
+    return null
+  }
+
+  const interval = Math.max(1, rule.interval || 1)
+  const totalGaps = Math.max(0, rule.endAfterOccurrences - 1)
+
+  switch (rule.frequency) {
+    case 'DAILY':
+      return addDays(startDate, totalGaps * interval)
+    case 'WEEKLY': {
+      const occurrencesPerInterval = Math.max(
+        1,
+        countWeeklyOccurrencesPerInterval(rule.daysOfWeek)
+      )
+      const intervalsNeeded = Math.ceil(totalGaps / occurrencesPerInterval)
+      return addWeeks(startDate, intervalsNeeded * interval)
+    }
+    case 'MONTHLY':
+      return addMonths(startDate, totalGaps * interval)
+    case 'YEARLY':
+      return addYears(startDate, totalGaps * interval)
+    default:
+      return null
+  }
+}
+
 export const useCalendar = (
   reminders: IReminder[] = [],
   recurringRules: IRecurringRule[] = [],
@@ -36,15 +128,64 @@ export const useCalendar = (
   )
   const today = new Date()
 
-  // Generate virtual reminders asynchronously (AsyncStorage requires async)
+  const virtualGenerationConfig = useMemo(() => {
+    const now = new Date()
+    const defaultMaxDate = new Date(now.getFullYear() + 1, now.getMonth(), 1)
+
+    let generationMaxDate = new Date(defaultMaxDate)
+    let maxEndAfterOccurrences = DEFAULT_MAX_OCCURRENCES
+
+    for (const reminder of reminders) {
+      const reminderDate = new Date(reminder.reminderDate)
+      if (isValidDate(reminderDate) && reminderDate > generationMaxDate) {
+        generationMaxDate = reminderDate
+      }
+    }
+
+    for (const rule of recurringRules) {
+      if (rule.recurrence_status !== 'ACTIVE') {
+        continue
+      }
+
+      if (
+        typeof rule.endAfterOccurrences === 'number' &&
+        rule.endAfterOccurrences > maxEndAfterOccurrences
+      ) {
+        maxEndAfterOccurrences = rule.endAfterOccurrences
+      }
+
+      const estimatedHorizon = estimateRuleHorizonDate(rule)
+      if (estimatedHorizon && estimatedHorizon > generationMaxDate) {
+        generationMaxDate = estimatedHorizon
+      }
+    }
+
+    const monthsForward = Math.max(
+      DEFAULT_FORWARD_MONTHS,
+      Math.min(MAX_FORWARD_MONTHS, getMonthDiff(now, generationMaxDate) + 1)
+    )
+
+    const maxOccurrences = Math.min(
+      MAX_OCCURRENCES_CAP,
+      Math.max(DEFAULT_MAX_OCCURRENCES, maxEndAfterOccurrences + 10)
+    )
+
+    return {
+      monthsForward,
+      monthsBackward: DEFAULT_BACKWARD_MONTHS,
+      maxOccurrences,
+      generationMaxDate
+    }
+  }, [reminders, recurringRules])
+
   useEffect(() => {
     const loadVirtualReminders = async () => {
       const virtuals = await generateAllVirtualReminders(
         recurringRules,
         {
-          monthsForward: 6,
-          monthsBackward: 1,
-          maxOccurrences: 100
+          monthsForward: virtualGenerationConfig.monthsForward,
+          monthsBackward: virtualGenerationConfig.monthsBackward,
+          maxOccurrences: virtualGenerationConfig.maxOccurrences
         },
         reminders, // Pass real reminders to copy pet_name
         pets // Pass pets array for direct pet_name lookup
@@ -57,12 +198,63 @@ export const useCalendar = (
     } else {
       setVirtualReminders([])
     }
-  }, [reminders, recurringRules, pets])
+  }, [reminders, recurringRules, pets, virtualGenerationConfig])
 
-  // Merge virtual reminders with real ones
   const allReminders = useMemo(() => {
     return mergeRealAndVirtualReminders(reminders, virtualReminders)
   }, [reminders, virtualReminders])
+
+  const navigationRange = useMemo((): NavigationRange => {
+    const now = new Date()
+    const defaultMin = new Date(now.getFullYear() - 1, now.getMonth(), 1)
+    const defaultMax = new Date(now.getFullYear() + 1, now.getMonth(), 1)
+
+    const recurringMax = new Date(
+      virtualGenerationConfig.generationMaxDate.getFullYear(),
+      virtualGenerationConfig.generationMaxDate.getMonth(),
+      1
+    )
+    const baselineMax = recurringMax > defaultMax ? recurringMax : defaultMax
+
+    if (allReminders.length === 0) {
+      return { minDate: defaultMin, maxDate: baselineMax }
+    }
+
+    const reminderTimes = allReminders.map((r) =>
+      new Date(r.reminderDate).getTime()
+    )
+    const earliest = new Date(Math.min(...reminderTimes))
+    const latest = new Date(Math.max(...reminderTimes))
+
+    const minDate =
+      earliest < defaultMin
+        ? new Date(earliest.getFullYear(), earliest.getMonth(), 1)
+        : defaultMin
+    const maxDate =
+      latest > baselineMax
+        ? new Date(latest.getFullYear(), latest.getMonth(), 1)
+        : baselineMax
+
+    return { minDate, maxDate }
+  }, [allReminders, virtualGenerationConfig.generationMaxDate])
+
+  const canGoPrev = useMemo(() => {
+    const prevMonthStart = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - 1,
+      1
+    )
+    return prevMonthStart >= navigationRange.minDate
+  }, [currentDate, navigationRange])
+
+  const canGoNext = useMemo(() => {
+    const nextMonthStart = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      1
+    )
+    return nextMonthStart <= navigationRange.maxDate
+  }, [currentDate, navigationRange])
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -130,7 +322,6 @@ export const useCalendar = (
     const firstDay = getFirstDayOfMonth(currentDate)
     const days: DayInfo[] = []
 
-    // Previous month's days
     const prevMonthDays = getDaysInMonth(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
     )
@@ -147,7 +338,6 @@ export const useCalendar = (
       })
     }
 
-    // Current month's days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(
         currentDate.getFullYear(),
@@ -192,6 +382,7 @@ export const useCalendar = (
   }
 
   const previousMonth = () => {
+    if (!canGoPrev) return
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
@@ -199,6 +390,7 @@ export const useCalendar = (
   }
 
   const nextMonth = () => {
+    if (!canGoNext) return
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
@@ -223,6 +415,8 @@ export const useCalendar = (
     previousMonth,
     nextMonth,
     goToToday,
+    canGoPrev,
+    canGoNext,
     allReminders // Export merged reminders for use in other components
   }
 }

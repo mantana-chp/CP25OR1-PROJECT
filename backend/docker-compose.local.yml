@@ -1,0 +1,23 @@
+# Local Development - MinIO Only
+# Usage: docker compose -f docker-compose.local.yml up -d
+# Console: http://localhost:9001 (admin / minioadmin123)
+# API:     http://localhost:9000
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio-local
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_local_data:/data
+    ports:
+      - "9000:9000"   # MinIO API
+      - "9001:9001"   # MinIO Console (Web UI)
+    restart: unless-stopped
+
+volumes:
+  minio_local_data:
+    driver: local

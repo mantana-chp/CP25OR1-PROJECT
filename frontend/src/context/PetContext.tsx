@@ -4,78 +4,209 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState
 } from 'react'
-import { IPetProfile } from '../domain/pet.domain'
+import { IDeletedPet, IPetProfile } from '../domain/pet.domain'
 import { useAuth } from './AuthContext'
 
 interface PetContextType {
   pets: IPetProfile[]
+  activePets: IPetProfile[]
+  deceasedPets: IPetProfile[]
+  deletedPets: IDeletedPet[]
   loading: boolean
   refreshPets: () => Promise<void>
+  refreshDeletedPets: () => Promise<void>
   getFirstPetId: () => string
   selectedPetId: string | null
   setSelectedPetId: (petId: string | null) => void
   getSelectedPet: () => IPetProfile | null
+  softDeletePet: (petId: string) => Promise<void>
+  hardDeletePet: (petId: string) => Promise<void>
+  restorePet: (petId: string) => Promise<void>
+  markPetDeceased: (petId: string) => Promise<void>
 }
 
 const PetContext = createContext<PetContextType | undefined>(undefined)
 
 export function PetProvider({ children }: { children: React.ReactNode }) {
-  const [pets, setPets] = useState<IPetProfile[]>([])
-  const [loading, setLoading] = useState(false)
+  const [activePetsData, setActivePetsData] = useState<IPetProfile[]>([])
+  const [deceasedPetsData, setDeceasedPetsData] = useState<IPetProfile[]>([])
+  const [deletedPets, setDeletedPets] = useState<IDeletedPet[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    hasCompletedOnboarding
+  } = useAuth()
+
+  const fetchActivePets = useCallback(async () => {
+    const response = await petProfileService.getMyPets()
+    return response?.data || []
+  }, [])
+
+  const fetchPastPets = useCallback(async () => {
+    const response = await petProfileService.getPastPets()
+    return response?.data || []
+  }, [])
 
   const refreshPets = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await petProfileService.getMyPets()
-      const petsData = response?.data || []
-      setPets(petsData)
+      const [petsData, pastPetsData] = await Promise.all([
+        fetchActivePets(),
+        fetchPastPets()
+      ])
 
-      // Auto-select first pet if none selected
-      if (petsData.length > 0 && !selectedPetId) {
-        setSelectedPetId(petsData[0].id)
-      }
+      setActivePetsData(petsData)
+      setDeceasedPetsData(pastPetsData)
 
-      // Clear selection if selected pet no longer exists
-      if (selectedPetId && !petsData.find((p) => p.id === selectedPetId)) {
-        setSelectedPetId(petsData.length > 0 ? petsData[0].id : null)
-      }
+      setSelectedPetId((currentId) => {
+        if (!currentId && petsData.length > 0) {
+          return petsData[0].id
+        }
+
+        if (currentId && !petsData.find((p) => p.id === currentId)) {
+          return petsData.length > 0 ? petsData[0].id : null
+        }
+
+        return currentId
+      })
     } catch (error) {
-      console.error('Error fetching pets:', error)
-      setPets([])
+      setActivePetsData([])
+      setDeceasedPetsData([])
     } finally {
       setLoading(false)
     }
-  }, [selectedPetId])
+  }, [fetchActivePets, fetchPastPets])
+
+  const refreshPastPets = useCallback(async () => {
+    try {
+      const pastPetsData = await fetchPastPets()
+      setDeceasedPetsData(pastPetsData)
+    } catch (error) {
+      setDeceasedPetsData([])
+    }
+  }, [fetchPastPets])
 
   const getFirstPetId = useCallback(() => {
-    return pets[0]?.id || ''
-  }, [pets])
+    return activePetsData[0]?.id || ''
+  }, [activePetsData])
 
   const getSelectedPet = useCallback(() => {
-    return pets.find((p) => p.id === selectedPetId) || null
-  }, [pets, selectedPetId])
+    return activePetsData.find((p) => p.id === selectedPetId) || null
+  }, [activePetsData, selectedPetId])
+
+  const refreshDeletedPets = useCallback(async () => {
+    try {
+      const response = await petProfileService.getRecentlyDeletedPets()
+      const deletedPetsData = response?.data || []
+      const formattedDeleted: IDeletedPet[] = deletedPetsData
+        .filter((pet) => pet.status === 'DELETED' && pet.deleted_at)
+        .map((pet) => ({
+          ...pet,
+          deleted_at: pet.deleted_at!,
+          status: 'DELETED' as const
+        }))
+      setDeletedPets(formattedDeleted)
+    } catch (error) {
+      setDeletedPets([])
+    }
+  }, [])
+
+  const softDeletePet = useCallback(
+    async (petId: string) => {
+      try {
+        await petProfileService.softDeletePet(petId)
+
+        await Promise.all([refreshPets(), refreshDeletedPets()])
+      } catch (error) {
+        throw error
+      }
+    },
+    [refreshPets, refreshDeletedPets]
+  )
+
+  const hardDeletePet = useCallback(
+    async (petId: string) => {
+      try {
+        await petProfileService.permanentDeletePet(petId)
+
+        await refreshDeletedPets()
+      } catch (error) {
+        throw error
+      }
+    },
+    [refreshDeletedPets]
+  )
+
+  const restorePet = useCallback(
+    async (petId: string) => {
+      try {
+        await petProfileService.restorePet(petId)
+        await Promise.all([refreshPets(), refreshDeletedPets()])
+      } catch (error) {
+        throw error
+      }
+    },
+    [refreshPets, refreshDeletedPets]
+  )
+
+  const markPetDeceased = useCallback(
+    async (petId: string) => {
+      try {
+        await petProfileService.markPetAsDeceased(petId)
+
+        await refreshPets()
+      } catch (error) {
+        throw error
+      }
+    },
+    [refreshPets]
+  )
 
   useEffect(() => {
-    // Only fetch pets when authentication is complete and user is authenticated
-    if (!authLoading && isAuthenticated) {
+    if (!authLoading && isAuthenticated && hasCompletedOnboarding) {
       refreshPets()
+      refreshDeletedPets()
+      return
     }
-  }, [authLoading, isAuthenticated, refreshPets])
+
+    setLoading(false)
+    setActivePetsData([])
+    setDeceasedPetsData([])
+    setDeletedPets([])
+    setSelectedPetId(null)
+  }, [
+    authLoading,
+    isAuthenticated,
+    hasCompletedOnboarding,
+    refreshPets,
+    refreshDeletedPets
+  ])
+
+  const allPets = [...activePetsData, ...deceasedPetsData]
 
   return (
     <PetContext.Provider
       value={{
-        pets,
+        pets: allPets,
+        activePets: activePetsData,
+        deceasedPets: deceasedPetsData,
+        deletedPets,
         loading,
         refreshPets,
+        refreshDeletedPets,
         getFirstPetId,
         selectedPetId,
         setSelectedPetId,
-        getSelectedPet
+        getSelectedPet,
+        softDeletePet,
+        hardDeletePet,
+        restorePet,
+        markPetDeceased
       }}
     >
       {children}

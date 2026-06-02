@@ -12,6 +12,9 @@ interface CalendarHeaderProps {
   onResetFilters?: () => void
   isPetFilterActive?: boolean
   isCategoryFilterActive?: boolean
+  canGoPrev?: boolean
+  canGoNext?: boolean
+  onLimitReached?: (direction: 'prev' | 'next') => void
 }
 
 export default function CalendarHeader({
@@ -22,19 +25,37 @@ export default function CalendarHeader({
   showReset,
   onResetFilters,
   isPetFilterActive = false,
-  isCategoryFilterActive = false
+  isCategoryFilterActive = false,
+  canGoPrev = true,
+  canGoNext = true,
+  onLimitReached
 }: CalendarHeaderProps) {
   const shouldShowReset =
     showReset || isPetFilterActive || isCategoryFilterActive
 
   const handleResetPress = () => {
-    // Reset calendar filter
     onReset()
-    // Reset reminder filters if callback provided
     if (onResetFilters) {
       onResetFilters()
     }
   }
+
+  const handlePrevPress = () => {
+    if (!canGoPrev) {
+      onLimitReached?.('prev')
+      return
+    }
+    onPreviousMonth()
+  }
+
+  const handleNextPress = () => {
+    if (!canGoNext) {
+      onLimitReached?.('next')
+      return
+    }
+    onNextMonth()
+  }
+
   return (
     <View style={styles.header}>
       <Text style={styles.headerText}>
@@ -51,11 +72,17 @@ export default function CalendarHeader({
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity onPress={onPreviousMonth} style={styles.navButton}>
-          <ChevronLeft size={20} color="#225877" />
+        <TouchableOpacity
+          onPress={handlePrevPress}
+          style={[styles.navButton, !canGoPrev && styles.navButtonDisabled]}
+        >
+          <ChevronLeft size={20} color={canGoPrev ? '#225877' : '#b0c4d8'} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onNextMonth} style={styles.navButton}>
-          <ChevronRight size={20} color="#225877" />
+        <TouchableOpacity
+          onPress={handleNextPress}
+          style={[styles.navButton, !canGoNext && styles.navButtonDisabled]}
+        >
+          <ChevronRight size={20} color={canGoNext ? '#225877' : '#b0c4d8'} />
         </TouchableOpacity>
       </View>
     </View>
@@ -88,5 +115,8 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 6,
     backgroundColor: '#f0f9ff'
+  },
+  navButtonDisabled: {
+    backgroundColor: '#f8fafc'
   }
 })

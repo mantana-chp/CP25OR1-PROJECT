@@ -46,7 +46,6 @@ export const formatMessage = (
   lines.forEach((line, index) => {
     const trimmedLine = line.trim()
 
-    // Skip empty lines
     if (!trimmedLine) {
       formattedElements.push(
         <View key={`space-${index}`} style={{ height: 8 }} />
@@ -54,7 +53,6 @@ export const formatMessage = (
       return
     }
 
-    // Handle numbered lists (1., 2., etc.)
     const numberedMatch = trimmedLine.match(/^(\d+)\.\s+(.*)$/)
     if (numberedMatch) {
       const [, number, content] = numberedMatch
@@ -83,7 +81,6 @@ export const formatMessage = (
       return
     }
 
-    // Handle bullet points (*, -)
     const bulletMatch = trimmedLine.match(/^[*\-]\s+(.*)$/)
     if (bulletMatch) {
       const content = bulletMatch[1]
@@ -111,7 +108,6 @@ export const formatMessage = (
       return
     }
 
-    // Regular paragraph
     formattedElements.push(
       <Text
         key={index}

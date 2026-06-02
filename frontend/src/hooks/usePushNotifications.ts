@@ -21,10 +21,8 @@ export function usePushNotifications() {
   const notificationListener = useRef<Notifications.Subscription | null>(null)
 
   useEffect(() => {
-    // Listen for notifications received while app is in foreground
     notificationListener.current =
       Notifications.addNotificationReceivedListener(() => {
-        // Refresh unread count when new notification is received
         refreshUnreadCount()
       })
 
@@ -36,7 +34,6 @@ export function usePushNotifications() {
       })
 
     return () => {
-      // Cleanup listeners
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
@@ -54,7 +51,6 @@ export function usePushNotifications() {
 
         refreshUnreadCount()
       } catch (error) {
-        console.error('Failed to mark notification as read:', error)
       }
     }
 

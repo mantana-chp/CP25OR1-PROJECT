@@ -1,4 +1,5 @@
 import { useUnreadNotifications } from '@/src/context/UnreadNotificationContext'
+import { usePullToRefresh } from '@/src/hooks/usePullToRefresh'
 import { notificationService } from '@/src/utils/api/services/notification_service'
 import { useApi } from '@/src/utils/api/use_api'
 import { useFocusEffect } from 'expo-router'
@@ -12,10 +13,15 @@ export default function InAppNotificationPage() {
   const getNotificationsApi = useApi(notificationService.getNotifications, {
     showErrorAlert: true
   })
+  const markAllAsReadApi = useApi(notificationService.markAllAsRead, {
+    showErrorAlert: true
+  })
 
   const loadNotifications = useCallback(() => {
-    getNotificationsApi.execute()
-  }, [])
+    return getNotificationsApi.execute()
+  }, [getNotificationsApi.execute])
+
+  const { isRefreshing, onRefresh } = usePullToRefresh(loadNotifications)
 
   useFocusEffect(
     useCallback(() => {
@@ -23,7 +29,6 @@ export default function InAppNotificationPage() {
     }, [loadNotifications])
   )
 
-  // Refresh unread count when page comes into focus
   useFocusEffect(
     useCallback(() => {
       refreshUnreadCount()
@@ -33,6 +38,16 @@ export default function InAppNotificationPage() {
   const notifications = getNotificationsApi.data?.data || []
   const isLoading = getNotificationsApi.loading
 
+  const handleMarkAllAsRead = useCallback(async () => {
+    const unreadCount = notifications.filter((n: any) => !n.readAt).length
+    if (unreadCount === 0) return
+
+    const result = await markAllAsReadApi.execute()
+    if (result.error) return
+
+    await Promise.all([loadNotifications(), refreshUnreadCount()])
+  }, [notifications, markAllAsReadApi, loadNotifications, refreshUnreadCount])
+
   return (
     <View style={styles.container}>
       <Header title="กล่องแจ้งเตือน" />
@@ -40,7 +55,10 @@ export default function InAppNotificationPage() {
       <NotificationList
         notifications={notifications}
         isLoading={isLoading}
-        onRefresh={loadNotifications}
+        isRefreshing={isRefreshing}
+        onRefresh={onRefresh}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        isMarkingAllAsRead={markAllAsReadApi.loading}
       />
     </View>
   )

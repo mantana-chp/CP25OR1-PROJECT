@@ -3,9 +3,10 @@ import * as Application from 'expo-application'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
 import 'react-native-get-random-values'
-import { v4 as uuidv4 } from 'uuid'
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid'
 
 const INSTALLATION_ID_KEY = '@app:installationId'
+const ANDROID_SSAID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
 
 export interface DeviceIdentifiers {
   installationId: string // Unique per app installation (UUID)
@@ -34,7 +35,6 @@ class DeviceIdService {
 
       return installationId
     } catch (error) {
-      console.error('❌ [DeviceId] Error getting installation ID:', error)
 
       return uuidv4()
     }
@@ -60,17 +60,20 @@ class DeviceIdService {
 
         return { deviceId: fallbackId, source: 'ios_keychain' }
       } else if (platform === 'android') {
+        const androidId = await Application.getAndroidId()
+
+        if (androidId) {
+          const derivedDeviceId = uuidv5(androidId, ANDROID_SSAID_NAMESPACE)
+          return { deviceId: derivedDeviceId, source: 'android_ssaid' }
+        }
+
         const installationId = await this.getInstallationId()
         return { deviceId: installationId, source: 'android_ssaid' }
       } else {
-        console.warn(
-          '⚠️ [DeviceId] Platform not supported by backend, defaulting to android'
-        )
         const fallbackId = uuidv4()
         return { deviceId: fallbackId, source: 'android_ssaid' }
       }
     } catch (error) {
-      console.error('❌ [DeviceId] Error getting platform device ID:', error)
 
       const fallbackId = uuidv4()
       const source = platform === 'ios' ? 'ios_keychain' : 'android_ssaid'
@@ -82,7 +85,6 @@ class DeviceIdService {
    * Get all device identifiers needed for authentication
    */
   async getDeviceIdentifiers(): Promise<DeviceIdentifiers> {
-    console.log('🔍 [DeviceId] Getting device identifiers...')
 
     const [installationId, platformInfo] = await Promise.all([
       this.getInstallationId(),
@@ -98,20 +100,6 @@ class DeviceIdService {
       platformDeviceId: platformInfo.deviceId,
       platformIdSource: platformInfo.source
     }
-
-    console.log('✅ [DeviceId] Device identifiers:', {
-      installationId: identifiers.installationId.substring(0, 8) + '...',
-      platform: identifiers.platform,
-      platformDeviceId: identifiers.platformDeviceId, // Show full ID for debugging
-      platformIdSource: identifiers.platformIdSource
-    })
-
-    console.log('📤 [DeviceId] Will send to backend:', {
-      installationId: identifiers.installationId,
-      platform: identifiers.platform,
-      platformDeviceId: identifiers.platformDeviceId,
-      platformIdSource: identifiers.platformIdSource
-    })
 
     return identifiers
   }
@@ -132,9 +120,7 @@ class DeviceIdService {
   async clearInstallationId(): Promise<void> {
     try {
       await AsyncStorage.removeItem(INSTALLATION_ID_KEY)
-      console.log('🗑️ [DeviceId] Installation ID cleared')
     } catch (error) {
-      console.error('❌ [DeviceId] Error clearing installation ID:', error)
     }
   }
 }
