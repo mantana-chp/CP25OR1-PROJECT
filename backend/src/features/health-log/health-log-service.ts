@@ -492,7 +492,7 @@ export const updateHealthLog = async (
         }
       })
 
-      if (finalCategory === ‘WEIGHT’) {
+      if (finalCategory === 'WEIGHT') {
         await tx.pets.update({
           where: { id: petId },
           data: {
